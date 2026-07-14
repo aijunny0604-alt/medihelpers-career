@@ -20,6 +20,9 @@
 ### Main Domains
 
 - public jobs and profiles
+- profession hubs and profession-specific filters
+- credential-verified profession communities
+- profession launch waitlists
 - consultation leads
 - hospital advertisement orders
 - matching workflow
@@ -31,10 +34,10 @@
 - 결제 승인, 권한 검사, 개인정보 접근은 브라우저에서 확정하지 않습니다.
 - 업로드 파일은 공개 URL로 두지 않고 만료형 접근 권한을 사용합니다.
 - 상담 접수와 결제 웹훅은 중복 호출되어도 한 번만 처리되게 설계합니다.
+- 계정·결제·상담은 공통으로 운영하고, 검색 조건·자격 검증·커뮤니티 채널은 직군별 스키마로 확장합니다.
 
 ## Related Docs
 
 - `DB.md`
 - `API.md`
 - `AUTH.md`
-

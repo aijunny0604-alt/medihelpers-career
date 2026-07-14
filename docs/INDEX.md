@@ -6,6 +6,7 @@
 
 ## Current State
 
+- `STATUS.md`: 마지막 작업일, 배포 상태, 구현·미구현 범위
 - `QUICK_REF.md`: 한눈에 보는 제품 정의
 - `ROADMAP.md`: 단계별 출시 계획
 - `DESIGN.md`: 브랜드·화면·사용자 흐름
@@ -16,14 +17,15 @@
 - `API.md`: 외부 연동 및 API 원칙
 - `DEPLOY.md`: 배포 운영
 - `TEST.md`: 검증 기준
+- `PROFESSION_NETWORK.md`: 의료직군별 허브와 커뮤니티 확장 전략
 - `ref/README.md`: 참고자료 기록 규칙
 
 ## Current Rules
 
-기능을 바꾸면 관련 문서의 Current State와 ROADMAP도 함께 갱신합니다.
+기능 작업이 끝나면 `STATUS.md`의 날짜와 구현 범위, 관련 설계 문서의 Current State, `ROADMAP.md`를 함께 갱신합니다. 화면에만 존재하는 기능과 서버·결제까지 실제 연결된 기능을 구분해서 기록합니다.
 
 ## Related Docs
 
 - `../README.md`
+- `STATUS.md`
 - `QUICK_REF.md`
-
