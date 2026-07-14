@@ -105,11 +105,17 @@ function PageHero({ eyebrow, title, description, children, tone = '' }) {
   </section>;
 }
 
+function HospitalLogo({ job, prominent = false }) {
+  return <span className={`hospital-logo ${prominent ? 'prominent' : ''}`} style={{ '--logo-color': job.color }}>
+    {job.logo ? <img src={job.logo} alt={`${job.hospital} 로고`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
+  </span>;
+}
+
 function JobCard({ job, saved, onSave, onOpen }) {
   const premium = ['집중채용', '추천', '비공개'].includes(job.badge);
-  return <article className="job-card">
-    <div className="job-top"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span><button className={saved ? 'heart saved' : 'heart'} onClick={onSave} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
-    <div className="job-hospital"><span className="hospital-logo" style={{ background: job.color }}>{job.hospital[0]}</span><span>{job.hospital}</span></div>
+  return <article className={`job-card ${premium ? 'premium-ad' : ''}`} style={{ '--job-color': job.color }}>
+    <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{premium && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div><button className={saved ? 'heart saved' : 'heart'} onClick={onSave} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
+    <div className="job-hospital"><HospitalLogo job={job} prominent={premium} /><span><strong>{job.hospital}</strong>{premium && <small>공식 채용관</small>}</span></div>
     <h3>{job.title}</h3>
     <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
     <div className="job-bottom"><span>{job.dept}</span><strong className={premium ? 'premium-value' : ''}>{premium ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
