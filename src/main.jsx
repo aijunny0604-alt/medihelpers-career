@@ -128,31 +128,35 @@ function JobDetail({ job, saved, onSave, onClose }) {
   </Modal>;
 }
 
-function ConsultationForm({ initialRole = 'doctor', compact = false }) {
+function ConsultationForm({ initialRole = 'doctor', initialContext = '' }) {
   const [role, setRole] = useState(initialRole);
-  const [submitted, setSubmitted] = useState(false);
+  const [step, setStep] = useState(1);
+  const [submitted, setSubmitted] = useState(null);
+  const [data, setData] = useState({ topic: initialContext ? '특정 공고 문의' : '', department: '', region: '', workType: '', message: '', name: '', phone: '', contactMethod: '전화', contactTime: '상관없음' });
+  const topics = role === 'doctor' ? ['이직 가능성 확인', '비공개 포지션', '급여·근무조건 상담', '특정 공고 문의'] : ['채용공고 등록', '의료인 추천', '급여·채용조건 설계', '긴급 채용'];
+  const workTypes = role === 'doctor' ? ['주 4일', '주 4.5일', '주 5일', '협의 가능'] : ['정규직', '파트타임', '당직·대진', '협의 가능'];
+  const update = (key, value) => setData((current) => ({ ...current, [key]: value }));
+  const changeRole = (nextRole) => {
+    setRole(nextRole);
+    setStep(1);
+    setData((current) => ({ ...current, topic: '', workType: '' }));
+  };
   const submit = (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const id = `MH-C-${String(Date.now()).slice(-6)}`;
     const records = JSON.parse(localStorage.getItem('medihelpers_consultations') || '[]');
-    records.push({ id: Date.now(), role, createdAt: new Date().toISOString(), ...Object.fromEntries(form.entries()) });
+    records.push({ id, role, context: initialContext, status: 'new', createdAt: new Date().toISOString(), ...data });
     localStorage.setItem('medihelpers_consultations', JSON.stringify(records));
-    setSubmitted(true);
+    trackConversion('consultation_submit', { role, topic: data.topic, context: initialContext });
+    setSubmitted(id);
   };
-  if (submitted) return <div className="form-success"><span><CircleCheck /></span><h3>상담 요청이 접수되었습니다</h3><p>입력해주신 연락처로 담당 헤드헌터가 확인 후 연락드리겠습니다.</p><a className="button primary" href="tel:0513425463">지금 전화하기</a></div>;
-  return <form className={`consult-form ${compact ? 'compact' : ''}`} onSubmit={submit}>
-    <div className="role-tabs"><button type="button" className={role === 'doctor' ? 'active' : ''} onClick={() => setRole('doctor')}><Stethoscope size={18} /> 의료인 구직 상담</button><button type="button" className={role === 'hospital' ? 'active' : ''} onClick={() => setRole('hospital')}><Building2 size={18} /> 병원 채용 상담</button></div>
-    <input type="hidden" name="role" value={role} />
-    <div className="form-grid">
-      <label><span>{role === 'doctor' ? '성함' : '병원명'} *</span><input name="name" required placeholder={role === 'doctor' ? '성함을 입력해주세요' : '병원명을 입력해주세요'} /></label>
-      <label><span>연락처 *</span><input name="phone" type="tel" required placeholder="010-0000-0000" /></label>
-      <label><span>{role === 'doctor' ? '진료과' : '채용 진료과'} *</span><input name="department" required placeholder="예: 내과" /></label>
-      <label><span>{role === 'doctor' ? '희망 지역' : '병원 지역'}</span><input name="region" placeholder="예: 부산·경남" /></label>
-    </div>
-    <label className="wide-field"><span>상담 내용</span><textarea name="message" rows="4" placeholder={role === 'doctor' ? '희망 근무조건이나 고민을 편하게 적어주세요.' : '채용 일정, 근무조건, 필요한 경력을 알려주세요.'} /></label>
-    <label className="consent"><input type="checkbox" required name="privacy" value="agreed" /><span>상담을 위한 개인정보 수집·이용에 동의합니다. 입력 정보는 상담 목적에만 사용됩니다.</span></label>
-    <button className="button primary full" type="submit">무료 상담 요청하기 <ArrowRight size={17} /></button>
-    <p className="form-note"><ShieldCheck size={14} /> 의료인 정보는 동의 없이 병원에 공개하지 않습니다.</p>
+  if (submitted) return <div className="consult-success"><span><CircleCheck /></span><small>상담번호 {submitted}</small><h3>상담 요청을 정확히 접수했습니다</h3><p>담당 헤드헌터가 내용을 먼저 검토한 뒤 선택하신 방식으로 연락드립니다.</p><div className="consult-next"><span><b>1</b>상담 접수</span><i /><span><b>2</b>내용 검토</span><i /><span><b>3</b>담당자 연락</span></div><a className="button outline" href="tel:0513425463"><Phone /> 급하면 전화로 문의</a></div>;
+  return <form className="consult-form guided" onSubmit={submit}>
+    <div className="guided-head"><div><small>간편 1:1 상담</small><h3>{role === 'doctor' ? '내 조건에 맞는 이직 상담' : '우리 병원에 맞는 채용 상담'}</h3></div><span>약 1~2분</span></div>
+    <div className="consult-progress" aria-label={`상담 ${step}단계`}><div className={step >= 1 ? 'active' : ''}><b>1</b><span>상담 목적</span></div><i /><div className={step >= 2 ? 'active' : ''}><b>2</b><span>필수 조건</span></div><i /><div className={step >= 3 ? 'active' : ''}><b>3</b><span>연락 방법</span></div></div>
+    {step === 1 && <div className="consult-step"><div className="role-tabs"><button type="button" className={role === 'doctor' ? 'active' : ''} onClick={() => changeRole('doctor')}><Stethoscope /> 의료인</button><button type="button" className={role === 'hospital' ? 'active' : ''} onClick={() => changeRole('hospital')}><Building2 /> 병원</button></div><div className="step-question"><small>하나만 선택해주세요</small><h4>어떤 상담이 필요하신가요?</h4></div><div className="choice-grid">{topics.map((topic) => <button type="button" key={topic} className={data.topic === topic ? 'selected' : ''} onClick={() => update('topic', topic)}><span>{topic}</span>{data.topic === topic && <Check />}</button>)}</div><button type="button" className="button primary full" disabled={!data.topic} onClick={() => setStep(2)}>다음 · 필요한 조건 입력 <ArrowRight /></button></div>}
+    {step === 2 && <div className="consult-step"><div className="step-question"><small>{data.topic}</small><h4>꼭 필요한 조건만 알려주세요</h4><p>정확하지 않아도 괜찮습니다. 담당자가 함께 정리해드려요.</p></div><div className="form-grid"><label><span>{role === 'doctor' ? '진료과' : '채용 진료과'} *</span><input value={data.department} onChange={(e) => update('department', e.target.value)} placeholder="예: 내과" autoFocus /></label><label><span>{role === 'doctor' ? '희망 지역' : '병원 지역'}</span><input value={data.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산·경남" /></label></div><div className="field-group"><span>{role === 'doctor' ? '희망 근무형태' : '채용 형태'}</span><div className="choice-row">{workTypes.map((item) => <button type="button" key={item} className={data.workType === item ? 'selected' : ''} onClick={() => update('workType', item)}>{item}</button>)}</div></div><label className="wide-field"><span>추가로 전하고 싶은 내용 <i>선택</i></span><textarea value={data.message} onChange={(e) => update('message', e.target.value)} rows="3" placeholder={role === 'doctor' ? '희망 보수나 피하고 싶은 조건을 적어주세요.' : '채용 일정이나 꼭 필요한 경력을 적어주세요.'} /></label><div className="step-actions"><button type="button" className="button outline" onClick={() => setStep(1)}><ArrowLeft /> 이전</button><button type="button" className="button primary" disabled={!data.department.trim()} onClick={() => setStep(3)}>다음 · 연락 방법 <ArrowRight /></button></div></div>}
+    {step === 3 && <div className="consult-step"><div className="step-question"><small>마지막 단계</small><h4>어떻게 연락드리면 편하신가요?</h4></div><div className="form-grid"><label><span>{role === 'doctor' ? '성함' : '병원명'} *</span><input required value={data.name} onChange={(e) => update('name', e.target.value)} placeholder={role === 'doctor' ? '성함을 입력해주세요' : '병원명을 입력해주세요'} autoFocus /></label><label><span>연락처 *</span><input required value={data.phone} onChange={(e) => update('phone', e.target.value)} type="tel" placeholder="010-0000-0000" /></label></div><div className="contact-preference"><div><span>연락 방법</span><div className="choice-row">{['전화', '문자'].map((item) => <button type="button" key={item} className={data.contactMethod === item ? 'selected' : ''} onClick={() => update('contactMethod', item)}>{item}</button>)}</div></div><div><span>연락 시간</span><div className="choice-row">{['오전', '오후', '저녁', '상관없음'].map((item) => <button type="button" key={item} className={data.contactTime === item ? 'selected' : ''} onClick={() => update('contactTime', item)}>{item}</button>)}</div></div></div><div className="consult-summary"><small>상담 내용 확인</small><dl><div><dt>상담</dt><dd>{data.topic}</dd></div><div><dt>조건</dt><dd>{data.department}{data.region ? ` · ${data.region}` : ''}{data.workType ? ` · ${data.workType}` : ''}</dd></div><div><dt>연락</dt><dd>{data.contactMethod} · {data.contactTime}</dd></div></dl></div><label className="consent"><input type="checkbox" required name="privacy" value="agreed" /><span>상담을 위한 개인정보 수집·이용에 동의합니다. 입력 정보는 상담 목적으로만 사용됩니다.</span></label><div className="step-actions"><button type="button" className="button outline" onClick={() => setStep(2)}><ArrowLeft /> 이전</button><button className="button primary" type="submit">무료 상담 접수 <ArrowRight /></button></div><p className="form-note"><ShieldCheck /> 의료인 정보는 동의 없이 병원에 공개하지 않습니다.</p></div>}
   </form>;
 }
 
@@ -247,9 +251,10 @@ function TalentPage() {
 function HeadhuntingPage({ route }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const role = params.get('role') === 'hospital' ? 'hospital' : 'doctor';
+  const context = params.get('job') || params.get('candidate') || '';
   return <>
     <PageHero tone="dark" eyebrow="PRIVATE CONSULTING" title="이직과 채용, 공개하기 전에 먼저 상담하세요" description="의료 채용 현장을 아는 전담 헤드헌터가 조건 정리부터 면접과 협상까지 한 사람처럼 함께합니다." />
-    <section className="section consultation-layout"><div className="consult-copy"><span className="section-kicker">1:1 CONCIERGE</span><h2>광고보다 먼저,<br />상황을 정확히 듣습니다</h2><p>같은 진료과라도 원하는 삶과 병원의 사정은 다릅니다. 메디헬퍼스는 숫자만 맞추지 않고 오래 만족할 수 있는 연결을 찾습니다.</p><div className="consult-points"><div><span><Phone /></span><div><strong>빠른 첫 연락</strong><p>접수 내용을 확인하고 가능한 시간에 연락드립니다.</p></div></div><div><span><ShieldCheck /></span><div><strong>철저한 비공개</strong><p>동의 전에는 이직 의사와 병원 내부정보를 공개하지 않습니다.</p></div></div><div><span><TrendingUp /></span><div><strong>실제 조건 협상</strong><p>보수, 일정, 업무범위를 구체적으로 조율합니다.</p></div></div></div><div className="direct-contact"><small>바로 상담하고 싶다면</small><a href="tel:0513425463">051-342-5463</a><span>평일 09:00–18:00</span></div></div><ConsultationForm key={role} initialRole={role} /></section>
+    <section className="section consultation-layout"><div className="consult-copy"><span className="section-kicker">1:1 CONCIERGE</span><h2>광고보다 먼저,<br />상황을 정확히 듣습니다</h2><p>같은 진료과라도 원하는 삶과 병원의 사정은 다릅니다. 메디헬퍼스는 숫자만 맞추지 않고 오래 만족할 수 있는 연결을 찾습니다.</p><div className="consult-points"><div><span><Phone /></span><div><strong>빠른 첫 연락</strong><p>접수 내용을 확인하고 가능한 시간에 연락드립니다.</p></div></div><div><span><ShieldCheck /></span><div><strong>철저한 비공개</strong><p>동의 전에는 이직 의사와 병원 내부정보를 공개하지 않습니다.</p></div></div><div><span><TrendingUp /></span><div><strong>실제 조건 협상</strong><p>보수, 일정, 업무범위를 구체적으로 조율합니다.</p></div></div></div><div className="direct-contact"><small>바로 상담하고 싶다면</small><a href="tel:0513425463">051-342-5463</a><span>평일 09:00–18:00</span></div></div><ConsultationForm key={`${role}-${context}`} initialRole={role} initialContext={context} /></section>
     <section className="section soft"><div className="section-head centered"><div><span className="section-kicker">TWO-SIDED SERVICE</span><h2>의료인과 병원, 서로 다른 고민을 해결합니다</h2></div></div><div className="compare-grid"><div><Stethoscope /><h3>의료인에게</h3><ul><li><Check /> 공개하지 않고 이직 가능성 확인</li><li><Check /> 비공개 포지션과 실제 근무조건 안내</li><li><Check /> 연봉·진료범위·스케줄 협상 지원</li><li><Check /> 퇴사와 입사 일정 조율</li></ul></div><div><Building2 /><h3>의료기관에게</h3><ul><li><Check /> 채용조건 정리와 공고 문구 개선</li><li><Check /> 익명 인재풀 후보 발굴</li><li><Check /> 면접 일정과 후보 피드백 관리</li><li><Check /> 광고 또는 성공보수 방식 선택</li></ul></div></div></section>
   </>;
 }
