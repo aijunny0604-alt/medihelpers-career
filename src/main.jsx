@@ -157,22 +157,12 @@ function ConsultationForm({ initialRole = 'doctor', compact = false }) {
 }
 
 function QuickAccess() {
-  return <section className="quick-access" aria-label="빠른 메뉴">
-    <div className="quick-find">
-      <div className="quick-label"><Search /><span><strong>바로 찾기</strong><small>원하는 조건을 한 번에</small></span></div>
-      <div className="quick-chips">
-        <Link to="/jobs?keyword=주%204일">주 4일</Link>
-        <Link to="/jobs?keyword=검진센터">검진센터</Link>
-        <Link to="/jobs?region=서울">서울</Link>
-        <Link to="/jobs?region=부산">부산</Link>
-        <Link to="/jobs">전체 채용</Link>
-      </div>
-    </div>
-    <Link className="quick-consult" to="/headhunting">
-      <span><MessageCircle /></span><div><small>의료인 전용</small><strong>비공개 구직 상담</strong><p>이직 결정 전에도 무료</p></div><ArrowRight />
+  return <section className="home-role-actions" aria-label="의료인과 병원 빠른 메뉴">
+    <Link className="role-action doctor-action" to="/headhunting">
+      <span className="role-action-icon"><MessageCircle /></span><div><small>의료인 · 무료</small><strong>원하는 조건을 말하고 비공개 제안 받기</strong><p>이력서 공개 없이 전담 헤드헌터와 1:1 상담</p></div><span className="role-arrow">상담 시작 <ArrowRight /></span>
     </Link>
-    <Link className="quick-ad" to="/advertise">
-      <span className="ad-label">병원 전용 · 광고</span><div><strong>채용공고 등록</strong><p>99,000원부터 시작</p></div><ArrowRight />
+    <Link className="role-action hospital-action" to="/advertise">
+      <span className="role-action-icon"><Building2 /></span><div><small>병원 · 채용</small><strong>의료인 채용공고 등록하기</strong><p>공고 검수와 지원자 상담까지 함께 지원</p></div><span className="role-arrow">99,000원부터 <ArrowRight /></span>
     </Link>
   </section>;
 }
@@ -188,14 +178,18 @@ function HomePage() {
   const search = () => navigate(`/jobs?dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}&keyword=${encodeURIComponent(keyword)}`);
   return <>
     <section className="home-hero">
-      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 쉽고 빠른 의료 채용</span><h1>원하는 의료 채용,<br /><em>쉽고 빠르게</em> 찾으세요</h1><p>진료과와 지역만 고르면 바로 찾을 수 있습니다.<br />어려운 조건은 전담 헤드헌터에게 편하게 물어보세요.</p>
-        <div className="search-panel">
-          <label><Stethoscope size={20} /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={17} /></label>
-          <label><MapPin size={20} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={17} /></label>
-          <label className="keyword"><Search size={20} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="병원명 또는 키워드" /></label>
-          <button className="button primary" onClick={search}>채용 검색</button>
+      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 의료인 채용을 가장 간단하게</span><h1>의사 채용,<br /><em>조건부터 빠르게.</em></h1><p>복잡한 메뉴를 헤맬 필요 없이<br />진료과와 지역만 선택하면 바로 시작됩니다.</p>
+        <div className="hero-search-card" role="search" aria-label="의료 채용 검색">
+          <div className="hero-search-title"><span><Search /></span><div><strong>내 조건에 맞는 채용 찾기</strong><small>3가지만 선택하면 바로 확인할 수 있어요</small></div></div>
+          <div className="hero-search-fields">
+            <label><small>진료과</small><span><Stethoscope size={19} /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} /></span></label>
+            <label><small>지역</small><span><MapPin size={19} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} /></span></label>
+            <label className="keyword"><small>키워드 <i>선택</i></small><span><Search size={19} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="병원명, 검진센터 등" /></span></label>
+            <button className="hero-search-button" onClick={search}>조건에 맞는 채용 보기 <ArrowRight /></button>
+          </div>
+          <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
         </div>
-        <div className="hero-links"><span>무엇을 찾으세요?</span><Link to="/jobs">채용정보</Link><Link to="/headhunting">비공개 상담</Link><Link to="/advertise">공고 등록</Link></div>
+        <div className="hero-assurance"><ShieldCheck /><span><strong>상담 전까지 개인정보 비공개</strong> · 채용정보 탐색은 무료입니다</span></div>
       </div>
       <div className="concierge-card">
         <div className="concierge-head"><span><UserRoundSearch /></span><div><small>MEDIHELPERS CONCIERGE</small><strong>1:1 커리어 매칭</strong></div><i>LIVE</i></div>
