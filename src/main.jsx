@@ -109,7 +109,7 @@ function JobCard({ job, saved, onSave, onOpen }) {
   const premium = ['집중채용', '추천', '비공개'].includes(job.badge);
   return <article className="job-card">
     <div className="job-top"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span><button className={saved ? 'heart saved' : 'heart'} onClick={onSave} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
-    <div className="hospital"><span className="hospital-logo" style={{ background: job.color }}>{job.hospital[0]}</span><span>{job.hospital}</span></div>
+    <div className="job-hospital"><span className="hospital-logo" style={{ background: job.color }}>{job.hospital[0]}</span><span>{job.hospital}</span></div>
     <h3>{job.title}</h3>
     <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
     <div className="job-bottom"><span>{job.dept}</span><strong className={premium ? 'premium-value' : ''}>{premium ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
