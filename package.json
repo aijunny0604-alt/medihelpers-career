@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vinext dev",
-    "build": "vinext build && node scripts/package-sites.mjs",
-    "preview": "vinext start"
+    "dev": "vite",
+    "build": "vite build --outDir client-build && node scripts/package-sites.mjs",
+    "preview": "vite preview --outDir client-build"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

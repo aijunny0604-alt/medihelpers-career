@@ -1,14 +1,29 @@
-import { cp, mkdir } from 'node:fs/promises';
-import { build } from 'esbuild';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
+const sourceDir = 'client-build';
+let html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
+const cssMatch = html.match(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/);
+const jsMatch = html.match(/<script type="module"[^>]*src="([^"]+)"[^>]*><\/script>/);
+if (!cssMatch || !jsMatch) throw new Error('Vite assets were not found');
+const css = await readFile(path.join(sourceDir, cssMatch[1].replace(/^\//, '')), 'utf8');
+const js = await readFile(path.join(sourceDir, jsMatch[1].replace(/^\//, '')), 'utf8');
+html = html.replace(cssMatch[0], `<style>${css}</style>`).replace(jsMatch[0], `<script type="module">${js}</script>`);
+
+await rm('dist', { recursive: true, force: true });
+await mkdir('dist/server', { recursive: true });
 await mkdir('dist/.openai', { recursive: true });
 await cp('.openai/hosting.json', 'dist/.openai/hosting.json');
-await build({
-  entryPoints: ['dist/server/entry.js'],
-  outfile: 'dist/server/index.js',
-  bundle: true,
-  platform: 'node',
-  format: 'esm',
-  packages: 'bundle',
-  external: ['node:*'],
-});
+const server = `const html = ${JSON.stringify(html)};
+export const buildId = 'medihelpers-static';
+export const hasMiddleware = false;
+export const pageRoutes = [{ pattern: '/', patternParts: [], isDynamic: false, params: [] }];
+export const vinextConfig = { basePath: '', assetPrefix: '', trailingSlash: false, redirects: [], rewrites: { beforeFiles: [], afterFiles: [], fallback: [] }, headers: [], i18n: null, images: {} };
+export function normalizeDataRequest(request) { return { request, normalizedPathname: new URL(request.url).pathname, isDataReq: false }; }
+export function matchPageRoute(url) { const pathname = new URL(url, 'https://site.local').pathname; return pathname === '/' ? { route: pageRoutes[0], params: {} } : null; }
+export function matchApiRoute() { return null; }
+export async function runMiddleware() { return { continue: true }; }
+export async function handleApiRoute() { return new Response('Not Found', { status: 404 }); }
+export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname !== '/') return new Response('Not Found', { status: 404 }); return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' } }); }
+`;
+await writeFile('dist/server/index.js', server, 'utf8');
