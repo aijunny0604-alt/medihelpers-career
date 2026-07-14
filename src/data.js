@@ -68,17 +68,17 @@ export const talent = [
 
 export const adPlans = [
   {
-    id: 'basic', name: '베이직 공고', price: 99000, unit: '30일', label: '처음 등록하는 병원',
+    id: 'basic', name: '베이직 공고', price: 59000, unit: '30일', label: '초기 파트너 가격',
     description: '필요한 정보를 빠르게 알리고 지원과 상담을 받아보세요.',
     features: ['채용정보 목록 30일 노출', '진료과·지역 검색 노출', '공고 검수 및 문구 가이드', '지원·상담 연결']
   },
   {
-    id: 'featured', name: '추천 공고', price: 249000, unit: '30일', label: '가장 많이 선택', featured: true,
+    id: 'featured', name: '추천 공고', price: 149000, unit: '30일', label: '가장 먼저 검토할 상품', featured: true,
     description: '추천 영역과 강조 카드로 더 많은 의료인에게 먼저 도달합니다.',
     features: ['베이직 공고의 모든 기능', '홈 추천 채용 우선 노출', '목록 강조 디자인', '주간 성과 요약', '1회 공고 수정 지원']
   },
   {
-    id: 'intensive', name: '집중 채용', price: 499000, unit: '45일', label: '빠른 채용이 필요할 때',
+    id: 'intensive', name: '집중 채용', price: 299000, unit: '45일', label: '빠른 채용이 필요할 때',
     description: '광고와 전담 컨설턴트의 후보 발굴을 함께 운영합니다.',
     features: ['추천 공고의 모든 기능', '최상단 집중채용 영역', '45일 확장 노출', '전담 컨설턴트 배정', '익명 인재풀 우선 추천']
   }
@@ -94,22 +94,22 @@ export const navItems = [
 
 export const membershipPlans = [
   {
-    id: 'doctor-single', audience: 'doctor', name: '공고 1건 열람권', price: 3900, period: '건별',
+    id: 'doctor-single', audience: 'doctor', name: '공고 1건 열람권', price: 2900, period: '건별',
     description: '궁금한 프리미엄 공고 하나만 확인합니다.',
     features: ['상세 급여·근무시간', '비공개 병원 정보', '전담 헤드헌터 질문 1회']
   },
   {
-    id: 'doctor-pass', audience: 'doctor', name: 'Doctor Pass', price: 19900, period: '월', featured: true,
+    id: 'doctor-pass', audience: 'doctor', name: 'Doctor Pass', price: 12900, period: '월', featured: true,
     description: '적극적으로 이직을 준비하는 의료인을 위한 패스입니다.',
     features: ['프리미엄 공고 무제한 열람', '비공개 포지션 우선 공개', '급여·근무조건 인사이트', '1:1 커리어 상담']
   },
   {
-    id: 'hospital-single', audience: 'hospital', name: '인재 소개 요청권', price: 49000, period: '건별',
+    id: 'hospital-single', audience: 'hospital', name: '인재 소개 요청권', price: 39000, period: '건별',
     description: '관심 있는 익명 인재 한 명의 소개를 요청합니다.',
     features: ['후보 적합성 확인', '본인 동의 후 상세정보', '1회 인터뷰 연결 지원']
   },
   {
-    id: 'hospital-pass', audience: 'hospital', name: 'Hospital Recruit Pass', price: 149000, period: '월', featured: true,
+    id: 'hospital-pass', audience: 'hospital', name: 'Hospital Recruit Pass', price: 99000, period: '월', featured: true,
     description: '상시 채용 병원을 위한 인재 탐색 멤버십입니다.',
     features: ['검증된 익명 인재풀 열람', '월 5회 소개 요청', '신규 인재 알림', '채용 컨설턴트 지원']
   }
