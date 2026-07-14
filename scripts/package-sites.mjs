@@ -37,7 +37,7 @@ function responseFor(request) {
   if (pathname === '/og-medihelpers.jpg') return new Response(binary(ogBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' } });
   if (pathname === '/favicon.png') return new Response(binary(faviconBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/apple-touch-icon.png') return new Response(binary(appleIconBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
-  if (pathname === '/') return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=60' } });
+  if (!pathname.includes('.')) return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=60' } });
   return new Response('Not Found', { status: 404 });
 }
 export default { async fetch(request) { return responseFor(request); } };
@@ -46,10 +46,10 @@ export const hasMiddleware = false;
 export const pageRoutes = [{ pattern: '/', patternParts: [], isDynamic: false, params: [] }];
 export const vinextConfig = { basePath: '', assetPrefix: '', trailingSlash: false, redirects: [], rewrites: { beforeFiles: [], afterFiles: [], fallback: [] }, headers: [], i18n: null, images: {} };
 export function normalizeDataRequest(request) { return { request, normalizedPathname: new URL(request.url).pathname, isDataReq: false }; }
-export function matchPageRoute(url) { const pathname = new URL(url, 'https://site.local').pathname; return pathname === '/' ? { route: pageRoutes[0], params: {} } : null; }
+export function matchPageRoute(url) { const pathname = new URL(url, 'https://site.local').pathname; return !pathname.includes('.') ? { route: pageRoutes[0], params: {} } : null; }
 export function matchApiRoute() { return null; }
 export async function runMiddleware() { return { continue: true }; }
 export async function handleApiRoute() { return new Response('Not Found', { status: 404 }); }
-export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname !== '/') return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL('/', request.url))); }
+export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }
 `;
 await writeFile('dist/server/index.js', server, 'utf8');
