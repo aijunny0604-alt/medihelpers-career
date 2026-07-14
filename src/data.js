@@ -86,10 +86,21 @@ export const adPlans = [
 
 export const navItems = [
   { path: '/jobs', label: '채용정보' },
-  { path: '/talent', label: '인재정보' },
+  { path: '/professions', label: '직군별' },
   { path: '/headhunting', label: '헤드헌팅' },
   { path: '/advertise', label: '광고센터' },
   { path: '/membership', label: '멤버십' }
+];
+
+export const professions = [
+  { id: 'doctor', name: '의사·치과의사·한의사', short: '의사', status: 'active', description: '전문의·일반의·봉직의·원장·검진·비공개 포지션', specialties: ['진료과', '근무일', '당직', '보수·인센티브'] },
+  { id: 'nurse', name: '간호·간호조무', short: '간호', status: 'expanding', description: '병동·외래·수술실·중환자실·심사·방문간호', specialties: ['근무부서', '교대형태', '경력', '프리셉터·교육'] },
+  { id: 'pharmacy', name: '약사·한약사', short: '약무', status: 'expanding', description: '병원약사·약국·제약·의약품 안전관리', specialties: ['근무기관', '조제·임상', '근무시간', '관리약사'] },
+  { id: 'radiology', name: '방사선사', short: '방사선', status: 'expanding', description: '일반촬영·CT·MRI·혈관조영·방사선치료', specialties: ['장비·모달리티', '당직', '검진', '경력'] },
+  { id: 'laboratory', name: '임상병리사', short: '임상병리', status: 'expanding', description: '진단검사·병리·채혈·생리기능·수혈', specialties: ['검사분야', '근무부서', '교대형태', '장비경험'] },
+  { id: 'rehabilitation', name: '물리·작업·언어치료', short: '재활', status: 'expanding', description: '물리치료·작업치료·언어재활·보조공학', specialties: ['치료분야', '환자군', '도수·신경계', '인센티브'] },
+  { id: 'dental', name: '치과위생·치과기공', short: '치과', status: 'expanding', description: '치과위생사·치과기공사·코디네이터', specialties: ['업무영역', '진료과목', '근무일', '인센티브'] },
+  { id: 'emergency', name: '응급·보건·기타', short: '응급·보건', status: 'expanding', description: '응급구조·보건의료정보·영양·안경·요양', specialties: ['면허·자격', '기관유형', '교대형태', '경력'] }
 ];
 
 export const membershipPlans = [

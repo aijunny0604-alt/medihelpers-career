@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
+  Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronDown, CircleCheck, ClipboardCheck, Clock3,
-  CreditCard, Crown, FileCheck2, Heart, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Phone,
-  Search, ShieldCheck, Sparkles, Stethoscope, Target, TrendingUp, UserRound,
+  CreditCard, Crown, FileCheck2, Heart, HeartPulse, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
+  ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
-import { adPlans, jobs, membershipPlans, navItems, talent } from './data.js';
+import { adPlans, jobs, membershipPlans, navItems, professions, talent } from './data.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
@@ -128,12 +128,13 @@ function JobDetail({ job, saved, onSave, onClose }) {
   </Modal>;
 }
 
-function ConsultationForm({ initialRole = 'doctor', initialContext = '' }) {
+function ConsultationForm({ initialRole = 'doctor', initialContext = '', initialProfession = '' }) {
   const [role, setRole] = useState(initialRole);
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(null);
-  const [data, setData] = useState({ topic: initialContext ? '특정 공고 문의' : '', department: '', region: '', workType: '', message: '', name: '', phone: '', contactMethod: '전화', contactTime: '상관없음' });
-  const topics = role === 'doctor' ? ['이직 가능성 확인', '비공개 포지션', '급여·근무조건 상담', '특정 공고 문의'] : ['채용공고 등록', '의료인 추천', '급여·채용조건 설계', '긴급 채용'];
+  const professionName = professions.find((item) => item.id === initialProfession)?.name || '';
+  const [data, setData] = useState({ topic: initialProfession ? '직군 오픈 알림' : initialContext ? '특정 공고 문의' : '', department: professionName, region: '', workType: '', message: '', name: '', phone: '', contactMethod: '전화', contactTime: '상관없음' });
+  const topics = role === 'doctor' ? ['이직 가능성 확인', '비공개 포지션', '급여·근무조건 상담', '특정 공고 문의', '직군 오픈 알림'] : ['채용공고 등록', '의료인 추천', '급여·채용조건 설계', '긴급 채용'];
   const workTypes = role === 'doctor' ? ['주 4일', '주 4.5일', '주 5일', '협의 가능'] : ['정규직', '파트타임', '당직·대진', '협의 가능'];
   const update = (key, value) => setData((current) => ({ ...current, [key]: value }));
   const changeRole = (nextRole) => {
@@ -145,7 +146,7 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '' }) {
     event.preventDefault();
     const id = `MH-C-${String(Date.now()).slice(-6)}`;
     const records = JSON.parse(localStorage.getItem('medihelpers_consultations') || '[]');
-    records.push({ id, role, context: initialContext, status: 'new', createdAt: new Date().toISOString(), ...data });
+    records.push({ id, role, context: initialContext, profession: initialProfession, status: 'new', createdAt: new Date().toISOString(), ...data });
     localStorage.setItem('medihelpers_consultations', JSON.stringify(records));
     trackConversion('consultation_submit', { role, topic: data.topic, context: initialContext });
     setSubmitted(id);
@@ -155,7 +156,7 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '' }) {
     <div className="guided-head"><div><small>간편 1:1 상담</small><h3>{role === 'doctor' ? '내 조건에 맞는 이직 상담' : '우리 병원에 맞는 채용 상담'}</h3></div><span>약 1~2분</span></div>
     <div className="consult-progress" aria-label={`상담 ${step}단계`}><div className={step >= 1 ? 'active' : ''}><b>1</b><span>상담 목적</span></div><i /><div className={step >= 2 ? 'active' : ''}><b>2</b><span>필수 조건</span></div><i /><div className={step >= 3 ? 'active' : ''}><b>3</b><span>연락 방법</span></div></div>
     {step === 1 && <div className="consult-step"><div className="role-tabs"><button type="button" className={role === 'doctor' ? 'active' : ''} onClick={() => changeRole('doctor')}><Stethoscope /> 의료인</button><button type="button" className={role === 'hospital' ? 'active' : ''} onClick={() => changeRole('hospital')}><Building2 /> 병원</button></div><div className="step-question"><small>하나만 선택해주세요</small><h4>어떤 상담이 필요하신가요?</h4></div><div className="choice-grid">{topics.map((topic) => <button type="button" key={topic} className={data.topic === topic ? 'selected' : ''} onClick={() => update('topic', topic)}><span>{topic}</span>{data.topic === topic && <Check />}</button>)}</div><button type="button" className="button primary full" disabled={!data.topic} onClick={() => setStep(2)}>다음 · 필요한 조건 입력 <ArrowRight /></button></div>}
-    {step === 2 && <div className="consult-step"><div className="step-question"><small>{data.topic}</small><h4>꼭 필요한 조건만 알려주세요</h4><p>정확하지 않아도 괜찮습니다. 담당자가 함께 정리해드려요.</p></div><div className="form-grid"><label><span>{role === 'doctor' ? '진료과' : '채용 진료과'} *</span><input value={data.department} onChange={(e) => update('department', e.target.value)} placeholder="예: 내과" autoFocus /></label><label><span>{role === 'doctor' ? '희망 지역' : '병원 지역'}</span><input value={data.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산·경남" /></label></div><div className="field-group"><span>{role === 'doctor' ? '희망 근무형태' : '채용 형태'}</span><div className="choice-row">{workTypes.map((item) => <button type="button" key={item} className={data.workType === item ? 'selected' : ''} onClick={() => update('workType', item)}>{item}</button>)}</div></div><label className="wide-field"><span>추가로 전하고 싶은 내용 <i>선택</i></span><textarea value={data.message} onChange={(e) => update('message', e.target.value)} rows="3" placeholder={role === 'doctor' ? '희망 보수나 피하고 싶은 조건을 적어주세요.' : '채용 일정이나 꼭 필요한 경력을 적어주세요.'} /></label><div className="step-actions"><button type="button" className="button outline" onClick={() => setStep(1)}><ArrowLeft /> 이전</button><button type="button" className="button primary" disabled={!data.department.trim()} onClick={() => setStep(3)}>다음 · 연락 방법 <ArrowRight /></button></div></div>}
+      {step === 2 && <div className="consult-step"><div className="step-question"><small>{data.topic}</small><h4>꼭 필요한 조건만 알려주세요</h4><p>정확하지 않아도 괜찮습니다. 담당자가 함께 정리해드려요.</p></div><div className="form-grid"><label><span>{role === 'doctor' ? '직군·전문영역' : '채용 직군·전문영역'} *</span><input value={data.department} onChange={(e) => update('department', e.target.value)} placeholder="예: 내과, 방사선사 CT" autoFocus /></label><label><span>{role === 'doctor' ? '희망 지역' : '병원 지역'}</span><input value={data.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산·경남" /></label></div><div className="field-group"><span>{role === 'doctor' ? '희망 근무형태' : '채용 형태'}</span><div className="choice-row">{workTypes.map((item) => <button type="button" key={item} className={data.workType === item ? 'selected' : ''} onClick={() => update('workType', item)}>{item}</button>)}</div></div><label className="wide-field"><span>추가로 전하고 싶은 내용 <i>선택</i></span><textarea value={data.message} onChange={(e) => update('message', e.target.value)} rows="3" placeholder={role === 'doctor' ? '희망 보수나 피하고 싶은 조건을 적어주세요.' : '채용 일정이나 꼭 필요한 경력을 적어주세요.'} /></label><div className="step-actions"><button type="button" className="button outline" onClick={() => setStep(1)}><ArrowLeft /> 이전</button><button type="button" className="button primary" disabled={!data.department.trim()} onClick={() => setStep(3)}>다음 · 연락 방법 <ArrowRight /></button></div></div>}
     {step === 3 && <div className="consult-step"><div className="step-question"><small>마지막 단계</small><h4>어떻게 연락드리면 편하신가요?</h4></div><div className="form-grid"><label><span>{role === 'doctor' ? '성함' : '병원명'} *</span><input required value={data.name} onChange={(e) => update('name', e.target.value)} placeholder={role === 'doctor' ? '성함을 입력해주세요' : '병원명을 입력해주세요'} autoFocus /></label><label><span>연락처 *</span><input required value={data.phone} onChange={(e) => update('phone', e.target.value)} type="tel" placeholder="010-0000-0000" /></label></div><div className="contact-preference"><div><span>연락 방법</span><div className="choice-row">{['전화', '문자'].map((item) => <button type="button" key={item} className={data.contactMethod === item ? 'selected' : ''} onClick={() => update('contactMethod', item)}>{item}</button>)}</div></div><div><span>연락 시간</span><div className="choice-row">{['오전', '오후', '저녁', '상관없음'].map((item) => <button type="button" key={item} className={data.contactTime === item ? 'selected' : ''} onClick={() => update('contactTime', item)}>{item}</button>)}</div></div></div><div className="consult-summary"><small>상담 내용 확인</small><dl><div><dt>상담</dt><dd>{data.topic}</dd></div><div><dt>조건</dt><dd>{data.department}{data.region ? ` · ${data.region}` : ''}{data.workType ? ` · ${data.workType}` : ''}</dd></div><div><dt>연락</dt><dd>{data.contactMethod} · {data.contactTime}</dd></div></dl></div><label className="consent"><input type="checkbox" required name="privacy" value="agreed" /><span>상담을 위한 개인정보 수집·이용에 동의합니다. 입력 정보는 상담 목적으로만 사용됩니다.</span></label><div className="step-actions"><button type="button" className="button outline" onClick={() => setStep(2)}><ArrowLeft /> 이전</button><button className="button primary" type="submit">무료 상담 접수 <ArrowRight /></button></div><p className="form-note"><ShieldCheck /> 의료인 정보는 동의 없이 병원에 공개하지 않습니다.</p></div>}
   </form>;
 }
@@ -180,20 +181,20 @@ function PrecisionPromise() {
 }
 
 function HomePage() {
+  const [profession, setProfession] = useState('doctor');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
-  const [keyword, setKeyword] = useState('');
-  const search = () => navigate(`/jobs?dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}&keyword=${encodeURIComponent(keyword)}`);
+  const search = () => profession === 'doctor' ? navigate(`/jobs?dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`) : navigate(`/professions?profession=${profession}`);
   return <>
     <section className="home-hero">
-      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 의료인 채용을 가장 간단하게</span><h1>의사 채용,<br /><em>조건부터 빠르게.</em></h1><p>복잡한 메뉴를 헤맬 필요 없이<br />진료과와 지역만 선택하면 바로 시작됩니다.</p>
+      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 모든 의료 커리어를 한곳에서</span><h1>의료인 채용,<br /><em>직군부터 정확하게.</em></h1><p>의사부터 간호·약무·방사선·임상병리·재활까지<br />내 전문영역을 선택하면 맞는 공간으로 연결됩니다.</p>
         <div className="hero-search-card" role="search" aria-label="의료 채용 검색">
-          <div className="hero-search-title"><span><Search /></span><div><strong>내 조건에 맞는 채용 찾기</strong><small>3가지만 선택하면 바로 확인할 수 있어요</small></div></div>
+          <div className="hero-search-title"><span><Search /></span><div><strong>내 전문영역의 채용 찾기</strong><small>직군·전문영역·지역만 선택하면 됩니다</small></div></div>
           <div className="hero-search-fields">
-            <label><small>진료과</small><span><Stethoscope size={19} /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} /></span></label>
+            <label><small>의료 직군</small><span><UsersRound size={19} /><select value={profession} onChange={(e) => setProfession(e.target.value)}>{professions.map((item) => <option key={item.id} value={item.id}>{item.short}</option>)}</select><ChevronDown size={16} /></span></label>
+            <label><small>{profession === 'doctor' ? '진료과' : '전문영역'}</small><span><Stethoscope size={19} /><select value={profession === 'doctor' ? dept : '전체 전문영역'} disabled={profession !== 'doctor'} onChange={(e) => setDept(e.target.value)}>{profession === 'doctor' ? departments.map((item) => <option key={item}>{item}</option>) : <option>전체 전문영역</option>}</select><ChevronDown size={16} /></span></label>
             <label><small>지역</small><span><MapPin size={19} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} /></span></label>
-            <label className="keyword"><small>키워드 <i>선택</i></small><span><Search size={19} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="병원명, 검진센터 등" /></span></label>
-            <button className="hero-search-button" onClick={search}>조건에 맞는 채용 보기 <ArrowRight /></button>
+            <button className="hero-search-button" onClick={search}>{profession === 'doctor' ? '채용정보 보기' : '직군 전용관 보기'} <ArrowRight /></button>
           </div>
           <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
         </div>
@@ -217,6 +218,20 @@ function HomePage() {
   </>;
 }
 
+const professionIcons = { doctor: Stethoscope, nurse: HeartPulse, pharmacy: Pill, radiology: ScanLine, laboratory: Microscope, rehabilitation: Activity, dental: Smile, emergency: Ambulance };
+
+function ProfessionsPage({ route }) {
+  const params = new URLSearchParams(route.split('?')[1] || '');
+  const [selected, setSelected] = useState(params.get('profession') || 'all');
+  const visible = selected === 'all' ? professions : professions.filter((item) => item.id === selected);
+  return <>
+    <PageHero tone="profession" eyebrow="ONE HEALTHCARE NETWORK" title="하나로 연결하고, 직군별로 깊게" description="계정과 상담은 하나로 간단하게 이용하고 채용정보, 경력 기준, 익명 커뮤니티는 각 전문직군에 맞게 나눕니다."><Link className="button primary" to="/headhunting?profession=all">내 직군 오픈 알림 신청</Link></PageHero>
+    <section className="section profession-section"><div className="profession-philosophy"><div><span className="section-kicker">UNIFIED, NOT MIXED</span><h2>모두 모으되<br />아무렇게나 섞지 않습니다</h2></div><p>간호사의 교대근무와 방사선사의 모달리티, 임상병리사의 검사분야, 치료사의 환자군은 서로 다른 정보입니다. 메디헬퍼스는 공통 계정과 결제·상담 시스템을 공유하면서 직군별 검색 기준과 커뮤니티를 독립적으로 운영합니다.</p></div><div className="profession-filter"><button className={selected === 'all' ? 'active' : ''} onClick={() => setSelected('all')}>전체 직군</button>{professions.map((item) => <button key={item.id} className={selected === item.id ? 'active' : ''} onClick={() => setSelected(item.id)}>{item.short}</button>)}</div><div className="profession-grid">{visible.map((item) => { const Icon = professionIcons[item.id]; return <article className={`profession-card ${item.status}`} key={item.id}><div className="profession-card-head"><span><Icon /></span><i>{item.status === 'active' ? '운영 중' : '파트너 모집'}</i></div><h3>{item.name}</h3><p>{item.description}</p><div className="specialty-tags">{item.specialties.map((tag) => <span key={tag}>{tag}</span>)}</div>{item.status === 'active' ? <Link className="button primary full" to="/jobs">채용정보 바로 보기 <ArrowRight /></Link> : <Link className="button outline full" to={`/headhunting?profession=${item.id}`}>오픈 알림·상담 신청 <ArrowRight /></Link>}</article>; })}</div></section>
+    <section className="section soft community-plan"><div className="section-head"><div><span className="section-kicker">PROFESSIONAL COMMUNITY</span><h2>익명 커뮤니티도 직군별로 정확하게</h2><p>사람을 모으기 위한 잡담 게시판보다 실제 커리어 결정에 도움이 되는 정보부터 시작합니다.</p></div></div><div className="community-grid"><div><BadgeCheck /><h3>면허·자격 기반 인증</h3><p>이름은 익명으로 활동할 수 있지만 해당 직군 구성원인지 확인합니다.</p></div><div><WalletCards /><h3>급여·근무표 인사이트</h3><p>직군과 경력, 지역, 교대형태에 따라 조건을 비교합니다.</p></div><div><MessageCircle /><h3>실무 질문과 경험</h3><p>부서 이동, 장비 경험, 교육, 면접과 이직 경험을 나눕니다.</p></div><div><BriefcaseBusiness /><h3>대화에서 채용으로</h3><p>관심 있는 정보에서 익명 상담과 검증된 채용으로 자연스럽게 연결합니다.</p></div></div></section>
+    <ConversionBanner title="당신의 직군도 메디헬퍼스에 필요합니다" description="먼저 참여한 의료인과 병원의 의견을 바탕으로 직군별 전용관을 순서대로 엽니다." />
+  </>;
+}
+
 function JobsPage({ route }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [dept, setDept] = useState(params.get('dept') || '전체 진료과');
@@ -231,7 +246,7 @@ function JobsPage({ route }) {
     return next;
   });
   return <>
-    <PageHero eyebrow="MEDICAL JOBS" title="조건부터 비교하는 의료 채용정보" description="진료과와 지역, 실제 근무조건을 확인하고 궁금한 공고는 전담 헤드헌터에게 비공개로 물어보세요." />
+    <PageHero eyebrow="MEDICAL JOBS" title="조건부터 비교하는 의료 채용정보" description="현재 의사 채용정보를 우선 운영하고 있습니다. 다른 보건의료 직군은 전용관에서 오픈 알림을 신청할 수 있습니다."><Link className="button outline" to="/professions">전체 의료 직군 보기 <ArrowRight /></Link></PageHero>
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
       <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
@@ -257,9 +272,10 @@ function HeadhuntingPage({ route }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const role = params.get('role') === 'hospital' ? 'hospital' : 'doctor';
   const context = params.get('job') || params.get('candidate') || '';
+  const profession = params.get('profession') || '';
   return <>
     <PageHero tone="dark" eyebrow="PRIVATE CONSULTING" title="이직과 채용, 공개하기 전에 먼저 상담하세요" description="의료 채용 현장을 아는 전담 헤드헌터가 조건 정리부터 면접과 협상까지 한 사람처럼 함께합니다." />
-    <section className="section consultation-layout"><div className="consult-copy"><span className="section-kicker">1:1 CONCIERGE</span><h2>광고보다 먼저,<br />상황을 정확히 듣습니다</h2><p>같은 진료과라도 원하는 삶과 병원의 사정은 다릅니다. 메디헬퍼스는 숫자만 맞추지 않고 오래 만족할 수 있는 연결을 찾습니다.</p><div className="consult-points"><div><span><Phone /></span><div><strong>빠른 첫 연락</strong><p>접수 내용을 확인하고 가능한 시간에 연락드립니다.</p></div></div><div><span><ShieldCheck /></span><div><strong>철저한 비공개</strong><p>동의 전에는 이직 의사와 병원 내부정보를 공개하지 않습니다.</p></div></div><div><span><TrendingUp /></span><div><strong>실제 조건 협상</strong><p>보수, 일정, 업무범위를 구체적으로 조율합니다.</p></div></div></div><div className="direct-contact"><small>바로 상담하고 싶다면</small><a href="tel:0513425463">051-342-5463</a><span>평일 09:00–18:00</span></div></div><ConsultationForm key={`${role}-${context}`} initialRole={role} initialContext={context} /></section>
+    <section className="section consultation-layout"><div className="consult-copy"><span className="section-kicker">1:1 CONCIERGE</span><h2>광고보다 먼저,<br />상황을 정확히 듣습니다</h2><p>같은 직군이라도 원하는 삶과 병원의 사정은 다릅니다. 메디헬퍼스는 숫자만 맞추지 않고 오래 만족할 수 있는 연결을 찾습니다.</p><div className="consult-points"><div><span><Phone /></span><div><strong>빠른 첫 연락</strong><p>접수 내용을 확인하고 가능한 시간에 연락드립니다.</p></div></div><div><span><ShieldCheck /></span><div><strong>철저한 비공개</strong><p>동의 전에는 이직 의사와 병원 내부정보를 공개하지 않습니다.</p></div></div><div><span><TrendingUp /></span><div><strong>실제 조건 협상</strong><p>보수, 일정, 업무범위를 구체적으로 조율합니다.</p></div></div></div><div className="direct-contact"><small>바로 상담하고 싶다면</small><a href="tel:0513425463">051-342-5463</a><span>평일 09:00–18:00</span></div></div><ConsultationForm key={`${role}-${context}-${profession}`} initialRole={role} initialContext={context} initialProfession={profession} /></section>
     <section className="section soft"><div className="section-head centered"><div><span className="section-kicker">TWO-SIDED SERVICE</span><h2>의료인과 병원, 서로 다른 고민을 해결합니다</h2></div></div><div className="compare-grid"><div><Stethoscope /><h3>의료인에게</h3><ul><li><Check /> 공개하지 않고 이직 가능성 확인</li><li><Check /> 비공개 포지션과 실제 근무조건 안내</li><li><Check /> 연봉·진료범위·스케줄 협상 지원</li><li><Check /> 퇴사와 입사 일정 조율</li></ul></div><div><Building2 /><h3>의료기관에게</h3><ul><li><Check /> 채용조건 정리와 공고 문구 개선</li><li><Check /> 익명 인재풀 후보 발굴</li><li><Check /> 면접 일정과 후보 피드백 관리</li><li><Check /> 광고 또는 성공보수 방식 선택</li></ul></div></div></section>
   </>;
 }
@@ -352,6 +368,7 @@ export function App() {
   let page;
   if (path === '/') page = <HomePage />;
   else if (path === '/jobs') page = <JobsPage route={route} />;
+  else if (path === '/professions') page = <ProfessionsPage route={route} />;
   else if (path === '/talent') page = <TalentPage />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage />;
