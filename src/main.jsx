@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronDown, CircleCheck, ClipboardCheck, Clock3,
@@ -23,6 +23,68 @@ function useRoute() {
     return () => window.removeEventListener('popstate', onChange);
   }, []);
   return route;
+}
+
+function useScrollMotion(route) {
+  useLayoutEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return undefined;
+    const selector = [
+      '.page-hero-inner', '.section-head', '.quick-access', '.home-role-actions', '.member-teaser',
+      '.job-card', '.profession-card', '.path-card', '.step', '.price-card', '.membership-card',
+      '.feature-grid > div', '.value-grid > div', '.community-grid > div', '.metrics-strip > div',
+      '.notice-bar', '.consultation-layout', '.contact-card', '.policy-card', '.conversion'
+    ].join(',');
+    const elements = [...document.querySelectorAll(selector)];
+    document.documentElement.classList.add('motion-enabled');
+    elements.forEach((element, index) => {
+      element.classList.add('scroll-reveal');
+      element.style.setProperty('--reveal-delay', `${(index % 4) * 65}ms`);
+    });
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -7% 0px' });
+    elements.forEach((element) => observer.observe(element));
+    return () => {
+      observer.disconnect();
+      elements.forEach((element) => {
+        element.classList.remove('scroll-reveal', 'is-visible');
+        element.style.removeProperty('--reveal-delay');
+      });
+    };
+  }, [route]);
+
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return undefined;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const max = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+      const progress = Math.min(window.scrollY / max, 1);
+      document.documentElement.style.setProperty('--scroll-progress', progress);
+      const hero = document.querySelector('.home-hero');
+      if (hero) {
+        const distance = Math.min(window.scrollY, window.innerHeight);
+        hero.style.setProperty('--hero-copy-shift', `${distance * 0.055}px`);
+        hero.style.setProperty('--hero-card-shift', `${distance * -0.035}px`);
+      }
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+      document.documentElement.style.removeProperty('--scroll-progress');
+    };
+  }, [route]);
 }
 
 function navigate(path) {
@@ -371,6 +433,7 @@ function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', des
 
 export function App() {
   const route = useRoute();
+  useScrollMotion(route);
   const path = route.split('?')[0].replace(/\/$/, '') || '/';
   let page;
   if (path === '/') page = <HomePage />;
@@ -382,5 +445,5 @@ export function App() {
   else if (path === '/membership') page = <MembershipPage route={route} />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
-  return <div className="app"><Header path={path} /><main>{page}</main><Footer /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main>{page}</main><Footer /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
 }
