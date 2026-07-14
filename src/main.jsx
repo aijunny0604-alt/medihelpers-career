@@ -1,4 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 import {
   Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronDown, CircleCheck, ClipboardCheck, Clock3,
@@ -90,7 +92,38 @@ function useScrollMotion(route) {
 function navigate(path) {
   if (getRoute() !== path) window.history.pushState({}, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const navigation = new CustomEvent('medihelpers:navigate', { cancelable: true });
+  window.dispatchEvent(navigation);
+  if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function useSmoothPageScroll() {
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const finePointer = window.matchMedia('(pointer: fine)').matches;
+    if (reducedMotion || !finePointer) return undefined;
+    const lenis = new Lenis({
+      autoRaf: true,
+      autoToggle: true,
+      smoothWheel: true,
+      syncTouch: false,
+      duration: 0.9,
+      wheelMultiplier: 0.92,
+      anchors: { offset: -84, duration: 0.9 },
+      stopInertiaOnNavigate: true
+    });
+    const onNavigate = (event) => {
+      event.preventDefault();
+      lenis.scrollTo(0, { immediate: true, force: true });
+    };
+    document.documentElement.classList.add('smooth-wheel-enabled');
+    window.addEventListener('medihelpers:navigate', onNavigate);
+    return () => {
+      window.removeEventListener('medihelpers:navigate', onNavigate);
+      document.documentElement.classList.remove('smooth-wheel-enabled');
+      lenis.destroy();
+    };
+  }, []);
 }
 
 function trackConversion(event, detail = {}) {
@@ -138,7 +171,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보' }) {
     };
   }, [onClose]);
   return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-    <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={label} tabIndex="-1">
+    <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={label} tabIndex="-1" data-lenis-prevent>
       <button className="modal-close" onClick={onClose} aria-label="닫기"><X /></button>
       {children}
     </div>
@@ -472,6 +505,7 @@ function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', des
 
 export function App() {
   const route = useRoute();
+  useSmoothPageScroll();
   useScrollMotion(route);
   const path = route.split('?')[0].replace(/\/$/, '') || '/';
   let page;
