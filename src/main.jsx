@@ -85,13 +85,32 @@ export function App() {
             <div className="quick-links"><span>빠른 검색</span><button onClick={() => {setDept('내과'); search();}}>내과</button><button onClick={() => {setDept('정형외과'); search();}}>정형외과</button><button onClick={() => {setRegion('서울'); search();}}>서울</button><button onClick={() => {setRegion('부산'); search();}}>부산</button></div>
           </div>
           <div className="hero-visual">
-            <div className="image-shell">
-              <div className="hero-photo" role="img" aria-label="밝은 병원 복도의 의료진"></div>
-              <div className="match-card">
-                <div className="match-icon"><CircleCheck size={22}/></div>
-                <div><strong>새로운 매칭 도착</strong><span>선생님과 92% 일치해요</span></div>
+            <div className="match-dashboard" aria-label="메디헬퍼스 맞춤 채용 매칭 화면">
+              <div className="dashboard-orbit orbit-one"></div>
+              <div className="dashboard-orbit orbit-two"></div>
+              <div className="dashboard-panel">
+                <div className="dashboard-head">
+                  <div className="dashboard-title"><span><Stethoscope size={18}/></span><div><strong>맞춤 포지션</strong><small>오늘 업데이트</small></div></div>
+                  <span className="live-badge"><i></i> LIVE</span>
+                </div>
+                <div className="match-score">
+                  <div className="score-ring"><strong>92</strong><span>%</span></div>
+                  <div><span className="score-label">커리어 매칭률</span><h3>선생님을 위한<br/>새 포지션이 도착했어요</h3></div>
+                </div>
+                <div className="position-card featured">
+                  <div className="position-icon"><Building2 size={20}/></div>
+                  <div className="position-copy"><span>추천 포지션 · NEW</span><strong>소화기내과 전문의 초빙</strong><small><MapPin size={13}/> 서울 강남 · 주 4.5일</small></div>
+                  <div className="position-rate">98%</div>
+                </div>
+                <div className="position-card">
+                  <div className="position-icon mint"><BriefcaseBusiness size={19}/></div>
+                  <div className="position-copy"><span>비공개 포지션</span><strong>검진센터 진료의</strong><small><MapPin size={13}/> 부산 해운대 · 정규직</small></div>
+                  <div className="position-rate">91%</div>
+                </div>
+                <div className="dashboard-footer"><CircleCheck size={16}/><span>희망 조건과 경력을 안전하게 분석했어요</span></div>
               </div>
-              <div className="people-card"><div className="avatars"><span>김</span><span>박</span><span>이</span></div><div><strong>1,280+</strong><span>의료인 커리어 연결</span></div></div>
+              <div className="floating-notice"><span><Sparkles size={17}/></span><div><strong>전담 헤드헌터 배정 완료</strong><small>1:1 맞춤 상담을 시작해보세요</small></div></div>
+              <div className="floating-stat"><strong>1,280<em>+</em></strong><span>성공적인 커리어 연결</span></div>
             </div>
           </div>
         </section>
