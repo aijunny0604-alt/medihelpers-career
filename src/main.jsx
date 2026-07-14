@@ -43,8 +43,7 @@ export function App() {
       <header>
         <div className="nav-wrap">
           <a className="brand" href="#top" aria-label="메디헬퍼스 홈">
-            <span className="brand-symbol"><span></span><span></span></span>
-            <span>medi<span>helpers</span></span>
+            <img className="brand-logo" src="/medihelpers-logo.svg" alt="메디헬퍼스" />
           </a>
           <nav className={menu ? 'open' : ''}>
             <a href="#jobs" onClick={() => setMenu(false)}>채용정보</a>
@@ -145,7 +144,7 @@ export function App() {
         </section>
       </main>
 
-      <footer><div className="footer-main"><div><a className="brand footer-brand" href="#top"><span className="brand-symbol"><span></span><span></span></span><span>medi<span>helpers</span></span></a><p>의료기관과 의료인의 더 좋은 내일을 연결합니다.</p></div><div className="footer-links"><div><strong>서비스</strong><a href="#jobs">채용정보</a><a href="#headhunt">인재정보</a><a href="#headhunt">헤드헌팅 의뢰</a></div><div><strong>고객지원</strong><a href="#process">서비스 소개</a><a href="#top">공지사항</a><a href="mailto:hr@medihelpers.co.kr">문의하기</a></div><div><strong>메디헬퍼스</strong><a href="#top">회사소개</a><a href="#top">이용약관</a><a href="#top">개인정보처리방침</a></div></div></div><div className="footer-bottom"><span>© 2026 MEDIHELPERS. All rights reserved.</span><span>부산광역시 북구 만덕대로 116번길 28 · 051-342-5463 · hr@medihelpers.co.kr</span></div></footer>
+      <footer><div className="footer-main"><div><a className="brand footer-brand" href="#top"><img className="brand-logo" src="/medihelpers-logo.svg" alt="메디헬퍼스" /></a><p>의료기관과 의료인의 더 좋은 내일을 연결합니다.</p></div><div className="footer-links"><div><strong>서비스</strong><a href="#jobs">채용정보</a><a href="#headhunt">인재정보</a><a href="#headhunt">헤드헌팅 의뢰</a></div><div><strong>고객지원</strong><a href="#process">서비스 소개</a><a href="#top">공지사항</a><a href="mailto:hr@medihelpers.co.kr">문의하기</a></div><div><strong>메디헬퍼스</strong><a href="#top">회사소개</a><a href="#top">이용약관</a><a href="#top">개인정보처리방침</a></div></div></div><div className="footer-bottom"><span>© 2026 MEDIHELPERS. All rights reserved.</span><span>부산광역시 북구 만덕대로 116번길 28 · 051-342-5463 · hr@medihelpers.co.kr</span></div></footer>
       {toast && <div className="toast"><CircleCheck size={19}/>{toast}</div>}
     </div>
   );

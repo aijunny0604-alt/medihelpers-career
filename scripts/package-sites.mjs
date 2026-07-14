@@ -10,6 +10,7 @@ const cssPath = cssMatch[1];
 const jsPath = jsMatch[1];
 const css = await readFile(path.join(sourceDir, cssPath.replace(/^\//, '')), 'utf8');
 const js = await readFile(path.join(sourceDir, jsPath.replace(/^\//, '')), 'utf8');
+const logoSvg = await readFile(path.join(sourceDir, 'medihelpers-logo.svg'), 'utf8');
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist/server', { recursive: true });
@@ -18,12 +19,14 @@ await cp('.openai/hosting.json', 'dist/.openai/hosting.json');
 const server = `const html = ${JSON.stringify(html)};
 const css = ${JSON.stringify(css)};
 const js = ${JSON.stringify(js)};
+const logoSvg = ${JSON.stringify(logoSvg)};
 const cssPath = ${JSON.stringify(cssPath)};
 const jsPath = ${JSON.stringify(jsPath)};
 function responseFor(request) {
   const pathname = new URL(request.url).pathname;
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/') return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=60' } });
   return new Response('Not Found', { status: 404 });
 }
