@@ -66,11 +66,11 @@ function Header({ path }) {
         <img src="/medihelpers-logo.svg" alt="메디헬퍼스" />
       </Link>
       <nav className={open ? 'open' : ''}>
-        {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={path === item.path ? 'active' : ''}>{item.label}</Link>)}
+        {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
       </nav>
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
-        <Link className="button primary compact" to="/headhunting">무료 상담</Link>
+        <Link className="button primary compact" to="/advertise">채용공고 등록</Link>
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="메뉴 열기">{open ? <X /> : <Menu />}</button>
     </div>
@@ -148,6 +148,27 @@ function ConsultationForm({ initialRole = 'doctor', compact = false }) {
   </form>;
 }
 
+function QuickAccess() {
+  return <section className="quick-access" aria-label="빠른 메뉴">
+    <div className="quick-find">
+      <div className="quick-label"><Search /><span><strong>바로 찾기</strong><small>원하는 조건을 한 번에</small></span></div>
+      <div className="quick-chips">
+        <Link to="/jobs?keyword=주%204일">주 4일</Link>
+        <Link to="/jobs?keyword=검진센터">검진센터</Link>
+        <Link to="/jobs?region=서울">서울</Link>
+        <Link to="/jobs?region=부산">부산</Link>
+        <Link to="/jobs">전체 채용</Link>
+      </div>
+    </div>
+    <Link className="quick-consult" to="/headhunting">
+      <span><MessageCircle /></span><div><small>의료인 전용</small><strong>비공개 구직 상담</strong><p>이직 결정 전에도 무료</p></div><ArrowRight />
+    </Link>
+    <Link className="quick-ad" to="/advertise">
+      <span className="ad-label">병원 전용 · 광고</span><div><strong>채용공고 등록</strong><p>99,000원부터 시작</p></div><ArrowRight />
+    </Link>
+  </section>;
+}
+
 function HomePage() {
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
@@ -155,14 +176,14 @@ function HomePage() {
   const search = () => navigate(`/jobs?dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}&keyword=${encodeURIComponent(keyword)}`);
   return <>
     <section className="home-hero">
-      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 의료 커리어의 좋은 연결</span><h1>공고를 찾는 시간을 넘어,<br /><em>좋은 선택</em>을 만드는 일</h1><p>의료 현장을 이해하는 전담 헤드헌터가<br />의사와 병원의 다음 결정을 함께합니다.</p>
+      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 쉽고 빠른 의료 채용</span><h1>원하는 의료 채용,<br /><em>쉽고 빠르게</em> 찾으세요</h1><p>진료과와 지역만 고르면 바로 찾을 수 있습니다.<br />어려운 조건은 전담 헤드헌터에게 편하게 물어보세요.</p>
         <div className="search-panel">
           <label><Stethoscope size={20} /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={17} /></label>
           <label><MapPin size={20} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={17} /></label>
           <label className="keyword"><Search size={20} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="병원명 또는 키워드" /></label>
           <button className="button primary" onClick={search}>채용 검색</button>
         </div>
-        <div className="hero-links"><span>빠른 시작</span><Link to="/headhunting">의료인 비공개 상담</Link><Link to="/advertise">병원 채용공고 등록</Link></div>
+        <div className="hero-links"><span>무엇을 찾으세요?</span><Link to="/jobs">채용정보</Link><Link to="/headhunting">비공개 상담</Link><Link to="/advertise">공고 등록</Link></div>
       </div>
       <div className="concierge-card">
         <div className="concierge-head"><span><UserRoundSearch /></span><div><small>MEDIHELPERS CONCIERGE</small><strong>1:1 커리어 매칭</strong></div><i>LIVE</i></div>
@@ -172,7 +193,7 @@ function HomePage() {
         <div className="concierge-foot"><CircleCheck size={16} /> 상담부터 조건 협상까지 함께합니다</div>
       </div>
     </section>
-    <section className="trust-row"><div><strong>9년+</strong><span>의료 채용 전문성</span></div><i /><div><strong>1,280+</strong><span>누적 커리어 연결</span></div><i /><div><strong>340+</strong><span>파트너 의료기관</span></div><i /><div><strong>1:1</strong><span>전담 헤드헌터 상담</span></div></section>
+    <QuickAccess />
     <section className="section soft"><div className="section-head"><div><span className="section-kicker">CURATED POSITIONS</span><h2>지금 주목할 채용</h2><p>조건과 신뢰도를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{jobs.slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs?open=${job.id}`)} />)}</div></section>
     <section className="dual-path section"><div className="path-card doctor"><span className="path-icon"><Stethoscope /></span><small>의료인이라면</small><h2>내 조건을 먼저 말하고<br />비공개 제안을 받으세요</h2><p>이력서를 공개하지 않아도 전담 헤드헌터가 적합한 병원을 찾아드립니다.</p><ul><li><Check /> 개인정보 비공개</li><li><Check /> 연봉·근무조건 협상</li><li><Check /> 입사 후 피드백</li></ul><Link className="button dark" to="/headhunting">구직 상담 시작</Link></div><div className="path-card hospital"><span className="path-icon"><Building2 /></span><small>의료기관이라면</small><h2>광고와 인재 추천을<br />한 번에 시작하세요</h2><p>공고 등록부터 후보 발굴, 면접 일정까지 필요한 만큼 선택할 수 있습니다.</p><ul><li><Check /> 전문과목별 인재풀</li><li><Check /> 검증된 채용공고</li><li><Check /> 성과형 헤드헌팅</li></ul><Link className="button light" to="/advertise">광고 상품 보기</Link></div></section>
     <section className="section process"><div className="section-head centered"><div><span className="section-kicker">HOW IT WORKS</span><h2>사람이 끝까지 책임지는 매칭</h2><p>정보를 나열하는 데서 멈추지 않고 실제 결정까지 함께합니다.</p></div></div><div className="step-grid">{[[MessageCircle,'01','조건 상담','원하는 지역과 근무조건, 채용 일정을 듣습니다.'],[Target,'02','정밀 연결','공개·비공개 포지션과 검증된 인재를 선별합니다.'],[ClipboardCheck,'03','조건 조율','면접 일정과 보수, 근무조건 협상을 지원합니다.'],[CircleCheck,'04','새로운 시작','입사와 채용 완료 후에도 적응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div></section>
@@ -187,7 +208,7 @@ function JobsPage({ route }) {
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem('medihelpers_saved_jobs') || '[]'));
   const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
-  const filtered = useMemo(() => jobs.filter((job) => (dept === '전체 진료과' || job.dept === dept || (dept === '전문의' && job.dept === '전문의')) && (region === '전국' || job.region === region) && (!keyword || `${job.hospital} ${job.title} ${job.summary}`.toLowerCase().includes(keyword.toLowerCase()))), [dept, region, keyword]);
+  const filtered = useMemo(() => jobs.filter((job) => (dept === '전체 진료과' || job.dept === dept || (dept === '전문의' && job.dept === '전문의')) && (region === '전국' || job.region === region) && (!keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${job.benefits.join(' ')}`.toLowerCase().includes(keyword.toLowerCase()))), [dept, region, keyword]);
   const toggleSaved = (id) => setSaved((current) => {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
     localStorage.setItem('medihelpers_saved_jobs', JSON.stringify(next));
@@ -196,6 +217,7 @@ function JobsPage({ route }) {
   return <>
     <PageHero eyebrow="MEDICAL JOBS" title="조건부터 비교하는 의료 채용정보" description="진료과와 지역, 실제 근무조건을 확인하고 궁금한 공고는 전담 헤드헌터에게 비공개로 물어보세요." />
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
+      <Link className="job-ad-banner" to="/advertise"><span>병원 채용 담당자라면</span><strong>여기에 채용공고를 등록하세요</strong><small>30일 99,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
       {filtered.length ? <div className="job-grid">{filtered.map((job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => setSelected(job)} />)}</div> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={() => { setDept('전체 진료과'); setRegion('전국'); setKeyword(''); }}>검색 초기화</button></div>}
     </section>
@@ -279,5 +301,5 @@ export function App() {
   else if (path === '/advertise') page = <AdvertisePage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
-  return <div className="app"><Header path={path} /><main>{page}</main><Footer /></div>;
+  return <div className="app"><Header path={path} /><main>{page}</main><Footer /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
 }
