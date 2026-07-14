@@ -89,5 +89,28 @@ export const navItems = [
   { path: '/talent', label: '인재정보' },
   { path: '/headhunting', label: '헤드헌팅' },
   { path: '/advertise', label: '광고센터' },
-  { path: '/about', label: '서비스 소개' }
+  { path: '/membership', label: '멤버십' }
+];
+
+export const membershipPlans = [
+  {
+    id: 'doctor-single', audience: 'doctor', name: '공고 1건 열람권', price: 3900, period: '건별',
+    description: '궁금한 프리미엄 공고 하나만 확인합니다.',
+    features: ['상세 급여·근무시간', '비공개 병원 정보', '전담 헤드헌터 질문 1회']
+  },
+  {
+    id: 'doctor-pass', audience: 'doctor', name: 'Doctor Pass', price: 19900, period: '월', featured: true,
+    description: '적극적으로 이직을 준비하는 의료인을 위한 패스입니다.',
+    features: ['프리미엄 공고 무제한 열람', '비공개 포지션 우선 공개', '급여·근무조건 인사이트', '1:1 커리어 상담']
+  },
+  {
+    id: 'hospital-single', audience: 'hospital', name: '인재 소개 요청권', price: 49000, period: '건별',
+    description: '관심 있는 익명 인재 한 명의 소개를 요청합니다.',
+    features: ['후보 적합성 확인', '본인 동의 후 상세정보', '1회 인터뷰 연결 지원']
+  },
+  {
+    id: 'hospital-pass', audience: 'hospital', name: 'Hospital Recruit Pass', price: 149000, period: '월', featured: true,
+    description: '상시 채용 병원을 위한 인재 탐색 멤버십입니다.',
+    features: ['검증된 익명 인재풀 열람', '월 5회 소개 요청', '신규 인재 알림', '채용 컨설턴트 지원']
+  }
 ];

@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronDown, CircleCheck, ClipboardCheck, Clock3,
-  CreditCard, FileCheck2, Heart, Mail, MapPin, Menu, MessageCircle, Phone,
+  CreditCard, Crown, FileCheck2, Heart, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Phone,
   Search, ShieldCheck, Sparkles, Stethoscope, Target, TrendingUp, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
-import { adPlans, jobs, navItems, talent } from './data.js';
+import { adPlans, jobs, membershipPlans, navItems, talent } from './data.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
@@ -100,22 +100,24 @@ function PageHero({ eyebrow, title, description, children, tone = '' }) {
 }
 
 function JobCard({ job, saved, onSave, onOpen }) {
+  const premium = ['집중채용', '추천', '비공개'].includes(job.badge);
   return <article className="job-card">
     <div className="job-top"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span><button className={saved ? 'heart saved' : 'heart'} onClick={onSave} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
     <div className="hospital"><span className="hospital-logo" style={{ background: job.color }}>{job.hospital[0]}</span><span>{job.hospital}</span></div>
     <h3>{job.title}</h3>
     <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
-    <div className="job-bottom"><span>{job.dept}</span><strong>{job.pay}</strong></div>
+    <div className="job-bottom"><span>{job.dept}</span><strong className={premium ? 'premium-value' : ''}>{premium ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
     <button className="card-action" onClick={onOpen}>공고 자세히 보기 <ArrowRight size={16} /></button>
   </article>;
 }
 
 function JobDetail({ job, saved, onSave, onClose }) {
+  const premium = ['집중채용', '추천', '비공개'].includes(job.badge);
   return <Modal onClose={onClose} wide>
     <div className="detail-heading"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span><p>{job.hospital}</p><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
     <div className="detail-grid">
       <div><h3>포지션 소개</h3><p>{job.summary}</p><h3>주요 조건</h3><div className="benefit-list">{job.benefits.map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></div>
-      <aside><span>예상 보수</span><strong>{job.pay}</strong><small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>비공개 상담 신청</Link><button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button></aside>
+      <aside className={premium ? 'premium-aside' : ''}><span>예상 보수</span>{premium ? <div className="locked-value"><LockKeyhole /><strong>멤버십 전용 정보</strong><small>상세 급여, 병원 담당자, 정확한 진료조건을 확인할 수 있습니다.</small><Link className="button primary full" to="/membership?type=doctor">열람권 확인</Link></div> : <><strong>{job.pay}</strong><small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>비공개 상담 신청</Link></>}<button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button></aside>
     </div>
   </Modal>;
 }
@@ -169,6 +171,10 @@ function QuickAccess() {
   </section>;
 }
 
+function MemberTeaser() {
+  return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>MEDIHELPERS MEMBERSHIP</small><h2>둘러보기는 무료, 결정에 필요한 핵심정보는 멤버십으로</h2><p>의료인은 프리미엄 공고를, 병원은 검증된 인재정보와 소개 요청권을 이용할 수 있습니다.</p></div><Link className="button dark" to="/membership">멤버십 비교 <ArrowRight /></Link></section>;
+}
+
 function HomePage() {
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
@@ -194,6 +200,7 @@ function HomePage() {
       </div>
     </section>
     <QuickAccess />
+    <MemberTeaser />
     <section className="section soft"><div className="section-head"><div><span className="section-kicker">CURATED POSITIONS</span><h2>지금 주목할 채용</h2><p>조건과 신뢰도를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{jobs.slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs?open=${job.id}`)} />)}</div></section>
     <section className="dual-path section"><div className="path-card doctor"><span className="path-icon"><Stethoscope /></span><small>의료인이라면</small><h2>내 조건을 먼저 말하고<br />비공개 제안을 받으세요</h2><p>이력서를 공개하지 않아도 전담 헤드헌터가 적합한 병원을 찾아드립니다.</p><ul><li><Check /> 개인정보 비공개</li><li><Check /> 연봉·근무조건 협상</li><li><Check /> 입사 후 피드백</li></ul><Link className="button dark" to="/headhunting">구직 상담 시작</Link></div><div className="path-card hospital"><span className="path-icon"><Building2 /></span><small>의료기관이라면</small><h2>광고와 인재 추천을<br />한 번에 시작하세요</h2><p>공고 등록부터 후보 발굴, 면접 일정까지 필요한 만큼 선택할 수 있습니다.</p><ul><li><Check /> 전문과목별 인재풀</li><li><Check /> 검증된 채용공고</li><li><Check /> 성과형 헤드헌팅</li></ul><Link className="button light" to="/advertise">광고 상품 보기</Link></div></section>
     <section className="section process"><div className="section-head centered"><div><span className="section-kicker">HOW IT WORKS</span><h2>사람이 끝까지 책임지는 매칭</h2><p>정보를 나열하는 데서 멈추지 않고 실제 결정까지 함께합니다.</p></div></div><div className="step-grid">{[[MessageCircle,'01','조건 상담','원하는 지역과 근무조건, 채용 일정을 듣습니다.'],[Target,'02','정밀 연결','공개·비공개 포지션과 검증된 인재를 선별합니다.'],[ClipboardCheck,'03','조건 조율','면접 일정과 보수, 근무조건 협상을 지원합니다.'],[CircleCheck,'04','새로운 시작','입사와 채용 완료 후에도 적응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div></section>
@@ -231,7 +238,7 @@ function TalentPage() {
   const visible = dept === '전체 진료과' ? talent : talent.filter((person) => person.dept === dept);
   return <>
     <PageHero tone="mint" eyebrow="VERIFIED TALENT" title="병원이 기다리는 익명 의료인 인재풀" description="후보자의 동의 전에는 개인정보를 공개하지 않습니다. 필요한 진료과와 조건을 알려주시면 전담 컨설턴트가 직접 연결합니다."><Link className="button primary" to="/headhunting?role=hospital">우리 병원 인재 추천받기</Link></PageHero>
-    <section className="section"><div className="notice-bar"><ShieldCheck /><div><strong>안전한 익명 인재정보</strong><p>아래 프로필은 서비스 구조를 보여주는 예시이며, 실제 후보자는 본인 동의 후 병원에 소개됩니다.</p></div></div><div className="talent-toolbar"><div><span className="section-kicker">ACTIVE CANDIDATES</span><h2>최근 상담 완료 인재</h2></div><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.slice(0, -2).map((item) => <option key={item}>{item}</option>)}</select></div><div className="talent-grid">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>입사 가능</dt><dd>{person.available}</dd></div></dl><Link className="button outline full" to={`/headhunting?role=hospital&candidate=${person.code}`}>익명 추천 요청</Link></article>)}</div></section>
+    <section className="section"><div className="notice-bar"><ShieldCheck /><div><strong>안전한 익명 인재정보</strong><p>기본 조건은 무료로 확인하고, 상세 경력과 소개 요청은 병원 멤버십으로 이용합니다. 실제 후보자는 본인 동의 후에만 소개됩니다.</p></div></div><div className="talent-toolbar"><div><span className="section-kicker">ACTIVE CANDIDATES</span><h2>최근 상담 완료 인재</h2></div><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.slice(0, -2).map((item) => <option key={item}>{item}</option>)}</select></div><div className="talent-grid">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>상세 경력</dt><dd className="locked-text"><LockKeyhole /> 멤버십 전용</dd></div></dl><Link className="button outline full" to="/membership?type=hospital">소개 요청권 확인</Link></article>)}</div></section>
     <section className="section soft"><div className="feature-grid"><div><UserRoundSearch /><h3>조건 기반 후보 탐색</h3><p>진료과뿐 아니라 지역, 근무형태, 입사 가능 시점까지 확인합니다.</p></div><div><FileCheck2 /><h3>경력·자격 사전 확인</h3><p>후보자가 제공한 경력과 자격 정보를 소개 전에 점검합니다.</p></div><div><ShieldCheck /><h3>동의 기반 정보 공개</h3><p>양측의 의사를 확인한 뒤 필요한 범위의 정보만 전달합니다.</p></div></div></section>
     <ConversionBanner title="찾는 인재가 따로 있으신가요?" description="채용 조건을 남기면 공개되지 않은 인재풀까지 확인해드립니다." hospital />
   </>;
@@ -272,6 +279,31 @@ function AdvertisePage() {
   </>;
 }
 
+function MembershipCheckout({ plan, onClose }) {
+  const [done, setDone] = useState(false);
+  const submit = (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const records = JSON.parse(localStorage.getItem('medihelpers_membership_requests') || '[]');
+    records.push({ id: `MEM-${Date.now()}`, planId: plan.id, amount: plan.price, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
+    localStorage.setItem('medihelpers_membership_requests', JSON.stringify(records));
+    setDone(true);
+  };
+  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>멤버십 결제 요청이 접수되었습니다</h2><p>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit}><label><span>{plan.audience === 'doctor' ? '의료인 성함' : '병원명'} *</span><input required name="name" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
+}
+
+function MembershipPage({ route }) {
+  const params = new URLSearchParams(route.split('?')[1] || '');
+  const [type, setType] = useState(params.get('type') === 'hospital' ? 'hospital' : 'doctor');
+  const [selected, setSelected] = useState(null);
+  const plans = membershipPlans.filter((plan) => plan.audience === type);
+  return <>
+    <PageHero tone="membership" eyebrow="VERIFIED ACCESS" title="필요한 핵심정보만, 필요한 만큼 열람하세요" description="기본 검색과 상담은 부담 없이 시작하고, 실제 결정에 필요한 검증 정보는 건별 열람권 또는 멤버십으로 이용합니다." />
+    <section className="section membership-section"><div className="membership-tabs"><button className={type === 'doctor' ? 'active' : ''} onClick={() => setType('doctor')}><Stethoscope /> 의료인용</button><button className={type === 'hospital' ? 'active' : ''} onClick={() => setType('hospital')}><Building2 /> 병원용</button></div><div className="access-explain"><div><span className="access-number">FREE</span><h3>무료로 확인</h3><p>{type === 'doctor' ? '진료과, 지역, 기본 근무형태와 공개 공고' : '진료과, 경력 연차, 희망 지역과 익명 기본조건'}</p></div><ArrowRight /><div className="paid-access"><span className="access-number">PASS</span><h3>결제 후 열람</h3><p>{type === 'doctor' ? '상세 급여, 정확한 근무시간, 비공개 병원·포지션' : '검증 경력, 상세 희망조건, 동의 기반 소개 요청'}</p></div></div><div className="membership-grid">{plans.map((plan) => <article className={`membership-card ${plan.featured ? 'featured' : ''}`} key={plan.id}>{plan.featured && <span className="popular">추천</span>}<small>{plan.period === '월' ? 'MONTHLY PASS' : 'ONE-TIME ACCESS'}</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="price"><strong>{plan.price.toLocaleString()}</strong><span>원 / {plan.period}</span></div><ul>{plan.features.map((feature) => <li key={feature}><Check /> {feature}</li>)}</ul><button className={`button ${plan.featured ? 'primary' : 'outline'} full`} onClick={() => setSelected(plan)}>이용권 신청</button></article>)}</div><div className="privacy-gate"><ShieldCheck /><div><strong>결제해도 개인정보를 바로 판매하지 않습니다</strong><p>병원은 검증된 익명 정보를 열람하고 소개를 요청합니다. 의료인의 명시적 동의가 확인된 뒤에만 필요한 범위의 정보가 전달됩니다.</p></div></div></section>
+    {selected && <MembershipCheckout plan={selected} onClose={() => setSelected(null)} />}
+  </>;
+}
+
 function AboutPage() {
   return <>
     <PageHero tone="about" eyebrow="ABOUT MEDIHELPERS" title="의료 채용을 사람답게 만드는 연결" description="메디헬퍼스는 의료기관과 의료인의 조건만 맞추지 않습니다. 서로 오래 신뢰할 수 있는 선택을 만들기 위해 직접 듣고 확인하고 조율합니다." />
@@ -299,6 +331,7 @@ export function App() {
   else if (path === '/talent') page = <TalentPage />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage />;
+  else if (path === '/membership') page = <MembershipPage route={route} />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
   return <div className="app"><Header path={path} /><main>{page}</main><Footer /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;

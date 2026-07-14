@@ -1,35 +1,31 @@
 # DB
 
-## Purpose
-
-플랫폼이 영구 보관할 핵심 데이터를 정의합니다.
-
-## Current State
-
-현재 화면 데이터는 샘플입니다. Phase 2에서 아래 테이블을 Supabase에 생성합니다.
-
-## Core Tables
+## 핵심 테이블
 
 - `profiles`: 공통 회원 정보와 역할
-- `doctor_profiles`: 진료과, 경력, 희망조건, 공개범위
-- `hospitals`: 병원 정보와 인증상태
-- `jobs`: 채용공고, 근무조건, 게시기간, 상태
-- `applications`: 지원 및 진행상태
-- `consultations`: 의료인/병원 상담 리드
+- `doctor_profiles`: 진료과, 경력, 희망 조건, 공개 범위
+- `hospitals`: 병원 정보와 인증 상태
+- `jobs`: 채용공고, 근무조건, 공개 등급, 게시 상태
+- `talent_snapshots`: 병원에 노출할 익명 인재 요약
+- `applications`: 지원과 진행 상태
+- `consultations`: 의료인·병원 상담 리드
 - `matches`: 헤드헌터 추천과 단계
-- `ad_products`: 광고 상품·가격·노출 규칙
-- `orders`: 광고 주문과 결제 상태
-- `payments`: PG 거래, 승인·취소 기록
-- `audit_logs`: 민감정보 열람과 중요 변경 이력
+- `ad_products`: 광고 상품, 가격, 노출 규칙
+- `membership_plans`: 회원 유형별 멤버십과 건별 상품
+- `orders`: 주문 금액과 상태
+- `payments`: PG 승인·취소·웹훅 기록
+- `subscriptions`: 정기결제 상태와 다음 결제일
+- `entitlements`: 사용자별 권한, 만료일, 잔여 횟수
+- `content_unlocks`: 공고·인재정보 건별 열람 기록
+- `introduction_requests`: 병원의 소개 요청과 후보자 동의 상태
+- `consents`: 개인정보 수집·제공 동의 버전과 시각
+- `audit_logs`: 민감정보 열람과 주요 변경 이력
 
-## Current Rules
+## 데이터 규칙
 
-- 개인정보와 공개 공고 데이터를 분리합니다.
-- 삭제 요청과 법적 보관기간을 함께 처리할 수 있어야 합니다.
-- 결제 금액은 주문 생성 시점의 상품 스냅샷으로 보존합니다.
-
-## Related Docs
-
-- `AUTH.md`
-- `BILLING.md`
+- 개인정보와 공개 검색용 데이터를 분리합니다.
+- 유료 권한은 클라이언트 표시가 아니라 서버에서 검증합니다.
+- 주문 금액과 상품 조건은 주문 생성 시점의 스냅샷으로 보존합니다.
+- 후보자 동의 전에는 병원 응답에 직접 식별정보를 포함하지 않습니다.
+- 권한 만료, 환불, 소개 완료는 원본 거래 기록을 지우지 않고 상태 이력으로 남깁니다.
 
