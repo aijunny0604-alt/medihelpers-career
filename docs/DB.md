@@ -6,13 +6,14 @@
 - `professions`: 보건의료 직군과 직군별 검색 스키마
 - `professional_credentials`: 면허·자격 종류, 검증 상태, 만료·갱신 정보
 - `doctor_profiles`: 진료과, 경력, 희망 조건, 공개 범위
-- `hospitals`: 병원 정보와 인증 상태
+- `hospitals`: 병원 정보, 기관 유형·위치·소개, 로고 자산과 인증·로고 사용권한 검수 상태
 - `jobs`: 채용공고, 근무조건, 공개 등급, 게시 상태
 - `talent_snapshots`: 병원에 노출할 익명 인재 요약
 - `applications`: 지원과 진행 상태
 - `consultations`: 의료인·병원 상담 리드
 - `matches`: 헤드헌터 추천과 단계
 - `ad_products`: 광고 상품, 가격, 노출 규칙
+- `ad_orders`: 광고 신청의 병원 브랜드 정보, 로고 파일 참조, 공고 원고와 검수 상태
 - `membership_plans`: 회원 유형별 멤버십과 건별 상품
 - `orders`: 주문 금액과 상태
 - `payments`: PG 승인·취소·웹훅 기록
