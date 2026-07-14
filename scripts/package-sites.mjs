@@ -15,6 +15,7 @@ await mkdir('dist/server', { recursive: true });
 await mkdir('dist/.openai', { recursive: true });
 await cp('.openai/hosting.json', 'dist/.openai/hosting.json');
 const server = `const html = ${JSON.stringify(html)};
+export default { async fetch(request) { const pathname = new URL(request.url).pathname; if (pathname !== '/') return new Response('Not Found', { status: 404 }); return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' } }); } };
 export const buildId = 'medihelpers-static';
 export const hasMiddleware = false;
 export const pageRoutes = [{ pattern: '/', patternParts: [], isDynamic: false, params: [] }];
