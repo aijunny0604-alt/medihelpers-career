@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import {
   ArrowRight, BriefcaseBusiness, Building2, Check, ChevronDown, CircleCheck,
   Clock3, Heart, MapPin, Menu, Search, ShieldCheck, Sparkles, Stethoscope,
   UserRoundSearch, UsersRound, X
 } from 'lucide-react';
-import './styles.css';
 
 const jobs = [
   { hospital: '삼천포제일병원', title: '각 과 전문의 의료진 초빙', location: '경남 전지역', type: '정규직', dept: '전문의', pay: '협의 후 결정', badge: '집중채용', color: '#2367e8' },
@@ -19,7 +17,7 @@ const jobs = [
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과'];
 const regions = ['전국', '서울', '경기', '부산', '경남', '충북', '강원'];
 
-function App() {
+export function App() {
   const [saved, setSaved] = useState([]);
   const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState('');
@@ -152,5 +150,3 @@ function App() {
     </div>
   );
 }
-
-createRoot(document.getElementById('root')).render(<App />);

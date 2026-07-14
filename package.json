@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && node scripts/package-sites.mjs",
-    "preview": "vite preview"
+    "dev": "vinext dev",
+    "build": "vinext build && node scripts/package-sites.mjs",
+    "preview": "vinext start"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -14,7 +14,8 @@
     "typescript": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "lucide-react": "latest"
+    "lucide-react": "latest",
+    "vinext": "latest"
   },
   "devDependencies": {}
 }
