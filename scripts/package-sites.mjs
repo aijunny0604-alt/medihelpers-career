@@ -16,6 +16,7 @@ const faviconBase64 = (await readFile(path.join(sourceDir, 'favicon.png'))).toSt
 const appleIconBase64 = (await readFile(path.join(sourceDir, 'apple-touch-icon.png'))).toString('base64');
 const samcheonpoBrandBase64 = (await readFile(path.join(sourceDir, 'samcheonpo-jeil-brand-mark.png'))).toString('base64');
 const isarangBrandBase64 = (await readFile(path.join(sourceDir, 'isarang-children-brand-mark.png'))).toString('base64');
+const isarangBannerBase64 = (await readFile(path.join(sourceDir, 'isarang-children-recruitment-banner-v2.png'))).toString('base64');
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist/server', { recursive: true });
@@ -30,6 +31,7 @@ const faviconBase64 = ${JSON.stringify(faviconBase64)};
 const appleIconBase64 = ${JSON.stringify(appleIconBase64)};
 const samcheonpoBrandBase64 = ${JSON.stringify(samcheonpoBrandBase64)};
 const isarangBrandBase64 = ${JSON.stringify(isarangBrandBase64)};
+const isarangBannerBase64 = ${JSON.stringify(isarangBannerBase64)};
 const cssPath = ${JSON.stringify(cssPath)};
 const jsPath = ${JSON.stringify(jsPath)};
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
@@ -43,6 +45,7 @@ function responseFor(request) {
   if (pathname === '/apple-touch-icon.png') return new Response(binary(appleIconBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/samcheonpo-jeil-brand-mark.png') return new Response(binary(samcheonpoBrandBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/isarang-children-brand-mark.png') return new Response(binary(isarangBrandBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/isarang-children-recruitment-banner-v2.png') return new Response(binary(isarangBannerBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (!pathname.includes('.')) return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=60' } });
   return new Response('Not Found', { status: 404 });
 }
