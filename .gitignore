@@ -3,3 +3,5 @@ dist/
 preview.png
 .env*
 client-build/
+qa-*.png
+site-build-v*.tar.gz
