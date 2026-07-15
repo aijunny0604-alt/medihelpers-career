@@ -778,3 +778,20 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   .premium-ad .card-action svg { transition: none!important; transform: none!important; }
   .job-card.premium-ad:after { display: none!important; }
 }
+/* Roomier hero search controls */
+@media(min-width:781px) {
+  .home-hero { grid-template-columns:minmax(0,1.42fr) minmax(390px,.58fr); }
+  .hero-search-card { width:min(100%,980px); padding:25px; border-radius:28px; }
+  .hero-search-title { padding-bottom:20px; }
+  .hero-search-title > span { width:52px; height:52px; border-radius:15px; }
+  .hero-search-fields { grid-template-columns:1fr 1.18fr 1fr 235px; border-radius:18px; }
+  .hero-search-fields label { min-height:88px; padding:15px 19px; }
+  .hero-search-fields label > small { margin-bottom:8px; }
+  .hero-search-fields label > span { gap:10px; }
+  .hero-search-fields select { font-size:17px; line-height:1.5; }
+  .hero-search-fields select option { min-height:44px; padding:11px 16px; font-size:17px; line-height:1.7; }
+  .hero-search-button { min-width:0; margin:8px; border-radius:14px; font-size:17px; }
+  .popular-searches { gap:10px; padding-top:17px; }
+  .popular-searches a { padding:9px 14px; }
+  .hero-assurance { margin-top:17px; }
+}
