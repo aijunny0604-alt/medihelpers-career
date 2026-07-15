@@ -33,7 +33,8 @@
 
 화면 문구:
 
-> 간편 로그인으로 시작하기  
+> 간편 로그인으로 시작하기
+>
 > Google로 계속하기 / 카카오로 계속하기 / 네이버로 계속하기
 
 버튼 아래 안내:
@@ -137,8 +138,10 @@
 
 채널별 체크박스:
 
-> [선택] 이메일로 채용 공고, 서비스 혜택 및 이벤트 정보를 받습니다.  
-> [선택] 문자로 채용 공고, 서비스 혜택 및 이벤트 정보를 받습니다.  
+> [선택] 이메일로 채용 공고, 서비스 혜택 및 이벤트 정보를 받습니다.
+>
+> [선택] 문자로 채용 공고, 서비스 혜택 및 이벤트 정보를 받습니다.
+>
 > [선택] 카카오 메시지로 채용 공고, 서비스 혜택 및 이벤트 정보를 받습니다.
 
 상세 고지:
@@ -317,4 +320,3 @@ Supabase 프로젝트 리전, 소셜 로그인, 분석, 이메일·문자 도구
 - [Supabase Custom OAuth/OIDC](https://supabase.com/docs/guides/auth/custom-oauth-providers)
 - [Kakao Login 사전 설정](https://developers.kakao.com/docs/en/kakaologin/prerequisite)
 - [NAVER 오픈 API 이용약관](https://developers.naver.com/products/terms/)
-
