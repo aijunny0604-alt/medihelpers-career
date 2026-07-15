@@ -2,13 +2,14 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import {
-  Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
+  Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronDown, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, FileCheck2, Heart, HeartPulse, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
   ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
 import { adPlans, jobs, membershipPlans, navItems, professions, talent } from './data.js';
+import MatchingReportPage from './MatchingReportPage.jsx';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
@@ -35,7 +36,8 @@ function useScrollMotion(route) {
       '.page-hero-inner', '.section-head', '.quick-access', '.home-role-actions', '.member-teaser',
       '.job-card', '.profession-card', '.path-card', '.step', '.price-card', '.membership-card',
       '.feature-grid > div', '.value-grid > div', '.community-grid > div', '.metrics-strip > div', '.ad-exposure-copy', '.exposure-rank-card',
-      '.notice-bar', '.consultation-layout', '.contact-card', '.policy-card', '.conversion'
+      '.notice-bar', '.consultation-layout', '.contact-card', '.policy-card', '.conversion',
+      '.matching-intro', '.report-picker', '.priority-panel', '.report-result', '.report-consult-card'
     ].join(',');
     const elements = [...document.querySelectorAll(selector)];
     document.documentElement.classList.add('motion-enabled');
@@ -409,7 +411,7 @@ function JobsPage({ route }) {
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
       <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
-      {filtered.length ? <>{promotedJobs.length > 0 && <div className="promoted-jobs"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong></div><small>집중채용 · 추천 광고 우선 노출</small></div><div className="job-grid promoted-grid">{promotedJobs.map((job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />)}</div></div>}{standardJobs.length > 0 && <div className="standard-jobs">{promotedJobs.length > 0 && <div className="standard-heading"><strong>전체 채용공고</strong><span>최신 등록순</span></div>}<div className="job-grid">{standardJobs.map((job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />)}</div></div>}<div className="decision-nudge"><div><span><Crown /> SMART ACCESS</span><h3>{saved.length ? `저장한 ${saved.length}개 공고, 우선순위부터 확인하세요` : '마음에 드는 공고 하나부터 깊게 확인하세요'}</h3><p>공개 정보로 먼저 비교하고, 결정에 필요한 급여와 상세조건만 건별로 열람할 수 있습니다.</p></div><Link className="button dark" to="/membership?type=doctor" onClick={() => trackConversion('jobs_membership_nudge', { savedCount: saved.length })}>2,900원부터 시작 <ArrowRight /></Link></div></> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={() => { setDept('전체 진료과'); setRegion('전국'); setKeyword(''); }}>검색 초기화</button></div>}
+      {filtered.length ? <>{promotedJobs.length > 0 && <div className="promoted-jobs"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong></div><small>집중채용 · 추천 광고 우선 노출</small></div><div className="job-grid promoted-grid">{promotedJobs.map((job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />)}</div></div>}{standardJobs.length > 0 && <div className="standard-jobs">{promotedJobs.length > 0 && <div className="standard-heading"><strong>전체 채용공고</strong><span>최신 등록순</span></div>}<div className="job-grid">{standardJobs.map((job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />)}</div></div>}<div className="decision-nudge"><div><span><Crown /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}개 병원, 조건별로 비교해보세요` : '관심 병원을 고르고 매칭 리포트를 만들어보세요'}</h3><p>근무·보수·거리·진료 범위를 비교하고 확인할 질문을 헤드헌터에게 그대로 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=doctor" onClick={() => trackConversion('jobs_matching_report', { savedCount: saved.length })}>매칭 리포트 만들기 <ArrowRight /></Link></div></> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={() => { setDept('전체 진료과'); setRegion('전국'); setKeyword(''); }}>검색 초기화</button></div>}
     </section>
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
     {selected && <JobDetail job={selected} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
@@ -418,10 +420,16 @@ function JobsPage({ route }) {
 
 function TalentPage() {
   const [dept, setDept] = useState('전체 진료과');
+  const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem('medihelpers_saved_talent') || '[]'));
   const visible = dept === '전체 진료과' ? talent : talent.filter((person) => person.dept === dept);
+  const toggleSaved = (code) => setSaved((current) => {
+    const next = current.includes(code) ? current.filter((item) => item !== code) : [...current, code];
+    localStorage.setItem('medihelpers_saved_talent', JSON.stringify(next));
+    return next;
+  });
   return <>
     <PageHero tone="mint" eyebrow="VERIFIED TALENT" title="병원이 기다리는 익명 의료인 인재풀" description="후보자의 동의 전에는 개인정보를 공개하지 않습니다. 필요한 진료과와 조건을 알려주시면 전담 컨설턴트가 직접 연결합니다."><Link className="button primary" to="/headhunting?role=hospital">우리 병원 인재 추천받기</Link></PageHero>
-    <section className="section"><div className="notice-bar"><ShieldCheck /><div><strong>안전한 익명 인재정보</strong><p>전문과·연차·희망 조건·입사 가능 시점까지 무료로 비교하세요. 검증 상세정보와 소개 요청은 필요한 후보에게만 사용할 수 있습니다.</p></div></div><div className="talent-toolbar"><div><span className="section-kicker">ACTIVE CANDIDATES</span><h2>최근 상담 완료 인재</h2></div><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.slice(0, -2).map((item) => <option key={item}>{item}</option>)}</select></div><div className="talent-grid">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>입사 가능</dt><dd>{person.available}</dd></div></dl><div className="talent-lock-preview"><span><LockKeyhole /> 유료 상세정보</span><p>근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모</p></div><Link className="button outline full" to={`/membership?type=hospital&candidate=${person.code}`} onClick={() => trackConversion('talent_intro_cta', { candidate: person.code })}>이 후보 소개 요청 · 39,000원</Link></article>)}</div></section>
+    <section className="section"><div className="notice-bar"><ShieldCheck /><div><strong>안전한 익명 인재정보</strong><p>전문과·연차·희망 조건·입사 가능 시점까지 무료로 비교하세요. 검증 상세정보와 소개 요청은 필요한 후보에게만 사용할 수 있습니다.</p></div></div><div className="talent-toolbar"><div><span className="section-kicker">ACTIVE CANDIDATES</span><h2>최근 상담 완료 인재</h2></div><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.slice(0, -2).map((item) => <option key={item}>{item}</option>)}</select></div><div className="talent-grid">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /><button className={`talent-save ${saved.includes(person.code) ? 'saved' : ''}`} onClick={() => toggleSaved(person.code)} aria-label={`${person.code} 후보 찜하기`}><Heart fill={saved.includes(person.code) ? 'currentColor' : 'none'} /></button></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>입사 가능</dt><dd>{person.available}</dd></div></dl><div className="talent-lock-preview"><span><LockKeyhole /> 유료 상세정보</span><p>근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모</p></div><Link className="button outline full" to={`/membership?type=hospital&candidate=${person.code}`} onClick={() => trackConversion('talent_intro_cta', { candidate: person.code })}>이 후보 소개 요청 · 39,000원</Link></article>)}</div><div className="decision-nudge report-nudge"><div><span><BarChart3 /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}명 후보, 채용조건과 비교해보세요` : '관심 후보를 찜하고 적합 조건을 비교해보세요'}</h3><p>전문과목·경력·희망 지역·입사 시점을 비교하고 확인 질문을 헤드헌터에게 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=hospital">후보 매칭 리포트 <ArrowRight /></Link></div></section>
     <section className="section soft"><div className="feature-grid"><div><UserRoundSearch /><h3>조건 기반 후보 탐색</h3><p>진료과뿐 아니라 지역, 근무형태, 입사 가능 시점까지 확인합니다.</p></div><div><FileCheck2 /><h3>경력·자격 사전 확인</h3><p>후보자가 제공한 경력과 자격 정보를 소개 전에 점검합니다.</p></div><div><ShieldCheck /><h3>동의 기반 정보 공개</h3><p>양측의 의사를 확인한 뒤 필요한 범위의 정보만 전달합니다.</p></div></div></section>
     <ConversionBanner title="찾는 인재가 따로 있으신가요?" description="채용 조건을 남기면 공개되지 않은 인재풀까지 확인해드립니다." hospital />
   </>;
@@ -569,6 +577,7 @@ export function App() {
   else if (path === '/jobs') page = <JobsPage route={route} />;
   else if (path === '/professions') page = <ProfessionsPage route={route} />;
   else if (path === '/talent') page = <TalentPage />;
+  else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage />;
   else if (path === '/membership') page = <MembershipPage route={route} />;
