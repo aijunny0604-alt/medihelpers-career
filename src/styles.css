@@ -1046,3 +1046,15 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 }
 
 .headhunting-description-part{display:inline-block;white-space:nowrap}
+
+/* Balanced responsive copy for the jobs hero */
+.jobs-hero .page-hero-inner{max-width:1060px}
+.jobs-hero h1,.jobs-hero p{word-break:normal;overflow-wrap:anywhere}
+.jobs-hero p{max-width:920px}
+.jobs-hero-part,.jobs-description-part{display:inline-block;white-space:nowrap}
+
+@media(max-width:480px){
+  .jobs-hero h1{font-size:27px;letter-spacing:-1.35px}
+  .jobs-hero p{font-size:15px;line-height:1.85}
+  .jobs-description-part{display:block}
+}

@@ -450,7 +450,12 @@ function JobsPage({ route }) {
     return next;
   });
   return <>
-    <PageHero eyebrow="MEDICAL JOBS" title="조건부터 비교하는 의료 채용정보" description="현재 의사 채용정보를 우선 운영하고 있습니다. 다른 보건의료 직군은 전용관에서 오픈 알림을 신청할 수 있습니다."><Link className="button outline" to="/professions">전체 의료 직군 보기 <ArrowRight /></Link></PageHero>
+    <PageHero
+      tone="jobs-hero"
+      eyebrow="MEDICAL JOBS"
+      title={<><span className="jobs-hero-part">조건부터 비교하는</span>{' '}<span className="jobs-hero-part">의료 채용정보</span></>}
+      description={<><span className="jobs-description-part">현재 의사 채용정보를</span>{' '}<span className="jobs-description-part">우선 운영하고 있습니다.</span>{' '}<span className="jobs-description-part">다른 보건의료 직군은 전용관에서</span>{' '}<span className="jobs-description-part">오픈 알림을 신청할 수 있습니다.</span></>}
+    ><Link className="button outline" to="/professions">전체 의료 직군 보기 <ArrowRight /></Link></PageHero>
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
       <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
