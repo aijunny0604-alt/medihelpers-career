@@ -331,10 +331,6 @@ function MemberTeaser() {
   return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>MEDIHELPERS MEMBERSHIP</small><h2>둘러보기는 무료, 결정에 필요한 핵심정보는 멤버십으로</h2><p>의료인은 프리미엄 공고를, 병원은 검증된 인재정보와 소개 요청권을 이용할 수 있습니다.</p></div><Link className="button dark" to="/membership">멤버십 비교 <ArrowRight /></Link></section>;
 }
 
-function PrecisionPromise() {
-  return <section className="precision-promise"><div className="precision-copy"><small>SMALLER, SHARPER, FASTER</small><h2>공고 수보다<br />확인된 조건이 중요합니다</h2><p>대형 게시판처럼 많이 쌓아두기보다, 지금 연락 가능하고 실제 조건을 확인할 수 있는 채용정보에 집중합니다.</p></div><div className="precision-rules"><div><span><FileCheck2 /></span><div><strong>게시 전 조건 확인</strong><p>진료과, 근무일, 급여 공개범위와 담당자 정보를 점검합니다.</p></div></div><div><span><Clock3 /></span><div><strong>오래된 공고 정리</strong><p>게시기간이 끝나면 노출을 종료하고 채용 진행 여부를 다시 확인합니다.</p></div></div><div><span><MessageCircle /></span><div><strong>클릭보다 실제 연결</strong><p>궁금한 조건은 3단계 간편상담으로 전담 헤드헌터에게 바로 전달합니다.</p></div></div></div></section>;
-}
-
 function HomePage() {
   const [profession, setProfession] = useState('doctor');
   const [dept, setDept] = useState('전체 진료과');
@@ -365,7 +361,6 @@ function HomePage() {
     </section>
     <QuickAccess />
     <MemberTeaser />
-    <PrecisionPromise />
     <section className="section soft"><div className="section-head"><div><span className="section-kicker">CURATED POSITIONS</span><h2>지금 주목할 채용</h2><p>조건과 신뢰도를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(jobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs?open=${job.id}`)} />)}</div></section>
     <section className="dual-path section"><div className="path-card doctor"><span className="path-icon"><Stethoscope /></span><small>의료인이라면</small><h2>내 조건을 먼저 말하고<br />비공개 제안을 받으세요</h2><p>이력서를 공개하지 않아도 전담 헤드헌터가 적합한 병원을 찾아드립니다.</p><ul><li><Check /> 개인정보 비공개</li><li><Check /> 연봉·근무조건 협상</li><li><Check /> 입사 후 피드백</li></ul><Link className="button dark" to="/headhunting">구직 상담 시작</Link></div><div className="path-card hospital"><span className="path-icon"><Building2 /></span><small>의료기관이라면</small><h2>광고와 인재 추천을<br />한 번에 시작하세요</h2><p>공고 등록부터 후보 발굴, 면접 일정까지 필요한 만큼 선택할 수 있습니다.</p><ul><li><Check /> 전문과목별 인재풀</li><li><Check /> 검증된 채용공고</li><li><Check /> 성과형 헤드헌팅</li></ul><Link className="button light" to="/advertise">광고 상품 보기</Link></div></section>
     <section className="section process"><div className="section-head centered"><div><span className="section-kicker">HOW IT WORKS</span><h2>사람이 끝까지 책임지는 매칭</h2><p>정보를 나열하는 데서 멈추지 않고 실제 결정까지 함께합니다.</p></div></div><div className="step-grid">{[[MessageCircle,'01','조건 상담','원하는 지역과 근무조건, 채용 일정을 듣습니다.'],[Target,'02','정밀 연결','공개·비공개 포지션과 검증된 인재를 선별합니다.'],[ClipboardCheck,'03','조건 조율','면접 일정과 보수, 근무조건 협상을 지원합니다.'],[CircleCheck,'04','새로운 시작','입사와 채용 완료 후에도 적응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div></section>
