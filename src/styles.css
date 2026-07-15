@@ -1083,3 +1083,59 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   .section + .conversion{margin-top:40px}
   .route-stage>.conversion:last-child{margin-bottom:52px}
 }
+
+/* Simplified profession explorer */
+.profession-explorer{max-width:1500px;margin:0 auto;display:grid;grid-template-columns:minmax(340px,.72fr) minmax(0,1.28fr);gap:24px;align-items:stretch}
+.profession-select-list{padding:10px;border:1px solid #dce5f0;border-radius:25px;background:#f6f9fd;display:flex;flex-direction:column;gap:7px}
+.profession-select-button{position:relative;width:100%;min-height:69px;padding:10px 13px;border:1px solid transparent;border-radius:16px;background:transparent;color:#5c6d84;display:grid;grid-template-columns:43px minmax(0,1fr) 20px;align-items:center;gap:12px;text-align:left;transition:background .22s ease,border-color .22s ease,box-shadow .22s ease,color .22s ease}
+.profession-select-button>span{width:43px;height:43px;border-radius:13px;background:#e8f1ff;color:var(--blue);display:grid;place-items:center;transition:background .22s ease,color .22s ease}
+.profession-select-button>span svg{width:21px}.profession-select-button>div{min-width:0;display:flex;flex-direction:column}
+.profession-select-button strong{font-size:15px;line-height:1.35;color:#263a58;word-break:keep-all}.profession-select-button small{margin-top:3px;color:#8995a6;font-size:11px}
+.profession-select-button>svg{width:17px;transform:rotate(-90deg);color:#9aa7b7;transition:transform .22s ease,color .22s ease}
+.profession-select-button:hover{background:#fff;border-color:#d9e4f1;color:var(--blue)}
+.profession-select-button.active{border-color:#bcd2f4;background:#fff;color:var(--blue);box-shadow:0 12px 28px rgba(29,67,116,.1)}
+.profession-select-button.active>span{background:var(--blue);color:#fff}.profession-select-button.active>svg{transform:rotate(-90deg) translateY(2px);color:var(--blue)}
+.profession-focus{position:relative;min-height:100%;padding:clamp(34px,3.2vw,54px);border:1px solid #d9e4f1;border-radius:28px;background:linear-gradient(145deg,#fff 0%,#f6f9ff 58%,#eef6ff 100%);box-shadow:0 24px 60px rgba(30,65,111,.1);overflow:hidden}
+.profession-focus:after{content:'';position:absolute;width:330px;height:330px;right:-145px;bottom:-170px;border:58px solid rgba(18,99,232,.07);border-radius:50%}
+.profession-focus-top{position:relative;z-index:1;display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;gap:16px}
+.profession-focus-top>span{width:64px;height:64px;border-radius:19px;background:linear-gradient(145deg,#2172ee,#1055c8);color:#fff;display:grid;place-items:center;box-shadow:0 13px 25px rgba(18,99,232,.2)}
+.profession-focus-top>span svg{width:29px;height:29px}.profession-focus-top>div{display:flex;min-width:0;flex-direction:column}
+.profession-focus-top small{font:800 11px Manrope,sans-serif;letter-spacing:1.5px;color:var(--blue)}
+.profession-focus-top h2{margin:4px 0 0;font-size:clamp(27px,2vw,37px);letter-spacing:-1.4px}
+.profession-focus-top i{padding:7px 11px;border-radius:999px;background:#e8f7f3;color:#13866e;font-size:12px;font-style:normal;font-weight:800;white-space:nowrap}
+.profession-focus.expanding .profession-focus-top i{background:#edf2f8;color:#65748a}
+.profession-focus>p{position:relative;z-index:1;max-width:720px;margin:28px 0 31px;color:#66758a;font-size:17px;line-height:1.75}
+.profession-focus-label{position:relative;z-index:1;margin-bottom:12px;color:#253a59;font-size:13px;font-weight:800}
+.profession-focus-tags{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.profession-focus-tags span{min-height:58px;padding:11px 14px;border:1px solid #dfe7f1;border-radius:14px;background:rgba(255,255,255,.84);display:flex;align-items:center;gap:11px;color:#354a67;font-size:15px;font-weight:700}
+.profession-focus-tags b{color:var(--blue);font:800 10px Manrope,sans-serif;letter-spacing:.7px}
+.profession-focus-note{position:relative;z-index:1;margin-top:24px;padding:18px;border-radius:17px;background:#102441;color:#fff;display:flex;align-items:flex-start;gap:13px}
+.profession-focus-note>svg{width:23px;flex:0 0 auto;color:#69cbb5}.profession-focus-note>div{display:flex;flex-direction:column}
+.profession-focus-note strong{font-size:14px}.profession-focus-note p{margin:4px 0 0;color:#aebed3;font-size:12px;line-height:1.6}
+.profession-focus-actions{position:relative;z-index:1;margin-top:22px;display:flex;justify-content:flex-end;gap:10px}.profession-focus-actions .button{min-height:52px}
+
+/* Editorial premium advertisement showcase */
+.premium-showcase{position:relative;z-index:2;min-height:520px;border-radius:25px;background:#fff;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(270px,.88fr);overflow:hidden;box-shadow:0 24px 55px rgba(4,18,39,.28)}
+.premium-showcase-brand{position:relative;min-width:0;padding:48px 38px 38px;background:linear-gradient(145deg,#eaf3ff 0%,#dceaff 58%,#cfdef8 100%);display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.premium-showcase-brand:after{content:'';position:absolute;width:270px;height:270px;right:-115px;bottom:-120px;border:46px solid rgba(18,99,232,.1);border-radius:50%}
+.showcase-edition{position:relative;z-index:2;display:inline-flex;align-items:center;gap:7px;color:#155dc9;font:800 11px Manrope,sans-serif;letter-spacing:1.4px}.showcase-edition svg{width:17px;color:#c48a16}
+.showcase-brand-lockup{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:22px}
+.showcase-brand-lockup .hospital-logo.brand-asset-bluecare{width:min(100%,290px)!important;height:92px!important;justify-content:flex-start;padding-inline:20px!important;box-shadow:0 16px 34px rgba(40,78,131,.14)}
+.showcase-brand-lockup>div{display:flex;min-width:0;flex-direction:column}.showcase-brand-lockup>div>small{font:800 10px Manrope,sans-serif;letter-spacing:1.6px;color:#5f7da6}
+.showcase-brand-lockup>div>strong{margin-top:7px;color:#10284b;font-size:clamp(27px,2.3vw,39px);line-height:1.2;letter-spacing:-1.7px;word-break:keep-all}
+.showcase-brand-lockup>div>span{max-width:380px;margin-top:10px;color:#6a7d98;font-size:13px;line-height:1.7}
+.showcase-brand-index{position:absolute;right:24px;bottom:-35px;color:rgba(255,255,255,.32);font:800 190px/1 Manrope,sans-serif;pointer-events:none}
+.premium-showcase-position{position:relative;padding:48px 31px 30px;background:#fff;display:flex;min-width:0;flex-direction:column}
+.premium-showcase-position:before{content:'';position:absolute;left:-22px;top:58px;width:44px;height:44px;border-radius:50%;background:#fff}
+.showcase-position-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.showcase-position-head>span{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#e9f2ff;color:var(--blue);font-size:11px;font-weight:850}
+.showcase-position-head svg{width:14px}.showcase-position-head small{color:#8a96a7;font-size:9px;font-weight:750;text-align:right}
+.premium-showcase-position h3{margin:34px 0 18px;color:#112541;font-size:clamp(25px,2vw,34px);line-height:1.3;letter-spacing:-1.2px}
+.showcase-position-meta{display:flex;flex-wrap:wrap;gap:13px;color:#718096;font-size:12px}.showcase-position-meta span{display:flex;align-items:center;gap:5px}.showcase-position-meta svg{width:15px}
+.showcase-position-points{margin-top:28px;padding-top:23px;border-top:1px solid #e6ebf2;display:flex;flex-direction:column;gap:11px}
+.showcase-position-points span{display:flex;align-items:center;gap:8px;color:#40536d;font-size:12px;font-weight:700}.showcase-position-points svg{width:15px;color:var(--mint)}
+.showcase-apply{width:100%;min-height:72px;margin-top:auto;padding:0 18px;border:0;border-radius:16px;background:#102441;color:#fff;display:flex;align-items:center;justify-content:space-between;text-align:left;box-shadow:0 14px 28px rgba(16,36,65,.18);transition:transform .25s ease,background .25s ease}
+.showcase-apply>span{display:flex;flex-direction:column}.showcase-apply small{color:#9fb2cc;font-size:10px}.showcase-apply strong{margin-top:2px;font-size:14px}.showcase-apply>svg{width:20px;transition:transform .25s ease}
+.showcase-apply:hover{transform:translateY(-2px);background:#17345d}.showcase-apply:hover>svg{transform:translateX(3px)}
+@media(max-width:1050px){.profession-explorer{grid-template-columns:1fr}.profession-select-list{display:grid;grid-template-columns:1fr 1fr}.premium-showcase{grid-template-columns:1fr;min-height:0}.premium-showcase-brand{min-height:360px}.premium-showcase-position:before{display:none}.showcase-apply{margin-top:30px}}
+@media(max-width:780px){.profession-explorer{gap:16px}.profession-select-list{margin-inline:-20px;padding:10px 20px;display:flex;flex-direction:row;overflow-x:auto;border-inline:0;border-radius:0;scroll-snap-type:x proximity}.profession-select-button{flex:0 0 250px;scroll-snap-align:start;background:#fff;border-color:#e0e7f0}.profession-focus{padding:28px 23px;border-radius:23px}.profession-focus-top{grid-template-columns:54px minmax(0,1fr)}.profession-focus-top>span{width:54px;height:54px;border-radius:16px}.profession-focus-top>span svg{width:25px}.profession-focus-top i{grid-column:1/3;justify-self:start}.profession-focus>p{margin:22px 0;font-size:15px}.profession-focus-actions{flex-direction:column}.profession-focus-actions .button{width:100%}.premium-showcase-brand{min-height:320px;padding:42px 24px 28px}.premium-showcase-position{padding:34px 24px 24px}}
+@media(max-width:480px){.profession-focus-tags{grid-template-columns:1fr}.profession-focus-note{padding:16px}.profession-focus-note strong{font-size:13px}.premium-showcase{border-radius:20px}.premium-showcase-brand{min-height:300px;padding-inline:20px}.showcase-brand-lockup .hospital-logo.brand-asset-bluecare{height:78px!important;padding-inline:12px!important}.showcase-brand-lockup>div>strong{font-size:26px}.premium-showcase-position{padding:28px 20px 20px}.showcase-position-head{align-items:flex-start;flex-direction:column}.premium-showcase-position h3{margin-top:24px;font-size:26px}}

@@ -40,7 +40,7 @@ function useScrollMotion(route) {
     if (reduced) return undefined;
     const selector = [
       '.page-hero-inner', '.section-head', '.quick-access', '.home-role-actions', '.member-teaser',
-      '.job-card', '.profession-card', '.path-card', '.step', '.price-card', '.membership-card',
+      '.job-card', '.profession-explorer', '.profession-focus', '.premium-showcase', '.path-card', '.step', '.price-card', '.membership-card',
       '.feature-grid > div', '.value-grid > div', '.community-grid > div', '.metrics-strip > div', '.ad-exposure-copy', '.exposure-rank-card',
       '.notice-bar', '.consultation-layout', '.contact-card', '.policy-card', '.conversion',
       '.matching-intro', '.report-picker', '.priority-panel', '.report-result', '.report-consult-card'
@@ -424,16 +424,36 @@ const professionIcons = { doctor: Stethoscope, nurse: HeartPulse, pharmacy: Pill
 
 function ProfessionsPage({ route }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
-  const [selected, setSelected] = useState(params.get('profession') || 'all');
-  const visible = selected === 'all' ? professions : professions.filter((item) => item.id === selected);
+  const initialProfession = professions.some((item) => item.id === params.get('profession')) ? params.get('profession') : 'doctor';
+  const [selected, setSelected] = useState(initialProfession);
+  const activeProfession = professions.find((item) => item.id === selected) || professions[0];
+  const ActiveIcon = professionIcons[activeProfession.id];
   return <>
     <PageHero tone="profession" eyebrow="ONE HEALTHCARE NETWORK" title="하나로 연결하고, 직군별로 깊게" description="계정과 상담은 하나로 간단하게 이용하고 채용정보, 경력 기준, 익명 커뮤니티는 각 전문직군에 맞게 나눕니다."><Link className="button primary" to="/headhunting?profession=all">내 직군 오픈 알림 신청</Link></PageHero>
-    <section className="section profession-section"><div className="profession-philosophy"><div><span className="section-kicker">UNIFIED, NOT MIXED</span><h2>모두 모으되<br />아무렇게나 섞지 않습니다</h2></div><p>간호사의 교대근무와 방사선사의 모달리티, 임상병리사의 검사분야, 치료사의 환자군은 서로 다른 정보입니다. 메디헬퍼스는 공통 계정과 결제·상담 시스템을 공유하면서 직군별 검색 기준과 커뮤니티를 독립적으로 운영합니다.</p></div><div className="profession-filter"><button className={selected === 'all' ? 'active' : ''} onClick={() => setSelected('all')}>전체 직군</button>{professions.map((item) => <button key={item.id} className={selected === item.id ? 'active' : ''} onClick={() => setSelected(item.id)}>{item.short}</button>)}</div><div className="profession-grid">{visible.map((item) => { const Icon = professionIcons[item.id]; return <article className={`profession-card ${item.status}`} key={item.id}><div className="profession-card-head"><span><Icon /></span><i>{item.status === 'active' ? '운영 중' : '파트너 모집'}</i></div><h3>{item.name}</h3><p>{item.description}</p><div className="specialty-tags">{item.specialties.map((tag) => <span key={tag}>{tag}</span>)}</div>{item.status === 'active' ? <Link className="button primary full" to="/jobs">채용정보 바로 보기 <ArrowRight /></Link> : <Link className="button outline full" to={`/headhunting?profession=${item.id}`}>오픈 알림·상담 신청 <ArrowRight /></Link>}</article>; })}</div></section>
+    <section className="section profession-section">
+      <div className="profession-philosophy"><div><span className="section-kicker">UNIFIED, NOT MIXED</span><h2>직군은 나누고,<br />상담은 한곳에서</h2></div><p>필요한 기준은 직군마다 다르지만 상담 창구는 복잡할 필요가 없습니다. 직군을 선택하면 꼭 필요한 조건만 보여드리고, 모든 문의는 전담 헤드헌터에게 한 번에 연결합니다.</p></div>
+      <div className="profession-explorer">
+        <div className="profession-select-list" role="tablist" aria-label="의료 직군 선택">
+          {professions.map((item) => {
+            const Icon = professionIcons[item.id];
+            const isActive = selected === item.id;
+            return <button key={item.id} type="button" role="tab" aria-selected={isActive} className={`profession-select-button ${isActive ? 'active' : ''}`} onClick={() => setSelected(item.id)}><span><Icon /></span><div><strong>{item.name}</strong><small>{item.status === 'active' ? '채용정보 운영 중' : '오픈 알림 접수 중'}</small></div><ChevronDown /></button>;
+          })}
+        </div>
+        <article className={`profession-focus ${activeProfession.status}`} role="tabpanel">
+          <div className="profession-focus-top"><span><ActiveIcon /></span><div><small>{activeProfession.status === 'active' ? 'AVAILABLE NOW' : 'OPENING SOON'}</small><h2>{activeProfession.name}</h2></div><i>{activeProfession.status === 'active' ? '운영 중' : '파트너 모집'}</i></div>
+          <p>{activeProfession.description}</p>
+          <div className="profession-focus-label">이 직군에서 먼저 확인할 조건</div>
+          <div className="profession-focus-tags">{activeProfession.specialties.map((tag, index) => <span key={tag}><b>{String(index + 1).padStart(2, '0')}</b>{tag}</span>)}</div>
+          <div className="profession-focus-note"><UserRoundSearch /><div><strong>어떤 직군을 선택해도 상담은 한곳으로 연결됩니다</strong><p>선택한 직군과 궁금한 조건을 전달하면 전담 헤드헌터가 확인 후 연락드립니다.</p></div></div>
+          <div className="profession-focus-actions">{activeProfession.status === 'active' && <Link className="button outline" to="/jobs">채용정보 보기 <ArrowRight /></Link>}<Link className="button primary" to={`/headhunting?profession=${activeProfession.id}`}>{activeProfession.status === 'active' ? '이 직군 상담하기' : '오픈 알림·상담 신청'} <ArrowRight /></Link></div>
+        </article>
+      </div>
+    </section>
     <section className="section soft community-plan"><div className="section-head"><div><span className="section-kicker">PROFESSIONAL COMMUNITY</span><h2>익명 커뮤니티도 직군별로 정확하게</h2><p>사람을 모으기 위한 잡담 게시판보다 실제 커리어 결정에 도움이 되는 정보부터 시작합니다.</p></div></div><div className="community-grid"><div><BadgeCheck /><h3>면허·자격 기반 인증</h3><p>이름은 익명으로 활동할 수 있지만 해당 직군 구성원인지 확인합니다.</p></div><div><WalletCards /><h3>급여·근무표 인사이트</h3><p>직군과 경력, 지역, 교대형태에 따라 조건을 비교합니다.</p></div><div><MessageCircle /><h3>실무 질문과 경험</h3><p>부서 이동, 장비 경험, 교육, 면접과 이직 경험을 나눕니다.</p></div><div><BriefcaseBusiness /><h3>대화에서 채용으로</h3><p>관심 있는 정보에서 익명 상담과 검증된 채용으로 자연스럽게 연결합니다.</p></div></div></section>
     <ConversionBanner title="당신의 직군도 메디헬퍼스에 필요합니다" description="먼저 참여한 의료인과 병원의 의견을 바탕으로 직군별 전용관을 순서대로 엽니다." />
   </>;
 }
-
 function JobsPage({ route }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [dept, setDept] = useState(params.get('dept') || '전체 진료과');
@@ -534,6 +554,22 @@ function Checkout({ plan, onClose }) {
   return <Modal onClose={onClose} wide label="병원 광고 상품 신청">{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>광고 결제 요청이 접수되었습니다</h2><p>공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를 보내드립니다.<br />PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <><div className="checkout-title"><small>ADVERTISEMENT ORDER</small><h2>광고 상품 신청</h2><p>병원 브랜드와 채용정보를 함께 검수한 뒤 결제 링크와 게시 일정을 안내합니다.</p></div><form className="checkout-grid" onSubmit={submit}><div className="checkout-form"><div className="brand-upload"><div className="logo-preview">{logoPreview ? <img src={logoPreview} alt="선택한 병원 로고 미리보기" /> : <Building2 />}</div><label><span>병원 로고 <i>선택 · 권장</i></span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectLogo} /><div className="upload-button"><Upload /><div><strong>{logoName || '로고 파일 선택'}</strong><small>PNG·JPG·WEBP, 최대 5MB</small></div></div>{logoError && <em>{logoError}</em>}</label></div><div className="form-grid"><label><span>병원명 *</span><input required name="hospital" placeholder="병원명을 입력해주세요" /></label><label><span>기관 유형 *</span><select required name="facilityType" defaultValue=""><option value="" disabled>기관 유형 선택</option><option>종합병원</option><option>병원</option><option>요양병원</option><option>한방병원</option><option>의원</option><option>검진·전문센터</option><option>기타 의료기관</option></select></label><label><span>담당자명 *</span><input required name="manager" placeholder="담당자 성함" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" placeholder="billing@hospital.co.kr" /></label><label><span>병원 위치 *</span><input required name="address" placeholder="예: 부산광역시 연제구" /></label></div><label className="wide-field"><span>채용 직군·전문영역 *</span><input required name="department" placeholder="예: 정형외과 전문의, 방사선사 CT" /></label><label className="wide-field"><span>병원·채용 소개 <i>선택</i></span><textarea name="introduction" rows="3" placeholder="진료 환경, 기관의 강점, 채용 인원과 일정을 간단히 적어주세요." /></label><div className="payment-choice"><span>결제 안내 방식</span><div><button type="button" className={method === 'card' ? 'active' : ''} onClick={() => setMethod('card')}><CreditCard /> 카드 결제 링크</button><button type="button" className={method === 'transfer' ? 'active' : ''} onClick={() => setMethod('transfer')}><Banknote /> 계좌이체·세금계산서</button></div></div><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원 로고는 사용 권한을 확인한 파일만 등록합니다.</span></label></div><aside className="order-summary"><small>선택한 상품</small><h3>{plan.name}</h3><p>{plan.unit} 노출</p><ul>{plan.features.map((item) => <li key={item}><Check />{item}</li>)}</ul><div className="price-row"><span>결제 예정금액<small>부가세 포함</small></span><strong>{plan.price.toLocaleString()}원</strong></div><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.</p></aside></form></>}</Modal>;
 }
 
+function PremiumAdShowcase({ job, onApply }) {
+  return <article className="premium-showcase" style={{ '--showcase-color': job.color }}>
+    <div className="premium-showcase-brand">
+      <div className="showcase-edition"><Crown /> PREMIER 01</div>
+      <div className="showcase-brand-lockup"><HospitalLogo job={job} prominent /><div><small>FEATURED HOSPITAL</small><strong>{job.hospital}</strong><span>병원의 이름과 로고를 하나의 브랜드로 기억하게 합니다.</span></div></div>
+      <div className="showcase-brand-index" aria-hidden="true">M</div>
+    </div>
+    <div className="premium-showcase-position">
+      <div className="showcase-position-head"><span><Sparkles /> 집중채용</span><small>AD · 최상단 우선 노출</small></div>
+      <h3>{job.title}</h3>
+      <div className="showcase-position-meta"><span><MapPin />{job.location}</span><span><Clock3 />{job.schedule}</span></div>
+      <div className="showcase-position-points"><span><Check />대형 브랜드 영역</span><span><Check />포지션 정보 분리</span><span><Check />전담 컨설턴트 연결</span></div>
+      <button type="button" className="showcase-apply" onClick={onApply}><span><small>이 레이아웃으로</small><strong>집중채용 광고하기</strong></span><ArrowRight /></button>
+    </div>
+  </article>;
+}
 function AdvertisePage() {
   const [plan, setPlan] = useState(null);
   return <>
@@ -556,7 +592,7 @@ function AdvertisePage() {
         <p className="exposure-note"><ShieldCheck /> 실제 노출 위치와 기간은 결제 전에 확인합니다.</p>
       </div>
     </section>
-    <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE AD PREVIEW</span><h2>로고를 등록하면<br />이렇게 먼저 보입니다</h2><p>집중채용 상품의 실제 노출 형태를 미리 확인하세요. 병원 로고를 중심에 두고 광고 등급, 채용 분야, 근무 조건이 자연스럽게 이어집니다.</p><ul><li><Check /> 병원 로고를 카드의 중심 브랜드 자산으로 노출</li><li><Check /> 집중채용 등급은 목록 최상단 우선 배치</li><li><Check /> 과하지 않은 광원과 깊이감으로 시선 유도</li></ul><button className="button primary" onClick={() => setPlan(adPlans[2])}>집중채용 광고 신청 <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><JobCard job={advertisementPreviewJob} preview saved={false} onSave={() => {}} onOpen={() => setPlan(adPlans[2])} /></div></section>
+    <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE AD PREVIEW</span><h2>로고를 등록하면<br />이렇게 먼저 보입니다</h2><p>집중채용 상품의 실제 노출 형태를 미리 확인하세요. 병원 로고를 중심에 두고 광고 등급, 채용 분야, 근무 조건이 자연스럽게 이어집니다.</p><ul><li><Check /> 병원 로고를 카드의 중심 브랜드 자산으로 노출</li><li><Check /> 집중채용 등급은 목록 최상단 우선 배치</li><li><Check /> 과하지 않은 광원과 깊이감으로 시선 유도</li></ul><button className="button primary" onClick={() => setPlan(adPlans[2])}>집중채용 광고 신청 <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><PremiumAdShowcase job={advertisementPreviewJob} onApply={() => setPlan(adPlans[2])} /></div></section>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => setPlan(item)}>이 상품 신청하기</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
     {plan && <Checkout plan={plan} onClose={() => setPlan(null)} />}
