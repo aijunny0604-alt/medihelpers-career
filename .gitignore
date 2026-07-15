@@ -2,6 +2,7 @@ node_modules/
 dist/
 preview.png
 .env*
+!.env.example
 client-build/
 qa-*.png
 site-build-v*.tar.gz

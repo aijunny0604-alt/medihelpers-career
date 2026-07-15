@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { adPlans, jobs, membershipPlans, navItems, professions, talent } from './data.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
+import AccountPage from './AccountPage.jsx';
 import {
   appendStoredRecord,
   readStoredArray,
@@ -220,9 +221,11 @@ function Header({ path }) {
       </Link>
       <nav id="primary-navigation" className={open ? 'open' : ''}>
         {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
+        <Link to="/signup" onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/signup' ? 'active' : ''}`}>로그인·회원가입</Link>
       </nav>
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
+        <Link className="header-account" to="/signup"><UserRound size={16} /> 로그인</Link>
         <Link className="button primary compact" to="/advertise">채용공고 등록</Link>
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
@@ -240,7 +243,7 @@ function Footer() {
       </div>
       <div className="footer-column"><strong>의료인</strong><Link to="/jobs">채용정보</Link><Link to="/headhunting">구직 상담</Link><Link to="/about">서비스 소개</Link></div>
       <div className="footer-column"><strong>의료기관</strong><Link to="/talent">인재정보</Link><Link to="/headhunting">채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
-      <div className="footer-column"><strong>안내</strong><a href="mailto:hr@medihelpers.co.kr">문의하기</a><Link to="/about">개인정보 안내</Link><Link to="/about">이용약관</Link></div>
+      <div className="footer-column"><strong>안내</strong><Link to="/signup">로그인·회원가입</Link><a href="mailto:hr@medihelpers.co.kr">문의하기</a><Link to="/about">개인정보 안내</Link><Link to="/about">이용약관</Link></div>
     </div>
     <div className="footer-bottom"><span>© 2026 MEDIHELPERS. All rights reserved.</span><span>부산광역시 북구 만덕대로 116번길 28</span></div>
   </footer>;
@@ -661,6 +664,7 @@ export function App() {
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage />;
   else if (path === '/membership') page = <MembershipPage route={route} />;
+  else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
   return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
