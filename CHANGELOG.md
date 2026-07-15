@@ -1,5 +1,14 @@
 # 업데이트 기록
 
+## 2026-07-15 · v53
+
+- GitHub 공개 저장소 `aijunny0604-alt/medihelpers-career`와 로컬 `main` 브랜치 동기화
+- GitHub Pages 전용 하위 경로와 직접 URL 접근 대응
+- GitHub Actions 기반 Pages 자동 배포 구성 및 실제 배포 성공 확인
+- 메인과 `/professions` 직접 접근에서 정상 응답 확인
+- 동일 커밋 `15e3ff9`를 OpenAI Sites v53과 GitHub에 함께 반영
+- README·CHANGELOG·STATUS·DEPLOY 문서의 배포 상태와 자동화 범위 최신화
+
 ## 2026-07-15 · GitHub 동기화
 
 - GitHub 공개 저장소와 main 브랜치 연결

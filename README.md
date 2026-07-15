@@ -7,7 +7,8 @@
 - [메디헬퍼스 Sites 공개본](https://medihelpers-career.junnyai.chatgpt.site)
 - [GitHub 저장소](https://github.com/aijunny0604-alt/medihelpers-career)
 - [GitHub Pages 미러](https://aijunny0604-alt.github.io/medihelpers-career/)
-- 최신 공개 버전: v52
+- 최신 Sites 공개 버전: v53
+- 현재 공개 UI 기준 커밋: `15e3ff9`
 
 ## 현재 구현
 
@@ -37,6 +38,13 @@ npm install
 npm run dev
 npm run build
 ```
+
+## 배포와 동기화
+
+- 검증이 끝난 변경은 문서와 함께 GitHub `main` 브랜치에 푸시합니다.
+- GitHub Pages 공개본은 `main` 푸시 후 GitHub Actions로 자동 배포됩니다.
+- OpenAI Sites 공개본은 같은 커밋으로 별도 저장·배포해 GitHub와 버전을 맞춥니다.
+- 로컬 파일 변경만으로 GitHub에 실시간 자동 푸시되지는 않습니다. 작업 완료와 검증 후 의도적으로 커밋·푸시합니다.
 
 ## 문서
 

@@ -3,7 +3,11 @@
 ## 마지막 갱신
 
 - 날짜: 2026-07-15
-- 공개 사이트: https://medihelpers-career.junnyai.chatgpt.site
+- Sites 공개본: https://medihelpers-career.junnyai.chatgpt.site
+- GitHub Pages 공개본: https://aijunny0604-alt.github.io/medihelpers-career/
+- GitHub 저장소: https://github.com/aijunny0604-alt/medihelpers-career
+- 최신 Sites 버전: v53
+- 현재 공개 UI 기준 커밋: `15e3ff9`
 
 ## 공개 화면에 구현됨
 
@@ -41,6 +45,8 @@
 - 광고 신청서의 병원 로고 미리보기·기관 유형·위치·소개 수집과 상세창 키보드 초점 관리
 - PC 휠·트랙패드용 관성형 페이지 스크롤과 모바일·모달·모션 감소 환경의 기본 스크롤 유지
 - 채용공고 카드 전체 클릭 상세보기와 독립 관심공고 버튼·키보드 초점 지원
+- GitHub Pages 하위 경로와 직접 URL 접근 대응
+- GitHub `main` 푸시 후 Pages 자동 배포 워크플로 운영
 
 ## 아직 서버 연결이 필요한 기능
 
@@ -69,7 +75,10 @@
 
 ## 문서 갱신 규칙
 
-기능 작업이 완료될 때마다 Sites 공개 배포와 GitHub 푸시를 함께 진행하고, 이 문서와 CHANGELOG.md의 구현 내용·다음 우선순위를 동시에 갱신합니다. 사업 정책이나 데이터 구조가 바뀌면 `QUICK_REF.md`, `ROADMAP.md`, `DB.md`, 관련 상세 설계 문서도 함께 수정합니다.
+기능 작업이 완료될 때마다 Sites 공개 배포와 GitHub 푸시를 함께 진행하고, 이 문서와 CHANGELOG.md의 구현 내용·다음 우선순위를 동시에 갱신합니다. GitHub Pages는 `main` 푸시 후 자동 배포되며, Sites는 검증된 같은 커밋을 별도로 저장·배포합니다. 로컬 변경을 실시간 자동 푸시하지 않고 작업 완료와 검증 후 의도적으로 커밋합니다. 사업 정책이나 데이터 구조가 바뀌면 `QUICK_REF.md`, `ROADMAP.md`, `DB.md`, 관련 상세 설계 문서도 함께 수정합니다.
+
+## 최근 완료된 디자인·품질 개선
+
 - 광고센터 상단의 기능 3칸을 노출 순위 미리보기·추천 광고 신청 CTA로 교체
 - 의료인·병원 양방향 `메디헬퍼스 매칭 리포트`: 찜 목록 2~3개 선택, 중요 조건 강조, 조건별 비교, 협의 필요 항목, 상담 내용 자동 첨부
 - 매칭 리포트·멤버십 페이지를 1,500px 데스크톱 폭과 모바일 한 열 구조에 맞춰 확대하고 본문·카드·입력 폰트 통일
