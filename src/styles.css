@@ -1069,3 +1069,17 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .page-hero.profession p{width:100%;max-width:900px}
 .matching-hero p{width:100%;max-width:960px}
 .consult-copy>p,.policy-card>p{text-wrap:balance}
+
+/* Consistent section rhythm: avoid stacked section padding + CTA margins */
+@media(min-width:781px){
+  .section{padding-block:clamp(72px,4.6vw,92px)}
+  .section:has(+ .conversion){padding-bottom:0}
+  .section + .conversion{margin-top:clamp(42px,3.2vw,58px)}
+  .route-stage>.conversion:last-child{margin-bottom:clamp(54px,4vw,76px)}
+}
+
+@media(max-width:780px){
+  .section:has(+ .conversion){padding-bottom:0}
+  .section + .conversion{margin-top:40px}
+  .route-stage>.conversion:last-child{margin-bottom:52px}
+}
