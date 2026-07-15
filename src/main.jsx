@@ -484,7 +484,12 @@ function HeadhuntingPage({ route }) {
   const context = params.get('job') || params.get('candidate') || '';
   const profession = params.get('profession') || '';
   return <>
-    <PageHero tone="dark" eyebrow="PRIVATE CONSULTING" title="이직과 채용, 공개하기 전에 먼저 상담하세요" description="의료 채용 현장을 아는 전담 헤드헌터가 조건 정리부터 면접과 협상까지 한 사람처럼 함께합니다." />
+    <PageHero
+      tone="dark headhunting-hero"
+      eyebrow="PRIVATE CONSULTING"
+      title={<><span className="headhunting-title-line">이직과 채용,</span><span className="headhunting-title-line"><span>공개하기 전에</span>{' '}<span>먼저 상담하세요</span></span></>}
+      description={<><span className="headhunting-description-part">의료 채용 현장을 아는</span>{' '}<span className="headhunting-description-part">전담 헤드헌터가</span>{' '}<span className="headhunting-description-part">조건 정리부터 면접과 협상까지</span>{' '}<span className="headhunting-description-part">한 사람처럼 함께합니다.</span></>}
+    />
     <section className="section consultation-layout"><div className="consult-copy"><span className="section-kicker">1:1 CONCIERGE</span><h2>광고보다 먼저,<br />상황을 정확히 듣습니다</h2><p>같은 직군이라도 원하는 삶과 병원의 사정은 다릅니다. 메디헬퍼스는 숫자만 맞추지 않고 오래 만족할 수 있는 연결을 찾습니다.</p><div className="consult-points"><div><span><Phone /></span><div><strong>빠른 첫 연락</strong><p>접수 내용을 확인하고 가능한 시간에 연락드립니다.</p></div></div><div><span><ShieldCheck /></span><div><strong>철저한 비공개</strong><p>동의 전에는 이직 의사와 병원 내부정보를 공개하지 않습니다.</p></div></div><div><span><TrendingUp /></span><div><strong>실제 조건 협상</strong><p>보수, 일정, 업무범위를 구체적으로 조율합니다.</p></div></div></div><div className="direct-contact"><small>바로 상담하고 싶다면</small><a href="tel:0513425463">051-342-5463</a><span>평일 09:00–18:00</span></div></div><ConsultationForm key={`${role}-${context}-${profession}`} initialRole={role} initialContext={context} initialProfession={profession} /></section>
     <section className="section soft"><div className="section-head centered"><div><span className="section-kicker">TWO-SIDED SERVICE</span><h2>의료인과 병원, 서로 다른 고민을 해결합니다</h2></div></div><div className="compare-grid"><div><Stethoscope /><h3>의료인에게</h3><ul><li><Check /> 공개하지 않고 이직 가능성 확인</li><li><Check /> 비공개 포지션과 실제 근무조건 안내</li><li><Check /> 연봉·진료범위·스케줄 협상 지원</li><li><Check /> 퇴사와 입사 일정 조율</li></ul></div><div><Building2 /><h3>의료기관에게</h3><ul><li><Check /> 채용조건 정리와 공고 문구 개선</li><li><Check /> 익명 인재풀 후보 발굴</li><li><Check /> 면접 일정과 후보 피드백 관리</li><li><Check /> 광고 또는 성공보수 방식 선택</li></ul></div></div></section>
   </>;
