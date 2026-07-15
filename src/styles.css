@@ -851,3 +851,21 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   .motion-enabled .job-card.scroll-reveal,
   .motion-enabled .job-card.scroll-reveal.is-visible { opacity:1!important; transform:none!important; transition:none!important; }
 }
+/* Crisp route transitions */
+.route-stage {
+  animation:route-stage-enter .56s cubic-bezier(.16,1,.3,1) both;
+  transform-origin:center top;
+}
+.route-stage.route-leaving {
+  opacity:0;
+  transform:translateY(-9px);
+  transition:opacity .17s ease,transform .17s cubic-bezier(.4,0,1,1);
+}
+@keyframes route-stage-enter {
+  from { opacity:0; transform:translateY(14px); }
+  to { opacity:1; transform:none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .route-stage { animation:none!important; }
+  .route-stage.route-leaving { opacity:1!important; transform:none!important; transition:none!important; }
+}

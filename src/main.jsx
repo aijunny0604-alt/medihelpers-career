@@ -90,11 +90,18 @@ function useScrollMotion(route) {
 }
 
 function navigate(path) {
-  if (getRoute() !== path) window.history.pushState({}, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-  const navigation = new CustomEvent('medihelpers:navigate', { cancelable: true });
-  window.dispatchEvent(navigation);
-  if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: 'smooth' });
+  const commitNavigation = () => {
+    if (getRoute() !== path) window.history.pushState({}, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    const navigation = new CustomEvent('medihelpers:navigate', { cancelable: true });
+    window.dispatchEvent(navigation);
+    if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const currentPage = document.querySelector('.route-stage');
+  if (reducedMotion || !currentPage) return commitNavigation();
+  currentPage.classList.add('route-leaving');
+  window.setTimeout(commitNavigation, 170);
 }
 
 function useSmoothPageScroll() {
@@ -550,5 +557,5 @@ export function App() {
   else if (path === '/membership') page = <MembershipPage route={route} />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main>{page}</main><Footer /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
 }
