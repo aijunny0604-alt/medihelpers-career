@@ -369,7 +369,16 @@ function MemberTeaser() {
 
 function HeroSelect({ value, onChange, options, disabled = false, label }) {
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState('down');
   const rootRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) return;
+    const rect = rootRef.current.getBoundingClientRect();
+    const menuHeight = Math.min(options.length * 52 + 18, 340);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    setPlacement(spaceBelow < menuHeight && spaceAbove > spaceBelow ? 'up' : 'down');
+  }, [open, options.length]);
   useEffect(() => {
     const close = (event) => {
       if (event.type === 'keydown' && event.key !== 'Escape') return;
@@ -380,7 +389,7 @@ function HeroSelect({ value, onChange, options, disabled = false, label }) {
     window.addEventListener('keydown', close);
     return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', close); };
   }, []);
-  return <div ref={rootRef} className={`hero-custom-select ${open ? 'open' : ''} ${disabled ? 'disabled' : ''}`}>
+  return <div ref={rootRef} className={`hero-custom-select ${open ? 'open' : ''} opens-${placement} ${disabled ? 'disabled' : ''}`}>
     <button type="button" className="hero-select-trigger" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}><span>{value}</span><ChevronDown /></button>
     {open && <div className="hero-select-menu" role="listbox" aria-label={`${label} 목록`} data-lenis-prevent>{options.map((option) => { const item = typeof option === 'string' ? { value: option, label: option } : option; return <button type="button" role="option" aria-selected={item.value === value} className={item.value === value ? 'selected' : ''} key={item.value} onClick={() => { onChange(item.value); setOpen(false); }}>{item.label}{item.value === value && <Check />}</button>; })}</div>}
   </div>;
