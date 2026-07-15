@@ -220,29 +220,54 @@ function PageHero({ eyebrow, title, description, children, tone = '' }) {
 }
 
 function HospitalLogo({ job, prominent = false }) {
-  return <span className={`hospital-logo ${prominent ? 'prominent' : ''} ${job.logo ? 'has-image' : 'has-text'}`} style={{ '--logo-color': job.color }}>
-    {job.logo ? <img src={job.logo} alt={`${job.hospital} 로고`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
+  const hasBrandAsset = Boolean(job.logo || job.brandAsset);
+  return <span className={`hospital-logo ${prominent ? 'prominent' : ''} ${hasBrandAsset ? 'has-image' : 'has-text'} ${job.brandAsset ? `brand-asset-${job.brandAsset}` : ''}`} style={{ '--logo-color': job.color }}>
+    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : job.logo ? <img src={job.logo} alt={`${job.hospital} 로고`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
   </span>;
 }
 
 const adPriority = { spotlight: 0, featured: 1, basic: 2 };
 const prioritizeJobs = (items) => [...items].sort((a, b) => (adPriority[a.adTier] ?? 3) - (adPriority[b.adTier] ?? 3));
 
-function JobCard({ job, saved, onSave, onOpen }) {
+const advertisementPreviewJob = {
+  id: 'advertisement-design-preview', hospital: '블루케어 메디컬센터', title: '전문의 의료진 집중채용',
+  location: '서울 · 경기권', schedule: '주 4.5~5일', dept: '전문의', pay: '상담 후 협의',
+  badge: '집중채용', adTier: 'spotlight', color: '#1263e8', brandAsset: 'bluecare',
+  updated: '디자인 예시', facilityType: '가상 의료기관', focus: '광고 디자인 미리보기', scale: '디자인 예시',
+  access: '실제 공고가 아닙니다.', summary: '병원 로고가 등록된 집중채용 광고의 노출 예시입니다.',
+  benefits: ['대형 로고 노출', '최상단 우선 노출', '전담 컨설턴트']
+};
+
+function JobCard({ job, saved, onSave, onOpen, preview = false }) {
   const isAd = Boolean(job.adTier);
+  const hasBrandAsset = Boolean(job.logo || job.brandAsset);
   const restricted = isAd || job.badge === '비공개';
   const adLabel = job.adTier === 'spotlight' ? '집중채용 브랜드관' : '추천 브랜드관';
-  return <article className={`job-card ${isAd ? `premium-ad ad-${job.adTier} ${job.logo ? 'has-brand-logo' : 'has-brand-wordmark'}` : ''}`} style={{ '--job-color': job.color }}>
-    <button className="card-hit-area" onClick={onOpen} aria-label={`${job.hospital} ${job.title} 상세보기`} />
-    <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div><button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
-    {isAd ? <div className={`ad-brand-stage ${job.logo ? 'logo-stage' : 'wordmark-stage'}`}>
+  const moveCardLight = (event) => {
+    if (!isAd || event.pointerType === 'touch') return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    event.currentTarget.style.setProperty('--pointer-x', `${x * 100}%`);
+    event.currentTarget.style.setProperty('--pointer-y', `${y * 100}%`);
+    event.currentTarget.style.setProperty('--tilt-x', `${(0.5 - y) * 1.8}deg`);
+    event.currentTarget.style.setProperty('--tilt-y', `${(x - 0.5) * 1.8}deg`);
+  };
+  const resetCardLight = (event) => {
+    event.currentTarget.style.setProperty('--tilt-x', '0deg');
+    event.currentTarget.style.setProperty('--tilt-y', '0deg');
+  };
+  return <article className={`job-card ${preview ? 'advertisement-preview-card' : ''} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? 'has-brand-logo' : 'has-brand-wordmark'}` : ''}`} style={{ '--job-color': job.color }} onPointerMove={moveCardLight} onPointerLeave={resetCardLight}>
+    <button className="card-hit-area" onClick={onOpen} aria-label={preview ? '집중채용 광고 디자인 예시 신청하기' : `${job.hospital} ${job.title} 상세보기`} />
+    <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div>{preview ? <span className="preview-card-label">SAMPLE</span> : <button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button>}</div>
+    {isAd ? <div className={`ad-brand-stage ${hasBrandAsset ? 'logo-stage' : 'wordmark-stage'}`}>
       <span className="ad-stage-label"><Sparkles size={14} /> {adLabel}</span>
-      {job.logo ? <><HospitalLogo job={job} prominent /><div className="ad-hospital-caption"><strong>{job.hospital}</strong><small>병원 브랜드 채용관</small></div></> : <div className="hospital-wordmark"><small>MEDICAL CAREER PARTNER</small><strong>{job.hospital}</strong><span><i /> 병원 브랜드 채용관</span></div>}
+      {hasBrandAsset ? <><HospitalLogo job={job} prominent /><div className="ad-hospital-caption"><strong>{job.hospital}</strong><small>병원 브랜드 채용관</small></div></> : <div className="hospital-wordmark"><small>MEDICAL CAREER PARTNER</small><strong>{job.hospital}</strong><span><i /> 병원 브랜드 채용관</span></div>}
     </div> : <div className="job-hospital"><HospitalLogo job={job} /><span><strong>{job.hospital}</strong></span></div>}
     <h3>{job.title}</h3>
     <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
     <div className="job-bottom"><span>{job.dept}</span><strong className={restricted ? 'premium-value' : ''}>{restricted ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
-    <button className="card-action" onClick={(event) => { event.stopPropagation(); onOpen(); }}>공고 자세히 보기 <ArrowRight size={16} /></button>
+    <button className="card-action" onClick={(event) => { event.stopPropagation(); onOpen(); }}>{preview ? '이 디자인으로 광고하기' : '공고 자세히 보기'} <ArrowRight size={16} /></button>
   </article>;
 }
 function JobDetail({ job, saved, onSave, onClose }) {
@@ -451,6 +476,7 @@ function AdvertisePage() {
   return <>
     <PageHero tone="ad" eyebrow="HOSPITAL AD CENTER" title="좋은 의료인에게 먼저 닿는 채용광고" description="초기 파트너 가격 59,000원부터 시작합니다. 공고만 올리는 광고부터 전담 컨설턴트가 후보를 찾는 집중 채용까지 필요한 만큼 선택하세요."><a className="button light" href="#plans">광고 상품 비교</a></PageHero>
     <section className="section"><div className="metrics-strip"><div><TrendingUp /><strong>진료과 중심 노출</strong><span>관심 가능성이 높은 의료인에게</span></div><div><FileCheck2 /><strong>공고 검수 지원</strong><span>신뢰도 높은 조건과 문구로</span></div><div><UserRoundSearch /><strong>인재 추천 연결</strong><span>광고와 헤드헌팅을 유연하게</span></div></div></section>
+    <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE AD PREVIEW</span><h2>로고를 등록하면<br />이렇게 먼저 보입니다</h2><p>집중채용 상품의 실제 노출 형태를 미리 확인하세요. 병원 로고를 중심에 두고 광고 등급, 채용 분야, 근무 조건이 자연스럽게 이어집니다.</p><ul><li><Check /> 병원 로고를 카드의 중심 브랜드 자산으로 노출</li><li><Check /> 집중채용 등급은 목록 최상단 우선 배치</li><li><Check /> 과하지 않은 광원과 깊이감으로 시선 유도</li></ul><button className="button primary" onClick={() => setPlan(adPlans[2])}>집중채용 광고 신청 <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><JobCard job={advertisementPreviewJob} preview saved={false} onSave={() => {}} onOpen={() => setPlan(adPlans[2])} /></div></section>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => setPlan(item)}>이 상품 신청하기</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
     {plan && <Checkout plan={plan} onClose={() => setPlan(null)} />}
