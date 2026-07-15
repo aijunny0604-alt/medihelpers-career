@@ -10,6 +10,13 @@ import {
 } from 'lucide-react';
 import { adPlans, jobs, membershipPlans, navItems, professions, talent } from './data.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
+import {
+  appendStoredRecord,
+  readStoredArray,
+  readStoredString,
+  writeStoredString,
+  writeStoredValue
+} from './browserStorage.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
@@ -32,8 +39,8 @@ function useRoute() {
 }
 
 function motionIsReduced() {
-  if (new URLSearchParams(window.location.search).get('motion') === 'full') localStorage.setItem('medihelpers_motion', 'full');
-  const forced = localStorage.getItem('medihelpers_motion') === 'full';
+  if (new URLSearchParams(window.location.search).get('motion') === 'full') writeStoredString('medihelpers_motion', 'full');
+  const forced = readStoredString('medihelpers_motion') === 'full';
   document.documentElement.classList.toggle('force-motion', forced);
   return !forced && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -149,14 +156,17 @@ function useSmoothPageScroll() {
 }
 
 function trackConversion(event, detail = {}) {
-  const records = JSON.parse(localStorage.getItem('medihelpers_conversion_events') || '[]');
-  records.push({ event, detail, path: getRoute(), createdAt: new Date().toISOString() });
-  localStorage.setItem('medihelpers_conversion_events', JSON.stringify(records.slice(-100)));
+  appendStoredRecord('medihelpers_conversion_events', {
+    event,
+    detail,
+    path: getRoute(),
+    createdAt: new Date().toISOString()
+  }, 100);
 }
 
-function Link({ to, className = '', children, onClick }) {
-  return <a href={withBase(to)} className={className} onClick={(event) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+function Link({ to, className = '', children, onClick, ...anchorProps }) {
+  return <a {...anchorProps} href={withBase(to)} className={className} onClick={(event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     onClick?.();
     navigate(to);
@@ -207,14 +217,14 @@ function Header({ path }) {
       <Link className="brand" to="/" onClick={() => setOpen(false)} aria-label="메디헬퍼스 홈">
         <img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" />
       </Link>
-      <nav className={open ? 'open' : ''}>
+      <nav id="primary-navigation" className={open ? 'open' : ''}>
         {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
       </nav>
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
         <Link className="button primary compact" to="/advertise">채용공고 등록</Link>
       </div>
-      <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="메뉴 열기">{open ? <X /> : <Menu />}</button>
+      <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>
   </header>;
 }
@@ -328,9 +338,7 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '', initial
   const submit = (event) => {
     event.preventDefault();
     const id = `MH-C-${String(Date.now()).slice(-6)}`;
-    const records = JSON.parse(localStorage.getItem('medihelpers_consultations') || '[]');
-    records.push({ id, role, context: initialContext, profession: initialProfession, status: 'new', createdAt: new Date().toISOString(), ...data });
-    localStorage.setItem('medihelpers_consultations', JSON.stringify(records));
+    appendStoredRecord('medihelpers_consultations', { id, role, context: initialContext, profession: initialProfession, status: 'new', createdAt: new Date().toISOString(), ...data });
     trackConversion('consultation_submit', { role, topic: data.topic, context: initialContext });
     setSubmitted(id);
   };
@@ -381,12 +389,12 @@ function HeroSelect({ value, onChange, options, disabled = false, label }) {
 function MotionNotice() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const forced = localStorage.getItem('medihelpers_motion') === 'full';
+    const forced = readStoredString('medihelpers_motion') === 'full';
     document.documentElement.classList.toggle('force-motion', forced);
     setVisible(window.matchMedia('(prefers-reduced-motion: reduce)').matches && !forced);
   }, []);
   if (!visible) return null;
-  return <aside className="motion-notice"><Activity /><div><strong>이 PC에서 모션 효과가 줄어들고 있습니다</strong><span>Windows 또는 브라우저의 애니메이션 줄이기 설정을 감지했습니다.</span></div><button onClick={() => { localStorage.setItem('medihelpers_motion', 'full'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>이 사이트에서는 켜기</button></aside>;
+  return <aside className="motion-notice"><Activity /><div><strong>이 PC에서 모션 효과가 줄어들고 있습니다</strong><span>Windows 또는 브라우저의 애니메이션 줄이기 설정을 감지했습니다.</span></div><button onClick={() => { writeStoredString('medihelpers_motion', 'full'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>이 사이트에서는 켜기</button></aside>;
 }
 function HomePage() {
   const [profession, setProfession] = useState('doctor');
@@ -452,14 +460,14 @@ function JobsPage({ route }) {
   const [dept, setDept] = useState(params.get('dept') || '전체 진료과');
   const [region, setRegion] = useState(params.get('region') || '전국');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
-  const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem('medihelpers_saved_jobs') || '[]'));
+  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
   const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
   const filtered = useMemo(() => prioritizeJobs(jobs.filter((job) => (dept === '전체 진료과' || job.dept === dept || (dept === '전문의' && job.dept === '전문의')) && (region === '전국' || job.region === region) && (!keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${job.benefits.join(' ')}`.toLowerCase().includes(keyword.toLowerCase())))), [dept, region, keyword]);
   const promotedJobs = filtered.filter((job) => job.adTier);
   const standardJobs = filtered.filter((job) => !job.adTier);
   const toggleSaved = (id) => setSaved((current) => {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-    localStorage.setItem('medihelpers_saved_jobs', JSON.stringify(next));
+    writeStoredValue('medihelpers_saved_jobs', next);
     return next;
   });
   return <>
@@ -481,11 +489,11 @@ function JobsPage({ route }) {
 
 function TalentPage() {
   const [dept, setDept] = useState('전체 진료과');
-  const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem('medihelpers_saved_talent') || '[]'));
+  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_talent'));
   const visible = dept === '전체 진료과' ? talent : talent.filter((person) => person.dept === dept);
   const toggleSaved = (code) => setSaved((current) => {
     const next = current.includes(code) ? current.filter((item) => item !== code) : [...current, code];
-    localStorage.setItem('medihelpers_saved_talent', JSON.stringify(next));
+    writeStoredValue('medihelpers_saved_talent', next);
     return next;
   });
   return <>
@@ -539,9 +547,7 @@ function Checkout({ plan, onClose }) {
     const logo = formData.get('logo');
     formData.delete('logo');
     const data = { ...Object.fromEntries(formData.entries()), logoName: logo instanceof File && logo.size ? logo.name : '' };
-    const records = JSON.parse(localStorage.getItem('medihelpers_ad_requests') || '[]');
-    records.push({ id: `AD-${Date.now()}`, planId: plan.id, amount: plan.price, paymentMethod: method, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
-    localStorage.setItem('medihelpers_ad_requests', JSON.stringify(records));
+    appendStoredRecord('medihelpers_ad_requests', { id: `AD-${Date.now()}`, planId: plan.id, amount: plan.price, paymentMethod: method, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
     setDone(true);
   };
   return <Modal onClose={onClose} wide label="병원 광고 상품 신청">{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>광고 결제 요청이 접수되었습니다</h2><p>공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를 보내드립니다.<br />PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <><div className="checkout-title"><small>ADVERTISEMENT ORDER</small><h2>광고 상품 신청</h2><p>병원 브랜드와 채용정보를 함께 검수한 뒤 결제 링크와 게시 일정을 안내합니다.</p></div><form className="checkout-grid" onSubmit={submit}><div className="checkout-form"><div className="brand-upload"><div className="logo-preview">{logoPreview ? <img src={logoPreview} alt="선택한 병원 로고 미리보기" /> : <Building2 />}</div><label><span>병원 로고 <i>선택 · 권장</i></span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectLogo} /><div className="upload-button"><Upload /><div><strong>{logoName || '로고 파일 선택'}</strong><small>PNG·JPG·WEBP, 최대 5MB</small></div></div>{logoError && <em>{logoError}</em>}</label></div><div className="form-grid"><label><span>병원명 *</span><input required name="hospital" placeholder="병원명을 입력해주세요" /></label><label><span>기관 유형 *</span><select required name="facilityType" defaultValue=""><option value="" disabled>기관 유형 선택</option><option>종합병원</option><option>병원</option><option>요양병원</option><option>한방병원</option><option>의원</option><option>검진·전문센터</option><option>기타 의료기관</option></select></label><label><span>담당자명 *</span><input required name="manager" placeholder="담당자 성함" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" placeholder="billing@hospital.co.kr" /></label><label><span>병원 위치 *</span><input required name="address" placeholder="예: 부산광역시 연제구" /></label></div><label className="wide-field"><span>채용 직군·전문영역 *</span><input required name="department" placeholder="예: 정형외과 전문의, 방사선사 CT" /></label><label className="wide-field"><span>병원·채용 소개 <i>선택</i></span><textarea name="introduction" rows="3" placeholder="진료 환경, 기관의 강점, 채용 인원과 일정을 간단히 적어주세요." /></label><div className="payment-choice"><span>결제 안내 방식</span><div><button type="button" className={method === 'card' ? 'active' : ''} onClick={() => setMethod('card')}><CreditCard /> 카드 결제 링크</button><button type="button" className={method === 'transfer' ? 'active' : ''} onClick={() => setMethod('transfer')}><Banknote /> 계좌이체·세금계산서</button></div></div><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원 로고는 사용 권한을 확인한 파일만 등록합니다.</span></label></div><aside className="order-summary"><small>선택한 상품</small><h3>{plan.name}</h3><p>{plan.unit} 노출</p><ul>{plan.features.map((item) => <li key={item}><Check />{item}</li>)}</ul><div className="price-row"><span>결제 예정금액<small>부가세 포함</small></span><strong>{plan.price.toLocaleString()}원</strong></div><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.</p></aside></form></>}</Modal>;
@@ -581,9 +587,7 @@ function MembershipCheckout({ plan, onClose }) {
   const submit = (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const records = JSON.parse(localStorage.getItem('medihelpers_membership_requests') || '[]');
-    records.push({ id: `MEM-${Date.now()}`, planId: plan.id, amount: plan.price, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
-    localStorage.setItem('medihelpers_membership_requests', JSON.stringify(records));
+    appendStoredRecord('medihelpers_membership_requests', { id: `MEM-${Date.now()}`, planId: plan.id, amount: plan.price, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
     trackConversion('checkout_request', { planId: plan.id, amount: plan.price });
     setDone(true);
   };
