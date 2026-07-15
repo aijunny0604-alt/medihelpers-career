@@ -1010,3 +1010,18 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
 @media(max-width:780px){.hero-select-menu{top:calc(100% + 12px);left:-10px;width:max(calc(100% + 20px),210px);max-height:310px}.hero-select-menu button{min-height:50px;font-size:16px}.hero-search-fields>label:nth-child(3) .hero-select-menu{right:-10px}.motion-notice{bottom:78px;grid-template-columns:34px 1fr;padding:14px}.motion-notice button{grid-column:1/3;width:100%}.motion-notice span{font-size:11px}}
 @media(max-width:460px){.hero-select-menu{position:fixed;left:14px!important;right:14px!important;top:auto;bottom:78px;width:auto;max-height:54vh;padding:10px}.hero-select-menu button{min-height:54px}.motion-notice>svg{display:none}.motion-notice{grid-template-columns:1fr}.motion-notice button{grid-column:1}}
 @media(prefers-reduced-motion:reduce){html.force-motion .route-stage{animation:route-stage-enter .56s cubic-bezier(.16,1,.3,1) both!important}html.force-motion .route-stage.route-leaving{opacity:0!important;transform:translateY(-9px)!important;transition:opacity .17s ease,transform .17s cubic-bezier(.4,0,1,1)!important}html.force-motion.motion-enabled .scroll-reveal{opacity:0!important;filter:blur(4px)!important;transform:translate3d(0,38px,0) scale(.985)!important;transition:opacity 760ms cubic-bezier(.22,1,.36,1) var(--reveal-delay,0ms),transform 900ms cubic-bezier(.16,1,.3,1) var(--reveal-delay,0ms),filter 720ms ease-out var(--reveal-delay,0ms)!important}html.force-motion.motion-enabled .scroll-reveal.is-visible{opacity:1!important;filter:none!important;transform:none!important}html.force-motion .job-card,html.force-motion .premium-ad .ad-brand-stage,html.force-motion .premium-ad .hospital-logo.prominent,html.force-motion .premium-ad .hospital-wordmark{transition-duration:.6s!important}html.force-motion .scroll-progress{display:block!important}}
+
+/* Premium, brand-consistent scrollbars */
+html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thin}
+*{scrollbar-color:#6395df #edf3fb;scrollbar-width:thin}
+*::-webkit-scrollbar{width:12px;height:12px}
+*::-webkit-scrollbar-track{background:linear-gradient(180deg,#f5f8fc 0%,#eaf1fa 100%);border-radius:999px}
+*::-webkit-scrollbar-thumb{min-height:54px;border:3px solid transparent;border-radius:999px;background:linear-gradient(180deg,#6ca7ef 0%,#2e73db 58%,#25ad9a 130%);background-clip:padding-box;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+*::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#4d92ec 0%,#1764d4 62%,#199d8a 132%);background-clip:padding-box}
+*::-webkit-scrollbar-thumb:active{background:linear-gradient(180deg,#2779df 0%,#0f55bd 70%,#138a79 135%);background-clip:padding-box}
+*::-webkit-scrollbar-corner{background:#edf3fb}
+.hero-select-menu,.report-choice-grid,.report-table{scrollbar-color:#3f83e2 #eef4fb}
+.hero-select-menu::-webkit-scrollbar,.report-choice-grid::-webkit-scrollbar,.report-table::-webkit-scrollbar{width:10px;height:10px}
+.hero-select-menu::-webkit-scrollbar-track,.report-choice-grid::-webkit-scrollbar-track,.report-table::-webkit-scrollbar-track{margin:8px;background:#eef4fb}
+.hero-select-menu::-webkit-scrollbar-thumb,.report-choice-grid::-webkit-scrollbar-thumb,.report-table::-webkit-scrollbar-thumb{border-width:2px}
+@media(max-width:780px){html{scrollbar-gutter:auto}*::-webkit-scrollbar{width:8px;height:8px}*::-webkit-scrollbar-thumb{border-width:2px}.hero-select-menu::-webkit-scrollbar{width:7px}}
