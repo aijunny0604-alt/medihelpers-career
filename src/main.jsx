@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import {
@@ -202,12 +203,12 @@ function Modal({ children, onClose, wide = false, label = '상세 정보' }) {
       previousFocus?.focus?.();
     };
   }, [onClose]);
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+  return createPortal(<div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={label} tabIndex="-1" data-lenis-prevent>
       <button className="modal-close" onClick={onClose} aria-label="닫기"><X /></button>
-      {children}
+      <div className="modal-scroll" data-lenis-prevent>{children}</div>
     </div>
-  </div>;
+  </div>, document.body);
 }
 
 function Header({ path }) {
