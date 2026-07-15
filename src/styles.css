@@ -869,3 +869,42 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   .route-stage { animation:none!important; }
   .route-stage.route-leaving { opacity:1!important; transform:none!important; transition:none!important; }
 }
+/* Advertising exposure conversion panel */
+.ad-exposure-pitch{display:grid;grid-template-columns:minmax(0,.78fr) minmax(520px,1.22fr);gap:clamp(48px,6vw,96px);align-items:center;padding-top:76px;padding-bottom:88px}
+.ad-exposure-copy{max-width:520px}
+.ad-exposure-copy h2{margin:14px 0 18px;font-size:clamp(36px,3.25vw,52px);line-height:1.13;letter-spacing:-.045em;color:#10213f}
+.ad-exposure-copy>p{margin:0;max-width:470px;font-size:17px;line-height:1.75;color:#60708c;word-break:keep-all}
+.ad-exposure-actions{display:flex;align-items:center;gap:22px;margin-top:30px;flex-wrap:wrap}
+.ad-exposure-actions .button{border:0}
+.ad-exposure-actions .text-cta{display:inline-flex;align-items:center;gap:7px;color:#1e65de;font-weight:800;text-decoration:none}
+.ad-exposure-actions .text-cta svg{width:17px;transition:transform .25s ease}
+.ad-exposure-actions .text-cta:hover svg{transform:translateX(4px)}
+.exposure-rank-card{position:relative;overflow:hidden;padding:26px;border:1px solid rgba(255,255,255,.12);border-radius:28px;background:linear-gradient(145deg,#102441 0%,#0d1c35 72%,#123663 100%);box-shadow:0 28px 70px rgba(13,37,73,.2)}
+.exposure-rank-card:before{content:"";position:absolute;right:-100px;top:-130px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(61,224,194,.22),transparent 66%);pointer-events:none}
+.exposure-rank-head{position:relative;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;color:#fff}
+.exposure-rank-head span{display:flex;align-items:center;gap:9px;font-weight:850;font-size:16px}
+.exposure-rank-head svg{width:19px;color:#ffd56b}
+.exposure-rank-head small{padding:6px 9px;border:1px solid rgba(255,255,255,.14);border-radius:999px;color:#aebbd0;font-size:11px}
+.exposure-row{position:relative;display:grid;grid-template-columns:38px 46px minmax(0,1fr) auto;align-items:center;gap:14px;margin-top:10px;padding:16px 17px;border-radius:17px;transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s ease}
+.exposure-row:hover{transform:translateX(-4px)}
+.exposure-row>b{font-size:13px;letter-spacing:.06em;opacity:.7}
+.exposure-mark{display:grid;width:46px;height:46px;place-items:center;border-radius:14px}
+.exposure-mark svg{width:20px}
+.exposure-row div{display:grid;gap:3px;min-width:0}
+.exposure-row div small{font-weight:800;font-size:12px}
+.exposure-row div strong{font-size:16px;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exposure-row em{font-style:normal;font-size:12px;font-weight:850;white-space:nowrap}
+.exposure-row.spotlight{background:linear-gradient(115deg,#1769e8,#2586ef);color:#fff;box-shadow:0 14px 32px rgba(23,105,232,.3)}
+.exposure-row.spotlight .exposure-mark{background:rgba(255,255,255,.17)}
+.exposure-row.spotlight div small{color:#bfe2ff}
+.exposure-row.spotlight em{padding:7px 10px;border-radius:999px;background:#fff;color:#1769e8}
+.exposure-row.featured{background:#fff;color:#132543;box-shadow:0 10px 24px rgba(3,16,36,.16)}
+.exposure-row.featured .exposure-mark{background:#f0eaff;color:#7651e8}
+.exposure-row.featured div small,.exposure-row.featured em{color:#7651e8}
+.exposure-row.basic{border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.055);color:#d8e1ef}
+.exposure-row.basic .exposure-mark{background:rgba(255,255,255,.08);color:#8ca3c3}
+.exposure-row.basic div small,.exposure-row.basic em{color:#8fa2bd}
+.exposure-note{position:relative;display:flex;align-items:center;gap:7px;margin:17px 2px 0;color:#9fb0c8;font-size:12px}
+.exposure-note svg{width:15px;color:#4ed8bb}
+@media(max-width:950px){.ad-exposure-pitch{grid-template-columns:1fr;gap:38px}.ad-exposure-copy{max-width:650px}.exposure-rank-card{max-width:720px;width:100%}}
+@media(max-width:580px){.ad-exposure-pitch{padding-top:54px;padding-bottom:62px}.ad-exposure-copy h2{font-size:34px}.exposure-rank-card{padding:18px;border-radius:22px}.exposure-row{grid-template-columns:30px 40px minmax(0,1fr);gap:10px;padding:14px 12px}.exposure-mark{width:40px;height:40px;border-radius:12px}.exposure-row em{display:none}.exposure-row div strong{font-size:14px}.exposure-rank-head small{display:none}}

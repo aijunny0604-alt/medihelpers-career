@@ -34,7 +34,7 @@ function useScrollMotion(route) {
     const selector = [
       '.page-hero-inner', '.section-head', '.quick-access', '.home-role-actions', '.member-teaser',
       '.job-card', '.profession-card', '.path-card', '.step', '.price-card', '.membership-card',
-      '.feature-grid > div', '.value-grid > div', '.community-grid > div', '.metrics-strip > div',
+      '.feature-grid > div', '.value-grid > div', '.community-grid > div', '.metrics-strip > div', '.ad-exposure-copy', '.exposure-rank-card',
       '.notice-bar', '.consultation-layout', '.contact-card', '.policy-card', '.conversion'
     ].join(',');
     const elements = [...document.querySelectorAll(selector)];
@@ -477,7 +477,24 @@ function AdvertisePage() {
   const [plan, setPlan] = useState(null);
   return <>
     <PageHero tone="ad" eyebrow="HOSPITAL AD CENTER" title="좋은 의료인에게 먼저 닿는 채용광고" description="초기 파트너 가격 59,000원부터 시작합니다. 공고만 올리는 광고부터 전담 컨설턴트가 후보를 찾는 집중 채용까지 필요한 만큼 선택하세요."><a className="button light" href="#plans">광고 상품 비교</a></PageHero>
-    <section className="section"><div className="metrics-strip"><div><TrendingUp /><strong>진료과 중심 노출</strong><span>관심 가능성이 높은 의료인에게</span></div><div><FileCheck2 /><strong>공고 검수 지원</strong><span>신뢰도 높은 조건과 문구로</span></div><div><UserRoundSearch /><strong>인재 추천 연결</strong><span>광고와 헤드헌팅을 유연하게</span></div></div></section>
+    <section className="section ad-exposure-pitch">
+      <div className="ad-exposure-copy">
+        <span className="section-kicker">BE SEEN FIRST</span>
+        <h2>좋은 공고도<br />먼저 보이지 않으면 놓칩니다</h2>
+        <p>집중채용과 추천 광고는 일반공고보다 먼저 배치되고, 병원 로고와 채용 분야를 더 크게 보여줍니다.</p>
+        <div className="ad-exposure-actions">
+          <button className="button primary" onClick={() => setPlan(adPlans[1])}>추천 광고 시작하기 <ArrowRight /></button>
+          <a className="text-cta" href="#ad-preview">실제 노출 예시 보기 <ArrowRight /></a>
+        </div>
+      </div>
+      <div className="exposure-rank-card" aria-label="광고 상품별 노출 순서 예시">
+        <div className="exposure-rank-head"><span><Crown /> 채용정보 목록 노출 순서</span><small>디자인 예시</small></div>
+        <div className="exposure-row spotlight"><b>01</b><span className="exposure-mark"><Sparkles /></span><div><small>집중채용</small><strong>최상단 대형 브랜드 카드</strong></div><em>가장 먼저</em></div>
+        <div className="exposure-row featured"><b>02</b><span className="exposure-mark"><TrendingUp /></span><div><small>추천 광고</small><strong>추천 영역 강조 노출</strong></div><em>우선 노출</em></div>
+        <div className="exposure-row basic"><b>03</b><span className="exposure-mark"><FileCheck2 /></span><div><small>일반공고</small><strong>최신 등록순 기본 노출</strong></div><em>기본</em></div>
+        <p className="exposure-note"><ShieldCheck /> 실제 노출 위치와 기간은 결제 전에 확인합니다.</p>
+      </div>
+    </section>
     <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE AD PREVIEW</span><h2>로고를 등록하면<br />이렇게 먼저 보입니다</h2><p>집중채용 상품의 실제 노출 형태를 미리 확인하세요. 병원 로고를 중심에 두고 광고 등급, 채용 분야, 근무 조건이 자연스럽게 이어집니다.</p><ul><li><Check /> 병원 로고를 카드의 중심 브랜드 자산으로 노출</li><li><Check /> 집중채용 등급은 목록 최상단 우선 배치</li><li><Check /> 과하지 않은 광원과 깊이감으로 시선 유도</li></ul><button className="button primary" onClick={() => setPlan(adPlans[2])}>집중채용 광고 신청 <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><JobCard job={advertisementPreviewJob} preview saved={false} onSave={() => {}} onOpen={() => setPlan(adPlans[2])} /></div></section>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => setPlan(item)}>이 상품 신청하기</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
