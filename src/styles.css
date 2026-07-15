@@ -795,3 +795,32 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   .popular-searches a { padding:9px 14px; }
   .hero-assurance { margin-top:17px; }
 }
+/* Cross-device crisp text rendering */
+.motion-enabled .scroll-reveal {
+  filter:none;
+  transition-property:opacity,transform;
+  will-change:opacity,transform;
+}
+.motion-enabled .scroll-reveal.is-visible {
+  filter:none;
+  will-change:auto;
+}
+.motion-enabled .job-card.scroll-reveal,
+.motion-enabled .job-card.scroll-reveal.is-visible {
+  transform:none;
+  filter:none;
+  will-change:opacity;
+}
+.job-card.premium-ad {
+  transform-style:flat;
+  will-change:auto;
+}
+@media (hover:hover) and (any-pointer:fine) {
+  .job-card.premium-ad:hover,
+  .job-card.premium-ad.scroll-reveal:hover,
+  .job-card.premium-ad.ad-featured.scroll-reveal:hover,
+  .job-card.premium-ad.ad-spotlight.scroll-reveal:hover { transform:none; }
+  .premium-ad:hover .ad-brand-stage,
+  .premium-ad:hover .hospital-logo.prominent,
+  .premium-ad:hover .hospital-wordmark { transform:none; }
+}
