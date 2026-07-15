@@ -229,9 +229,11 @@ function PageHero({ eyebrow, title, description, children, tone = '' }) {
 }
 
 function HospitalLogo({ job, prominent = false }) {
-  const hasBrandAsset = Boolean(job.logo || job.brandAsset);
-  return <span className={`hospital-logo ${prominent ? 'prominent' : ''} ${hasBrandAsset ? 'has-image' : 'has-text'} ${job.brandAsset ? `brand-asset-${job.brandAsset}` : ''}`} style={{ '--logo-color': job.color }}>
-    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : job.logo ? <img src={job.logo} alt={`${job.hospital} 로고`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
+  const brandSource = job.banner || job.logo;
+  const brandFit = job.brandFit || (job.banner ? 'banner' : 'mark');
+  const hasBrandAsset = Boolean(brandSource || job.brandAsset);
+  return <span className={`hospital-logo ${prominent ? 'prominent' : ''} ${hasBrandAsset ? 'has-image' : 'has-text'} logo-fit-${brandFit} ${job.brandAsset ? `brand-asset-${job.brandAsset}` : ''}`} style={{ '--logo-color': job.color }}>
+    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : brandSource ? <img src={brandSource} alt={`${job.hospital} ${brandFit === 'banner' ? '배너' : '로고'}`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
   </span>;
 }
 
@@ -249,7 +251,9 @@ const advertisementPreviewJob = {
 
 function JobCard({ job, saved, onSave, onOpen, preview = false }) {
   const isAd = Boolean(job.adTier);
-  const hasBrandAsset = Boolean(job.logo || job.brandAsset);
+  const brandSource = job.banner || job.logo;
+  const brandFit = job.brandFit || (job.banner ? 'banner' : 'mark');
+  const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const restricted = isAd || job.badge === '비공개';
   const adLabel = job.adTier === 'spotlight' ? '집중채용 브랜드관' : '추천 브랜드관';
   const moveCardLight = (event) => {
@@ -269,9 +273,9 @@ function JobCard({ job, saved, onSave, onOpen, preview = false }) {
   return <article className={`job-card ${preview ? 'advertisement-preview-card' : ''} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? 'has-brand-logo' : 'has-brand-wordmark'}` : ''}`} style={{ '--job-color': job.color }} onPointerMove={moveCardLight} onPointerLeave={resetCardLight}>
     <button className="card-hit-area" onClick={onOpen} aria-label={preview ? '집중채용 광고 디자인 예시 신청하기' : `${job.hospital} ${job.title} 상세보기`} />
     <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div>{preview ? <span className="preview-card-label">SAMPLE</span> : <button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button>}</div>
-    {isAd ? <div className={`ad-brand-stage ${hasBrandAsset ? 'logo-stage' : 'wordmark-stage'}`}>
+    {isAd ? <div className={`ad-brand-stage ${hasBrandAsset ? `logo-stage media-${brandFit}` : 'wordmark-stage'}`} style={brandSource ? { '--brand-image': `url(${brandSource})` } : undefined}>
       <span className="ad-stage-label"><Sparkles size={14} /> {adLabel}</span>
-      {hasBrandAsset ? <><HospitalLogo job={job} prominent /><div className="ad-hospital-caption"><strong>{job.hospital}</strong><small>{job.logoDesignSample ? '광고 디자인 예시 · 공식 로고 아님' : '병원 브랜드 채용관'}</small></div></> : <div className="hospital-wordmark"><small>MEDICAL CAREER PARTNER</small><strong>{job.hospital}</strong><span><i /> 병원 브랜드 채용관</span></div>}
+      {hasBrandAsset ? <><span className="brand-media-backdrop" aria-hidden="true" /><HospitalLogo job={job} prominent /><div className="ad-hospital-caption"><strong>{job.hospital}</strong><small>{job.logoDesignSample ? '광고 디자인 예시 · 공식 로고 아님' : '병원 브랜드 채용관'}</small></div></> : <div className="hospital-wordmark"><small>MEDICAL CAREER PARTNER</small><strong>{job.hospital}</strong><span><i /> 병원 브랜드 채용관</span></div>}
     </div> : <div className="job-hospital"><HospitalLogo job={job} /><span><strong>{job.hospital}</strong></span></div>}
     <h3>{job.title}</h3>
     <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
