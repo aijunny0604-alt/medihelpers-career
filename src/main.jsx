@@ -29,6 +29,7 @@ function useRoute() {
 }
 
 function motionIsReduced() {
+  if (new URLSearchParams(window.location.search).get('motion') === 'full') localStorage.setItem('medihelpers_motion', 'full');
   const forced = localStorage.getItem('medihelpers_motion') === 'full';
   document.documentElement.classList.toggle('force-motion', forced);
   return !forced && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

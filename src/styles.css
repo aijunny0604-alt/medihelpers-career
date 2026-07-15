@@ -25,7 +25,7 @@ footer{background:#f8fafc;border-top:1px solid #e5ebf2;padding:55px max(24px,cal
 @media(max-width:1100px){.nav-wrap nav{gap:19px;margin-left:20px}.nav-actions .text-link{display:none}.home-hero{grid-template-columns:1fr;padding-top:65px}.concierge-card{display:none}.search-panel{width:100%;max-width:760px}.job-grid,.talent-grid{grid-template-columns:repeat(2,1fr)}.dual-path,.conversion{margin-left:24px;margin-right:24px}.consultation-layout{gap:35px}.pricing-grid{gap:12px}.price-card{padding:28px 22px}}
 @media(max-width:780px){.site-header{height:66px}.nav-wrap{padding:0 18px}.brand img{width:148px}.nav-wrap nav{display:none;position:absolute;top:66px;left:0;right:0;background:#fff;margin:0;padding:18px 22px;flex-direction:column;align-items:stretch;gap:0;border-bottom:1px solid #e4e9f1;box-shadow:0 16px 28px rgba(30,54,88,.09)}.nav-wrap nav.open{display:flex}.nav-wrap nav a{padding:13px 4px}.nav-wrap nav a:after{bottom:7px;right:auto;width:28px}.nav-actions{display:none}.menu-btn{display:block}.home-hero{margin-top:66px;min-height:auto;padding:55px 20px}.hero-copy h1{font-size:37px;letter-spacing:-2px}.hero-copy>p{font-size:15px}.search-panel{display:grid;grid-template-columns:1fr 1fr}.search-panel label{width:100%;min-width:0;border-bottom:1px solid #e5eaf1}.search-panel label.keyword{width:100%;grid-column:1/3;border-right:0}.search-panel .button{grid-column:1/3;width:100%;margin:8px 0 0}.hero-links{flex-wrap:wrap}.trust-row{display:grid;grid-template-columns:1fr 1fr;gap:24px}.trust-row i{display:none}.section{padding:68px 20px}.section-head{align-items:flex-start}.section-head h2,.talent-toolbar h2{font-size:28px}.section-head>.button{display:none}.job-grid,.talent-grid,.dual-path,.feature-grid,.value-grid,.step-grid,.step-grid.three,.compare-grid,.metrics-strip,.pricing-grid,.story-layout,.contact-section,.consultation-layout{grid-template-columns:1fr}.path-card{min-height:auto;padding:34px 28px}.path-card h2{font-size:26px}.path-card ul{grid-template-columns:1fr}.step{min-height:auto}.conversion{margin:65px 20px;padding:35px 27px;display:block}.conversion h2{font-size:25px}.conversion>div:last-child{margin-top:25px;flex-direction:column}.page-hero{margin-top:66px;padding:60px 20px}.page-hero h1{font-size:34px}.filter-bar{grid-template-columns:1fr 1fr}.filter-keyword{grid-column:1/3}.talent-toolbar{align-items:flex-start;flex-direction:column;gap:15px}.talent-toolbar select{width:100%}.consult-copy h2{font-size:30px}.form-grid{grid-template-columns:1fr}.consult-form{padding:23px 18px}.role-tabs button{font-size:10px}.headhunt-plan{align-items:flex-start;flex-direction:column;gap:20px}.headhunt-plan>div{align-items:flex-start}.price-card>p{min-height:0}.story-layout{gap:25px}.story-layout h2{font-size:30px}.footer-grid{grid-template-columns:1fr 1fr;gap:35px}.footer-brand-block{grid-column:1/3}.footer-bottom{flex-direction:column;gap:7px}.detail-grid,.checkout-grid{grid-template-columns:1fr}.detail-heading{padding:30px 24px 23px}.detail-heading h2{font-size:22px;padding-right:35px}.detail-grid{padding:24px}.checkout-title{padding:28px 24px 20px}.checkout-grid{padding:22px}.payment-choice>div{grid-template-columns:1fr}.modal-backdrop{padding:10px}}
 @media(max-width:460px){.hero-copy h1{font-size:32px}.hero-copy>p br{display:none}.search-panel{grid-template-columns:1fr}.search-panel label,.search-panel label.keyword,.search-panel .button{grid-column:1}.trust-row strong{font-size:21px}.job-grid,.talent-grid{grid-template-columns:1fr}.filter-bar{grid-template-columns:1fr}.filter-keyword{grid-column:1}.role-tabs{grid-template-columns:1fr}.conversion>div:last-child{width:100%}.footer-grid{grid-template-columns:1fr}.footer-brand-block{grid-column:1}.path-card{padding:30px 23px}.page-hero h1{font-size:30px}.contact-card,.policy-card{padding:28px 22px}}
-@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) *{scroll-behavior:auto!important;transition:none!important}}
 
 /* Simple, action-first home navigation */
 .nav-wrap nav a.nav-ad{color:var(--blue)}
@@ -209,7 +209,7 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
 /* Premium inertial scroll motion */
 .scroll-progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:120;pointer-events:none;transform:scaleX(var(--scroll-progress,0));transform-origin:left center;background:linear-gradient(90deg,var(--blue),#3d8cff,var(--mint));box-shadow:0 1px 7px rgba(18,99,232,.28);will-change:transform}.motion-enabled .scroll-reveal{opacity:0;filter:blur(4px);transform:translate3d(0,38px,0) scale(.985);transform-origin:center bottom;transition:opacity 760ms cubic-bezier(.22,1,.36,1) var(--reveal-delay,0ms),transform 900ms cubic-bezier(.16,1,.3,1) var(--reveal-delay,0ms),filter 720ms ease-out var(--reveal-delay,0ms);will-change:opacity,transform,filter}.motion-enabled .scroll-reveal.is-visible{opacity:1;filter:blur(0);transform:translate3d(0,0,0) scale(1)}.home-hero .hero-copy{transform:translate3d(0,var(--hero-copy-shift,0),0);will-change:transform}.home-hero .concierge-card{transform:translate3d(0,var(--hero-card-shift,0),0);will-change:transform}.job-card.scroll-reveal:hover{transform:translate3d(0,-5px,0) scale(1)}
 @media(max-width:780px){.motion-enabled .scroll-reveal{transform:translate3d(0,24px,0) scale(.99);transition-duration:680ms}.home-hero .hero-copy,.home-hero .concierge-card{transform:none}}
-@media(prefers-reduced-motion:reduce){.scroll-progress{display:none}.motion-enabled .scroll-reveal,.motion-enabled .scroll-reveal.is-visible{opacity:1!important;filter:none!important;transform:none!important;transition:none!important}.home-hero .hero-copy,.home-hero .concierge-card{transform:none!important;will-change:auto}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .scroll-progress{display:none}html:not(.force-motion).motion-enabled .scroll-reveal,html:not(.force-motion).motion-enabled .scroll-reveal.is-visible{opacity:1!important;filter:none!important;transform:none!important;transition:none!important}html:not(.force-motion) .home-hero .hero-copy,html:not(.force-motion) .home-hero .concierge-card{transform:none!important;will-change:auto}}
 
 /* Advertisement brand intake */
 .checkout-form select,.checkout-form textarea{width:100%;border:1px solid #dce3ed;border-radius:10px;outline:0;padding:12px 13px;font-size:16px;background:#fff;color:#263751}.checkout-form textarea{resize:vertical;line-height:1.6}.checkout-form select:focus,.checkout-form textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(18,99,232,.08)}.checkout-form .wide-field>span i,.brand-upload label>span i{font-style:normal;color:#99a4b4;font-weight:500}.brand-upload{display:grid;grid-template-columns:86px 1fr;align-items:center;gap:15px;margin-bottom:19px;padding:15px;border:1px solid #dfe6ef;border-radius:14px;background:#f8fafd}.logo-preview{width:86px;height:86px;border-radius:14px;border:1px solid #dce4ef;background:#fff;color:#8a9ab0;display:grid;place-items:center;overflow:hidden}.logo-preview svg{width:28px}.logo-preview img{width:100%;height:100%;object-fit:contain;padding:7px}.brand-upload label{min-width:0}.brand-upload input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.upload-button{min-height:52px;margin-top:6px;padding:9px 11px;border:1px dashed #b9c7da;border-radius:10px;background:#fff;color:var(--blue);display:flex;align-items:center;gap:9px;cursor:pointer}.upload-button>svg{width:20px;flex:0 0 auto}.upload-button>div{min-width:0;display:flex;flex-direction:column}.upload-button strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.upload-button small{font-size:11px!important;color:#8794a6}.brand-upload em{display:block;margin-top:5px;color:#c64555;font-size:12px;font-style:normal}.modal-card:focus{outline:none}
@@ -422,10 +422,10 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   .ad-brand-stage .hospital-logo.prominent.has-image { width: min(170px, 78%); height: 68px; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .ad-brand-stage,
-  .hospital-wordmark > strong,
-  .premium-ad .card-action svg { transition: none!important; }
-  .motion-enabled .premium-ad.is-visible .ad-brand-stage:after { animation: none!important; }
+  html:not(.force-motion) .ad-brand-stage,
+  html:not(.force-motion) .hospital-wordmark > strong,
+  html:not(.force-motion) .premium-ad .card-action svg { transition: none!important; }
+  html:not(.force-motion).motion-enabled .premium-ad.is-visible .ad-brand-stage:after { animation: none!important; }
 }
 /* Advertisement tier placement and motion */
 .promoted-jobs {
@@ -540,10 +540,10 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   .ad-spotlight .ad-brand-stage { min-height: 152px; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .motion-enabled .premium-ad.ad-featured.is-visible .ad-brand-stage:after,
-  .motion-enabled .premium-ad.ad-spotlight.is-visible,
-  .motion-enabled .premium-ad.ad-spotlight.is-visible .ad-brand-stage:after,
-  .motion-enabled .premium-ad.ad-spotlight.is-visible .ad-stage-label svg { animation: none!important; }
+  html:not(.force-motion).motion-enabled .premium-ad.ad-featured.is-visible .ad-brand-stage:after,
+  html:not(.force-motion).motion-enabled .premium-ad.ad-spotlight.is-visible,
+  html:not(.force-motion).motion-enabled .premium-ad.ad-spotlight.is-visible .ad-brand-stage:after,
+  html:not(.force-motion).motion-enabled .premium-ad.ad-spotlight.is-visible .ad-stage-label svg { animation: none!important; }
 }
 /* Advertising design preview and refined premium interaction */
 .ad-preview-section {
@@ -771,12 +771,12 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   .bluecare-symbol { width: 40px; height: 40px; border-radius: 13px 13px 17px 17px; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .job-card.premium-ad,
-  .premium-ad .ad-brand-stage,
-  .premium-ad .hospital-logo.prominent,
-  .premium-ad .hospital-wordmark,
-  .premium-ad .card-action svg { transition: none!important; transform: none!important; }
-  .job-card.premium-ad:after { display: none!important; }
+  html:not(.force-motion) .job-card.premium-ad,
+  html:not(.force-motion) .premium-ad .ad-brand-stage,
+  html:not(.force-motion) .premium-ad .hospital-logo.prominent,
+  html:not(.force-motion) .premium-ad .hospital-wordmark,
+  html:not(.force-motion) .premium-ad .card-action svg { transition: none!important; transform: none!important; }
+  html:not(.force-motion) .job-card.premium-ad:after { display: none!important; }
 }
 /* Roomier hero search controls */
 @media(min-width:781px) {
@@ -848,8 +848,8 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   }
 }
 @media(prefers-reduced-motion:reduce) {
-  .motion-enabled .job-card.scroll-reveal,
-  .motion-enabled .job-card.scroll-reveal.is-visible { opacity:1!important; transform:none!important; transition:none!important; }
+  html:not(.force-motion).motion-enabled .job-card.scroll-reveal,
+  html:not(.force-motion).motion-enabled .job-card.scroll-reveal.is-visible { opacity:1!important; transform:none!important; transition:none!important; }
 }
 /* Crisp route transitions */
 .route-stage {
@@ -866,8 +866,8 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   to { opacity:1; transform:none; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .route-stage { animation:none!important; }
-  .route-stage.route-leaving { opacity:1!important; transform:none!important; transition:none!important; }
+  html:not(.force-motion) .route-stage { animation:none!important; }
+  html:not(.force-motion) .route-stage.route-leaving { opacity:1!important; transform:none!important; transition:none!important; }
 }
 /* Advertising exposure conversion panel */
 .ad-exposure-pitch{display:grid;grid-template-columns:minmax(0,.78fr) minmax(520px,1.22fr);gap:clamp(48px,6vw,96px);align-items:center;padding-top:76px;padding-bottom:88px}
