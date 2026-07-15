@@ -287,15 +287,30 @@ function JobCard({ job, saved, onSave, onOpen, preview = false }) {
   };
   return <article className={`job-card ${preview ? 'advertisement-preview-card' : ''} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? 'has-brand-logo' : 'has-brand-wordmark'}` : ''}`} style={{ '--job-color': job.color }} onPointerMove={moveCardLight} onPointerLeave={resetCardLight}>
     <button className="card-hit-area" onClick={onOpen} aria-label={preview ? '집중채용 광고 디자인 예시 신청하기' : `${job.hospital} ${job.title} 상세보기`} />
-    <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div>{preview ? <span className="preview-card-label">SAMPLE</span> : <button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button>}</div>
-    {isAd ? <div className={`ad-brand-stage ${hasBrandAsset ? `logo-stage media-${brandFit}` : 'wordmark-stage'}`} style={brandSource ? { '--brand-image': `url(${brandUrl})` } : undefined}>
-      <span className="ad-stage-label"><Sparkles size={14} /> {adLabel}</span>
-      {hasBrandAsset ? <><span className="brand-media-backdrop" aria-hidden="true" /><HospitalLogo job={job} prominent source={brandSource} fit={brandFit} /><div className="ad-hospital-caption"><strong>{job.hospital}</strong><small>{job.logoDesignSample ? '광고 디자인 예시 · 공식 로고 아님' : '병원 브랜드 채용관'}</small></div></> : <div className="hospital-wordmark"><small>MEDICAL CAREER PARTNER</small><strong>{job.hospital}</strong><span><i /> 병원 브랜드 채용관</span></div>}
-    </div> : <div className="job-hospital"><HospitalLogo job={job} /><span><strong>{job.hospital}</strong></span></div>}
-    <h3>{job.title}</h3>
-    <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
-    <div className="job-bottom"><span>{job.dept}</span><strong className={restricted ? 'premium-value' : ''}>{restricted ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
-    <button className="card-action" onClick={(event) => { event.stopPropagation(); onOpen(); }}>{preview ? '이 디자인으로 광고하기' : '공고 자세히 보기'} <ArrowRight size={16} /></button>
+    {isAd ? <>
+      <div className="premium-card-head"><span><Crown size={15} /> {job.adTier === 'spotlight' ? 'PREMIER 01' : 'FEATURED AD'}</span><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span><small>AD · 최상단 우선 노출</small></div>{preview ? <span className="preview-card-label">SAMPLE</span> : <button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button>}</div>
+      <div className="premium-card-layout">
+        <div className="premium-brand-panel">
+          <HospitalLogo job={job} prominent source={brandSource} fit={brandFit} />
+          <span>FEATURED HOSPITAL</span>
+          <strong>{job.hospital}</strong>
+          <small>{job.logoDesignSample ? '광고 디자인 예시 · 공식 로고 아님' : '병원의 이름과 로고를 하나의 브랜드로 보여드립니다.'}</small>
+        </div>
+        <div className="premium-job-panel">
+          <h3>{job.title}</h3>
+          <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
+          <div className="premium-points"><span><Check size={14} />{job.dept}</span><span><Check size={14} />전담 컨설턴트 연결</span></div>
+          <button className="card-action" onClick={(event) => { event.stopPropagation(); onOpen(); }}><span><small>{preview ? '이 레이아웃으로' : '이 공고 자세히 보기'}</small><strong>{preview ? '집중채용 광고하기' : `${adLabel} 열기`}</strong></span><ArrowRight size={18} /></button>
+        </div>
+      </div>
+    </> : <>
+      <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span></div><button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
+      <div className="job-hospital"><HospitalLogo job={job} /><span><strong>{job.hospital}</strong></span></div>
+      <h3>{job.title}</h3>
+      <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
+      <div className="job-bottom"><span>{job.dept}</span><strong className={restricted ? 'premium-value' : ''}>{restricted ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
+      <button className="card-action" onClick={(event) => { event.stopPropagation(); onOpen(); }}>공고 자세히 보기 <ArrowRight size={16} /></button>
+    </>}
   </article>;
 }
 function JobDetail({ job, saved, onSave, onClose }) {
