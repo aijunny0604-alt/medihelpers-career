@@ -221,7 +221,7 @@ function Header({ path }) {
       </Link>
       <nav id="primary-navigation" className={open ? 'open' : ''}>
         {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
-        <Link to="/signup" onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/signup' ? 'active' : ''}`}>로그인·회원가입</Link>
+        <Link to="/signup" onClick={() => setOpen(false)} className={`mobile-account-link ${path.startsWith('/signup') ? 'active' : ''}`}>로그인·회원가입</Link>
       </nav>
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
@@ -664,6 +664,8 @@ export function App() {
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage />;
   else if (path === '/membership') page = <MembershipPage route={route} />;
+  else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
+  else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
