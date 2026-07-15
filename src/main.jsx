@@ -220,32 +220,37 @@ function PageHero({ eyebrow, title, description, children, tone = '' }) {
 }
 
 function HospitalLogo({ job, prominent = false }) {
-  return <span className={`hospital-logo ${prominent ? 'prominent' : ''}`} style={{ '--logo-color': job.color }}>
+  return <span className={`hospital-logo ${prominent ? 'prominent' : ''} ${job.logo ? 'has-image' : 'has-text'}`} style={{ '--logo-color': job.color }}>
     {job.logo ? <img src={job.logo} alt={`${job.hospital} 로고`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
   </span>;
 }
 
 function JobCard({ job, saved, onSave, onOpen }) {
-  const premium = ['집중채용', '추천', '비공개'].includes(job.badge);
-  return <article className={`job-card ${premium ? 'premium-ad' : ''}`} style={{ '--job-color': job.color }}>
+  const isAd = Boolean(job.adTier);
+  const restricted = isAd || job.badge === '비공개';
+  const adLabel = job.adTier === 'spotlight' ? '집중채용 브랜드관' : '추천 브랜드관';
+  return <article className={`job-card ${isAd ? `premium-ad ad-${job.adTier} ${job.logo ? 'has-brand-logo' : 'has-brand-wordmark'}` : ''}`} style={{ '--job-color': job.color }}>
     <button className="card-hit-area" onClick={onOpen} aria-label={`${job.hospital} ${job.title} 상세보기`} />
-    <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{premium && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div><button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
-    <div className="job-hospital"><HospitalLogo job={job} prominent={premium} /><span><strong>{job.hospital}</strong>{premium && <small>공식 채용관</small>}</span></div>
+    <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div><button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>
+    {isAd ? <div className={`ad-brand-stage ${job.logo ? 'logo-stage' : 'wordmark-stage'}`}>
+      <span className="ad-stage-label"><Sparkles size={14} /> {adLabel}</span>
+      {job.logo ? <><HospitalLogo job={job} prominent /><div className="ad-hospital-caption"><strong>{job.hospital}</strong><small>병원 브랜드 채용관</small></div></> : <div className="hospital-wordmark"><small>MEDICAL CAREER PARTNER</small><strong>{job.hospital}</strong><span><i /> 병원 브랜드 채용관</span></div>}
+    </div> : <div className="job-hospital"><HospitalLogo job={job} /><span><strong>{job.hospital}</strong></span></div>}
     <h3>{job.title}</h3>
     <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
-    <div className="job-bottom"><span>{job.dept}</span><strong className={premium ? 'premium-value' : ''}>{premium ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
+    <div className="job-bottom"><span>{job.dept}</span><strong className={restricted ? 'premium-value' : ''}>{restricted ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
     <button className="card-action" onClick={(event) => { event.stopPropagation(); onOpen(); }}>공고 자세히 보기 <ArrowRight size={16} /></button>
   </article>;
 }
-
 function JobDetail({ job, saved, onSave, onClose }) {
-  const premium = ['집중채용', '추천', '비공개'].includes(job.badge);
+  const isAd = Boolean(job.adTier);
+  const restricted = isAd || job.badge === '비공개';
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   return <Modal onClose={onClose} wide>
-    <div className="detail-heading" style={{ '--job-color': job.color }}><div className="detail-brand"><HospitalLogo job={job} prominent /><div><div className="detail-brand-label"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{premium && <span>AD · 병원 브랜드 채용관</span>}</div><strong>{job.hospital}</strong><small><BadgeCheck /> 등록된 기관 정보</small></div></div><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
+    <div className="detail-heading" style={{ '--job-color': job.color }}><div className="detail-brand"><HospitalLogo job={job} prominent /><div><div className="detail-brand-label"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span>AD · 병원 브랜드 채용관</span>}</div><strong>{job.hospital}</strong><small><BadgeCheck /> 등록된 기관 정보</small></div></div><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
     <div className="detail-grid">
       <div className="detail-content"><section className="hospital-profile"><div className="detail-section-title"><span><Building2 /></span><div><small>HOSPITAL PROFILE</small><h3>병원 정보</h3></div></div><p>{job.summary}</p><dl className="hospital-facts"><div><dt>기관 유형</dt><dd>{job.facilityType}</dd></div><div><dt>기관 규모</dt><dd>{job.scale}</dd></div><div><dt>주요 진료</dt><dd>{job.focus}</dd></div><div><dt>채용 분야</dt><dd>{job.dept}</dd></div></dl></section><section className="location-panel"><div className="location-icon"><MapPin /></div><div><small>근무지 위치</small><strong>{job.location}</strong><p>{job.access}</p></div><a href={mapUrl} target="_blank" rel="noreferrer" aria-label={`${job.hospital} 지도에서 위치 보기`}>지도에서 보기 <ArrowRight /></a></section><section><div className="detail-section-title compact"><span><BriefcaseBusiness /></span><div><small>POSITION DETAILS</small><h3>포지션과 근무조건</h3></div></div><p>{job.summary}</p><div className="benefit-list">{job.benefits.map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>
-      <aside className={premium ? 'premium-aside' : ''}><span>예상 보수</span>{premium ? <div className="locked-value"><div className="free-preview"><small>무료 미리보기 완료</small><strong>지역 · 진료과 · 근무형태 확인</strong></div><div className="locked-list"><span><LockKeyhole /> 상세 급여와 인센티브</span><span><LockKeyhole /> 정확한 근무시간·당직</span><span><LockKeyhole /> 채용 담당자와 협의조건</span></div><Link className="button primary full" to={`/membership?type=doctor&job=${job.id}`} onClick={() => trackConversion('job_unlock_cta', { jobId: job.id, offer: 'single' })}>이 공고만 2,900원에 열람</Link><small className="value-hint">5건 이상 비교한다면 월 패스가 더 저렴해요.</small></div> : <><strong>{job.pay}</strong><small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>비공개 상담 신청</Link></>}<button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button></aside>
+      <aside className={restricted ? 'premium-aside' : ''}><span>예상 보수</span>{restricted ? <div className="locked-value"><div className="free-preview"><small>무료 미리보기 완료</small><strong>지역 · 진료과 · 근무형태 확인</strong></div><div className="locked-list"><span><LockKeyhole /> 상세 급여와 인센티브</span><span><LockKeyhole /> 정확한 근무시간·당직</span><span><LockKeyhole /> 채용 담당자와 협의조건</span></div><Link className="button primary full" to={`/membership?type=doctor&job=${job.id}`} onClick={() => trackConversion('job_unlock_cta', { jobId: job.id, offer: 'single' })}>이 공고만 2,900원에 열람</Link><small className="value-hint">5건 이상 비교한다면 월 패스가 더 저렴해요.</small></div> : <><strong>{job.pay}</strong><small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>비공개 상담 신청</Link></>}<button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button></aside>
     </div>
   </Modal>;
 }

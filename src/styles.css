@@ -244,3 +244,186 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
 @media(max-width:1200px){.profession-grid,.community-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:780px){.profession-section{padding-top:42px}.profession-philosophy{grid-template-columns:1fr;gap:18px;margin-bottom:32px}.profession-philosophy h2{font-size:29px}.profession-philosophy>p{font-size:15px}.profession-filter{margin-inline:-20px;padding-inline:20px}.profession-grid,.community-grid{grid-template-columns:1fr}.profession-card>p{min-height:0}.community-grid>div{padding:24px}.hero-search-fields label:nth-child(2){grid-column:auto}.hero-search-fields label:nth-child(3){grid-column:1/3}}
 @media(max-width:460px){.hero-search-fields label:nth-child(3){grid-column:1}.profession-card{padding:22px}}
+
+/* Premium hospital advertisement showcase */
+.job-card.premium-ad {
+  border: 1px solid color-mix(in srgb, var(--job-color) 26%, #dce5f0);
+  border-top: 4px solid var(--job-color);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--job-color) 3%, #fff), #fff 34%);
+  box-shadow: 0 18px 44px rgba(31, 61, 103, .12);
+}
+.job-card.premium-ad.ad-spotlight {
+  border-color: color-mix(in srgb, var(--job-color) 38%, #dce5f0);
+  box-shadow: 0 22px 54px color-mix(in srgb, var(--job-color) 16%, rgba(31, 61, 103, .1));
+}
+.job-card.premium-ad:before {
+  width: 210px;
+  height: 210px;
+  right: -95px;
+  top: -110px;
+  opacity: .055;
+}
+.sponsored-label {
+  font-size: 12px;
+  letter-spacing: .15px;
+}
+.ad-brand-stage {
+  position: relative;
+  min-height: 150px;
+  margin: 17px -7px 0;
+  padding: 43px 22px 22px;
+  border: 1px solid color-mix(in srgb, var(--job-color) 16%, #e1e8f1);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--job-color) 14%, transparent), transparent 35%),
+    linear-gradient(135deg, color-mix(in srgb, var(--job-color) 9%, #fff), #fff 68%);
+  overflow: hidden;
+  transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease, border-color .35s ease;
+}
+.ad-brand-stage:before {
+  content: '';
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  right: -56px;
+  bottom: -72px;
+  border: 25px solid color-mix(in srgb, var(--job-color) 9%, transparent);
+  border-radius: 50%;
+}
+.ad-brand-stage:after {
+  content: '';
+  position: absolute;
+  top: -35%;
+  bottom: -35%;
+  left: -55%;
+  width: 34%;
+  opacity: 0;
+  transform: rotate(16deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.88), transparent);
+  pointer-events: none;
+}
+.ad-stage-label {
+  position: absolute;
+  left: 17px;
+  top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: color-mix(in srgb, var(--job-color) 82%, #223754);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+.ad-stage-label svg { width: 14px; }
+.logo-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.ad-brand-stage .hospital-logo.prominent.has-image {
+  width: min(190px, 72%);
+  height: 78px;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  background: rgba(255,255,255,.88);
+}
+.ad-brand-stage .hospital-logo.prominent.has-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+}
+.ad-hospital-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+  text-align: center;
+}
+.ad-hospital-caption strong {
+  color: #182c4b;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.ad-hospital-caption small {
+  margin-top: 2px;
+  color: #8491a4;
+  font-size: 11px!important;
+}
+.wordmark-stage {
+  display: flex;
+  align-items: center;
+}
+.hospital-wordmark {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.hospital-wordmark > small {
+  color: var(--job-color);
+  font: 800 9px 'Manrope';
+  letter-spacing: 1.3px;
+}
+.hospital-wordmark > strong {
+  margin-top: 4px;
+  color: #142b4c;
+  font-size: clamp(23px, 2vw, 29px);
+  line-height: 1.25;
+  letter-spacing: -1.25px;
+  word-break: keep-all;
+  transition: letter-spacing .3s ease;
+}
+.hospital-wordmark > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  color: #728198;
+  font-size: 12px;
+  font-weight: 700;
+}
+.hospital-wordmark i {
+  width: 28px;
+  height: 3px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--job-color), color-mix(in srgb, var(--job-color) 45%, var(--mint)));
+  box-shadow: 0 3px 9px color-mix(in srgb, var(--job-color) 25%, transparent);
+}
+.premium-ad > h3 { margin-top: 19px; }
+.premium-ad .card-action { color: color-mix(in srgb, var(--job-color) 76%, #18365f); }
+.premium-ad .card-action svg { transition: transform .25s ease; }
+.premium-ad:hover {
+  border-color: color-mix(in srgb, var(--job-color) 52%, #cfd9e6);
+  box-shadow: 0 24px 58px color-mix(in srgb, var(--job-color) 18%, rgba(31,61,103,.12));
+}
+.premium-ad:hover .ad-brand-stage {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--job-color) 30%, #dae3ee);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--job-color) 10%, rgba(31,61,103,.08));
+}
+.premium-ad:hover .hospital-wordmark > strong { letter-spacing: -.9px; }
+.premium-ad:hover .card-action svg { transform: translateX(4px); }
+.motion-enabled .premium-ad.is-visible .ad-brand-stage:after {
+  animation: ad-brand-sweep 1.05s cubic-bezier(.22,1,.36,1) .28s 1 both;
+}
+@keyframes ad-brand-sweep {
+  0% { left: -55%; opacity: 0; }
+  25% { opacity: .72; }
+  100% { left: 125%; opacity: 0; }
+}
+@media(max-width:460px) {
+  .sponsored-label { font-size: 11px; }
+  .ad-brand-stage { min-height: 136px; margin-inline: -3px; padding: 40px 17px 18px; }
+  .hospital-wordmark > strong { font-size: 23px; }
+  .ad-brand-stage .hospital-logo.prominent.has-image { width: min(170px, 78%); height: 68px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .ad-brand-stage,
+  .hospital-wordmark > strong,
+  .premium-ad .card-action svg { transition: none!important; }
+  .motion-enabled .premium-ad.is-visible .ad-brand-stage:after { animation: none!important; }
+}

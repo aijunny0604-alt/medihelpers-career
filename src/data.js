@@ -2,7 +2,7 @@ export const jobs = [
   {
     id: 'samcheonpo-specialists', hospital: '삼천포제일병원', title: '각 과 전문의 의료진 초빙',
     location: '경남 사천시', region: '경남', type: '정규직', dept: '전문의', pay: '협의 후 결정',
-    badge: '집중채용', color: '#2367e8', logoText: '삼제', schedule: '주 5일', updated: '오늘',
+    badge: '집중채용', adTier: 'spotlight', color: '#2367e8', logoText: '삼제', schedule: '주 5일', updated: '오늘',
     facilityType: '종합병원', focus: '지역 거점 진료·전문의 진료', scale: '병원급 의료기관', access: '주차·숙소 조건 협의 가능',
     summary: '지역 거점 종합병원에서 진료과별 전문의를 모십니다. 진료 여건과 근무 일정은 전문 컨설턴트가 개별 조율합니다.',
     benefits: ['기숙사 협의', '학회 지원', '전담 컨설턴트 협상']
@@ -18,7 +18,7 @@ export const jobs = [
   {
     id: 'isarang-pediatrics', hospital: '아이사랑병원', title: '달빛어린이병원 담당 원장님',
     location: '부산 연제구', region: '부산', type: '주 5일', dept: '소아청소년과', pay: '월 1,400만원+',
-    badge: '추천', color: '#7d57e8', logoText: '아이', schedule: '요일 협의', updated: '2일 전',
+    badge: '추천', adTier: 'featured', color: '#7d57e8', logoText: '아이', schedule: '요일 협의', updated: '2일 전',
     facilityType: '병원', focus: '소아청소년 진료', scale: '팀 기반 진료기관', access: '대중교통·주차 안내 제공',
     summary: '소아 진료에 집중할 수 있는 팀 기반 환경입니다. 야간 진료 일정과 보상은 상담을 통해 안내합니다.',
     benefits: ['팀 진료', '스케줄 협의', '전담 코디네이터']
