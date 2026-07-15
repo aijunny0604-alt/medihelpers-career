@@ -28,9 +28,14 @@ function useRoute() {
   return route;
 }
 
+function motionIsReduced() {
+  const forced = localStorage.getItem('medihelpers_motion') === 'full';
+  document.documentElement.classList.toggle('force-motion', forced);
+  return !forced && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 function useScrollMotion(route) {
   useLayoutEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = motionIsReduced();
     if (reduced) return undefined;
     const selector = [
       '.page-hero-inner', '.section-head', '.quick-access', '.home-role-actions', '.member-teaser',
@@ -45,6 +50,10 @@ function useScrollMotion(route) {
       element.classList.add('scroll-reveal');
       element.style.setProperty('--reveal-delay', `${(index % 4) * 65}ms`);
     });
+    if (!('IntersectionObserver' in window)) {
+      elements.forEach((element) => element.classList.add('is-visible'));
+      return undefined;
+    }
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
@@ -63,7 +72,7 @@ function useScrollMotion(route) {
   }, [route]);
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = motionIsReduced();
     if (reduced) return undefined;
     let frame = 0;
     const update = () => {
@@ -99,7 +108,7 @@ function navigate(path) {
     window.dispatchEvent(navigation);
     if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = motionIsReduced();
   const currentPage = document.querySelector('.route-stage');
   if (reducedMotion || !currentPage) return commitNavigation();
   currentPage.classList.add('route-leaving');
@@ -108,8 +117,8 @@ function navigate(path) {
 
 function useSmoothPageScroll() {
   useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const finePointer = window.matchMedia('(pointer: fine)').matches;
+    const reducedMotion = motionIsReduced();
+    const finePointer = window.matchMedia('(any-pointer: fine)').matches;
     if (reducedMotion || !finePointer) return undefined;
     const lenis = new Lenis({
       autoRaf: true,
@@ -344,6 +353,35 @@ function MemberTeaser() {
   return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>MEDIHELPERS MEMBERSHIP</small><h2>둘러보기는 무료, 결정에 필요한 핵심정보는 멤버십으로</h2><p>의료인은 프리미엄 공고를, 병원은 검증된 인재정보와 소개 요청권을 이용할 수 있습니다.</p></div><Link className="button dark" to="/membership">멤버십 비교 <ArrowRight /></Link></section>;
 }
 
+function HeroSelect({ value, onChange, options, disabled = false, label }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const close = (event) => {
+      if (event.type === 'keydown' && event.key !== 'Escape') return;
+      if (event.type === 'pointerdown' && rootRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', close);
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', close); };
+  }, []);
+  return <div ref={rootRef} className={`hero-custom-select ${open ? 'open' : ''} ${disabled ? 'disabled' : ''}`}>
+    <button type="button" className="hero-select-trigger" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}><span>{value}</span><ChevronDown /></button>
+    {open && <div className="hero-select-menu" role="listbox" aria-label={`${label} 목록`} data-lenis-prevent>{options.map((option) => { const item = typeof option === 'string' ? { value: option, label: option } : option; return <button type="button" role="option" aria-selected={item.value === value} className={item.value === value ? 'selected' : ''} key={item.value} onClick={() => { onChange(item.value); setOpen(false); }}>{item.label}{item.value === value && <Check />}</button>; })}</div>}
+  </div>;
+}
+
+function MotionNotice() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const forced = localStorage.getItem('medihelpers_motion') === 'full';
+    document.documentElement.classList.toggle('force-motion', forced);
+    setVisible(window.matchMedia('(prefers-reduced-motion: reduce)').matches && !forced);
+  }, []);
+  if (!visible) return null;
+  return <aside className="motion-notice"><Activity /><div><strong>이 PC에서 모션 효과가 줄어들고 있습니다</strong><span>Windows 또는 브라우저의 애니메이션 줄이기 설정을 감지했습니다.</span></div><button onClick={() => { localStorage.setItem('medihelpers_motion', 'full'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>이 사이트에서는 켜기</button></aside>;
+}
 function HomePage() {
   const [profession, setProfession] = useState('doctor');
   const [dept, setDept] = useState('전체 진료과');
@@ -355,9 +393,9 @@ function HomePage() {
         <div className="hero-search-card" role="search" aria-label="의료 채용 검색">
           <div className="hero-search-title"><span><Search /></span><div><strong>내 전문영역의 채용 찾기</strong><small>직군·전문영역·지역만 선택하면 됩니다</small></div></div>
           <div className="hero-search-fields">
-            <label><small>의료 직군</small><span><UsersRound size={19} /><select value={profession} onChange={(e) => setProfession(e.target.value)}>{professions.map((item) => <option key={item.id} value={item.id}>{item.short}</option>)}</select><ChevronDown size={16} /></span></label>
-            <label><small>{profession === 'doctor' ? '진료과' : '전문영역'}</small><span><Stethoscope size={19} /><select value={profession === 'doctor' ? dept : '전체 전문영역'} disabled={profession !== 'doctor'} onChange={(e) => setDept(e.target.value)}>{profession === 'doctor' ? departments.map((item) => <option key={item}>{item}</option>) : <option>전체 전문영역</option>}</select><ChevronDown size={16} /></span></label>
-            <label><small>지역</small><span><MapPin size={19} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} /></span></label>
+            <label><small>의료 직군</small><span><UsersRound size={19} /><HeroSelect label="의료 직군" value={profession} onChange={setProfession} options={professions.map((item) => ({ value: item.id, label: item.short }))} /></span></label>
+            <label><small>{profession === 'doctor' ? '진료과' : '전문영역'}</small><span><Stethoscope size={19} /><HeroSelect label={profession === 'doctor' ? '진료과' : '전문영역'} value={profession === 'doctor' ? dept : '전체 전문영역'} disabled={profession !== 'doctor'} onChange={setDept} options={profession === 'doctor' ? departments : ['전체 전문영역']} /></span></label>
+            <label><small>지역</small><span><MapPin size={19} /><HeroSelect label="지역" value={region} onChange={setRegion} options={regions} /></span></label>
             <button className="hero-search-button" onClick={search}>{profession === 'doctor' ? '채용정보 보기' : '직군 전용관 보기'} <ArrowRight /></button>
           </div>
           <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
@@ -587,5 +625,5 @@ export function App() {
   else if (path === '/membership') page = <MembershipPage route={route} />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
 }
