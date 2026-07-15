@@ -202,7 +202,7 @@ function Footer() {
     <div className="footer-grid">
       <div className="footer-brand-block">
         <Link className="brand footer-logo" to="/"><img src="/medihelpers-logo.svg" alt="메디헬퍼스" /></Link>
-        <p>의료기관과 의료인의 더 좋은 내일을<br />사람의 경험과 신뢰로 연결합니다.</p>
+        <p>이직도 채용도 결국 사람의 일입니다.<br />메디헬퍼스가 직접 듣고, 꼼꼼히 연결하겠습니다.</p>
         <div className="footer-contact"><a href="tel:0513425463"><Phone size={15} /> 051-342-5463</a><a href="mailto:hr@medihelpers.co.kr"><Mail size={15} /> hr@medihelpers.co.kr</a></div>
       </div>
       <div className="footer-column"><strong>의료인</strong><Link to="/jobs">채용정보</Link><Link to="/headhunting">구직 상담</Link><Link to="/about">서비스 소개</Link></div>
