@@ -1058,3 +1058,14 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   .jobs-hero p{font-size:15px;line-height:1.85}
   .jobs-description-part{display:block}
 }
+
+/* Site-wide Korean line-breaking quality */
+.app :where(h1,h2,h3){word-break:keep-all;overflow-wrap:anywhere;text-wrap:balance}
+.app :where(p,li,dd){word-break:keep-all;overflow-wrap:anywhere;text-wrap:pretty}
+.app .button,.priority-chips button{word-break:keep-all;white-space:nowrap}
+
+/* Page-level wrap refinements after responsive audit */
+.path-card p{max-width:540px}
+.page-hero.profession p{width:100%;max-width:900px}
+.matching-hero p{width:100%;max-width:960px}
+.consult-copy>p,.policy-card>p{text-wrap:balance}
