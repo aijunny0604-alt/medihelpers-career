@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --outDir client-build && node scripts/package-sites.mjs",
-    "preview": "vite preview --outDir client-build"
+    "preview": "vite preview --outDir client-build",
+    "build:pages": "vite build --outDir client-build"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

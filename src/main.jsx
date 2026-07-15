@@ -13,9 +13,12 @@ import MatchingReportPage from './MatchingReportPage.jsx';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
+const appBase = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '');
+const withBase = (path) => !path || /^(?:https?:|mailto:|tel:|#)/.test(path) ? path : `${appBase}${path.startsWith('/') ? path : `/${path}`}`;
 
 function getRoute() {
-  return `${window.location.pathname}${window.location.search}`;
+  const pathname = appBase && window.location.pathname.startsWith(appBase) ? window.location.pathname.slice(appBase.length) || '/' : window.location.pathname;
+  return `${pathname}${window.location.search}`;
 }
 
 function useRoute() {
@@ -103,7 +106,7 @@ function useScrollMotion(route) {
 
 function navigate(path) {
   const commitNavigation = () => {
-    if (getRoute() !== path) window.history.pushState({}, '', path);
+    if (getRoute() !== path) window.history.pushState({}, '', withBase(path));
     window.dispatchEvent(new PopStateEvent('popstate'));
     const navigation = new CustomEvent('medihelpers:navigate', { cancelable: true });
     window.dispatchEvent(navigation);
@@ -152,7 +155,7 @@ function trackConversion(event, detail = {}) {
 }
 
 function Link({ to, className = '', children, onClick }) {
-  return <a href={to} className={className} onClick={(event) => {
+  return <a href={withBase(to)} className={className} onClick={(event) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     onClick?.();
@@ -202,7 +205,7 @@ function Header({ path }) {
   return <header className="site-header">
     <div className="nav-wrap">
       <Link className="brand" to="/" onClick={() => setOpen(false)} aria-label="메디헬퍼스 홈">
-        <img src="/medihelpers-logo.svg" alt="메디헬퍼스" />
+        <img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" />
       </Link>
       <nav className={open ? 'open' : ''}>
         {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
@@ -220,7 +223,7 @@ function Footer() {
   return <footer>
     <div className="footer-grid">
       <div className="footer-brand-block">
-        <Link className="brand footer-logo" to="/"><img src="/medihelpers-logo.svg" alt="메디헬퍼스" /></Link>
+        <Link className="brand footer-logo" to="/"><img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" /></Link>
         <p>이직도 채용도 결국 사람의 일입니다.<br />메디헬퍼스가 직접 듣고, 꼼꼼히 연결하겠습니다.</p>
         <div className="footer-contact"><a href="tel:0513425463"><Phone size={15} /> 051-342-5463</a><a href="mailto:hr@medihelpers.co.kr"><Mail size={15} /> hr@medihelpers.co.kr</a></div>
       </div>
@@ -240,10 +243,11 @@ function PageHero({ eyebrow, title, description, children, tone = '' }) {
 
 function HospitalLogo({ job, prominent = false, source, fit }) {
   const brandSource = source || job.banner || job.logo;
+  const brandUrl = brandSource ? withBase(brandSource) : '';
   const brandFit = fit || job.brandFit || (job.banner ? 'banner' : 'mark');
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   return <span className={`hospital-logo ${prominent ? 'prominent' : ''} ${hasBrandAsset ? 'has-image' : 'has-text'} logo-fit-${brandFit} ${job.brandAsset ? `brand-asset-${job.brandAsset}` : ''}`} style={{ '--logo-color': job.color }}>
-    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : brandSource ? <img src={brandSource} alt={`${job.hospital} ${brandFit === 'banner' ? '배너' : '로고'}`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
+    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : brandSource ? <img src={brandUrl} alt={`${job.hospital} ${brandFit === 'banner' ? '배너' : '로고'}`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
   </span>;
 }
 
@@ -262,6 +266,7 @@ const advertisementPreviewJob = {
 function JobCard({ job, saved, onSave, onOpen, preview = false }) {
   const isAd = Boolean(job.adTier);
   const brandSource = job.cardBanner || job.banner || job.logo;
+  const brandUrl = brandSource ? withBase(brandSource) : '';
   const brandFit = job.cardBanner ? 'banner' : (job.brandFit || (job.banner ? 'banner' : 'mark'));
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const restricted = isAd || job.badge === '비공개';
@@ -283,7 +288,7 @@ function JobCard({ job, saved, onSave, onOpen, preview = false }) {
   return <article className={`job-card ${preview ? 'advertisement-preview-card' : ''} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? 'has-brand-logo' : 'has-brand-wordmark'}` : ''}`} style={{ '--job-color': job.color }} onPointerMove={moveCardLight} onPointerLeave={resetCardLight}>
     <button className="card-hit-area" onClick={onOpen} aria-label={preview ? '집중채용 광고 디자인 예시 신청하기' : `${job.hospital} ${job.title} 상세보기`} />
     <div className="job-top"><div><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span className="sponsored-label">AD · 병원 브랜드 광고</span>}</div>{preview ? <span className="preview-card-label">SAMPLE</span> : <button className={saved ? 'heart saved' : 'heart'} onClick={(event) => { event.stopPropagation(); onSave(); }} aria-label="관심 공고 저장"><Heart size={20} fill={saved ? 'currentColor' : 'none'} /></button>}</div>
-    {isAd ? <div className={`ad-brand-stage ${hasBrandAsset ? `logo-stage media-${brandFit}` : 'wordmark-stage'}`} style={brandSource ? { '--brand-image': `url(${brandSource})` } : undefined}>
+    {isAd ? <div className={`ad-brand-stage ${hasBrandAsset ? `logo-stage media-${brandFit}` : 'wordmark-stage'}`} style={brandSource ? { '--brand-image': `url(${brandUrl})` } : undefined}>
       <span className="ad-stage-label"><Sparkles size={14} /> {adLabel}</span>
       {hasBrandAsset ? <><span className="brand-media-backdrop" aria-hidden="true" /><HospitalLogo job={job} prominent source={brandSource} fit={brandFit} /><div className="ad-hospital-caption"><strong>{job.hospital}</strong><small>{job.logoDesignSample ? '광고 디자인 예시 · 공식 로고 아님' : '병원 브랜드 채용관'}</small></div></> : <div className="hospital-wordmark"><small>MEDICAL CAREER PARTNER</small><strong>{job.hospital}</strong><span><i /> 병원 브랜드 채용관</span></div>}
     </div> : <div className="job-hospital"><HospitalLogo job={job} /><span><strong>{job.hospital}</strong></span></div>}
