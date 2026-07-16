@@ -381,6 +381,50 @@ function MotionNotice() {
   if (!visible) return null;
   return <aside className="motion-notice"><Activity /><div><strong>이 PC에서 모션 효과가 줄어들고 있습니다</strong><span>Windows 또는 브라우저의 애니메이션 줄이기 설정을 감지했습니다.</span></div><button onClick={() => { writeStoredString('medihelpers_motion', 'full'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>이 사이트에서는 켜기</button></aside>;
 }
+
+function MediAngelAssistant() {
+  const [open, setOpen] = useState(false);
+  const assistantRef = useRef(null);
+
+  useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    const closeOnOutsideClick = (event) => {
+      if (open && assistantRef.current && !assistantRef.current.contains(event.target)) setOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+    };
+  }, [open]);
+
+  const closeAssistant = () => setOpen(false);
+  return <aside ref={assistantRef} className={`medi-angel-assistant ${open ? 'is-open' : ''}`} aria-label="메디헬퍼스 안내 도우미">
+    {open && <section id="medi-angel-panel" className="medi-angel-panel" role="dialog" aria-modal="false" aria-labelledby="medi-angel-title">
+      <div className="medi-angel-panel-head">
+        <span><img src={withBase('/assets/medi-angel-assistant.png')} alt="" /></span>
+        <div><small>MEDIHELPERS GUIDE</small><strong id="medi-angel-title">안녕하세요, 메디예요</strong></div>
+        <button type="button" aria-label="안내 도우미 닫기" onClick={closeAssistant}><X /></button>
+      </div>
+      <p>조건이 맞는 채용정보부터 전문 헤드헌터 상담까지 빠르게 안내해드릴게요.</p>
+      <div className="medi-angel-actions">
+        <Link to="/jobs" onClick={closeAssistant}><Search /><span><strong>채용공고 찾기</strong><small>직군·진료과·지역별 검색</small></span><ArrowRight /></Link>
+        <Link to="/matching-report" onClick={closeAssistant}><BarChart3 /><span><strong>매칭 리포트</strong><small>찜한 병원을 조건별 비교</small></span><ArrowRight /></Link>
+        <Link to="/headhunting" onClick={closeAssistant}><UserRoundSearch /><span><strong>1:1 상담 요청</strong><small>전담 헤드헌터에게 바로 연결</small></span><ArrowRight /></Link>
+      </div>
+      <a className="medi-angel-phone" href="tel:0513425463"><Phone /><span><small>전화 상담</small><strong>051-342-5463</strong></span></a>
+    </section>}
+    {!open && <button type="button" className="medi-angel-nudge" onClick={() => setOpen(true)}><Sparkles /> 무엇을 도와드릴까요?</button>}
+    <button type="button" className="medi-angel-toggle" aria-expanded={open} aria-controls="medi-angel-panel" aria-label={open ? '메디 도우미 닫기' : '메디 도우미 열기'} onClick={() => setOpen((value) => !value)}>
+      <span className="medi-angel-sparkle"><Sparkles /></span>
+      <img src={withBase('/assets/medi-angel-assistant.png')} alt="메디헬퍼스 수호천사 메디" />
+      <span className="medi-angel-status">상담 안내</span>
+    </button>
+  </aside>;
+}
 function HomePage() {
   const [profession, setProfession] = useState('doctor');
   const [dept, setDept] = useState('전체 진료과');
@@ -790,5 +834,5 @@ export function App() {
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><MediAngelAssistant /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
 }

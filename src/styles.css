@@ -1632,3 +1632,76 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(max-width:900px){.promotion-heading{align-items:flex-start;flex-direction:column}.tier-heading-actions{width:100%;align-items:flex-start;justify-content:space-between}.tier-heading-actions>small{text-align:left}.standard-heading{align-items:flex-start;gap:14px}.standard-heading .tier-apply-button{flex:0 0 auto}}
 @media(max-width:560px){.tier-heading-actions{align-items:stretch;flex-direction:column}.tier-apply-button{width:100%}.standard-heading{flex-direction:column}.standard-heading .tier-apply-button{width:100%}.jobs-page>.jobs-ad-launcher{margin-top:48px}.featured-section,.standard-jobs{margin-top:48px}}
 @media(prefers-reduced-motion:reduce){html:not(.force-motion) .tier-apply-button{transition:none}}
+
+/* MediHelpers original guardian-angel assistant. */
+.medi-angel-assistant{position:fixed;right:24px;bottom:18px;z-index:170;width:116px;height:132px;pointer-events:none}
+.medi-angel-assistant button,.medi-angel-assistant a,.medi-angel-panel{pointer-events:auto}
+.medi-angel-toggle{position:absolute;right:0;bottom:0;width:112px;height:128px;padding:0;border:0;background:transparent;display:flex;align-items:flex-end;justify-content:center;filter:drop-shadow(0 13px 18px rgba(22,55,101,.22));transition:transform .28s cubic-bezier(.22,1,.36,1),filter .28s ease}
+.medi-angel-toggle:hover,.medi-angel-toggle:focus-visible{transform:translateY(-5px) scale(1.035);filter:drop-shadow(0 18px 24px rgba(18,65,130,.28));outline:none}
+.medi-angel-toggle:focus-visible:after{content:'';position:absolute;inset:4px;border:3px solid rgba(18,99,232,.45);border-radius:40% 40% 46% 46%;box-shadow:0 0 0 4px #fff}
+.medi-angel-toggle>img{position:relative;z-index:2;width:104px;height:120px;object-fit:contain;animation:medi-angel-float 3.8s ease-in-out infinite;transform-origin:50% 88%}
+.medi-angel-status{position:absolute;z-index:4;right:2px;bottom:0;min-height:25px;padding:5px 9px;border:2px solid #fff;border-radius:18px;background:#1263e8;color:#fff;font-size:10px;font-weight:800;line-height:1;box-shadow:0 6px 14px rgba(18,99,232,.24);white-space:nowrap}
+.medi-angel-sparkle{position:absolute;z-index:5;right:1px;top:12px;width:27px;height:27px;border:2px solid #fff;border-radius:50%;background:#eaf2ff;color:#1263e8;display:grid;place-items:center;box-shadow:0 7px 16px rgba(22,75,150,.18);animation:medi-angel-sparkle 2.2s ease-in-out infinite}
+.medi-angel-sparkle svg{width:14px}
+.medi-angel-nudge{position:absolute;right:94px;bottom:43px;width:max-content;min-height:42px;padding:0 15px;border:1px solid #d6e3f4;border-radius:16px 16px 4px 16px;background:rgba(255,255,255,.98);color:#274363;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;box-shadow:0 14px 32px rgba(29,63,111,.15);backdrop-filter:blur(12px);animation:medi-angel-nudge-in .55s .45s cubic-bezier(.22,1,.36,1) both;white-space:nowrap}
+.medi-angel-nudge:hover,.medi-angel-nudge:focus-visible{border-color:#9bbcec;color:#0d5fd8;outline:3px solid rgba(18,99,232,.18);outline-offset:2px}
+.medi-angel-nudge svg{width:15px;color:#20ad8d}
+.medi-angel-panel{position:absolute;right:5px;bottom:122px;width:370px;padding:20px;border:1px solid #d6e2f1;border-radius:24px;background:rgba(255,255,255,.98);box-shadow:0 28px 70px rgba(17,45,84,.23);backdrop-filter:blur(20px);animation:medi-angel-panel-in .32s cubic-bezier(.22,1,.36,1) both;transform-origin:calc(100% - 48px) 100%}
+.medi-angel-panel:after{content:'';position:absolute;right:42px;bottom:-9px;width:18px;height:18px;background:#fff;border-right:1px solid #d6e2f1;border-bottom:1px solid #d6e2f1;transform:rotate(45deg)}
+.medi-angel-panel-head{display:grid;grid-template-columns:52px minmax(0,1fr) 36px;align-items:center;gap:11px}
+.medi-angel-panel-head>span{width:52px;height:52px;border-radius:17px;background:linear-gradient(145deg,#e8f1ff,#ecfaf6);display:grid;place-items:center;overflow:hidden}
+.medi-angel-panel-head>span img{width:47px;height:49px;object-fit:contain;object-position:center 12%}
+.medi-angel-panel-head>div{min-width:0;display:flex;flex-direction:column}
+.medi-angel-panel-head small{color:#1263e8;font:800 10px 'Manrope';letter-spacing:1px}
+.medi-angel-panel-head strong{margin-top:3px;color:#10213f;font-size:17px;letter-spacing:-.35px}
+.medi-angel-panel-head>button{width:36px;height:36px;padding:0;border:0;border-radius:11px;background:#f3f6fa;color:#65758b;display:grid;place-items:center}
+.medi-angel-panel-head>button:hover,.medi-angel-panel-head>button:focus-visible{background:#e8f1ff;color:#1263e8;outline:3px solid rgba(18,99,232,.16)}
+.medi-angel-panel-head>button svg{width:17px}
+.medi-angel-panel>p{margin:14px 2px 15px;color:#66768d;font-size:13px;line-height:1.65;word-break:keep-all}
+.medi-angel-actions{display:grid;gap:8px}
+.medi-angel-actions>a{min-height:62px;padding:10px 12px;border:1px solid #e1e7f0;border-radius:14px;background:#fff;display:grid;grid-template-columns:36px minmax(0,1fr) 18px;align-items:center;gap:10px;transition:transform .22s ease,border-color .22s ease,background .22s ease,box-shadow .22s ease}
+.medi-angel-actions>a:hover,.medi-angel-actions>a:focus-visible{transform:translateX(-3px);border-color:#a9c6ee;background:#f8fbff;box-shadow:0 9px 20px rgba(24,66,124,.08);outline:none}
+.medi-angel-actions>a>svg:first-child{width:36px;height:36px;padding:8px;border-radius:11px;background:#eaf2ff;color:#1263e8}
+.medi-angel-actions>a:nth-child(2)>svg:first-child{background:#f0ebff;color:#6d4bd2}
+.medi-angel-actions>a:nth-child(3)>svg:first-child{background:#e8f8f3;color:#159477}
+.medi-angel-actions>a>span{min-width:0;display:flex;flex-direction:column}
+.medi-angel-actions strong{color:#203650;font-size:13px}
+.medi-angel-actions small{margin-top:2px;color:#7a8799;font-size:11px;white-space:normal;word-break:keep-all}
+.medi-angel-actions>a>svg:last-child{width:16px;color:#8da0b7}
+.medi-angel-phone{margin-top:11px;min-height:46px;padding:0 13px;border-radius:13px;background:#10213f;color:#fff;display:flex;align-items:center;justify-content:center;gap:9px}
+.medi-angel-phone>svg{width:17px;color:#7fe1c9}
+.medi-angel-phone>span{display:flex;align-items:center;gap:7px}
+.medi-angel-phone small{color:#bdc9d9;font-size:10px}
+.medi-angel-phone strong{font:800 13px 'Manrope'}
+@keyframes medi-angel-float{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-7px) rotate(1.5deg)}}
+@keyframes medi-angel-sparkle{0%,100%{transform:scale(.92) rotate(-8deg)}50%{transform:scale(1.08) rotate(8deg)}}
+@keyframes medi-angel-nudge-in{from{opacity:0;transform:translate(12px,8px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes medi-angel-panel-in{from{opacity:0;transform:translateY(15px) scale(.94)}to{opacity:1;transform:none}}
+@media(max-width:780px){
+  .medi-angel-assistant{right:12px;bottom:72px;width:82px;height:96px;z-index:58}
+  .medi-angel-toggle{width:80px;height:94px}
+  .medi-angel-toggle>img{width:76px;height:90px}
+  .medi-angel-status{right:-1px;bottom:-1px;padding:5px 7px;font-size:9px}
+  .medi-angel-sparkle{right:-2px;top:4px;width:24px;height:24px}
+  .medi-angel-nudge{display:none}
+  .medi-angel-panel{position:absolute;right:0;bottom:94px;width:min(370px,calc(100vw - 24px));max-height:calc(100vh - 190px);padding:17px;border-radius:21px;overflow-y:auto}
+  .medi-angel-panel:after{right:28px}
+  .medi-angel-panel-head{grid-template-columns:47px minmax(0,1fr) 36px}
+  .medi-angel-panel-head>span{width:47px;height:47px}
+  .medi-angel-panel-head strong{font-size:16px}
+  .medi-angel-panel>p{font-size:12px}
+  .medi-angel-actions>a{min-height:58px}
+}
+@media(max-width:390px){
+  .medi-angel-panel{width:calc(100vw - 20px);right:-2px;padding:15px}
+  .medi-angel-panel-head{gap:8px}
+  .medi-angel-actions>a{padding-inline:10px;gap:8px}
+}
+@media(prefers-reduced-motion:reduce){
+  html:not(.force-motion) .medi-angel-toggle,
+  html:not(.force-motion) .medi-angel-toggle>img,
+  html:not(.force-motion) .medi-angel-sparkle,
+  html:not(.force-motion) .medi-angel-nudge,
+  html:not(.force-motion) .medi-angel-panel,
+  html:not(.force-motion) .medi-angel-actions>a{animation:none;transition:none}
+}
