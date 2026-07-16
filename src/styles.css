@@ -2157,6 +2157,11 @@ html.performance-lite .motion-notice{background:#fff}
 .portal-premium-grid .premium-ad .ad-hospital-caption strong{font-size:14px!important;line-height:1.35!important}
 .portal-premium-grid .premium-ad .ad-hospital-caption small{font-size:9px!important}
 .portal-premium-grid .premium-ad h3{min-height:66px;margin-top:13px}
+.portal-premium-grid .premium-ad.has-brand-logo .ad-brand-stage.media-mark{min-height:118px!important;padding:12px 14px!important;grid-template-columns:88px minmax(0,1fr)!important;gap:14px!important}
+.portal-premium-grid .premium-ad.has-brand-logo .hospital-logo.prominent.has-image{width:84px!important;height:84px!important;min-height:84px!important;padding:2px!important;border:0!important;border-radius:13px!important;background:#fff!important;box-shadow:none!important}
+.portal-premium-grid .premium-ad.has-brand-logo .hospital-logo.prominent.has-image img{width:100%!important;height:100%!important;padding:0!important;object-fit:contain!important;transform:scale(1.12)}
+.portal-premium-grid .premium-ad.has-brand-logo .ad-hospital-caption strong{font-size:16px!important;line-height:1.35!important;word-break:keep-all}
+.portal-premium-grid .premium-ad.has-brand-logo .ad-hospital-caption small{margin-top:5px;font-size:10px!important;line-height:1.45!important}
 .balance-legend.compact{margin:0 0 28px;padding:14px 17px}.balance-legend.compact p{margin-top:2px}
 .smart-ad-dock{position:fixed;z-index:85;left:50%;bottom:22px;width:min(900px,calc(100vw - 32px));min-height:68px;padding:10px 50px 10px 15px;border:1px solid #d9e3ef;border-radius:19px;background:rgba(255,255,255,.96);box-shadow:0 18px 50px rgba(21,49,87,.2);backdrop-filter:blur(16px);display:flex;align-items:center;gap:18px;opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,24px);transition:opacity .3s ease,transform .3s ease,visibility 0s linear .3s}
 .smart-ad-dock.is-visible{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0);transition-delay:0s}
@@ -2169,4 +2174,5 @@ html.performance-lite .motion-notice{background:#fff}
 @media(max-width:1180px){.portal-premium-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.portal-premium-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.smart-ad-dock{width:min(610px,calc(100vw - 24px));gap:10px}.smart-ad-dock-brand{min-width:0}.smart-ad-dock-brand small,.smart-ad-dock-count,.smart-ad-dock-links{display:none}}
 @media(max-width:560px){.portal-premium-grid{grid-template-columns:1fr}.smart-ad-dock{bottom:12px;width:calc(100vw - 24px);min-height:58px;padding:8px 43px 8px 10px;border-radius:16px}.smart-ad-dock-brand>svg{width:31px;height:31px}.smart-ad-dock-brand strong{font-size:12px}.smart-ad-dock-cta{margin-left:auto;min-height:40px;padding-inline:12px;font-size:11px}.jobs-page{padding-bottom:96px}}
+@media(max-width:560px){.portal-premium-grid .premium-ad.has-brand-logo .ad-brand-stage.media-mark{grid-template-columns:76px minmax(0,1fr)!important}.portal-premium-grid .premium-ad.has-brand-logo .hospital-logo.prominent.has-image{width:72px!important;height:72px!important;min-height:72px!important}}
 @media(prefers-reduced-motion:reduce){html:not(.force-motion) .smart-ad-dock{transition:none}}
