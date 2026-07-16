@@ -1804,3 +1804,21 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   html:not(.force-motion) .spotlight-section .ad-brand-stage,
   html:not(.force-motion) .featured-section .ad-brand-stage{transition:none;transform:none}
 }
+
+/* Keep hospital-name hierarchy consistent whether a logo asset exists or not. */
+.spotlight-section .ad-spotlight .logo-stage .ad-hospital-caption strong{font-size:clamp(26px,2.2vw,32px);line-height:1.24;letter-spacing:-1.15px;word-break:keep-all;overflow-wrap:anywhere}
+.spotlight-section .ad-spotlight .logo-stage.media-banner .ad-hospital-caption strong{font-size:clamp(25px,2vw,30px)}
+.featured-section .ad-featured .logo-stage .ad-hospital-caption strong{font-size:clamp(21px,1.7vw,25px);line-height:1.28;letter-spacing:-.8px;word-break:keep-all;overflow-wrap:anywhere}
+.featured-section .ad-featured .logo-stage.media-banner .ad-hospital-caption strong{font-size:clamp(20px,1.6vw,24px)}
+@media(max-width:780px){
+  .spotlight-section .ad-spotlight .logo-stage .ad-hospital-caption strong,
+  .spotlight-section .ad-spotlight .logo-stage.media-banner .ad-hospital-caption strong{font-size:23px}
+  .featured-section .ad-featured .logo-stage .ad-hospital-caption strong,
+  .featured-section .ad-featured .logo-stage.media-banner .ad-hospital-caption strong{font-size:20px}
+}
+@media(max-width:390px){
+  .spotlight-section .ad-spotlight .logo-stage .ad-hospital-caption strong,
+  .spotlight-section .ad-spotlight .logo-stage.media-banner .ad-hospital-caption strong{font-size:21px}
+  .featured-section .ad-featured .logo-stage .ad-hospital-caption strong,
+  .featured-section .ad-featured .logo-stage.media-banner .ad-hospital-caption strong{font-size:18px}
+}
