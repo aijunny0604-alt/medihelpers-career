@@ -444,27 +444,13 @@ function HomePage() {
   </>;
 }
 
-function ProfessionsPage() {
-  return <>
-    <section className="doctor-concierge-hero">
-      <div className="doctor-concierge-copy"><span className="eyebrow"><Stethoscope size={15} /> DOCTOR CAREER CONCIERGE</span><h1>의사 이직,<br /><em>공고를 보기 전에</em><br />먼저 이야기하세요</h1><p>진료과, 희망 지역, 근무일, 보수와 이직 시점을 듣고 공개·비공개 포지션을 함께 찾습니다. 지금 당장 이직하지 않아도 괜찮습니다.</p><div className="doctor-hero-actions"><a className="button primary" href="#doctor-consult">비공개 상담 신청 <ArrowRight /></a><a className="button outline" href="tel:0513425463"><Phone /> 051-342-5463</a></div><small><ShieldCheck /> 상담 내용과 이직 의사는 병원에 먼저 공개하지 않습니다.</small></div>
-      <aside className="consultant-profile"><div className="consultant-profile-top"><span><UserRoundSearch /></span><div><small>MEDIHELPERS HEADHUNTER</small><strong>의사 채용 전담 헤드헌터</strong></div><i>1:1 직접 상담</i></div><blockquote>“좋은 공고를 권하기 전에, 어떤 진료와 삶을 원하는지부터 듣겠습니다.”</blockquote><div className="consultant-scope"><span><Check /> 봉직의·전문의·일반의</span><span><Check /> 원장·네트워크·검진 포지션</span><span><Check /> 공개 전 비공개 이직 상담</span><span><Check /> 보수·일정·진료범위 조율</span></div><a href="tel:0513425463"><Phone /><span><small>평일 09:00–18:00</small><strong>전화로 바로 상담하기</strong></span><ArrowRight /></a></aside>
-    </section>
-    <section className="section doctor-decision-section">
-      <div className="section-head centered"><div><span className="section-kicker">WHEN TO TALK</span><h2>이런 고민일 때 상담이 필요합니다</h2><p>지원서를 쓰기 전, 현재 조건을 기준으로 가능성부터 확인하세요.</p></div></div>
-      <div className="doctor-decision-grid">{[[Search,'이직 가능성만 확인','현재 연봉과 일정에서 더 나은 선택지가 있는지 조용히 확인합니다.'],[LockKeyhole,'비공개 포지션 탐색','사이트에 공개되지 않은 병원과 채용 계획까지 상담 범위에서 확인합니다.'],[Banknote,'보수와 조건 협상','연봉뿐 아니라 인센티브, 당직, 진료량과 휴무 조건을 함께 비교합니다.'],[CalendarDays,'퇴사·입사 시점 조율','현 병원 일정과 새 근무지의 채용 시점을 현실적으로 맞춥니다.']].map(([Icon,title,description]) => <article key={title}><span><Icon /></span><h3>{title}</h3><p>{description}</p></article>)}</div>
-    </section>
-    <section className="section soft doctor-prepare-section">
-      <div className="doctor-prepare-copy"><span className="section-kicker">5-MINUTE PREP</span><h2>상담 전에<br />다섯 가지만 생각해 주세요</h2><p>정확한 이력서가 아직 없어도 됩니다. 아래 조건을 대략 알려주시면 첫 상담을 시작할 수 있습니다.</p><a className="button dark" href="#doctor-consult">내 조건 남기기 <ArrowRight /></a></div>
-      <ol className="doctor-prepare-list">{[['01','진료과와 경력','전문의 여부, 주요 진료와 경력 연차'],['02','희망 지역','통근 가능 범위와 이사 가능 여부'],['03','근무 일정','희망 근무일, 당직과 주말 근무 가능 여부'],['04','보수 기준','현재 조건과 희망 보수·인센티브 기준'],['05','이직 시점','즉시, 1~3개월, 좋은 제안이 있을 때']].map(([number,title,description]) => <li key={number}><b>{number}</b><div><strong>{title}</strong><span>{description}</span></div></li>)}</ol>
-    </section>
-    <section className="section doctor-process-section"><div className="section-head centered"><div><span className="section-kicker">PRIVATE PROCESS</span><h2>접수 후에는 이렇게 진행합니다</h2></div></div><div className="step-grid three">{[[MessageCircle,'01','조건을 직접 듣습니다','남긴 내용을 확인하고 편한 연락 시간에 전담 헤드헌터가 직접 연락합니다.'],[Target,'02','맞는 병원만 선별합니다','공개 공고와 비공개 포지션 중 핵심 조건이 맞는 선택지만 정리합니다.'],[ClipboardCheck,'03','동의 후 연결합니다','병원에 정보를 전달하기 전에 의사를 확인하고 면접과 조건 협상을 돕습니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div></section>
-    <section className="section doctor-consult-section" id="doctor-consult">
-      <div className="doctor-consult-intro"><span className="section-kicker">START PRIVATE TALK</span><h2>아직 결정하지 않아도<br />상담은 시작할 수 있습니다</h2><p>입력한 내용은 첫 상담을 준비하는 데만 사용합니다. 병원명이나 현재 근무지는 첫 단계에서 적지 않아도 됩니다.</p><div><ShieldCheck /><span><strong>병원 전달 전 동의 확인</strong><small>이직 의사와 개인정보를 임의로 공개하지 않습니다.</small></span></div><div><Phone /><span><strong>직접 전화 상담</strong><small>평일 09:00–18:00 · 051-342-5463</small></span></div></div>
-      <ConsultationForm initialRole="doctor" initialTopic="이직 가능성 확인" />
-    </section>
-    <section className="other-profession-note"><div><strong>간호·약무·방사선·임상병리 등 다른 의료직군이신가요?</strong><p>현재는 의사 채용을 우선 운영하며, 다른 직군은 상담 접수 후 오픈 일정과 가능한 지원 범위를 안내합니다.</p></div><Link className="button outline" to="/headhunting?profession=all">다른 직군 문의 <ArrowRight /></Link></section>
-  </>;
+// /professions 는 /headhunting 으로 통합되었습니다. SPA·GitHub Pages base 경로를 보존하며 대체 이동합니다.
+function Redirect({ to }) {
+  useEffect(() => {
+    window.history.replaceState({}, '', withBase(to));
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [to]);
+  return null;
 }
 function JobsPage({ route }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
@@ -487,7 +473,7 @@ function JobsPage({ route }) {
       eyebrow="MEDICAL JOBS"
       title={<><span className="jobs-hero-part">조건부터 비교하는</span>{' '}<span className="jobs-hero-part">의료 채용정보</span></>}
       description={<><span className="jobs-description-part">현재 의사 채용정보를</span>{' '}<span className="jobs-description-part">우선 운영하고 있습니다.</span>{' '}<span className="jobs-description-part">다른 보건의료 직군은 전용관에서</span>{' '}<span className="jobs-description-part">오픈 알림을 신청할 수 있습니다.</span></>}
-    ><Link className="button outline" to="/professions">의사 이직상담 <ArrowRight /></Link></PageHero>
+    ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
       <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
@@ -656,7 +642,7 @@ export function App() {
   let page;
   if (path === '/') page = <HomePage />;
   else if (path === '/jobs') page = <JobsPage route={route} />;
-  else if (path === '/professions') page = <ProfessionsPage route={route} />;
+  else if (path === '/professions') page = <Redirect to="/headhunting" />;
   else if (path === '/talent') page = <TalentPage />;
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
