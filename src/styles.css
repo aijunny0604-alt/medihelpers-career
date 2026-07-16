@@ -1531,3 +1531,13 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(prefers-reduced-motion:reduce) {
   .signup-phone-row button { transition:none; }
 }
+
+/* Keep the search CTA inside the search grid at every desktop width. */
+@media(min-width:1101px) {
+  .hero-search-fields { width:100%; min-width:0; grid-template-columns:minmax(0,1fr) minmax(0,1.18fr) minmax(0,.9fr) minmax(200px,.88fr); }
+  .hero-search-fields>label { min-width:0; }
+  .hero-search-button { width:calc(100% - 16px); max-width:calc(100% - 16px); min-width:0; justify-self:stretch; align-self:stretch; box-sizing:border-box; }
+}
+@media(min-width:1101px) and (max-width:1399px) {
+  .hero-search-fields { grid-template-columns:minmax(0,1fr) minmax(0,1.18fr) minmax(0,.9fr) minmax(190px,.86fr); }
+}
