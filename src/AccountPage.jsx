@@ -25,10 +25,10 @@ const initialForm = (role = '') => ({
 
 const roleContent = {
   doctor: {
-    label: '의료인 회원',
-    eyebrow: 'MEDICAL PROFESSIONAL',
-    title: '의료인 회원가입',
-    description: '채용 탐색과 비공개 이직 상담을 위한 계정입니다.',
+    label: '의사 회원',
+    eyebrow: 'DOCTOR MEMBER',
+    title: '의사 회원가입',
+    description: '의사 초빙정보 탐색과 비공개 이직 상담을 위한 계정입니다.',
     afterTitle: '면허·자격 확인은 나중에',
     afterCopy: '비공개 공고 열람이나 소개 진행 시점에 면허·자격 확인을 별도로 안내합니다. 가입 단계에서는 전문과·면허번호를 받지 않습니다.',
     benefits: [
@@ -89,10 +89,10 @@ function MemberTypeChooser() {
     <span className="signup-card-icon"><UserRound /></span>
     <small>CHOOSE YOUR ACCOUNT</small>
     <h2>회원 유형을 선택해주세요</h2>
-    <p>가입 목적과 확인 절차가 다르므로 의료인 회원과 병원 회원을 분리해 운영합니다.</p>
+    <p>가입 목적과 확인 절차가 다르므로 의사 회원과 병원 회원을 분리해 운영합니다.</p>
     <div className="member-type-grid">
-      <a href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>의료인 회원</small><strong>이직·채용정보를 찾고 있어요</strong><p>공고 탐색 · 비공개 상담 · 지원 관리</p></div><ArrowRight /></a>
-      <a href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>병원 회원</small><strong>의료인을 채용하고 싶어요</strong><p>공고 등록 · 채용 의뢰 · 인재 소개</p></div><ArrowRight /></a>
+      <a href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>의사 회원</small><strong>의사 초빙정보를 찾고 있어요</strong><p>공고 탐색 · 비공개 이직 상담 · 지원 관리</p></div><ArrowRight /></a>
+      <a href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 채용 의뢰 · 의사 소개</p></div><ArrowRight /></a>
     </div>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호는 받지 않고, 정식 오픈 시 휴대폰 본인확인으로 중복 가입을 확인합니다.</div>
   </section>;
@@ -298,7 +298,7 @@ function SignupApplicationForm({ memberType }) {
             <input id={`signup-${memberType}-termsAccepted`} type="checkbox" checked={draft.termsAccepted} onChange={(event) => toggleConsent('termsAccepted', event.target.checked)} aria-invalid={submittedOnce && errors.termsAccepted ? 'true' : undefined} />
             <span><b>[필수]</b> 서비스 이용약관에 동의합니다.</span>
           </label>
-          <details><summary>이용약관 초안 요약</summary><p>계정은 본인만 사용하며 허위 정보·무단 정보 수집·연락처 거래를 금지합니다. 의료인과 병원의 인증 권한은 운영 확인 후 별도로 부여됩니다. <b>최종 약관 전문과 사업자 정보는 정식 오픈 전 법무 검토 후 확정·게시됩니다.</b></p></details>
+          <details><summary>이용약관 초안 요약</summary><p>계정은 본인만 사용하며 허위 정보·무단 정보 수집·연락처 거래를 금지합니다. 의사와 병원의 인증 권한은 운영 확인 후 별도로 부여됩니다. <b>최종 약관 전문과 사업자 정보는 정식 오픈 전 법무 검토 후 확정·게시됩니다.</b></p></details>
           <label>
             <input id={`signup-${memberType}-privacyAccepted`} type="checkbox" checked={draft.privacyAccepted} onChange={(event) => toggleConsent('privacyAccepted', event.target.checked)} aria-invalid={submittedOnce && errors.privacyAccepted ? 'true' : undefined} />
             <span><b>[필수]</b> 개인정보 수집·이용에 동의합니다.</span>
@@ -315,7 +315,7 @@ function SignupApplicationForm({ memberType }) {
 
       <button className="button primary full" type="submit">가입 양식 확인하기 <ArrowRight /></button>
       <p className="signup-nostore-line"><ShieldCheck /> 입력값은 이 화면에서만 임시로 쓰이고 저장되지 않습니다. 확인 후 즉시 비워집니다.</p>
-      <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 작성</a>
+      <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의사 회원'}으로 작성</a>
     </form>
   </section>;
 }
@@ -332,7 +332,7 @@ function SignedOutCard({ memberType }) {
       {content.label}으로 계속 <ArrowRight />
     </a>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 휴대폰 본인확인 결과로 가입자를 확인합니다.</div>
-    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 가입</a>
+    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의사 회원'}으로 가입</a>
   </section>;
 }
 
@@ -371,7 +371,7 @@ function SignupForm({ identity, memberType, onComplete }) {
       <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
       <div className="signup-agreements">
         <label><input type="checkbox" checked={form.termsAccepted} onChange={(event) => update('termsAccepted', event.target.checked)} /><span><b>[필수]</b> 서비스 이용약관에 동의합니다.</span></label>
-        <details><summary>이용약관 주요 내용</summary><p>계정은 본인만 사용하며 허위 정보·무단 정보 수집·연락처 거래를 금지합니다. 의료인과 병원의 인증 권한은 운영 확인 후 별도로 부여됩니다. 정식 공개 전 사업자 정보와 전체 약관을 확정합니다.</p></details>
+        <details><summary>이용약관 주요 내용</summary><p>계정은 본인만 사용하며 허위 정보·무단 정보 수집·연락처 거래를 금지합니다. 의사와 병원의 인증 권한은 운영 확인 후 별도로 부여됩니다. 정식 공개 전 사업자 정보와 전체 약관을 확정합니다.</p></details>
         <label><input type="checkbox" checked={form.ageConfirmed} onChange={(event) => update('ageConfirmed', event.target.checked)} /><span><b>[필수]</b> 만 14세 이상입니다.</span></label>
         <label><input type="checkbox" checked={form.privacyAcknowledged} onChange={(event) => update('privacyAcknowledged', event.target.checked)} /><span><b>[필수 확인]</b> 개인정보 처리 안내를 확인했습니다.</span></label>
         <details><summary>개인정보 처리 안내</summary><p>계정 생성과 보안을 위해 인증 사업자 식별정보, 인증된 이메일, 회원 유형, 가입·동의 기록을 처리합니다. 서비스에는 이메일 원문 대신 서버 비밀키를 사용한 HMAC-SHA-256 값을 계정 키로 저장하며, 회원 탈퇴 시 관계 법령상 보존 의무가 없는 정보는 삭제합니다.</p></details>
@@ -446,7 +446,7 @@ export default function AccountPage({ memberType = '' }) {
   else if (!state.signedIn) content = <SignedOutCard memberType={memberType} />;
   else content = <SignupForm identity={state.identity} memberType={memberType} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
   return <div className="signup-page">
-    <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의료인 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
+    <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의사 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
     <div className="signup-shell">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}<SignupPrinciples memberType={memberType} previewMode={previewMode} /></div>
   </div>;
 }

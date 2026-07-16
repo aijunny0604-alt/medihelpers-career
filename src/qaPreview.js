@@ -30,8 +30,8 @@ export const QA_STATE_OPTIONS = Object.freeze([
   },
   {
     id: 'doctor',
-    label: '의료인 일반 회원',
-    shortLabel: '의료인 회원',
+    label: '의사 일반 회원',
+    shortLabel: '의사 회원',
     description: '관심공고와 무료 비교 기능을 점검합니다.',
     tone: 'doctor',
     capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: false, privateDetails: false },
@@ -39,8 +39,8 @@ export const QA_STATE_OPTIONS = Object.freeze([
   },
   {
     id: 'doctor-member',
-    label: '의료인 멤버십 구독',
-    shortLabel: '의료인 · 구독 중',
+    label: '의사 멤버십 구독',
+    shortLabel: '의사 · 구독 중',
     description: '잠금 해제된 상세조건과 구독 상태를 점검합니다.',
     tone: 'member',
     capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: true, privateDetails: true },
