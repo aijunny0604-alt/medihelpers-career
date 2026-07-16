@@ -7,6 +7,7 @@ import {
   countBy,
   countByDept
 } from './jobExposure.js';
+import { jobs as catalogJobs } from './data.js';
 
 // 한 진료과(내과)와 한 지역(서울)이 압도적으로 많은 30건 이상의 합성 공고.
 function buildSyntheticJobs() {
@@ -150,4 +151,21 @@ test('handles missing dept/region without throwing or losing items', () => {
   assert.deepEqual(ordered.map((j) => j.id).sort(), ['a', 'b', 'c', 'd']);
   const counts = countByDept(jobs);
   assert.equal(counts.reduce((sum, c) => sum + c.count, 0), 4);
+});
+
+test('current premium catalog has enough clearly marked examples for multi-page rotation', () => {
+  const spotlight = catalogJobs.filter((job) => job.adTier === 'spotlight');
+  const featured = catalogJobs.filter((job) => job.adTier === 'featured');
+  const demos = catalogJobs.filter((job) => job.isDemo);
+
+  assert.equal(spotlight.length, 4);
+  assert.equal(featured.length, 4);
+  assert.equal(demos.length, 6);
+  assert.ok(spotlight.length / 2 >= 2, 'spotlight needs at least two desktop carousel pages');
+  assert.ok(featured.length / 2 >= 2, 'featured needs at least two desktop carousel pages');
+
+  const firstSeed = orderPremium(catalogJobs.filter((job) => job.adTier), { seed: 0 });
+  const nextSeed = orderPremium(catalogJobs.filter((job) => job.adTier), { seed: 1 });
+  assert.deepEqual(firstSeed.map((job) => job.id).sort(), nextSeed.map((job) => job.id).sort());
+  assert.notDeepEqual(firstSeed.map((job) => job.id), nextSeed.map((job) => job.id));
 });
