@@ -272,9 +272,9 @@ function Header({ path, qa }) {
       ? { label: '내 공고 관리', to: '/qa-preview' }
       : qa.active && qa.info.capabilities.membership
         ? { label: '멤버십 이용 중', to: '/membership' }
-        : qa.active && qa.info.capabilities.doctor
+      : qa.active && qa.info.capabilities.doctor
           ? { label: '관심공고 보기', to: '/jobs' }
-          : { label: '채용공고 등록', to: '/advertise' };
+          : { label: '병원 회원가입', to: '/signup/hospital?next=/advertise' };
   return <header className="site-header">
     <div className="nav-wrap">
       <Link className="brand" to="/" onClick={() => setOpen(false)} aria-label="메디헬퍼스 홈">
@@ -287,7 +287,7 @@ function Header({ path, qa }) {
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
         <Link className={`header-account ${qa.active ? `qa-account tone-${qa.info.tone}` : ''}`} to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
-        <Link className="button primary compact" to={primaryAction.to}>{primaryAction.label === '채용공고 등록' ? '의사 초빙공고 등록' : primaryAction.label}</Link>
+        <Link className="button primary compact" to={primaryAction.to}>{primaryAction.label}</Link>
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>
@@ -675,7 +675,7 @@ function PremiumAdCarousel({ items, renderCard }) {
   </div>;
 }
 
-function AdQuickLauncher({ onSelect }) {
+function AdQuickLauncher({ onSelect, canRegister }) {
   return <section className="jobs-ad-launcher" aria-labelledby="jobs-ad-launcher-title">
     <div className="jobs-ad-launcher-head">
       <span className="jobs-ad-launcher-icon"><Building2 /></span>
@@ -687,14 +687,14 @@ function AdQuickLauncher({ onSelect }) {
         <div className="jobs-ad-plan-top"><span>{item.id === 'basic' ? '기본 등록' : item.id === 'featured' ? '추천 노출' : '최상단 노출'}</span>{item.featured && <em>가장 많이 선택</em>}</div>
         <h3>{item.name}</h3>
         <p>{item.id === 'basic' ? '검색 목록에 빠르게 공고 등록' : item.id === 'featured' ? '병원 로고와 추천 카드 강조' : '브랜드 강조와 전담 채용 지원'}</p>
-        <div className="jobs-ad-plan-action"><span><strong>{item.price.toLocaleString()}원</strong><small>/ {item.unit}</small></span><button type="button" onClick={() => { trackConversion('jobs_ad_quick_select', { planId: item.id }); onSelect(item); }}>{item.id === 'basic' ? '등록·결제하기' : '바로 결제하기'} <ArrowRight /></button></div>
+        <div className="jobs-ad-plan-action"><span><strong>{item.price.toLocaleString()}원</strong><small>/ {item.unit}</small></span><button type="button" onClick={() => { trackConversion('jobs_ad_quick_select', { planId: item.id }); onSelect(item); }}>{canRegister ? (item.id === 'basic' ? '등록·결제하기' : '바로 결제하기') : '병원 회원가입'} <ArrowRight /></button></div>
       </article>)}
     </div>
     <p className="jobs-ad-payment-note"><ShieldCheck /> 실제 결제 전 공고 내용과 노출 기간·금액을 한 번 더 확인합니다.</p>
   </section>;
 }
 
-function SmartAdDock({ total, onSelect }) {
+function SmartAdDock({ total, onSelect, canRegister }) {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const timerRef = useRef(null);
@@ -721,7 +721,7 @@ function SmartAdDock({ total, onSelect }) {
     <div className="smart-ad-dock-brand"><Building2 /><span><small>병원 채용 담당자</small><strong>의사 초빙공고를 등록하세요</strong></span></div>
     <div className="smart-ad-dock-count"><small>현재 초빙공고</small><strong>{total.toLocaleString()}</strong><span>건</span></div>
     <div className="smart-ad-dock-links"><Link to="/advertise">상품 안내</Link><Link to="/headhunting?role=hospital">채용 상담</Link></div>
-    <button type="button" className="smart-ad-dock-cta" onClick={() => { trackConversion('smart_ad_dock_open'); onSelect(adPlans[0]); }}>초빙공고 등록하기 <ArrowRight /></button>
+    <button type="button" className="smart-ad-dock-cta" onClick={() => { trackConversion('smart_ad_dock_open', { canRegister }); onSelect(adPlans[0]); }}>{canRegister ? '초빙공고 등록하기' : '병원 회원가입'} <ArrowRight /></button>
     <button type="button" className="smart-ad-dock-close" onClick={() => setDismissed(true)} aria-label="공고 등록창 닫기"><X /></button>
   </aside>;
 }
@@ -737,6 +737,8 @@ function JobsPage({ route, qa }) {
   const [adPlan, setAdPlan] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
+  const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  const requestAdPlan = (plan) => canRegisterAds ? setAdPlan(plan) : navigate('/signup/hospital?next=/advertise');
 
   // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
   const daySeed = useMemo(() => Math.floor(Date.now() / 86400000), []);
@@ -792,20 +794,20 @@ function JobsPage({ route, qa }) {
       title={<><span className="jobs-hero-part">조건부터 비교하는</span>{' '}<span className="jobs-hero-part">의사 초빙정보</span></>}
       description={<><span className="jobs-description-part">봉직의·원장·검진·비임상 포지션을</span>{' '}<span className="jobs-description-part">진료과와 지역, 근무조건으로 찾고</span>{' '}<span className="jobs-description-part">비공개 조건은 의사 전담 헤드헌터에게 확인하세요.</span></>}
     ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
-    <nav className="job-hub-nav" aria-label="채용정보 메뉴"><div><strong className="job-hub-title">채용정보</strong><Link className="active" to="/jobs">전체 채용</Link><Link to="/talent">인재정보</Link><Link to="/headhunting">맞춤 초빙</Link><Link to="/matching-report?role=doctor">내 비교 리포트</Link><Link to="/account">내 활동</Link><Link className="job-hub-register" to="/advertise">공고 등록</Link></div></nav>
+    <nav className="job-hub-nav" aria-label="채용정보 메뉴"><div><strong className="job-hub-title">채용정보</strong><Link className="active" to="/jobs">전체 채용</Link><Link to="/talent">인재정보</Link><Link to="/headhunting">맞춤 초빙</Link><Link to="/matching-report?role=doctor">내 비교 리포트</Link><Link to="/account">내 활동</Link><Link className="job-hub-register" to={canRegisterAds ? '/advertise' : '/signup/hospital?next=/advertise'}>{canRegisterAds ? '공고 등록' : '병원 회원가입'}</Link></div></nav>
     <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={regions} /></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
       <div className="doctor-condition-filter" role="group" aria-label="의사 초빙 상세조건">{doctorConditions.map((item) => <button key={item} type="button" className={condition === item ? 'active' : ''} aria-pressed={condition === item} onClick={() => setCondition(item)}>{item}</button>)}</div>
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong></div><div className="tier-heading-actions"><small>병원 로고와 핵심 조건을 같은 규격으로 빠르게 비교하세요</small><button type="button" className="tier-apply-button spotlight" onClick={() => setAdPlan(adPlans[2])}>플래티넘 공고 등록 <ArrowRight /></button></div></div><div className="job-grid portal-premium-grid">{orderedPromoted.map(renderPortalCard)}</div></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong></div><div className="tier-heading-actions"><small>병원 로고와 핵심 조건을 같은 규격으로 빠르게 비교하세요</small><button type="button" className="tier-apply-button spotlight" onClick={() => requestAdPlan(adPlans[2])}>{canRegisterAds ? '플래티넘 공고 등록' : '병원 회원가입 후 등록'} <ArrowRight /></button></div></div><div className="job-grid portal-premium-grid">{orderedPromoted.map(renderPortalCard)}</div></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
-        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => setAdPlan(adPlans[0])}>베이직 공고 올리기 <ArrowRight /></button></div><div className="job-grid standard-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
+        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '병원 회원가입 후 등록'} <ArrowRight /></button></div><div className="job-grid standard-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}개 병원, 조건별로 비교해보세요` : '관심 병원을 고르고 매칭 리포트를 만들어보세요'}</h3><p>근무·보수·거리·진료 범위를 비교하고 확인할 질문을 헤드헌터에게 그대로 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=doctor" onClick={() => trackConversion('jobs_matching_report', { savedCount: saved.length })}>매칭 리포트 만들기 <ArrowRight /></Link></div>
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
-      <AdQuickLauncher onSelect={setAdPlan} />
+      <AdQuickLauncher onSelect={requestAdPlan} canRegister={canRegisterAds} />
     </section>
-    <SmartAdDock total={jobs.length} onSelect={setAdPlan} />
+    <SmartAdDock total={jobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
     {selected && <JobDetail job={selected} qa={qa} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
     {adPlan && <Checkout plan={adPlan} onClose={() => setAdPlan(null)} />}
@@ -943,8 +945,10 @@ function Checkout({ plan, onClose }) {
   return <Modal onClose={onClose} wide label="의사 초빙광고 상품 신청">{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>광고 결제 요청이 접수되었습니다</h2><p>초빙공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를 보내드립니다.<br />PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <><div className="checkout-title"><small>DOCTOR RECRUITMENT AD</small><h2>의사 초빙광고 신청</h2><p>병원 브랜드와 의사 초빙정보를 함께 검수한 뒤 결제 링크와 게시 일정을 안내합니다.</p></div><form className="checkout-grid" onSubmit={submit}><div className="checkout-form"><div className="brand-banner-upload"><div className="banner-preview">{bannerPreview ? <img src={bannerPreview} alt="선택한 프리미엄 병원 배너 미리보기" /> : <div><Sparkles /><strong>배너가 없으면 자동 브랜드 배너</strong><small>병원명과 진료 성격에 맞는 절제된 색상으로 제작합니다.</small></div>}</div><label><span>프리미엄 병원 배너 <i>선택</i></span><input name="banner" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectBanner} /><div className="upload-button"><Upload /><div><strong>{bannerName || '3:1 배너 파일 선택'}</strong><small>권장 1500×500px · PNG·JPG·WEBP · 최대 8MB</small></div></div>{bannerError && <em>{bannerError}</em>}</label></div><div className="brand-upload"><div className="logo-preview">{logoPreview ? <img src={logoPreview} alt="선택한 병원 로고 미리보기" /> : <Building2 />}</div><label><span>병원 로고 <i>선택 · 권장</i></span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectLogo} /><div className="upload-button"><Upload /><div><strong>{logoName || '로고 파일 선택'}</strong><small>PNG·JPG·WEBP, 최대 5MB</small></div></div>{logoError && <em>{logoError}</em>}</label></div><div className="form-grid"><label><span>병원명 *</span><input required name="hospital" placeholder="병원명을 입력해주세요" /></label><label><span>기관 유형 *</span><HeroSelect label="기관 유형" name="facilityType" value={facilityType} onChange={(next) => { setFacilityType(next); setFacilityError(''); }} options={[{ value: '', label: '기관 유형 선택' }, '종합병원', '병원', '요양병원', '한방병원', '의원', '검진·전문센터', '기타 의료기관']} className="form-custom-select" />{facilityError && <em className="field-error">{facilityError}</em>}</label><label><span>담당자명 *</span><input required name="manager" placeholder="담당자 성함" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" placeholder="billing@hospital.co.kr" /></label><label><span>병원 위치 *</span><input required name="address" placeholder="예: 부산광역시 연제구" /></label></div><label className="wide-field"><span>채용 진료과·초빙 형태 *</span><input required name="department" placeholder="예: 정형외과 전문의, 검진센터 진료원장" /></label><label className="wide-field"><span>병원·초빙 소개 <i>선택</i></span><textarea name="introduction" rows="3" placeholder="진료 환경, 기관의 강점, 초빙 인원과 일정을 간단히 적어주세요." /></label><div className="payment-choice"><span>결제 안내 방식</span><div><button type="button" className={method === 'card' ? 'active' : ''} onClick={() => setMethod('card')}><CreditCard /> 카드 결제 링크</button><button type="button" className={method === 'transfer' ? 'active' : ''} onClick={() => setMethod('transfer')}><Banknote /> 계좌이체·세금계산서</button></div></div><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원 로고는 사용 권한을 확인한 파일만 등록합니다.</span></label></div><aside className="order-summary"><small>선택한 상품</small><h3>{plan.name}</h3><p>{plan.unit} 노출</p><ul>{plan.features.map((item) => <li key={item}><Check />{item}</li>)}</ul><div className="price-row"><span>결제 예정금액<small>부가세 포함</small></span><strong>{plan.price.toLocaleString()}원</strong></div><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.</p></aside></form></>}</Modal>;
 }
 
-function AdvertisePage() {
+function AdvertisePage({ qa }) {
   const [plan, setPlan] = useState(null);
+  const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  const requestPlan = (nextPlan) => canRegisterAds ? setPlan(nextPlan) : navigate('/signup/hospital?next=/advertise');
   return <>
     <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="초기 파트너 가격 59,000원부터 시작합니다. 의사 초빙공고 등록부터 전담 컨설턴트의 후보 발굴까지 필요한 만큼 선택하세요."><a className="button light" href="#plans">광고 상품 비교</a></PageHero>
     <section className="section ad-exposure-pitch">
@@ -953,7 +957,7 @@ function AdvertisePage() {
         <h2>좋은 공고도<br />먼저 보이지 않으면 놓칩니다</h2>
         <p>집중채용과 추천 광고는 일반공고보다 먼저 배치되고, 병원 로고와 채용 분야를 더 크게 보여줍니다.</p>
         <div className="ad-exposure-actions">
-          <button className="button primary" onClick={() => setPlan(adPlans[1])}>추천 광고 시작하기 <ArrowRight /></button>
+          <button className="button primary" onClick={() => requestPlan(adPlans[1])}>{canRegisterAds ? '추천 광고 시작하기' : '병원 회원가입 후 신청'} <ArrowRight /></button>
           <a className="text-cta" href="#ad-preview">실제 노출 예시 보기 <ArrowRight /></a>
         </div>
       </div>
@@ -965,8 +969,8 @@ function AdvertisePage() {
         <p className="exposure-note"><ShieldCheck /> 실제 노출 위치와 기간은 결제 전에 확인합니다.</p>
       </div>
     </section>
-    <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE LIST CARD PREVIEW</span><h2>병원 로고가 먼저 보이는<br />초빙공고 카드</h2><p>의사가 목록을 훑는 순간 병원을 알아볼 수 있도록 로고·워드마크를 카드의 중심에 두고, 공고 제목과 핵심 조건은 아래에 정돈합니다.</p><ul><li><Check /> 흰색 로고 보드로 병원 브랜드를 또렷하게 노출</li><li><Check /> 공고 제목·지역·근무조건을 빠르게 비교</li><li><Check /> 목록 최상단 우선 배치와 전담 컨설턴트 연결</li></ul><button className="button primary" onClick={() => setPlan(adPlans[2])}>집중채용 광고 신청 <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><div className="preview-list-heading"><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong><small>채용정보 실제 노출 카드</small></div><JobCard job={advertisementPreviewJob} saved={false} onSave={() => {}} onOpen={() => setPlan(adPlans[2])} preview /></div></section>
-    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => setPlan(item)}>이 상품 신청하기</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
+    <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE LIST CARD PREVIEW</span><h2>병원 로고가 먼저 보이는<br />초빙공고 카드</h2><p>의사가 목록을 훑는 순간 병원을 알아볼 수 있도록 로고·워드마크를 카드의 중심에 두고, 공고 제목과 핵심 조건은 아래에 정돈합니다.</p><ul><li><Check /> 흰색 로고 보드로 병원 브랜드를 또렷하게 노출</li><li><Check /> 공고 제목·지역·근무조건을 빠르게 비교</li><li><Check /> 목록 최상단 우선 배치와 전담 컨설턴트 연결</li></ul><button className="button primary" onClick={() => requestPlan(adPlans[2])}>{canRegisterAds ? '집중채용 광고 신청' : '병원 회원가입 후 신청'} <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><div className="preview-list-heading"><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong><small>채용정보 실제 노출 카드</small></div><JobCard job={advertisementPreviewJob} saved={false} onSave={() => {}} onOpen={() => requestPlan(adPlans[2])} preview /></div></section>
+    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '병원 회원가입 후 신청'}</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
     {plan && <Checkout plan={plan} onClose={() => setPlan(null)} />}
   </>;
@@ -1055,7 +1059,7 @@ export function App() {
   const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
   const mobileAction = qa.active && (qa.info.capabilities.admin || qa.info.capabilities.hospital)
     ? { to: '/qa-preview', label: qa.info.capabilities.admin ? '관리 콘솔' : '내 공고 관리' }
-    : { to: '/advertise', label: '공고 등록' };
+    : { to: '/signup/hospital?next=/advertise', label: '병원 가입' };
 
   let page;
   if (path === '/') page = <HomePage />;
@@ -1064,7 +1068,7 @@ export function App() {
   else if (path === '/talent') page = <TalentPage />;
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
-  else if (path === '/advertise') page = <AdvertisePage />;
+  else if (path === '/advertise') page = <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
