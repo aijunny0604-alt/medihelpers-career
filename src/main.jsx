@@ -552,6 +552,7 @@ function JobsPage({ route }) {
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
   const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
+  const [adPlan, setAdPlan] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
 
   // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
@@ -606,7 +607,22 @@ function JobsPage({ route }) {
     ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
       <div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
-      <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
+      <section className="jobs-ad-launcher" aria-labelledby="jobs-ad-launcher-title">
+        <div className="jobs-ad-launcher-head">
+          <span className="jobs-ad-launcher-icon"><Building2 /></span>
+          <div><small>병원·의료기관 채용 담당자</small><h2 id="jobs-ad-launcher-title">이 화면에서 바로 채용공고를 등록하세요</h2><p>일반공고부터 추천·집중채용까지 가격과 노출 방식을 확인하고 바로 신청할 수 있습니다.</p></div>
+          <Link to="/advertise">전체 상품 자세히 <ArrowRight /></Link>
+        </div>
+        <div className="jobs-ad-plan-grid">
+          {adPlans.map((item) => <article className={`jobs-ad-plan ${item.id}`} key={item.id}>
+            <div className="jobs-ad-plan-top"><span>{item.id === 'basic' ? '기본 등록' : item.id === 'featured' ? '추천 노출' : '최상단 노출'}</span>{item.featured && <em>가장 많이 선택</em>}</div>
+            <h3>{item.name}</h3>
+            <p>{item.id === 'basic' ? '검색 목록에 빠르게 공고 등록' : item.id === 'featured' ? '병원 로고와 추천 카드 강조' : '브랜드 강조와 전담 채용 지원'}</p>
+            <div className="jobs-ad-plan-action"><span><strong>{item.price.toLocaleString()}원</strong><small>/ {item.unit}</small></span><button type="button" onClick={() => { trackConversion('jobs_ad_quick_select', { planId: item.id }); setAdPlan(item); }}>{item.id === 'basic' ? '등록·결제하기' : '바로 결제하기'} <ArrowRight /></button></div>
+          </article>)}
+        </div>
+        <p className="jobs-ad-payment-note"><ShieldCheck /> 실제 결제 전 공고 내용과 노출 기간·금액을 한 번 더 확인합니다.</p>
+      </section>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
       {filtered.length ? <>
         <div className="balance-legend"><span className="balance-legend-icon"><Sparkles /></span><div><strong>균형 노출</strong><p>광고 등급 우선순위는 그대로 유지하고, 같은 등급 안에서는 진료과·지역을 고르게 섞어 순환합니다. 일반 공고도 특정 영역에 몰리지 않도록 번갈아 배치합니다.</p></div></div>
@@ -617,6 +633,7 @@ function JobsPage({ route }) {
     </section>
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
     {selected && <JobDetail job={selected} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
+    {adPlan && <Checkout plan={adPlan} onClose={() => setAdPlan(null)} />}
   </>;
 }
 

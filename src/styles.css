@@ -1541,3 +1541,38 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(min-width:1101px) and (max-width:1399px) {
   .hero-search-fields { grid-template-columns:minmax(0,1fr) minmax(0,1.18fr) minmax(0,.9fr) minmax(190px,.86fr); }
 }
+
+/* Jobs page: immediate ad registration and payment entry. */
+.jobs-ad-launcher{margin:24px 0 34px;padding:25px;border:1px solid #d8e4f3;border-radius:24px;background:linear-gradient(135deg,#f7faff 0%,#fff 58%,#f2faf8 100%);box-shadow:0 18px 45px rgba(31,72,128,.08)}
+.jobs-ad-launcher-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:15px;margin-bottom:19px}
+.jobs-ad-launcher-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:#e7f0ff;color:var(--blue)}
+.jobs-ad-launcher-icon svg{width:23px}
+.jobs-ad-launcher-head small{display:block;margin-bottom:3px;color:var(--blue);font-size:12px;font-weight:800}
+.jobs-ad-launcher-head h2{margin:0;color:var(--navy);font-size:22px;line-height:1.35;letter-spacing:-.8px;word-break:keep-all}
+.jobs-ad-launcher-head p{margin:5px 0 0;color:#6d7b90;font-size:14px;line-height:1.55;word-break:keep-all}
+.jobs-ad-launcher-head>a{min-height:44px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border:1px solid #d5e0ee;border-radius:12px;background:#fff;color:#355070;font-size:13px;font-weight:750;white-space:nowrap;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+.jobs-ad-launcher-head>a:hover,.jobs-ad-launcher-head>a:focus-visible{transform:translateY(-2px);border-color:#a9c5ed;box-shadow:0 10px 24px rgba(28,71,130,.1)}
+.jobs-ad-launcher-head>a svg{width:16px}
+.jobs-ad-plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.jobs-ad-plan{min-width:0;padding:18px;border:1px solid #dfe6f0;border-radius:17px;background:rgba(255,255,255,.92);transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease}
+.jobs-ad-plan:hover,.jobs-ad-plan:focus-within{transform:translateY(-3px);border-color:#b8cdef;box-shadow:0 15px 30px rgba(32,70,125,.1)}
+.jobs-ad-plan.featured{border-color:#a9c7f5;background:linear-gradient(145deg,#f4f8ff,#fff)}
+.jobs-ad-plan.intensive{border-color:#c8bcf4;background:linear-gradient(145deg,#faf8ff,#fff)}
+.jobs-ad-plan-top{min-height:24px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.jobs-ad-plan-top>span{color:#62728a;font-size:11px;font-weight:800}
+.jobs-ad-plan-top em{padding:4px 7px;border-radius:20px;background:#e8f1ff;color:var(--blue);font-size:10px;font-style:normal;font-weight:800;white-space:nowrap}
+.jobs-ad-plan h3{margin:8px 0 3px;color:var(--navy);font-size:18px;letter-spacing:-.45px}
+.jobs-ad-plan>p{min-height:42px;margin:0;color:#748197;font-size:13px;line-height:1.55;word-break:keep-all}
+.jobs-ad-plan-action{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:15px;padding-top:14px;border-top:1px solid #e7ebf2}
+.jobs-ad-plan-action>span{min-width:0;display:flex;flex-direction:column}
+.jobs-ad-plan-action strong{font:800 17px 'Manrope';color:#17345d;white-space:nowrap}
+.jobs-ad-plan-action small{color:#8a96a7;font-size:10px}
+.jobs-ad-plan-action button{min-height:44px;padding:0 13px;border:0;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;gap:5px;background:#edf3fb;color:#244d82;font-size:12px;font-weight:800;white-space:nowrap;transition:background .25s ease,color .25s ease,transform .25s ease}
+.jobs-ad-plan-action button:hover,.jobs-ad-plan-action button:focus-visible{transform:translateY(-1px);background:#dfeaff;color:#0e5ed8}
+.jobs-ad-plan.featured .jobs-ad-plan-action button,.jobs-ad-plan.intensive .jobs-ad-plan-action button{background:var(--blue);color:#fff;box-shadow:0 8px 18px rgba(18,99,232,.18)}
+.jobs-ad-plan.intensive .jobs-ad-plan-action button{background:#6345ce}
+.jobs-ad-plan-action button svg{width:15px}
+.jobs-ad-payment-note{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin:13px 2px 0;color:#77869b;font-size:11px}
+.jobs-ad-payment-note svg{width:15px;color:var(--mint)}
+@media(max-width:980px){.jobs-ad-plan-grid{grid-template-columns:1fr}.jobs-ad-plan>p{min-height:0}.jobs-ad-plan-action{align-items:center}.jobs-ad-launcher-head{grid-template-columns:auto minmax(0,1fr)}.jobs-ad-launcher-head>a{grid-column:1/-1;width:100%;justify-content:center}}
+@media(max-width:560px){.jobs-ad-launcher{margin:18px 0 28px;padding:18px 15px;border-radius:20px}.jobs-ad-launcher-head{align-items:start;gap:11px}.jobs-ad-launcher-icon{width:42px;height:42px;border-radius:13px}.jobs-ad-launcher-head h2{font-size:19px}.jobs-ad-launcher-head p{font-size:13px}.jobs-ad-plan{padding:16px}.jobs-ad-plan-action{align-items:stretch;flex-direction:column}.jobs-ad-plan-action button{width:100%;font-size:13px}.jobs-ad-payment-note{align-items:flex-start;justify-content:flex-start;line-height:1.55;word-break:keep-all}}
