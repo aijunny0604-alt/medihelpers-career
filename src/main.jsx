@@ -391,10 +391,24 @@ function JobDetail({ job, saved, onSave, onClose, qa }) {
   const qaUnlocked = restricted && qa?.active && qa.info.capabilities.privateDetails;
   const locked = restricted && !qaUnlocked;
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
+  const hospitalPhotos = job.hospitalPhotos || [];
+  const institutionFacts = [
+    ['기관명', job.institutionName || job.hospital],
+    ['주소', job.fullAddress || job.location],
+    ['홈페이지', job.website],
+    ['진료과목', job.specialties || job.focus],
+    ['대표자 및 사업자 번호', [job.representative, job.businessNumber].filter(Boolean).join(' · ')],
+    ['근무 의사 수', job.doctorCount],
+    ['수술 및 외래건수(일)', job.dailyVolume],
+    ['개원연도', job.established],
+    ['재직인원', job.staffCount],
+    ['의료설비', job.equipment],
+    ['병상 및 입원 환자', job.beds]
+  ].filter(([, value]) => value);
   return <Modal onClose={onClose} wide variant="job-detail" accent={job.color} label={`${job.hospital} 채용공고 상세 정보`}>
     <div className="detail-heading" style={{ '--job-color': job.color }}><div className="detail-brand"><HospitalLogo job={job} prominent /><div><div className="detail-brand-label"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span>AD · 병원 브랜드 채용관</span>}{qaUnlocked && <span className="qa-unlocked-badge"><ShieldCheck /> QA 잠금 해제</span>}</div><strong>{job.hospital}</strong><small><BadgeCheck /> 등록된 기관 정보</small></div></div><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
     <div className="detail-grid">
-      <div className="detail-content"><section className="hospital-profile"><div className="detail-section-title"><span><Building2 /></span><div><small>HOSPITAL PROFILE</small><h3>병원 정보</h3></div></div><p>{job.summary}</p><dl className="hospital-facts"><div><dt>기관 유형</dt><dd>{job.facilityType}</dd></div><div><dt>기관 규모</dt><dd>{job.scale}</dd></div><div><dt>주요 진료</dt><dd>{job.focus}</dd></div><div><dt>채용 분야</dt><dd>{job.dept}</dd></div></dl></section><section className="location-panel"><div className="location-icon"><MapPin /></div><div><small>근무지 위치</small><strong>{job.location}</strong><p>{job.access}</p></div><a href={mapUrl} target="_blank" rel="noreferrer" aria-label={`${job.hospital} 지도에서 위치 보기`}>지도에서 보기 <ArrowRight /></a></section><section><div className="detail-section-title compact"><span><BriefcaseBusiness /></span><div><small>POSITION DETAILS</small><h3>포지션과 근무조건</h3></div></div><p>{job.summary}</p><div className="benefit-list">{job.benefits.map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>
+      <div className="detail-content"><section className="hospital-profile"><div className="detail-section-title"><span><Building2 /></span><div><small>HOSPITAL PROFILE</small><h3>병원 정보</h3></div></div><p>{job.summary}</p><div className="institution-profile-layout"><div className="hospital-photo-gallery">{hospitalPhotos.length > 0 ? hospitalPhotos.slice(0, 6).map((photo, index) => <button type="button" key={photo} className={index === 0 ? 'primary-photo' : ''} onClick={() => window.open(photo, '_blank', 'noopener,noreferrer')} aria-label={`${job.hospital} 병원 사진 ${index + 1} 크게 보기`}><img src={photo} alt={`${job.hospital} 시설 ${index + 1}`} loading="lazy" /></button>) : <div className="photo-gallery-empty"><Building2 /><span>등록된 병원 사진이 없습니다</span></div>}</div><dl className="institution-facts">{institutionFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{label === '홈페이지' ? <a href={value} target="_blank" rel="noreferrer">{value}</a> : value}</dd></div>)}</dl></div></section><section className="location-panel"><div className="location-icon"><MapPin /></div><div><small>근무지 위치</small><strong>{job.location}</strong><p>{job.access}</p></div><a href={mapUrl} target="_blank" rel="noreferrer" aria-label={`${job.hospital} 지도에서 위치 보기`}>지도에서 보기 <ArrowRight /></a></section><section><div className="detail-section-title compact"><span><BriefcaseBusiness /></span><div><small>POSITION DETAILS</small><h3>포지션과 근무조건</h3></div></div><p>{job.summary}</p><div className="benefit-list">{job.benefits.map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>
       <aside className={restricted ? `premium-aside ${qaUnlocked ? 'qa-unlocked' : ''}` : ''}>
         {locked ? <><span>예상 보수</span><div className="locked-value"><div className="free-preview"><small>무료 미리보기 완료</small><strong>지역 · 진료과 · 근무형태 확인</strong></div><div className="locked-list"><span><LockKeyhole /> 상세 급여와 인센티브</span><span><LockKeyhole /> 정확한 근무시간·당직</span><span><LockKeyhole /> 채용 담당자와 협의조건</span></div><Link className="button primary full" to={`/membership?type=doctor&job=${job.id}`} onClick={() => trackConversion('job_unlock_cta', { jobId: job.id, offer: 'single' })}>이 공고만 2,900원에 열람</Link><small className="value-hint">5건 이상 비교한다면 월 패스가 더 저렴해요.</small></div></> : <><span>{qaUnlocked ? 'QA 공개 상세조건' : '예상 보수'}</span><strong>{job.pay}</strong>{qaUnlocked && <div className="qa-unlocked-list"><span><Check /> 인센티브 별도 협의</span><span><Check /> 당직·근무시간 확인 가능</span><span><Check /> 담당 헤드헌터 연결 가능</span></div>}<small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>{qaUnlocked ? '헤드헌터와 조건 확인' : '비공개 상담 신청'}</Link></>}
         <button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button>
@@ -867,27 +881,32 @@ function HeadhuntingPage({ route }) {
 
 function Checkout({ plan, onClose }) {
   const [done, setDone] = useState(false);
-  const [method, setMethod] = useState('card');
-  const [facilityType, setFacilityType] = useState('');
-  const [facilityError, setFacilityError] = useState('');
-  const [logoPreview, setLogoPreview] = useState('');
-  const [logoName, setLogoName] = useState('');
-  const [logoError, setLogoError] = useState('');
-  const [bannerPreview, setBannerPreview] = useState('');
-  const [bannerName, setBannerName] = useState('');
-  const [bannerError, setBannerError] = useState('');
-  useEffect(() => () => {
-    if (logoPreview) URL.revokeObjectURL(logoPreview);
-    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-  }, [logoPreview, bannerPreview]);
+  const [method, setMethod] = useState("card");
+  const [facilityType, setFacilityType] = useState("");
+  const [facilityError, setFacilityError] = useState("");
+  const [logoPreview, setLogoPreview] = useState("");
+  const [logoName, setLogoName] = useState("");
+  const [logoError, setLogoError] = useState("");
+  const [bannerPreview, setBannerPreview] = useState("");
+  const [bannerName, setBannerName] = useState("");
+  const [bannerError, setBannerError] = useState("");
+  const [facilityPhotos, setFacilityPhotos] = useState([]);
+  const [photoError, setPhotoError] = useState("");
+  useEffect(
+    () => () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    },
+    [logoPreview, bannerPreview],
+  );
   const selectLogo = (event) => {
     const file = event.target.files?.[0];
-    setLogoError('');
+    setLogoError("");
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      event.target.value = '';
-      setLogoName('');
-      setLogoError('5MB 이하 파일을 선택해주세요.');
+      event.target.value = "";
+      setLogoName("");
+      setLogoError("5MB 이하 파일을 선택해주세요.");
       return;
     }
     setLogoName(file.name);
@@ -896,22 +915,25 @@ function Checkout({ plan, onClose }) {
   const selectBanner = (event) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
-    setBannerError('');
+    setBannerError("");
     if (!file) return;
     if (file.size > premiumBannerGuide.maxBytes) {
-      input.value = '';
-      setBannerName('');
-      setBannerError('8MB 이하 파일을 선택해주세요.');
+      input.value = "";
+      setBannerName("");
+      setBannerError("8MB 이하 파일을 선택해주세요.");
       return;
     }
     const previewUrl = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
       const ratio = image.naturalWidth / image.naturalHeight;
-      if (ratio < premiumBannerGuide.minRatio || ratio > premiumBannerGuide.maxRatio) {
-        input.value = '';
-        setBannerName('');
-        setBannerError('가로 3:1 비율의 배너를 사용해주세요. 권장 1500×500px');
+      if (
+        ratio < premiumBannerGuide.minRatio ||
+        ratio > premiumBannerGuide.maxRatio
+      ) {
+        input.value = "";
+        setBannerName("");
+        setBannerError("가로 3:1 비율의 배너를 사용해주세요. 권장 1500×500px");
         URL.revokeObjectURL(previewUrl);
         return;
       }
@@ -920,29 +942,405 @@ function Checkout({ plan, onClose }) {
       setBannerPreview(previewUrl);
     };
     image.onerror = () => {
-      input.value = '';
-      setBannerName('');
-      setBannerError('이미지 파일을 확인해주세요.');
+      input.value = "";
+      setBannerName("");
+      setBannerError("이미지 파일을 확인해주세요.");
       URL.revokeObjectURL(previewUrl);
     };
     image.src = previewUrl;
   };
+  const selectFacilityPhotos = (event) => {
+    const input = event.currentTarget;
+    const selected = [...(input.files || [])];
+    setPhotoError("");
+    const available = Math.max(0, 6 - facilityPhotos.length);
+    if (!available) {
+      setPhotoError("병원 사진은 최대 6장까지 등록할 수 있습니다.");
+      input.value = "";
+      return;
+    }
+    const valid = selected
+      .filter(
+        (file) =>
+          file.type.startsWith("image/") && file.size <= 8 * 1024 * 1024,
+      )
+      .slice(0, available);
+    if (valid.length !== selected.length)
+      setPhotoError(
+        "이미지 파일만 장당 8MB 이하로, 최대 6장까지 등록해주세요.",
+      );
+    setFacilityPhotos((current) => [
+      ...current,
+      ...valid.map((file) => ({
+        name: file.name,
+        url: URL.createObjectURL(file),
+      })),
+    ]);
+    input.value = "";
+  };
+  const removeFacilityPhoto = (index) => {
+    setFacilityPhotos((current) => {
+      URL.revokeObjectURL(current[index].url);
+      return current.filter((_, photoIndex) => photoIndex !== index);
+    });
+  };
   const submit = (event) => {
     event.preventDefault();
     if (!facilityType) {
-      setFacilityError('기관 유형을 선택해주세요.');
+      setFacilityError("기관 유형을 선택해주세요.");
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const logo = formData.get('logo');
-    const banner = formData.get('banner');
-    formData.delete('logo');
-    formData.delete('banner');
-    const data = { ...Object.fromEntries(formData.entries()), logoName: logo instanceof File && logo.size ? logo.name : '', bannerName: banner instanceof File && banner.size ? banner.name : '', premiumBrandMode: banner instanceof File && banner.size ? 'hospital-banner' : 'auto-wordmark' };
-    appendStoredRecord('medihelpers_ad_requests', { id: `AD-${Date.now()}`, planId: plan.id, amount: plan.price, paymentMethod: method, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
+    const logo = formData.get("logo");
+    const banner = formData.get("banner");
+    formData.delete("logo");
+    formData.delete("banner");
+    const data = {
+      ...Object.fromEntries(formData.entries()),
+      logoName: logo instanceof File && logo.size ? logo.name : "",
+      bannerName: banner instanceof File && banner.size ? banner.name : "",
+      hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
+      premiumBrandMode:
+        banner instanceof File && banner.size
+          ? "hospital-banner"
+          : "auto-wordmark",
+    };
+    appendStoredRecord("medihelpers_ad_requests", {
+      id: `AD-${Date.now()}`,
+      planId: plan.id,
+      amount: plan.price,
+      paymentMethod: method,
+      status: "payment-link-requested",
+      createdAt: new Date().toISOString(),
+      ...data,
+    });
     setDone(true);
   };
-  return <Modal onClose={onClose} wide label="의사 초빙광고 상품 신청">{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>광고 결제 요청이 접수되었습니다</h2><p>초빙공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를 보내드립니다.<br />PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <><div className="checkout-title"><small>DOCTOR RECRUITMENT AD</small><h2>의사 초빙광고 신청</h2><p>병원 브랜드와 의사 초빙정보를 함께 검수한 뒤 결제 링크와 게시 일정을 안내합니다.</p></div><form className="checkout-grid" onSubmit={submit}><div className="checkout-form"><div className="brand-banner-upload"><div className="banner-preview">{bannerPreview ? <img src={bannerPreview} alt="선택한 프리미엄 병원 배너 미리보기" /> : <div><Sparkles /><strong>배너가 없으면 자동 브랜드 배너</strong><small>병원명과 진료 성격에 맞는 절제된 색상으로 제작합니다.</small></div>}</div><label><span>프리미엄 병원 배너 <i>선택</i></span><input name="banner" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectBanner} /><div className="upload-button"><Upload /><div><strong>{bannerName || '3:1 배너 파일 선택'}</strong><small>권장 1500×500px · PNG·JPG·WEBP · 최대 8MB</small></div></div>{bannerError && <em>{bannerError}</em>}</label></div><div className="brand-upload"><div className="logo-preview">{logoPreview ? <img src={logoPreview} alt="선택한 병원 로고 미리보기" /> : <Building2 />}</div><label><span>병원 로고 <i>선택 · 권장</i></span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectLogo} /><div className="upload-button"><Upload /><div><strong>{logoName || '로고 파일 선택'}</strong><small>PNG·JPG·WEBP, 최대 5MB</small></div></div>{logoError && <em>{logoError}</em>}</label></div><div className="form-grid"><label><span>병원명 *</span><input required name="hospital" placeholder="병원명을 입력해주세요" /></label><label><span>기관 유형 *</span><HeroSelect label="기관 유형" name="facilityType" value={facilityType} onChange={(next) => { setFacilityType(next); setFacilityError(''); }} options={[{ value: '', label: '기관 유형 선택' }, '종합병원', '병원', '요양병원', '한방병원', '의원', '검진·전문센터', '기타 의료기관']} className="form-custom-select" />{facilityError && <em className="field-error">{facilityError}</em>}</label><label><span>담당자명 *</span><input required name="manager" placeholder="담당자 성함" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" placeholder="billing@hospital.co.kr" /></label><label><span>병원 위치 *</span><input required name="address" placeholder="예: 부산광역시 연제구" /></label></div><label className="wide-field"><span>채용 진료과·초빙 형태 *</span><input required name="department" placeholder="예: 정형외과 전문의, 검진센터 진료원장" /></label><label className="wide-field"><span>병원·초빙 소개 <i>선택</i></span><textarea name="introduction" rows="3" placeholder="진료 환경, 기관의 강점, 초빙 인원과 일정을 간단히 적어주세요." /></label><div className="payment-choice"><span>결제 안내 방식</span><div><button type="button" className={method === 'card' ? 'active' : ''} onClick={() => setMethod('card')}><CreditCard /> 카드 결제 링크</button><button type="button" className={method === 'transfer' ? 'active' : ''} onClick={() => setMethod('transfer')}><Banknote /> 계좌이체·세금계산서</button></div></div><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원 로고는 사용 권한을 확인한 파일만 등록합니다.</span></label></div><aside className="order-summary"><small>선택한 상품</small><h3>{plan.name}</h3><p>{plan.unit} 노출</p><ul>{plan.features.map((item) => <li key={item}><Check />{item}</li>)}</ul><div className="price-row"><span>결제 예정금액<small>부가세 포함</small></span><strong>{plan.price.toLocaleString()}원</strong></div><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.</p></aside></form></>}</Modal>;
+  return (
+    <Modal onClose={onClose} wide label="의사 초빙광고 상품 신청">
+      {done ? (
+        <div className="checkout-success">
+          <span>
+            <CircleCheck />
+          </span>
+          <h2>광고 결제 요청이 접수되었습니다</h2>
+          <p>
+            초빙공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를
+            보내드립니다.
+            <br />
+            PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.
+          </p>
+          <button className="button primary" onClick={onClose}>
+            확인
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="checkout-title">
+            <small>DOCTOR RECRUITMENT AD</small>
+            <h2>의사 초빙광고 신청</h2>
+            <p>
+              병원 브랜드와 의사 초빙정보를 함께 검수한 뒤 결제 링크와 게시
+              일정을 안내합니다.
+            </p>
+          </div>
+          <form className="checkout-grid" onSubmit={submit}>
+            <div className="checkout-form">
+              <div className="brand-banner-upload">
+                <div className="banner-preview">
+                  {bannerPreview ? (
+                    <img
+                      src={bannerPreview}
+                      alt="선택한 프리미엄 병원 배너 미리보기"
+                    />
+                  ) : (
+                    <div>
+                      <Sparkles />
+                      <strong>배너가 없으면 자동 브랜드 배너</strong>
+                      <small>
+                        병원명과 진료 성격에 맞는 절제된 색상으로 제작합니다.
+                      </small>
+                    </div>
+                  )}
+                </div>
+                <label>
+                  <span>
+                    프리미엄 병원 배너 <i>선택</i>
+                  </span>
+                  <input
+                    name="banner"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={selectBanner}
+                  />
+                  <div className="upload-button">
+                    <Upload />
+                    <div>
+                      <strong>{bannerName || "3:1 배너 파일 선택"}</strong>
+                      <small>권장 1500×500px · PNG·JPG·WEBP · 최대 8MB</small>
+                    </div>
+                  </div>
+                  {bannerError && <em>{bannerError}</em>}
+                </label>
+              </div>
+              <div className="brand-upload">
+                <div className="logo-preview">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="선택한 병원 로고 미리보기" />
+                  ) : (
+                    <Building2 />
+                  )}
+                </div>
+                <label>
+                  <span>
+                    병원 로고 <i>선택 · 권장</i>
+                  </span>
+                  <input
+                    name="logo"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={selectLogo}
+                  />
+                  <div className="upload-button">
+                    <Upload />
+                    <div>
+                      <strong>{logoName || "로고 파일 선택"}</strong>
+                      <small>PNG·JPG·WEBP, 최대 5MB</small>
+                    </div>
+                  </div>
+                  {logoError && <em>{logoError}</em>}
+                </label>
+              </div>
+              <section className="facility-photo-upload">
+                <div className="facility-upload-head">
+                  <div>
+                    <strong>병원 사진</strong>
+                    <span>로비·진료실·병동·장비 등 최대 6장</span>
+                  </div>
+                  <label>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                      onChange={selectFacilityPhotos}
+                    />
+                    <Upload /> 사진 추가
+                  </label>
+                </div>
+                {facilityPhotos.length ? (
+                  <div className="facility-photo-preview">
+                    {facilityPhotos.map((photo, index) => (
+                      <figure key={`${photo.name}-${index}`}>
+                        <img
+                          src={photo.url}
+                          alt={`병원 사진 미리보기 ${index + 1}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeFacilityPhoto(index)}
+                          aria-label={`${photo.name} 삭제`}
+                        >
+                          <X />
+                        </button>
+                        <figcaption>
+                          {index === 0 ? "대표 사진" : `${index + 1}번 사진`}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="facility-photo-empty">
+                    <Building2 />
+                    <span>등록한 사진은 병원 상세정보에 갤러리로 노출됩니다.</span>
+                  </div>
+                )}
+                {photoError && <em>{photoError}</em>}
+              </section>
+              <div className="institution-fields-head">
+                <strong>병원 추가 정보</strong>
+                <span>의사가 근무 환경을 판단하는 데 필요한 내용입니다.</span>
+              </div>
+              <div className="form-grid">
+                <label>
+                  <span>병원명 *</span>
+                  <input
+                    required
+                    name="hospital"
+                    placeholder="병원명을 입력해주세요"
+                  />
+                </label>
+                <label>
+                  <span>기관 유형 *</span>
+                  <HeroSelect
+                    label="기관 유형"
+                    name="facilityType"
+                    value={facilityType}
+                    onChange={(next) => {
+                      setFacilityType(next);
+                      setFacilityError("");
+                    }}
+                    options={[
+                      { value: "", label: "기관 유형 선택" },
+                      "종합병원",
+                      "병원",
+                      "요양병원",
+                      "한방병원",
+                      "의원",
+                      "검진·전문센터",
+                      "기타 의료기관",
+                    ]}
+                    className="form-custom-select"
+                  />
+                  {facilityError && (
+                    <em className="field-error">{facilityError}</em>
+                  )}
+                </label>
+                <label>
+                  <span>담당자명 *</span>
+                  <input required name="manager" placeholder="담당자 성함" />
+                </label>
+                <label>
+                  <span>연락처 *</span>
+                  <input
+                    required
+                    name="phone"
+                    type="tel"
+                    placeholder="010-0000-0000"
+                  />
+                </label>
+                <label>
+                  <span>이메일 *</span>
+                  <input
+                    required
+                    name="email"
+                    type="email"
+                    placeholder="billing@hospital.co.kr"
+                  />
+                </label>
+                <label>
+                  <span>병원 위치 *</span>
+                  <input
+                    required
+                    name="address"
+                    placeholder="예: 부산광역시 연제구"
+                  />
+                </label>
+                <label>
+                  <span>홈페이지 <i>선택</i></span>
+                  <input name="website" type="url" placeholder="https://hospital.co.kr" />
+                </label>
+                <label>
+                  <span>진료과목 <i>선택</i></span>
+                  <input name="specialties" placeholder="예: 정형외과, 내과, 영상의학과" />
+                </label>
+                <label>
+                  <span>대표자명 <i>선택</i></span>
+                  <input name="representative" placeholder="대표자 성함" />
+                </label>
+                <label>
+                  <span>사업자번호 <i>선택</i></span>
+                  <input name="businessNumber" inputMode="numeric" placeholder="000-00-00000" />
+                </label>
+                <label>
+                  <span>개원연도 <i>선택</i></span>
+                  <input name="established" inputMode="numeric" placeholder="예: 2015년" />
+                </label>
+                <label>
+                  <span>근무 의사 수 <i>선택</i></span>
+                  <input name="doctorCount" placeholder="예: 상근 4명 · 비상근 1명" />
+                </label>
+                <label>
+                  <span>재직인원 <i>선택</i></span>
+                  <input name="staffCount" placeholder="예: 30명" />
+                </label>
+                <label>
+                  <span>일평균 수술·외래 건수 <i>선택</i></span>
+                  <input name="dailyVolume" placeholder="예: 수술 2건 · 외래 40건" />
+                </label>
+                <label>
+                  <span>병상·입원 현황 <i>선택</i></span>
+                  <input name="beds" placeholder="예: 30병상 · 평균 입원 22명" />
+                </label>
+                <label>
+                  <span>주요 의료장비 <i>선택</i></span>
+                  <input name="equipment" placeholder="예: MRI, CT, C-arm" />
+                </label>
+              </div>
+              <label className="wide-field">
+                <span>채용 진료과·초빙 형태 *</span>
+                <input
+                  required
+                  name="department"
+                  placeholder="예: 정형외과 전문의, 검진센터 진료원장"
+                />
+              </label>
+              <label className="wide-field">
+                <span>
+                  병원·초빙 소개 <i>선택</i>
+                </span>
+                <textarea
+                  name="introduction"
+                  rows="3"
+                  placeholder="진료 환경, 기관의 강점, 초빙 인원과 일정을 간단히 적어주세요."
+                />
+              </label>
+              <div className="payment-choice">
+                <span>결제 안내 방식</span>
+                <div>
+                  <button
+                    type="button"
+                    className={method === "card" ? "active" : ""}
+                    onClick={() => setMethod("card")}
+                  >
+                    <CreditCard /> 카드 결제 링크
+                  </button>
+                  <button
+                    type="button"
+                    className={method === "transfer" ? "active" : ""}
+                    onClick={() => setMethod("transfer")}
+                  >
+                    <Banknote /> 계좌이체·세금계산서
+                  </button>
+                </div>
+              </div>
+              <label className="consent">
+                <input required type="checkbox" name="terms" value="agreed" />
+                <span>
+                  광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원
+                  로고는 사용 권한을 확인한 파일만 등록합니다.
+                </span>
+              </label>
+            </div>
+            <aside className="order-summary">
+              <small>선택한 상품</small>
+              <h3>{plan.name}</h3>
+              <p>{plan.unit} 노출</p>
+              <ul>
+                {plan.features.map((item) => (
+                  <li key={item}>
+                    <Check />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div className="price-row">
+                <span>
+                  결제 예정금액<small>부가세 포함</small>
+                </span>
+                <strong>{plan.price.toLocaleString()}원</strong>
+              </div>
+              <button className="button primary full" type="submit">
+                결제 안내 요청하기 <ArrowRight size={17} />
+              </button>
+              <p className="secure-note">
+                <ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.
+              </p>
+            </aside>
+          </form>
+        </>
+      )}
+    </Modal>
+  );
 }
 
 function AdvertisePage({ qa }) {

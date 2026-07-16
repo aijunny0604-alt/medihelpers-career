@@ -68,6 +68,15 @@ export const jobs = [
     location: '부산 해운대구', region: '부산', type: '정규직', dept: '정형외과', pay: '월 1,500만원~',
     badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#1769d4', logoText: '해바', schedule: '주 4.5일', updated: '가상 예시',
     facilityType: '병원', focus: '척추·관절 외래 진료', scale: '전문병원 예시', access: '해운대 생활권·주차 지원',
+    fullAddress: '부산광역시 해운대구 센텀중앙로 00 (가상 주소)', website: 'https://example.com/hospital', specialties: '정형외과·신경외과·마취통증의학과',
+    representative: '홍길동', businessNumber: '000-00-00000', established: '2015년', doctorCount: '상근 4명 · 비상근 1명',
+    dailyVolume: '수술 2건 · 외래 40건', staffCount: '30명', equipment: 'MRI·CT·C-arm', beds: '30병상 · 평균 입원 22명',
+    hospitalPhotos: [
+      'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=82',
+      'https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&w=900&q=82',
+      'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&w=900&q=82',
+      'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=900&q=82'
+    ],
     summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 집중채용 공고입니다.',
     benefits: ['주 4.5일', '학회 지원', '전담 채용 매니저']
   },
