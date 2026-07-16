@@ -19,12 +19,10 @@ import {
   writeStoredString,
   writeStoredValue
 } from './browserStorage.js';
+import { appBase, withBase } from './basePath.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
-const appBase = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '');
-const withBase = (path) => !path || /^(?:https?:|mailto:|tel:|#)/.test(path) ? path : `${appBase}${path.startsWith('/') ? path : `/${path}`}`;
-
 function getRoute() {
   const pathname = appBase && window.location.pathname.startsWith(appBase) ? window.location.pathname.slice(appBase.length) || '/' : window.location.pathname;
   return `${pathname}${window.location.search}`;

@@ -4,6 +4,7 @@ import {
   LockKeyhole, ShieldCheck, Stethoscope, UserRound
 } from 'lucide-react';
 import { accountRoleLabel, validateSignup } from './signupModel.js';
+import { withBase } from './basePath.js';
 
 const initialForm = (role = '') => ({
   role,
@@ -41,7 +42,11 @@ async function accountRequest(method = 'GET', body) {
     body: body ? JSON.stringify(body) : undefined
   });
   const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) throw new Error('회원 시스템을 사용할 수 없는 배포 환경입니다.');
+  if (!contentType.includes('application/json')) {
+    const staticError = new Error('회원 시스템을 사용할 수 없는 배포 환경입니다.');
+    staticError.code = 'STATIC_HOSTING';
+    throw staticError;
+  }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || '요청을 처리하지 못했습니다.');
   return data;
@@ -62,8 +67,8 @@ function MemberTypeChooser() {
     <h2>회원 유형을 선택해주세요</h2>
     <p>가입 목적과 확인 절차가 다르므로 의료인 회원과 병원 회원을 분리해 운영합니다.</p>
     <div className="member-type-grid">
-      <a href="/signup/doctor"><span><Stethoscope /></span><div><small>의료인 회원</small><strong>이직·채용정보를 찾고 있어요</strong><p>공고 탐색 · 비공개 상담 · 지원 관리</p></div><ArrowRight /></a>
-      <a href="/signup/hospital"><span><Building2 /></span><div><small>병원 회원</small><strong>의료인을 채용하고 싶어요</strong><p>공고 등록 · 채용 의뢰 · 인재 소개</p></div><ArrowRight /></a>
+      <a href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>의료인 회원</small><strong>이직·채용정보를 찾고 있어요</strong><p>공고 탐색 · 비공개 상담 · 지원 관리</p></div><ArrowRight /></a>
+      <a href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>병원 회원</small><strong>의료인을 채용하고 싶어요</strong><p>공고 등록 · 채용 의뢰 · 인재 소개</p></div><ArrowRight /></a>
     </div>
     <div className="signup-security-copy"><ShieldCheck /> 어느 유형이든 가입 단계에서는 전화번호·면허번호·기관 서류를 받지 않습니다.</div>
   </section>;
@@ -79,7 +84,7 @@ function PreparationGate({ memberType }) {
     <SignupPreview />
     <div className="signup-gate-note"><LockKeyhole /><span><strong>현재 개인정보는 수집하지 않습니다.</strong><small>가입을 기다리지 않고 상담이 필요하면 바로 연락해주세요.</small></span></div>
     <a className="button primary full" href="mailto:hr@medihelpers.co.kr">오픈 알림 문의 <ArrowRight /></a>
-    <a className="signup-switch-type" href={memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor'}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 보기</a>
+    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 보기</a>
   </section>;
 }
 
@@ -91,11 +96,11 @@ function SignedOutCard({ memberType }) {
     <small>{content.eyebrow}</small>
     <h2>{content.label} 계정 인증</h2>
     <p>{content.description} 메디헬퍼스가 비밀번호를 별도로 수집하지 않도록 안전한 계정 인증을 사용합니다.</p>
-    <a className="button primary full signup-provider" href={`/signin-with-chatgpt?return_to=/signup/${memberType}`}>
+    <a className="button primary full signup-provider" href={withBase(`/signin-with-chatgpt?return_to=${withBase(`/signup/${memberType}`)}`)}>
       {content.label}으로 계속 <ArrowRight />
     </a>
     <div className="signup-security-copy"><ShieldCheck /> 인증 후에도 이름·전화번호·면허번호를 가입 단계에서 요구하지 않습니다.</div>
-    <a className="signup-switch-type" href={memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor'}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 가입</a>
+    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 가입</a>
   </section>;
 }
 
@@ -140,7 +145,7 @@ function SignupForm({ identity, memberType, onComplete }) {
       <div className="signup-no-marketing"><CircleCheck /><span><strong>광고 수신 동의는 받지 않습니다</strong><small>마케팅 알림은 가입 후 원할 때만 별도로 선택할 수 있습니다.</small></span></div>
       {submitError && <p className="signup-error" role="alert">{submitError}</p>}
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 가입 처리 중</> : <>최소 정보로 가입 완료 <ArrowRight /></>}</button>
-      <a className="signup-switch-type" href={memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor'}>회원 유형 다시 선택</a>
+      <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>회원 유형 다시 선택</a>
     </form>
   </section>;
 }
@@ -163,7 +168,7 @@ function AccountCard({ account, identity, onDeleted }) {
     <h2>가입이 완료되었습니다</h2>
     <p>{identity.displayName || identity.email || '회원'}님, 필요한 기능을 사용할 때만 추가 정보를 요청하겠습니다.</p>
     <dl><div><dt>회원 유형</dt><dd>{accountRoleLabel(account.role)}</dd></div><div><dt>가입 상태</dt><dd>기본 회원</dd></div><div><dt>마케팅 수신</dt><dd>미동의</dd></div></dl>
-    <div className="account-actions"><a className="button primary" href={account.role === 'doctor' ? '/jobs' : '/talent'}>서비스 시작 <ArrowRight /></a><a className="button outline" href="/signout-with-chatgpt?return_to=/">로그아웃</a></div>
+    <div className="account-actions"><a className="button primary" href={withBase(account.role === 'doctor' ? '/jobs' : '/talent')}>서비스 시작 <ArrowRight /></a><a className="button outline" href={withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`)}>로그아웃</a></div>
     <button className="account-delete" type="button" onClick={remove} disabled={deleting}>{deleting ? '삭제 중…' : '계정 삭제'}</button>
   </section>;
 }
@@ -183,12 +188,12 @@ export default function AccountPage({ memberType = '' }) {
   const title = useMemo(() => state.account ? '내 계정' : roleContent[memberType]?.title || '회원가입', [memberType, state.account]);
   useEffect(() => {
     accountRequest().then((data) => setState({ loading: false, ...data })).catch((loadError) => {
-      setError(loadError.message);
+      if (loadError.code !== 'STATIC_HOSTING') setError(loadError.message);
       setState((current) => ({ ...current, loading: false }));
     });
   }, []);
   let content;
-  if (state.loading) content = <section className="signup-card signup-loading"><LoaderCircle className="spin" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
+  if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} onDeleted={() => setState((current) => ({ ...current, account: null }))} />;
   else if (!memberType) content = <MemberTypeChooser />;
   else if (!state.signupEnabled) content = <PreparationGate memberType={memberType} />;
@@ -196,6 +201,6 @@ export default function AccountPage({ memberType = '' }) {
   else content = <SignupForm identity={state.identity} memberType={memberType} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
   return <div className="signup-page">
     <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의료인 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
-    <div className="signup-shell">{error && <p className="signup-environment-note">{error}</p>}{content}<SignupPrinciples memberType={memberType} /></div>
+    <div className="signup-shell">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}<SignupPrinciples memberType={memberType} /></div>
   </div>;
 }

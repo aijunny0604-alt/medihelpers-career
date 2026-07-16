@@ -9,7 +9,6 @@
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career`
 - 보조 공개본: GitHub Pages `aijunny0604-alt.github.io/medihelpers-career`
 - 소스 저장소: GitHub `aijunny0604-alt/medihelpers-career`
-- 현재 공개 UI 기준: Sites v53, 커밋 `15e3ff9`
 
 ## Current Rules
 

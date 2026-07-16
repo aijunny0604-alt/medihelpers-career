@@ -7,8 +7,7 @@
 - [메디헬퍼스 Sites 공개본](https://medihelpers-career.junnyai.chatgpt.site)
 - [GitHub 저장소](https://github.com/aijunny0604-alt/medihelpers-career)
 - [GitHub Pages 미러](https://aijunny0604-alt.github.io/medihelpers-career/)
-- 최신 Sites 공개 버전: v53
-- 현재 공개 UI 기준 커밋: `15e3ff9`
+- 최신 Sites 공개 버전: v54
 
 ## 현재 구현
 
