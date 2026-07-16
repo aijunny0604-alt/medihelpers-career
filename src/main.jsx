@@ -704,6 +704,7 @@ function JobsPage({ route, qa }) {
   const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
   const [adPlan, setAdPlan] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
+  const [jobSort, setJobSort] = useState('balanced');
 
   // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
   const daySeed = useMemo(() => Math.floor(Date.now() / 86400000), []);
@@ -728,6 +729,7 @@ function JobsPage({ route, qa }) {
   const featuredPromoted = orderedPromoted.filter((job) => job.adTier === 'featured');
   // 일반: 진료과·지역 라운드로빈 균형.
   const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => !job.adTier), { seed: daySeed }), [filtered, daySeed]);
+  const standardDisplayOrder = useMemo(() => jobSort === 'recent' ? filtered.filter((job) => !job.adTier) : orderedStandard, [filtered, orderedStandard, jobSort]);
 
   // 필터 변경 시 더보기 카운트 초기화.
   useEffect(() => {
@@ -750,8 +752,8 @@ function JobsPage({ route, qa }) {
   const renderCard = (job) => <JobCard key={job.id} job={job} qa={qa} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
   const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
 
-  const visibleStandard = orderedStandard.slice(0, standardVisible);
-  const standardRemaining = orderedStandard.length - visibleStandard.length;
+  const visibleStandard = standardDisplayOrder.slice(0, standardVisible);
+  const standardRemaining = standardDisplayOrder.length - visibleStandard.length;
 
   return <>
     <PageHero
@@ -760,11 +762,11 @@ function JobsPage({ route, qa }) {
       title={<><span className="jobs-hero-part">조건부터 비교하는</span>{' '}<span className="jobs-hero-part">의사 초빙정보</span></>}
       description={<><span className="jobs-description-part">봉직의·원장·검진·비임상 포지션을</span>{' '}<span className="jobs-description-part">진료과와 지역, 근무조건으로 찾고</span>{' '}<span className="jobs-description-part">비공개 조건은 의사 전담 헤드헌터에게 확인하세요.</span></>}
     ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
-    <nav className="job-hub-nav" aria-label="의사 초빙정보 메뉴"><div><Link className="active" to="/jobs">초빙 메인</Link><Link to="/jobs?view=all">전체 정보</Link><Link to="/headhunting">맞춤 초빙</Link><Link to="/matching-report?role=doctor">내 비교 리포트</Link><Link to="/account">내 활동</Link><Link className="job-hub-register" to="/advertise">공고 등록</Link></div></nav>
+    <nav className="job-hub-nav" aria-label="채용정보 메뉴"><div><strong className="job-hub-title">채용정보</strong><Link className="active" to="/jobs">전체 채용</Link><Link to="/talent">인재정보</Link><Link to="/headhunting">맞춤 초빙</Link><Link to="/matching-report?role=doctor">내 비교 리포트</Link><Link to="/account">내 활동</Link><Link className="job-hub-register" to="/advertise">공고 등록</Link></div></nav>
     <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={regions} /></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
       <div className="doctor-condition-filter" role="group" aria-label="의사 초빙 상세조건">{doctorConditions.map((item) => <button key={item} type="button" className={condition === item ? 'active' : ''} aria-pressed={condition === item} onClick={() => setCondition(item)}>{item}</button>)}</div>
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
-      <div className="result-row"><strong>{filtered.length}개의 의사 초빙공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
+      <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
                 {spotlightPromoted.length > 0 && <div className="promoted-jobs spotlight-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>지금 주목할 집중채용</strong></div><div className="tier-heading-actions"><small>화면을 보고 있을 때만 다음 광고로 자동 전환됩니다</small><button type="button" className="tier-apply-button spotlight" onClick={() => setAdPlan(adPlans[2])}>집중채용 광고 올리기 <ArrowRight /></button></div></div><PremiumAdCarousel items={spotlightPromoted} renderCard={renderCard} /></div>}
         {featuredPromoted.length > 0 && <div className="promoted-jobs featured-section"><div className="promotion-heading"><div><span><Sparkles /> RECOMMENDED ADS</span><strong>먼저 살펴볼 추천공고</strong></div><div className="tier-heading-actions"><small>추천 광고도 진료과·지역을 고르게 섞어 순환합니다</small><button type="button" className="tier-apply-button featured" onClick={() => setAdPlan(adPlans[1])}>추천공고 광고 올리기 <ArrowRight /></button></div></div><PremiumAdCarousel items={featuredPromoted} renderCard={renderCard} /></div>}
@@ -782,16 +784,33 @@ function JobsPage({ route, qa }) {
 
 function TalentPage() {
   const [dept, setDept] = useState('전체 진료과');
+  const [region, setRegion] = useState('전국');
+  const [availability, setAvailability] = useState('전체 시점');
+  const [keyword, setKeyword] = useState('');
+  const [talentSort, setTalentSort] = useState('recent');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_talent'));
-  const visible = dept === '전체 진료과' ? talent : talent.filter((person) => person.dept === dept);
+  const talentRegions = ['전국', ...new Set(talent.flatMap((person) => person.region.split('·')))].filter(Boolean);
+  const availableOptions = ['전체 시점', '즉시', '협의', '1개월 내', '2개월 내'];
+  const visible = useMemo(() => {
+    const query = keyword.trim().toLowerCase();
+    const filteredTalent = talent.filter((person) => {
+      const matchesDept = dept === '전체 진료과' || person.dept === dept;
+      const matchesRegion = region === '전국' || person.region.includes(region);
+      const matchesAvailable = availability === '전체 시점' || person.available.includes(availability.replace(' 내', ''));
+      const matchesKeyword = !query || [person.code, person.dept, person.career, person.region, person.preference, person.available].join(' ').toLowerCase().includes(query);
+      return matchesDept && matchesRegion && matchesAvailable && matchesKeyword;
+    });
+    return talentSort === 'career' ? [...filteredTalent].sort((a, b) => Number.parseInt(b.career, 10) - Number.parseInt(a.career, 10)) : filteredTalent;
+  }, [dept, region, availability, keyword, talentSort]);
   const toggleSaved = (code) => setSaved((current) => {
     const next = current.includes(code) ? current.filter((item) => item !== code) : [...current, code];
     writeStoredValue('medihelpers_saved_talent', next);
     return next;
   });
   return <>
-    <PageHero tone="mint" eyebrow="VERIFIED DOCTOR TALENT" title="병원이 기다리는 익명 의사 인재풀" description="의사의 동의 전에는 개인정보와 이직 의사를 공개하지 않습니다. 필요한 진료과와 조건을 알려주시면 의사 전담 컨설턴트가 직접 연결합니다."><Link className="button primary" to="/headhunting?role=hospital">우리 병원 의사 추천받기</Link></PageHero>
-    <section className="section"><div className="notice-bar"><ShieldCheck /><div><strong>안전한 익명 의사정보</strong><p>전문과·연차·희망 조건·입사 가능 시점까지 무료로 비교하세요. 검증 상세정보와 소개 요청은 필요한 의사에게만 사용할 수 있습니다.</p></div></div><div className="talent-toolbar"><div><span className="section-kicker">ACTIVE DOCTOR CANDIDATES</span><h2>최근 상담 완료 의사</h2></div><div className="talent-filter-control"><Stethoscope /><HeroSelect label="의사 진료과 필터" value={dept} onChange={setDept} options={departments.slice(0, -2)} /></div></div><div className="talent-grid">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /><button className={`talent-save ${saved.includes(person.code) ? 'saved' : ''}`} onClick={() => toggleSaved(person.code)} aria-label={`${person.code} 의사 후보 찜하기`}><Heart fill={saved.includes(person.code) ? 'currentColor' : 'none'} /></button></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>입사 가능</dt><dd>{person.available}</dd></div></dl><div className="talent-lock-preview"><span><LockKeyhole /> 유료 상세정보</span><p>근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모</p></div><Link className="button outline full" to={`/membership?type=hospital&candidate=${person.code}`} onClick={() => trackConversion('talent_intro_cta', { candidate: person.code })}>이 의사 소개 요청 · 39,000원</Link></article>)}</div><div className="decision-nudge report-nudge"><div><span><BarChart3 /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}명 의사, 채용조건과 비교해보세요` : '관심 의사를 찜하고 적합 조건을 비교해보세요'}</h3><p>전문과목·경력·희망 지역·입사 시점을 비교하고 확인 질문을 헤드헌터에게 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=hospital">의사 매칭 리포트 <ArrowRight /></Link></div></section>
+    <PageHero tone="mint talent-hero" eyebrow="VERIFIED DOCTOR TALENT" title="조건으로 찾는 익명 의사 인재정보" description="전문과·경력·희망 지역·입사 가능 시점을 먼저 비교하고, 의사의 동의가 확인된 뒤 필요한 정보만 안전하게 연결합니다."><Link className="button primary" to="/headhunting?role=hospital">우리 병원 의사 추천받기</Link></PageHero>
+    <nav className="job-hub-nav talent-hub-nav" aria-label="인재정보 메뉴"><div><strong className="job-hub-title">인재정보</strong><Link to="/jobs">채용정보</Link><Link className="active" to="/talent">전체 인재</Link><Link to="/headhunting?role=hospital">맞춤 인재 추천</Link><Link to="/matching-report?role=hospital">후보 비교</Link><Link to="/account">인재 관리</Link><Link className="job-hub-register" to="/headhunting?role=hospital">채용 의뢰</Link></div></nav>
+    <section className="section talent-page"><div className="talent-search-dock"><div className="doctor-search-title"><span><UserRoundSearch /> TALENT SEARCH</span><strong>필요한 진료과와 근무조건으로 인재를 찾으세요</strong><button type="button" onClick={() => { setDept('전체 진료과'); setRegion('전국'); setAvailability('전체 시점'); setKeyword(''); }}>조건 초기화</button></div><div className="talent-filter-grid"><label><span>진료과</span><HeroSelect label="의사 진료과 필터" value={dept} onChange={setDept} options={departments.slice(0, -2)} /></label><label><span>희망 지역</span><HeroSelect label="의사 희망 지역 필터" value={region} onChange={setRegion} options={talentRegions} /></label><label><span>입사 가능</span><HeroSelect label="의사 입사 가능 시점 필터" value={availability} onChange={setAvailability} options={availableOptions} /></label><label className="talent-keyword"><span>키워드</span><div><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="진료과, 경력, 희망 조건 검색" /></div></label></div></div><div className="notice-bar talent-privacy-notice"><ShieldCheck /><div><strong>안전한 익명 의사정보</strong><p>목록에서는 비교에 필요한 조건만 공개합니다. 근무기관 이력과 개인 식별정보는 후보자의 동의와 병원 확인 절차 이후에 전달합니다.</p></div></div><div className="result-row portal-result-row"><div><small>전체 인재정보</small><strong>총 <em>{visible.length}</em>명의 상담 완료 의사</strong></div><div className="result-actions"><span><Heart size={15} /> 관심 인재 {saved.length}명</span><button type="button" className={talentSort === 'recent' ? 'active' : ''} onClick={() => setTalentSort('recent')}>최근 상담순</button><button type="button" className={talentSort === 'career' ? 'active' : ''} onClick={() => setTalentSort('career')}>경력순</button></div></div><div className="talent-grid talent-portal-list">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /><button className={`talent-save ${saved.includes(person.code) ? 'saved' : ''}`} onClick={() => toggleSaved(person.code)} aria-label={`${person.code} 의사 후보 찜하기`}><Heart fill={saved.includes(person.code) ? 'currentColor' : 'none'} /></button></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>입사 가능</dt><dd>{person.available}</dd></div></dl><div className="talent-lock-preview"><span><LockKeyhole /> 동의 후 공개되는 상세정보</span><p>근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모</p></div><Link className="button outline full" to={`/membership?type=hospital&candidate=${person.code}`} onClick={() => trackConversion('talent_intro_cta', { candidate: person.code })}>이 의사 소개 요청 · 39,000원</Link></article>)}</div>{!visible.length && <div className="empty-state"><UserRoundSearch /><h3>조건에 맞는 인재를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 전담 컨설턴트에게 비공개 인재 추천을 요청해보세요.</p></div>}<div className="decision-nudge report-nudge"><div><span><BarChart3 /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}명 의사, 채용조건과 비교해보세요` : '관심 의사를 찜하고 적합 조건을 비교해보세요'}</h3><p>전문과목·경력·희망 지역·입사 시점을 비교하고 확인 질문을 헤드헌터에게 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=hospital">의사 매칭 리포트 <ArrowRight /></Link></div></section>
     <section className="section soft"><div className="feature-grid"><div><UserRoundSearch /><h3>조건 기반 후보 탐색</h3><p>진료과뿐 아니라 지역, 근무형태, 입사 가능 시점까지 확인합니다.</p></div><div><FileCheck2 /><h3>경력·자격 사전 확인</h3><p>후보자가 제공한 경력과 자격 정보를 소개 전에 점검합니다.</p></div><div><ShieldCheck /><h3>동의 기반 정보 공개</h3><p>양측의 의사를 확인한 뒤 필요한 범위의 정보만 전달합니다.</p></div></div></section>
     <ConversionBanner title="찾는 인재가 따로 있으신가요?" description="채용 조건을 남기면 공개되지 않은 인재풀까지 확인해드립니다." hospital />
   </>;

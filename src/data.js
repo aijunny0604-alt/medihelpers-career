@@ -141,11 +141,11 @@ export const adPlans = [
 ];
 
 export const navItems = [
-  { path: '/jobs', label: '의사 초빙정보' },
-  { path: '/headhunting', label: '의사 헤드헌팅' },
+  { path: '/jobs', label: '채용정보' },
+  { path: '/talent', label: '인재정보' },
+  { path: '/headhunting', label: '맞춤 헤드헌팅' },
   { path: '/matching-report', label: '매칭리포트' },
-  { path: '/advertise', label: '광고센터' },
-  { path: '/membership', label: '멤버십' }
+  { path: '/advertise', label: '광고센터' }
 ];
 
 export const membershipPlans = [
