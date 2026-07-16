@@ -12,6 +12,7 @@ import {
 import { adPlans, jobs, membershipPlans, navItems, talent } from './data.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
 import AccountPage from './AccountPage.jsx';
+import ResumePage from './ResumePage.jsx';
 import HeroSelect from './CustomSelect.jsx';
 import QaPreviewPage from './QaPreviewPage.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
@@ -273,7 +274,7 @@ function Header({ path, qa }) {
       : qa.active && qa.info.capabilities.membership
         ? { label: '멤버십 이용 중', to: '/membership' }
       : qa.active && qa.info.capabilities.doctor
-          ? { label: '관심공고 보기', to: '/jobs' }
+          ? { label: '내 이력서 등록', to: '/resume' }
           : { label: '병원 회원가입', to: '/signup/hospital?next=/advertise' };
   return <header className="site-header">
     <div className="nav-wrap">
@@ -309,7 +310,7 @@ function Footer() {
         <p>이직도 채용도 결국 사람의 일입니다.<br />메디헬퍼스가 직접 듣고, 꼼꼼히 연결하겠습니다.</p>
         <div className="footer-contact"><a href="tel:0513425463"><Phone size={15} /> 051-342-5463</a><a href="mailto:hr@medihelpers.co.kr"><Mail size={15} /> hr@medihelpers.co.kr</a></div>
       </div>
-      <div className="footer-column"><strong>의사</strong><Link to="/jobs">초빙정보</Link><Link to="/headhunting">비공개 이직 상담</Link><Link to="/about">서비스 소개</Link></div>
+      <div className="footer-column"><strong>의료인</strong><Link to="/jobs">초빙정보</Link><Link to="/resume">이력서 등록</Link><Link to="/headhunting">비공개 이직 상담</Link></div>
       <div className="footer-column"><strong>병원</strong><Link to="/talent">의사 인재정보</Link><Link to="/headhunting">의사 채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
       <div className="footer-column"><strong>안내</strong><Link to="/signup">로그인·회원가입</Link><a href="mailto:hr@medihelpers.co.kr">문의하기</a><Link to="/about">개인정보 안내</Link><Link to="/about">이용약관</Link></div>
     </div>
@@ -1471,6 +1472,7 @@ export function App() {
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
+  else if (path === '/resume') page = <ResumePage />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
