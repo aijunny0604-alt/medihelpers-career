@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
@@ -175,13 +175,31 @@ function Link({ to, className = '', children, onClick, ...anchorProps }) {
   }}>{children}</a>;
 }
 
-function Modal({ children, onClose, wide = false, label = '상세 정보' }) {
+function Modal({ children, onClose, wide = false, label = '상세 정보', variant = '', accent = '' }) {
   const dialogRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  const closeTimerRef = useRef(null);
+  const [closing, setClosing] = useState(false);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  const requestClose = useCallback(() => {
+    if (closeTimerRef.current) return;
+    if (motionIsReduced()) {
+      onCloseRef.current();
+      return;
+    }
+    setClosing(true);
+    closeTimerRef.current = window.setTimeout(() => onCloseRef.current(), 240);
+  }, []);
+
   useEffect(() => {
     const previousFocus = document.activeElement;
     const dialog = dialogRef.current;
     const onKey = (event) => {
-      if (event.key === 'Escape') return onClose();
+      if (event.key === 'Escape') return requestClose();
       if (event.key !== 'Tab' || !dialog) return;
       const focusable = [...dialog.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
       if (!focusable.length) return;
@@ -199,14 +217,16 @@ function Modal({ children, onClose, wide = false, label = '상세 정보' }) {
     window.addEventListener('keydown', onKey);
     window.requestAnimationFrame(() => dialog?.focus());
     return () => {
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
       document.body.classList.remove('modal-open');
       window.removeEventListener('keydown', onKey);
       previousFocus?.focus?.();
     };
-  }, [onClose]);
-  return createPortal(<div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-    <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={label} tabIndex="-1" data-lenis-prevent>
-      <button className="modal-close" onClick={onClose} aria-label="닫기"><X /></button>
+  }, [requestClose]);
+
+  return createPortal(<div className={`modal-backdrop ${closing ? 'is-closing' : ''}`} onPointerDown={(event) => event.target === event.currentTarget && requestClose()}>
+    <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''} ${variant}`} style={accent ? { '--modal-accent': accent } : undefined} role="dialog" aria-modal="true" aria-label={label} tabIndex="-1" data-lenis-prevent>
+      <button className="modal-close" onClick={requestClose} aria-label="닫기"><X /></button>
       <div className="modal-scroll" data-lenis-prevent>{children}</div>
     </div>
   </div>, document.body);
@@ -316,7 +336,7 @@ function JobDetail({ job, saved, onSave, onClose }) {
   const isAd = Boolean(job.adTier);
   const restricted = isAd || job.badge === '비공개';
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
-  return <Modal onClose={onClose} wide>
+  return <Modal onClose={onClose} wide variant="job-detail" accent={job.color} label={`${job.hospital} 채용공고 상세 정보`}>
     <div className="detail-heading" style={{ '--job-color': job.color }}><div className="detail-brand"><HospitalLogo job={job} prominent /><div><div className="detail-brand-label"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span>AD · 병원 브랜드 채용관</span>}</div><strong>{job.hospital}</strong><small><BadgeCheck /> 등록된 기관 정보</small></div></div><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
     <div className="detail-grid">
       <div className="detail-content"><section className="hospital-profile"><div className="detail-section-title"><span><Building2 /></span><div><small>HOSPITAL PROFILE</small><h3>병원 정보</h3></div></div><p>{job.summary}</p><dl className="hospital-facts"><div><dt>기관 유형</dt><dd>{job.facilityType}</dd></div><div><dt>기관 규모</dt><dd>{job.scale}</dd></div><div><dt>주요 진료</dt><dd>{job.focus}</dd></div><div><dt>채용 분야</dt><dd>{job.dept}</dd></div></dl></section><section className="location-panel"><div className="location-icon"><MapPin /></div><div><small>근무지 위치</small><strong>{job.location}</strong><p>{job.access}</p></div><a href={mapUrl} target="_blank" rel="noreferrer" aria-label={`${job.hospital} 지도에서 위치 보기`}>지도에서 보기 <ArrowRight /></a></section><section><div className="detail-section-title compact"><span><BriefcaseBusiness /></span><div><small>POSITION DETAILS</small><h3>포지션과 근무조건</h3></div></div><p>{job.summary}</p><div className="benefit-list">{job.benefits.map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>
