@@ -49,3 +49,7 @@
 - `DB.md`
 - `API.md`
 - `AUTH.md`
+
+## 프리미엄 광고 로테이터
+
+`PremiumAdCarousel`은 `orderPremium`이 만든 등급 우선·진료과·지역 균형 배열을 받아 반응형 묶음으로 순환한다. 자동 전환은 IntersectionObserver, Page Visibility API, 포인터·포커스 상태, reduced-motion 설정을 함께 확인해 실제로 광고 영역을 보고 있는 경우에만 실행한다.

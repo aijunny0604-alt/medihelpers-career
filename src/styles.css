@@ -460,7 +460,79 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   font-size: 12px!important;
   font-weight: 700;
 }
-.promoted-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.promoted-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.premium-rotator {
+  position: relative;
+  padding: 13px;
+  border: 1px solid #d8e5f5;
+  border-radius: 25px;
+  background: linear-gradient(135deg, rgba(240,246,255,.92), rgba(249,247,255,.9));
+  box-shadow: 0 22px 55px rgba(32,65,112,.09);
+  overflow: hidden;
+}
+.premium-rotation-toolbar {
+  min-height: 44px;
+  padding: 0 4px 9px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.premium-rotation-toolbar > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #60718b;
+  font-size: 12px;
+  font-weight: 750;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22ae8f;
+  box-shadow: 0 0 0 5px rgba(34,174,143,.11);
+  animation: premium-live-pulse 2.1s ease-in-out infinite;
+}
+.premium-rotator.is-paused .live-dot { animation-play-state: paused; background: #d2a23e; box-shadow: 0 0 0 5px rgba(210,162,62,.12); }
+.premium-rotation-actions { display: flex; align-items: center; gap: 8px; }
+.premium-rotation-actions button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d8e2ef;
+  border-radius: 14px;
+  background: rgba(255,255,255,.88);
+  color: #244267;
+  box-shadow: 0 6px 15px rgba(38,69,109,.07);
+  transition: transform .22s cubic-bezier(.22,1,.36,1), border-color .22s, box-shadow .22s;
+}
+.premium-rotation-actions button:hover { transform: translateY(-2px); border-color: #9fbae0; box-shadow: 0 9px 20px rgba(38,69,109,.13); }
+.premium-rotation-actions button:focus-visible { outline: 3px solid rgba(18,99,232,.24); outline-offset: 2px; }
+.premium-rotation-actions svg { width: 17px; }
+.premium-rotation-actions strong { min-width: 48px; color: #8490a1; font: 700 12px 'Manrope'; text-align: center; }
+.premium-rotation-actions strong b { color: var(--blue); font-size: 14px; }
+.premium-rotation-page { animation: premium-page-enter .72s cubic-bezier(.16,1,.3,1) both; }
+.premium-rotation-page.single-item { grid-template-columns: minmax(0, calc(50% - 10px)); justify-content: center; }
+.premium-rotation-dots { min-height: 32px; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.premium-rotation-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #b9c6d8;
+  transition: width .25s cubic-bezier(.22,1,.36,1), background .25s;
+}
+.premium-rotation-dots button.active { width: 28px; background: linear-gradient(90deg, var(--blue), #6d59e9); }
+.premium-rotation-dots button:focus-visible { outline: 3px solid rgba(18,99,232,.25); outline-offset: 4px; }
+.premium-rotation-progress { position: absolute; left: 16px; right: 16px; bottom: 0; height: 3px; overflow: hidden; border-radius: 10px 10px 0 0; }
+.premium-rotation-progress i { display: block; width: 100%; height: 100%; transform-origin: left; background: linear-gradient(90deg, var(--blue), #735ce9, var(--mint)); animation: premium-progress 7s linear both; }
+.premium-rotator.is-paused .premium-rotation-progress i { animation-play-state: paused; }
+@keyframes premium-page-enter { from { opacity: 0; transform: translate3d(22px,0,0); } to { opacity: 1; transform: none; } }
+@keyframes premium-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes premium-live-pulse { 50% { box-shadow: 0 0 0 8px rgba(34,174,143,0); } }
 .standard-jobs { margin-top: 4px; }
 .standard-heading {
   display: flex;
@@ -1381,3 +1453,24 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 }
 /* Mobile: keep the intentional stacked layout, only guarantee the CTA stays a comfortable tap target (>=52px). */
 @media(max-width:780px){.hero-search-button{min-height:52px}}
+
+@media(max-width:780px) {
+  .premium-rotator { padding: 10px; border-radius: 20px; }
+  .premium-rotation-page.single-item { grid-template-columns: 1fr; }
+  .premium-rotation-toolbar { padding-left: 4px; }
+}
+@media(max-width:460px) {
+  .premium-rotation-toolbar > span { font-size: 11px; }
+  .premium-rotation-actions { gap: 4px; }
+  .premium-rotation-actions button { width: 44px; height: 44px; border-radius: 12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:not(.force-motion) .premium-rotation-page,
+  html:not(.force-motion) .premium-rotation-progress i,
+  html:not(.force-motion) .live-dot { animation: none!important; }
+  html:not(.force-motion) .premium-rotation-actions button,
+  html:not(.force-motion) .premium-rotation-dots button { transition: none!important; }
+}
+@media(hover:none) {
+  .premium-rotation-actions button:hover { transform: none; }
+}

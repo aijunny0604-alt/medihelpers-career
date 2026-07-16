@@ -453,14 +453,95 @@ function Redirect({ to }) {
   }, [to]);
   return null;
 }
-const PREMIUM_STEP = 6;
 const STANDARD_STEP = 9;
+const PREMIUM_ROTATION_MS = 7000;
 
 function matchesJob(job, { dept, region, keyword }) {
   const deptOk = dept === '전체 진료과' || job.dept === dept;
   const regionOk = region === '전국' || job.region === region;
   const keywordOk = !keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${job.benefits.join(' ')}`.toLowerCase().includes(keyword.toLowerCase());
   return deptOk && regionOk && keywordOk;
+}
+
+function usePremiumSlotCount() {
+  const [count, setCount] = useState(() => window.matchMedia('(max-width: 780px)').matches ? 1 : 2);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 780px)');
+    const update = () => setCount(media.matches ? 1 : 2);
+    update();
+    media.addEventListener?.('change', update);
+    return () => media.removeEventListener?.('change', update);
+  }, []);
+  return count;
+}
+
+function PremiumAdCarousel({ items, renderCard }) {
+  const rootRef = useRef(null);
+  const slotCount = usePremiumSlotCount();
+  const pageCount = Math.max(1, Math.ceil(items.length / slotCount));
+  const [page, setPage] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [inView, setInView] = useState(false);
+  const [documentVisible, setDocumentVisible] = useState(!document.hidden);
+  const [reducedMotion, setReducedMotion] = useState(() => motionIsReduced());
+
+  useEffect(() => setPage(0), [items, slotCount]);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(!document.documentElement.classList.contains('force-motion') && media.matches);
+    const onVisibility = () => setDocumentVisible(!document.hidden);
+    update();
+    document.addEventListener('visibilitychange', onVisibility);
+    media.addEventListener?.('change', update);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      media.removeEventListener?.('change', update);
+    };
+  }, []);
+  useEffect(() => {
+    if (!rootRef.current) return undefined;
+    if (!('IntersectionObserver' in window)) {
+      setInView(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.35 });
+    observer.observe(rootRef.current);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (pageCount < 2 || paused || reducedMotion || !inView || !documentVisible) return undefined;
+    const timer = window.setInterval(() => setPage((current) => (current + 1) % pageCount), PREMIUM_ROTATION_MS);
+    return () => window.clearInterval(timer);
+  }, [pageCount, paused, reducedMotion, inView, documentVisible]);
+
+  const safePage = page % pageCount;
+  const visible = items.slice(safePage * slotCount, safePage * slotCount + slotCount);
+  const go = (next) => setPage((next + pageCount) % pageCount);
+  const resumeAfterFocus = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
+  };
+
+  return <div className={`premium-rotator ${paused ? 'is-paused' : ''}`} ref={rootRef}
+    onPointerEnter={() => setPaused(true)} onPointerLeave={() => setPaused(false)}
+    onFocusCapture={() => setPaused(true)} onBlurCapture={resumeAfterFocus}>
+    <div className="premium-rotation-toolbar">
+      <span><i className="live-dot" /> {reducedMotion ? '수동 탐색' : paused ? '잠시 멈춤' : '자동 순환 중'}</span>
+      {pageCount > 1 && <div className="premium-rotation-actions">
+        <button type="button" onClick={() => go(safePage - 1)} aria-label="이전 프리미엄 광고"><ArrowLeft /></button>
+        <strong><b>{safePage + 1}</b> / {pageCount}</strong>
+        <button type="button" onClick={() => go(safePage + 1)} aria-label="다음 프리미엄 광고"><ArrowRight /></button>
+      </div>}
+    </div>
+    <div key={`${safePage}-${slotCount}`} className={`job-grid promoted-grid premium-rotation-page ${visible.length === 1 ? 'single-item' : ''}`} aria-label={`프리미엄 광고 ${safePage + 1}번째 묶음`}>
+      {visible.map(renderCard)}
+    </div>
+    {pageCount > 1 && <>
+      <div className="premium-rotation-dots" role="group" aria-label="프리미엄 광고 묶음 선택">
+        {Array.from({ length: pageCount }, (_, index) => <button key={index} type="button" className={index === safePage ? 'active' : ''} onClick={() => go(index)} aria-label={`${index + 1}번째 광고 묶음`} aria-current={index === safePage ? 'true' : undefined} />)}
+      </div>
+      {!reducedMotion && <div className="premium-rotation-progress" aria-hidden="true"><i key={safePage} /></div>}
+    </>}
+  </div>;
 }
 
 function JobsPage({ route }) {
@@ -470,11 +551,11 @@ function JobsPage({ route }) {
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
   const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
-  const [premiumVisible, setPremiumVisible] = useState(PREMIUM_STEP);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
 
   // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
   const daySeed = useMemo(() => Math.floor(Date.now() / 86400000), []);
+  const premiumSessionSeed = useMemo(() => daySeed + Math.floor(Math.random() * 1000000), [daySeed]);
 
   // 진료과 빠른 필터용: 진료과 필터 이전, 지역+키워드만 적용한 결과의 진료과별 개수.
   const specialtyStrip = useMemo(() => {
@@ -490,13 +571,12 @@ function JobsPage({ route }) {
 
   const filtered = useMemo(() => jobs.filter((job) => matchesJob(job, { dept, region, keyword })), [dept, region, keyword]);
   // 프리미엄: 등급 우선순위 유지 + 등급 내부 진료과·지역 균형.
-  const orderedPromoted = useMemo(() => orderPremium(filtered.filter((job) => job.adTier), { seed: daySeed }), [filtered, daySeed]);
+  const orderedPromoted = useMemo(() => orderPremium(filtered.filter((job) => job.adTier), { seed: premiumSessionSeed }), [filtered, premiumSessionSeed]);
   // 일반: 진료과·지역 라운드로빈 균형.
   const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => !job.adTier), { seed: daySeed }), [filtered, daySeed]);
 
   // 필터 변경 시 더보기 카운트 초기화.
   useEffect(() => {
-    setPremiumVisible(PREMIUM_STEP);
     setStandardVisible(STANDARD_STEP);
   }, [dept, region, keyword]);
 
@@ -509,14 +589,11 @@ function JobsPage({ route }) {
     setDept('전체 진료과');
     setRegion('전국');
     setKeyword('');
-    setPremiumVisible(PREMIUM_STEP);
     setStandardVisible(STANDARD_STEP);
   };
   const renderCard = (job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
 
-  const visiblePromoted = orderedPromoted.slice(0, premiumVisible);
   const visibleStandard = orderedStandard.slice(0, standardVisible);
-  const premiumRemaining = orderedPromoted.length - visiblePromoted.length;
   const standardRemaining = orderedStandard.length - visibleStandard.length;
 
   return <>
@@ -531,8 +608,8 @@ function JobsPage({ route }) {
       <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
       {filtered.length ? <>
-        <div className="balance-legend"><span className="balance-legend-icon"><Sparkles /></span><div><strong>균형 노출</strong><p>집중채용·추천 광고는 최상단 프리미엄 영역에 그대로 유지되고, 그 아래 전체 공고는 진료과·지역이 번갈아 나오도록 배치됩니다. 순위를 무작위로 섞지 않으며 유료 노출도 숨기지 않습니다.</p></div></div>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong></div><small>집중채용 · 추천 광고 우선 노출 · 진료과·지역 균형</small></div><div className="job-grid promoted-grid">{visiblePromoted.map(renderCard)}</div>{premiumRemaining > 0 && <button type="button" className="premium-more" onClick={() => setPremiumVisible((current) => current + PREMIUM_STEP)}><Crown size={15} /> 프리미엄 공고 더보기 <em>{premiumRemaining}개</em></button>}</div>}
+        <div className="balance-legend"><span className="balance-legend-icon"><Sparkles /></span><div><strong>균형 노출</strong><p>광고 등급 우선순위는 그대로 유지하고, 같은 등급 안에서는 진료과·지역을 고르게 섞어 순환합니다. 일반 공고도 특정 영역에 몰리지 않도록 번갈아 배치합니다.</p></div></div>
+        {orderedPromoted.length > 0 && <div className="promoted-jobs"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>지금 주목할 집중채용</strong></div><small>화면을 보고 있을 때만 다음 광고로 자동 전환됩니다</small></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderCard} /></div>}
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><strong>전체 채용공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><div className="job-grid">{visibleStandard.map(renderCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}개 병원, 조건별로 비교해보세요` : '관심 병원을 고르고 매칭 리포트를 만들어보세요'}</h3><p>근무·보수·거리·진료 범위를 비교하고 확인할 질문을 헤드헌터에게 그대로 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=doctor" onClick={() => trackConversion('jobs_matching_report', { savedCount: saved.length })}>매칭 리포트 만들기 <ArrowRight /></Link></div>
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
