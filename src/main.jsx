@@ -13,6 +13,8 @@ import { adPlans, jobs, membershipPlans, navItems, professions, talent } from '.
 import MatchingReportPage from './MatchingReportPage.jsx';
 import AccountPage from './AccountPage.jsx';
 import HeroSelect from './CustomSelect.jsx';
+import QaPreviewPage from './QaPreviewPage.jsx';
+import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import {
   appendStoredRecord,
   readStoredArray,
@@ -232,8 +234,19 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
   </div>, document.body);
 }
 
-function Header({ path }) {
+function Header({ path, qa }) {
   const [open, setOpen] = useState(false);
+  const accountLabel = qa.active ? qa.info.shortLabel : '로그인';
+  const accountTarget = qa.active ? '/qa-preview' : '/signup';
+  const primaryAction = qa.active && qa.info.capabilities.admin
+    ? { label: '관리 콘솔', to: '/qa-preview' }
+    : qa.active && qa.info.capabilities.hospital
+      ? { label: '내 공고 관리', to: '/qa-preview' }
+      : qa.active && qa.info.capabilities.membership
+        ? { label: '멤버십 이용 중', to: '/membership' }
+        : qa.active && qa.info.capabilities.doctor
+          ? { label: '관심공고 보기', to: '/jobs' }
+          : { label: '채용공고 등록', to: '/advertise' };
   return <header className="site-header">
     <div className="nav-wrap">
       <Link className="brand" to="/" onClick={() => setOpen(false)} aria-label="메디헬퍼스 홈">
@@ -241,16 +254,23 @@ function Header({ path }) {
       </Link>
       <nav id="primary-navigation" className={open ? 'open' : ''}>
         {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
-        <Link to="/signup" onClick={() => setOpen(false)} className={`mobile-account-link ${path.startsWith('/signup') ? 'active' : ''}`}>로그인·회원가입</Link>
+        <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
       </nav>
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
-        <Link className="header-account" to="/signup"><UserRound size={16} /> 로그인</Link>
-        <Link className="button primary compact" to="/advertise">채용공고 등록</Link>
+        <Link className={`header-account ${qa.active ? `qa-account tone-${qa.info.tone}` : ''}`} to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
+        <Link className="button primary compact" to={primaryAction.to}>{primaryAction.label}</Link>
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>
   </header>;
+}
+
+function QaPreviewRibbon({ qa }) {
+  if (!qa.active) return null;
+  return <aside className={`qa-preview-ribbon tone-${qa.info.tone}`} aria-label="QA 미리보기 상태">
+    <span><ShieldCheck /></span><div><small>QA 미리보기 · 실제 권한 아님</small><strong>{qa.info.label}</strong></div><Link to="/qa-preview">상태 변경</Link><button type="button" onClick={qa.exit}>종료</button>
+  </aside>;
 }
 
 function Footer() {
@@ -297,13 +317,14 @@ const advertisementPreviewJob = {
   benefits: ['대형 로고 노출', '최상단 우선 노출', '전담 컨설턴트']
 };
 
-function JobCard({ job, saved, onSave, onOpen, preview = false }) {
+function JobCard({ job, saved, onSave, onOpen, preview = false, qa }) {
   const isAd = Boolean(job.adTier);
   const brandSource = job.cardBanner || job.banner || job.logo;
   const brandUrl = brandSource ? withBase(brandSource) : '';
   const brandFit = job.cardBanner ? 'banner' : (job.brandFit || (job.banner ? 'banner' : 'mark'));
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const restricted = isAd || job.badge === '비공개';
+  const qaUnlocked = restricted && qa?.active && qa.info.capabilities.privateDetails;
   const adLabel = job.adTier === 'spotlight' ? '집중채용 브랜드관' : '추천 브랜드관';
   const moveCardLight = (event) => {
     if (!isAd || event.pointerType === 'touch') return;
@@ -329,19 +350,24 @@ function JobCard({ job, saved, onSave, onOpen, preview = false }) {
     </div> : <div className="job-hospital"><HospitalLogo job={job} /><span><strong>{job.hospital}</strong></span></div>}
     <h3>{job.title}</h3>
     <div className="meta"><span><MapPin size={15} />{job.location}</span><span><Clock3 size={15} />{job.schedule}</span></div>
-    <div className="job-bottom"><span>{job.dept}</span><strong className={restricted ? 'premium-value' : ''}>{restricted ? <><LockKeyhole /> 멤버십 전용</> : job.pay}</strong></div>
+    <div className="job-bottom"><span>{job.dept}</span><strong className={restricted && !qaUnlocked ? 'premium-value' : qaUnlocked ? 'qa-card-unlocked' : ''}>{restricted && !qaUnlocked ? <><LockKeyhole /> 멤버십 전용</> : qaUnlocked ? <><ShieldCheck /> {job.pay}</> : job.pay}</strong></div>
     <button className="card-action" onClick={(event) => { event.stopPropagation(); onOpen(); }}>{preview ? '이 디자인으로 광고하기' : '공고 자세히 보기'} <ArrowRight size={16} /></button>
   </article>;
 }
-function JobDetail({ job, saved, onSave, onClose }) {
+function JobDetail({ job, saved, onSave, onClose, qa }) {
   const isAd = Boolean(job.adTier);
   const restricted = isAd || job.badge === '비공개';
+  const qaUnlocked = restricted && qa?.active && qa.info.capabilities.privateDetails;
+  const locked = restricted && !qaUnlocked;
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   return <Modal onClose={onClose} wide variant="job-detail" accent={job.color} label={`${job.hospital} 채용공고 상세 정보`}>
-    <div className="detail-heading" style={{ '--job-color': job.color }}><div className="detail-brand"><HospitalLogo job={job} prominent /><div><div className="detail-brand-label"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span>AD · 병원 브랜드 채용관</span>}</div><strong>{job.hospital}</strong><small><BadgeCheck /> 등록된 기관 정보</small></div></div><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
+    <div className="detail-heading" style={{ '--job-color': job.color }}><div className="detail-brand"><HospitalLogo job={job} prominent /><div><div className="detail-brand-label"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span>AD · 병원 브랜드 채용관</span>}{qaUnlocked && <span className="qa-unlocked-badge"><ShieldCheck /> QA 잠금 해제</span>}</div><strong>{job.hospital}</strong><small><BadgeCheck /> 등록된 기관 정보</small></div></div><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
     <div className="detail-grid">
       <div className="detail-content"><section className="hospital-profile"><div className="detail-section-title"><span><Building2 /></span><div><small>HOSPITAL PROFILE</small><h3>병원 정보</h3></div></div><p>{job.summary}</p><dl className="hospital-facts"><div><dt>기관 유형</dt><dd>{job.facilityType}</dd></div><div><dt>기관 규모</dt><dd>{job.scale}</dd></div><div><dt>주요 진료</dt><dd>{job.focus}</dd></div><div><dt>채용 분야</dt><dd>{job.dept}</dd></div></dl></section><section className="location-panel"><div className="location-icon"><MapPin /></div><div><small>근무지 위치</small><strong>{job.location}</strong><p>{job.access}</p></div><a href={mapUrl} target="_blank" rel="noreferrer" aria-label={`${job.hospital} 지도에서 위치 보기`}>지도에서 보기 <ArrowRight /></a></section><section><div className="detail-section-title compact"><span><BriefcaseBusiness /></span><div><small>POSITION DETAILS</small><h3>포지션과 근무조건</h3></div></div><p>{job.summary}</p><div className="benefit-list">{job.benefits.map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>
-      <aside className={restricted ? 'premium-aside' : ''}><span>예상 보수</span>{restricted ? <div className="locked-value"><div className="free-preview"><small>무료 미리보기 완료</small><strong>지역 · 진료과 · 근무형태 확인</strong></div><div className="locked-list"><span><LockKeyhole /> 상세 급여와 인센티브</span><span><LockKeyhole /> 정확한 근무시간·당직</span><span><LockKeyhole /> 채용 담당자와 협의조건</span></div><Link className="button primary full" to={`/membership?type=doctor&job=${job.id}`} onClick={() => trackConversion('job_unlock_cta', { jobId: job.id, offer: 'single' })}>이 공고만 2,900원에 열람</Link><small className="value-hint">5건 이상 비교한다면 월 패스가 더 저렴해요.</small></div> : <><strong>{job.pay}</strong><small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>비공개 상담 신청</Link></>}<button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button></aside>
+      <aside className={restricted ? `premium-aside ${qaUnlocked ? 'qa-unlocked' : ''}` : ''}>
+        {locked ? <><span>예상 보수</span><div className="locked-value"><div className="free-preview"><small>무료 미리보기 완료</small><strong>지역 · 진료과 · 근무형태 확인</strong></div><div className="locked-list"><span><LockKeyhole /> 상세 급여와 인센티브</span><span><LockKeyhole /> 정확한 근무시간·당직</span><span><LockKeyhole /> 채용 담당자와 협의조건</span></div><Link className="button primary full" to={`/membership?type=doctor&job=${job.id}`} onClick={() => trackConversion('job_unlock_cta', { jobId: job.id, offer: 'single' })}>이 공고만 2,900원에 열람</Link><small className="value-hint">5건 이상 비교한다면 월 패스가 더 저렴해요.</small></div></> : <><span>{qaUnlocked ? 'QA 공개 상세조건' : '예상 보수'}</span><strong>{job.pay}</strong>{qaUnlocked && <div className="qa-unlocked-list"><span><Check /> 인센티브 별도 협의</span><span><Check /> 당직·근무시간 확인 가능</span><span><Check /> 담당 헤드헌터 연결 가능</span></div>}<small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>{qaUnlocked ? '헤드헌터와 조건 확인' : '비공개 상담 신청'}</Link></>}
+        <button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button>
+      </aside>
     </div>
   </Modal>;
 }
@@ -599,7 +625,7 @@ function AdQuickLauncher({ onSelect }) {
     <p className="jobs-ad-payment-note"><ShieldCheck /> 실제 결제 전 공고 내용과 노출 기간·금액을 한 번 더 확인합니다.</p>
   </section>;
 }
-function JobsPage({ route }) {
+function JobsPage({ route, qa }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [dept, setDept] = useState(params.get('dept') || '전체 진료과');
   const [region, setRegion] = useState(params.get('region') || '전국');
@@ -649,7 +675,7 @@ function JobsPage({ route }) {
     setKeyword('');
     setStandardVisible(STANDARD_STEP);
   };
-  const renderCard = (job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
+  const renderCard = (job) => <JobCard key={job.id} job={job} qa={qa} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
 
   const visibleStandard = orderedStandard.slice(0, standardVisible);
   const standardRemaining = orderedStandard.length - visibleStandard.length;
@@ -674,7 +700,7 @@ function JobsPage({ route }) {
       <AdQuickLauncher onSelect={setAdPlan} />
     </section>
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
-    {selected && <JobDetail job={selected} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
+    {selected && <JobDetail job={selected} qa={qa} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
     {adPlan && <Checkout plan={adPlan} onClose={() => setAdPlan(null)} />}
   </>;
 }
@@ -802,7 +828,7 @@ function ValueCalculator({ type, onChoose }) {
   return <div className="value-calculator"><div><small>나에게 맞는 이용권 계산</small><h3>{type === 'doctor' ? '이번 달에 몇 개 공고를 자세히 볼까요?' : '이번 달에 몇 명을 소개받을까요?'}</h3><p>이용 예상량에 따라 더 경제적인 상품을 바로 비교합니다.</p></div><div className="calculator-control"><strong>{count}<span>{type === 'doctor' ? '개 공고' : '명 후보'}</span></strong><input aria-label="예상 이용량" type="range" min="1" max={type === 'doctor' ? 10 : 6} value={count} onChange={(event) => setCount(Number(event.target.value))} /></div><div className="calculator-result"><span>{usePass ? '월 패스가 더 경제적이에요' : '건별 이용권이 부담이 적어요'}</span><strong>{recommended.name}</strong><p>건별 이용 시 {singleTotal.toLocaleString()}원 · 추천 상품 {recommended.price.toLocaleString()}원</p><button className="button primary" onClick={() => { trackConversion('calculator_recommendation', { type, count, planId: recommended.id }); onChoose(recommended); }}>추천 이용권 선택</button></div></div>;
 }
 
-function MembershipPage({ route }) {
+function MembershipPage({ route, qa }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [type, setType] = useState(params.get('type') === 'hospital' ? 'hospital' : 'doctor');
   const [selected, setSelected] = useState(null);
@@ -810,8 +836,10 @@ function MembershipPage({ route }) {
   const contextId = params.get('job') || params.get('candidate');
   const contextType = params.get('candidate') ? 'hospital' : params.get('job') ? 'doctor' : null;
   const contextPlan = membershipPlans.find((plan) => plan.id === `${type}-single`);
+  const qaMemberActive = qa?.active && qa.info.capabilities.membership && type === 'doctor';
   return <>
     <PageHero tone="membership" eyebrow="EARLY ACCESS PRICE" title="필요한 핵심정보만, 2,900원부터" description="기본 검색과 상담은 무료로 시작하고, 실제 결정에 필요한 검증 정보만 건별 열람권 또는 초기 멤버십 가격으로 이용합니다." />
+    {qaMemberActive && <section className="qa-membership-active"><span><Crown /></span><div><small>QA SUBSCRIPTION ACTIVE</small><strong>의료인 월 패스 이용 중</strong><p>상세 급여·근무시간·당직·협의조건이 열린 상태입니다. 다음 가상 결제일 2026.08.16</p></div><Link to="/qa-preview">테스트 상태 변경 <ArrowRight /></Link></section>}
     <section className="section membership-section"><div className="membership-tabs"><button className={type === 'doctor' ? 'active' : ''} onClick={() => setType('doctor')}><Stethoscope /> 의료인용</button><button className={type === 'hospital' ? 'active' : ''} onClick={() => setType('hospital')}><Building2 /> 병원용</button></div>{contextId && <div className="context-offer"><div><span><CircleCheck /> 무료 미리보기 확인 완료</span><h3>{type === 'doctor' ? '선택한 공고의 핵심조건만 바로 열어보세요' : '선택한 후보의 검증정보와 소개를 요청하세요'}</h3><p>{type === 'doctor' ? '상세 급여·당직·협의조건을 한 번에 확인합니다.' : '후보자 동의 확인부터 첫 인터뷰 연결까지 지원합니다.'}</p></div><button className="button primary" onClick={() => { trackConversion('context_single_offer', { type, contextId }); setSelected(contextPlan); }}>{contextPlan.price.toLocaleString()}원으로 계속</button></div>}<div className="access-explain"><div><span className="access-number">FREE</span><h3>무료로 충분히 비교</h3><p>{type === 'doctor' ? '진료과, 지역, 기본 근무형태와 공개 공고' : '진료과, 경력 연차, 희망 지역과 입사 가능 시점'}</p></div><ArrowRight /><div className="paid-access"><span className="access-number">UNLOCK</span><h3>결정할 때만 결제</h3><p>{type === 'doctor' ? '상세 급여, 정확한 근무시간, 비공개 병원 및 포지션' : '검증 경력, 세부 술기, 동의 기반 소개 요청'}</p></div></div><ValueCalculator key={type} type={type} onChoose={setSelected} /><div className="membership-grid">{plans.map((plan) => <article className={`membership-card ${plan.featured ? 'featured' : ''}`} key={plan.id}>{plan.featured && <span className="popular">추천</span>}<small>{plan.period === '월' ? 'MONTHLY PASS' : 'ONE-TIME ACCESS'}</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="price"><strong>{plan.price.toLocaleString()}</strong><span>원 / {plan.period}</span></div><ul>{plan.features.map((feature) => <li key={feature}><Check /> {feature}</li>)}</ul><button className={`button ${plan.featured ? 'primary' : 'outline'} full`} onClick={() => { trackConversion('membership_plan_select', { planId: plan.id }); setSelected(plan); }}>이용권 신청</button></article>)}</div><div className="privacy-gate"><ShieldCheck /><div><strong>결제해도 개인정보를 바로 판매하지 않습니다</strong><p>병원은 검증된 익명 정보를 열람하고 소개를 요청합니다. 의료인의 명시적 동의가 확인된 뒤에만 필요한 범위의 정보가 전달됩니다.</p></div></div></section>
     {selected && <MembershipCheckout plan={selected} onClose={() => setSelected(null)} />}
   </>;
@@ -837,22 +865,46 @@ function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', des
 
 export function App() {
   const route = useRoute();
+  const path = route.split('?')[0].replace(/\/$/, '') || '/';
+  const [qaState, setQaState] = useState(() => normalizeQaState(readStoredString(QA_PREVIEW_STORAGE_KEY)));
   useSmoothPageScroll();
   useScrollMotion(route);
-  const path = route.split('?')[0].replace(/\/$/, '') || '/';
+
+  const selectQaState = useCallback((nextState) => {
+    const normalized = normalizeQaState(nextState) || 'guest';
+    setQaState(normalized);
+    writeStoredString(QA_PREVIEW_STORAGE_KEY, normalized);
+  }, []);
+  const exitQaPreview = useCallback(() => {
+    setQaState('');
+    writeStoredString(QA_PREVIEW_STORAGE_KEY, '');
+    navigate('/');
+  }, []);
+  useEffect(() => {
+    if (path === '/qa-preview' && !qaState) selectQaState('guest');
+  }, [path, qaState, selectQaState]);
+
+  const qaActive = path === '/qa-preview' || Boolean(qaState);
+  const qaInfo = getQaStateInfo(qaState);
+  const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
+  const mobileAction = qa.active && (qa.info.capabilities.admin || qa.info.capabilities.hospital)
+    ? { to: '/qa-preview', label: qa.info.capabilities.admin ? '관리 콘솔' : '내 공고 관리' }
+    : { to: '/advertise', label: '공고 등록' };
+
   let page;
   if (path === '/') page = <HomePage />;
-  else if (path === '/jobs') page = <JobsPage route={route} />;
+  else if (path === '/jobs') page = <JobsPage route={route} qa={qa} />;
   else if (path === '/professions') page = <Redirect to="/headhunting" />;
   else if (path === '/talent') page = <TalentPage />;
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage />;
-  else if (path === '/membership') page = <MembershipPage route={route} />;
+  else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
+  else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><MediAngelAssistant /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;
+  return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer /><MediAngelAssistant /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
 }
