@@ -2080,6 +2080,48 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(max-width:900px){.job-hub-nav>div{justify-content:flex-start;overflow-x:auto;scrollbar-width:none}.job-hub-nav>div::-webkit-scrollbar{display:none}.standard-job-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.doctor-search-title{align-items:flex-start;flex-wrap:wrap}.doctor-search-title>button{margin-left:auto}}
 @media(max-width:780px){.page-hero.jobs-hero{padding:45px 20px 42px}.page-hero.jobs-hero h1{font-size:31px}.job-hub-nav>div{min-height:62px;padding-inline:16px}.job-hub-nav a{min-height:38px;padding-inline:14px}.doctor-search-dock{margin-inline:-4px;padding:15px;border-radius:16px}.doctor-search-dock .filter-bar{gap:8px}.doctor-search-dock .filter-bar label,.doctor-search-dock .filter-bar label:first-child,.doctor-search-dock .filter-bar label:last-child{height:52px;border:1px solid #dce4ef;border-radius:10px}.promoted-grid,.premium-rotation-page.single-item{grid-template-columns:1fr}.standard-job-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.job-card.job-card-compact{min-height:270px;padding:14px}.job-card-compact h3{font-size:15px}}
 @media(max-width:520px){.doctor-search-title>span{width:100%}.doctor-search-title>strong{max-width:75%;font-size:15px}.standard-job-grid{grid-template-columns:1fr}.job-card.job-card-compact{min-height:0}.job-card-compact h3{min-height:0;-webkit-line-clamp:2}.job-hub-nav a.job-hub-register{margin-left:0}}
+
+/* Adaptive performance mode: automatically removes expensive rendering on constrained devices. */
+html.performance-lite{scroll-behavior:auto!important}
+html.performance-lite *,html.performance-lite *:before,html.performance-lite *:after{
+  animation:none!important;
+  scroll-behavior:auto!important;
+  transition-duration:.01ms!important;
+  transition-delay:0ms!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+html.performance-lite .scroll-progress{display:none!important}
+html.performance-lite.motion-enabled .scroll-reveal,
+html.performance-lite.motion-enabled .scroll-reveal.is-visible{
+  opacity:1!important;
+  filter:none!important;
+  transform:none!important;
+  will-change:auto!important;
+}
+html.performance-lite .home-hero .hero-copy,
+html.performance-lite .home-hero .concierge-card,
+html.performance-lite .route-stage,
+html.performance-lite .route-stage.route-leaving,
+html.performance-lite .job-card,
+html.performance-lite .job-card:hover,
+html.performance-lite .job-card.scroll-reveal:hover,
+html.performance-lite .premium-ad .ad-brand-stage,
+html.performance-lite .premium-ad .hospital-logo.prominent,
+html.performance-lite .premium-ad .hospital-wordmark{
+  transform:none!important;
+  filter:none!important;
+  will-change:auto!important;
+}
+html.performance-lite .premium-ad:after,
+html.performance-lite .ad-brand-stage:after,
+html.performance-lite .brand-media-backdrop,
+html.performance-lite .medi-angel-sparkle{display:none!important}
+html.performance-lite .site-header,
+html.performance-lite .motion-notice,
+html.performance-lite .modal-card,
+html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
+html.performance-lite .motion-notice{background:#fff}
 @media(prefers-reduced-motion:reduce){html:not(.force-motion) .doctor-condition-filter button{transition:none;transform:none}}
 .brand-banner-upload{display:grid;grid-template-columns:minmax(210px,1.25fr) minmax(230px,1fr);align-items:center;gap:17px;margin-bottom:15px;padding:16px;border:1px solid #d7e2ef;border-radius:16px;background:linear-gradient(135deg,#eef5ff,#f8fbff 58%,#eefaf7)}
 .banner-preview{aspect-ratio:3/1;min-height:112px;border:1px solid rgba(167,188,216,.7);border-radius:13px;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 10px 24px rgba(27,58,99,.08)}

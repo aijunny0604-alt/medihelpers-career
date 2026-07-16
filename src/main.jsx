@@ -45,12 +45,37 @@ function useRoute() {
   return route;
 }
 
-function motionIsReduced() {
-  if (new URLSearchParams(window.location.search).get('motion') === 'full') writeStoredString('medihelpers_motion', 'full');
-  const forced = readStoredString('medihelpers_motion') === 'full';
-  document.documentElement.classList.toggle('force-motion', forced);
-  return !forced && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function getPerformanceProfile() {
+  const queryMode = new URLSearchParams(window.location.search).get('motion');
+  if (queryMode === 'full' || queryMode === 'lite') writeStoredString('medihelpers_motion', queryMode);
+  const savedMode = readStoredString('medihelpers_motion');
+  const forceFull = savedMode === 'full';
+  const forceLite = savedMode === 'lite';
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lowCpu = Number.isFinite(navigator.hardwareConcurrency) && navigator.hardwareConcurrency <= 4;
+  const lowMemory = Number.isFinite(navigator.deviceMemory) && navigator.deviceMemory <= 4;
+  const dataSaver = Boolean(connection?.saveData);
+  const slowNetwork = /(^|-)2g$/.test(connection?.effectiveType || '');
+  const reduced = forceLite || (!forceFull && (prefersReduced || lowCpu || lowMemory || dataSaver || slowNetwork));
+  const reasons = [
+    prefersReduced && '시스템 동작 줄이기',
+    lowCpu && '저사양 CPU',
+    lowMemory && '메모리 절약',
+    dataSaver && '데이터 절약 모드',
+    slowNetwork && '느린 네트워크'
+  ].filter(Boolean);
+  document.documentElement.classList.toggle('force-motion', forceFull);
+  document.documentElement.classList.toggle('performance-lite', reduced);
+  document.documentElement.dataset.performance = reduced ? 'lite' : 'full';
+  return { reduced, reasons, forceFull };
 }
+
+function motionIsReduced() {
+  return getPerformanceProfile().reduced;
+}
+getPerformanceProfile();
+
 function useScrollMotion(route) {
   useLayoutEffect(() => {
     const reduced = motionIsReduced();
@@ -119,14 +144,14 @@ function useScrollMotion(route) {
 }
 
 function navigate(path) {
+  const reducedMotion = motionIsReduced();
   const commitNavigation = () => {
     if (getRoute() !== path) window.history.pushState({}, '', withBase(path));
     window.dispatchEvent(new PopStateEvent('popstate'));
     const navigation = new CustomEvent('medihelpers:navigate', { cancelable: true });
     window.dispatchEvent(navigation);
-    if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
   };
-  const reducedMotion = motionIsReduced();
   const currentPage = document.querySelector('.route-stage');
   if (reducedMotion || !currentPage) return commitNavigation();
   currentPage.classList.add('route-leaving');
@@ -305,7 +330,7 @@ function HospitalLogo({ job, prominent = false, source, fit }) {
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const mood = getHospitalMood(job);
   return <span className={`hospital-logo ${prominent ? 'prominent' : ''} ${hasBrandAsset ? 'has-image' : 'has-text'} logo-fit-${brandFit} ${job.brandAsset ? `brand-asset-${job.brandAsset}` : ''}`} style={{ '--logo-color': mood.primary }}>
-    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : brandSource ? <img src={brandUrl} alt={`${job.hospital} ${brandFit === 'banner' ? '배너' : '로고'}`} /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
+    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : brandSource ? <img src={brandUrl} alt={`${job.hospital} ${brandFit === 'banner' ? '배너' : '로고'}`} loading="lazy" decoding="async" /> : <b>{job.logoText || job.hospital.slice(0, 2)}</b>}
   </span>;
 }
 
@@ -333,7 +358,7 @@ function JobCard({ job, saved, onSave, onOpen, preview = false, qa, variant = ''
   const qaUnlocked = restricted && qa?.active && qa.info.capabilities.privateDetails;
   const adLabel = job.adTier === 'spotlight' ? '집중채용 브랜드관' : '추천 브랜드관';
   const moveCardLight = (event) => {
-    if (!isAd || event.pointerType === 'touch') return;
+    if (!isAd || event.pointerType === 'touch' || document.documentElement.classList.contains('performance-lite')) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
@@ -425,14 +450,21 @@ function MemberTeaser() {
 }
 
 function MotionNotice() {
-  const [visible, setVisible] = useState(false);
+  const [profile, setProfile] = useState({ reduced: false, reasons: [] });
   useEffect(() => {
-    const forced = readStoredString('medihelpers_motion') === 'full';
-    document.documentElement.classList.toggle('force-motion', forced);
-    setVisible(window.matchMedia('(prefers-reduced-motion: reduce)').matches && !forced);
+    const update = () => setProfile(getPerformanceProfile());
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    update();
+    media.addEventListener?.('change', update);
+    connection?.addEventListener?.('change', update);
+    return () => {
+      media.removeEventListener?.('change', update);
+      connection?.removeEventListener?.('change', update);
+    };
   }, []);
-  if (!visible) return null;
-  return <aside className="motion-notice"><Activity /><div><strong>이 PC에서 모션 효과가 줄어들고 있습니다</strong><span>Windows 또는 브라우저의 애니메이션 줄이기 설정을 감지했습니다.</span></div><button onClick={() => { writeStoredString('medihelpers_motion', 'full'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>이 사이트에서는 켜기</button></aside>;
+  if (!profile.reduced) return null;
+  return <aside className="motion-notice"><Activity /><div><strong>경량 모드가 자동 적용되었습니다</strong><span>{profile.reasons.length ? profile.reasons.join(' · ') : '이 기기에서는 애니메이션을 줄여 더 빠르게 표시합니다.'}</span></div><button onClick={() => { writeStoredString('medihelpers_motion', 'full'); document.documentElement.classList.remove('performance-lite'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>효과 켜기</button></aside>;
 }
 
 function MediAngelAssistant() {
@@ -585,14 +617,17 @@ function PremiumAdCarousel({ items, renderCard }) {
   useEffect(() => setPage(0), [items, slotCount]);
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReducedMotion(!document.documentElement.classList.contains('force-motion') && media.matches);
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const update = () => setReducedMotion(motionIsReduced());
     const onVisibility = () => setDocumentVisible(!document.hidden);
     update();
     document.addEventListener('visibilitychange', onVisibility);
     media.addEventListener?.('change', update);
+    connection?.addEventListener?.('change', update);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       media.removeEventListener?.('change', update);
+      connection?.removeEventListener?.('change', update);
     };
   }, []);
   useEffect(() => {
