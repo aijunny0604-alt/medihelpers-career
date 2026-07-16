@@ -471,7 +471,145 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   border-bottom: 1px solid #e1e8f1;
 }
 .standard-heading strong { color: #223754; font-size: 18px; }
-.standard-heading span { color: #8793a4; font-size: 12px; }
+.standard-heading span { color: #8793a4; font-size: 12px; font-weight: 650; }
+
+/* 진료과 빠른 필터 스트립 (균형 노출) */
+.specialty-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  margin: 0 0 18px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.specialty-strip::-webkit-scrollbar { height: 6px; }
+.specialty-strip::-webkit-scrollbar-thumb { background: #d5dfec; border-radius: 20px; }
+.specialty-chip {
+  flex: 0 0 auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid #dbe4f0;
+  border-radius: 26px;
+  background: #fff;
+  color: #42546f;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  word-break: keep-all;
+  transition: .18s;
+  scroll-snap-align: start;
+}
+.specialty-chip b {
+  font: 800 12px 'Manrope';
+  min-width: 20px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #eef3fa;
+  color: #5a6a82;
+  text-align: center;
+}
+.specialty-chip:hover { border-color: #b9cbe6; color: #1d3866; }
+.specialty-chip.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(18,99,232,.22);
+}
+.specialty-chip.active b { background: rgba(255,255,255,.22); color: #fff; }
+.specialty-chip:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* 균형 노출 설명 패널 */
+.balance-legend {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  padding: 14px 18px;
+  margin: 0 0 26px;
+  border: 1px solid #d8e6f5;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #f2f8ff, #eef7f4);
+}
+.balance-legend-icon {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: var(--blue);
+  box-shadow: 0 6px 14px rgba(26,72,130,.1);
+}
+.balance-legend-icon svg { width: 19px; }
+.balance-legend strong { display: block; font-size: 13px; color: #173359; margin-bottom: 3px; }
+.balance-legend p { margin: 0; font-size: 12px; line-height: 1.7; color: #5c6b81; word-break: keep-all; }
+
+/* 더보기 컨트롤 */
+.premium-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  margin: 22px auto 0;
+  min-height: 46px;
+  padding: 0 22px;
+  border: 1px solid #e3caa0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffaf0, #fff);
+  color: #8a6a1f;
+  font-size: 13px;
+  font-weight: 700;
+  transition: .2s;
+}
+.premium-more em {
+  font-style: normal;
+  font: 800 12px 'Manrope';
+  padding: 3px 9px;
+  border-radius: 11px;
+  background: #f5ead0;
+  color: #8a6a1f;
+}
+.premium-more svg { color: #c99a2e; }
+.premium-more:hover { border-color: #d7b463; box-shadow: 0 8px 18px rgba(203,161,74,.18); }
+.standard-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 24px;
+  min-height: 52px;
+  border: 1px solid #d4ddeb;
+  border-radius: 14px;
+  background: #fff;
+  color: #26456f;
+  font-size: 14px;
+  font-weight: 700;
+  transition: .2s;
+}
+.standard-more em { font-style: normal; color: #7c8a9e; font-weight: 650; font-size: 12px; }
+.standard-more svg { transition: .2s; }
+.standard-more:hover { border-color: var(--blue); background: #f4f8ff; color: var(--blue); }
+.standard-more:hover svg { transform: translateX(3px); }
+.premium-more:focus-visible, .standard-more:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+@media(max-width:460px) {
+  .specialty-strip { margin-right: -20px; padding-right: 20px; }
+  .balance-legend { padding: 13px 15px; }
+  .standard-more { min-height: 50px; font-size: 13px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:not(.force-motion) .specialty-chip,
+  html:not(.force-motion) .premium-more,
+  html:not(.force-motion) .standard-more,
+  html:not(.force-motion) .standard-more svg { transition: none!important; }
+  html:not(.force-motion) .standard-more:hover svg { transform: none!important; }
+}
 .job-card.premium-ad.ad-featured {
   box-shadow: 0 17px 40px color-mix(in srgb, var(--job-color) 11%, rgba(31,61,103,.09));
 }

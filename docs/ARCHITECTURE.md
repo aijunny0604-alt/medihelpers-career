@@ -29,6 +29,14 @@
 - account and verification
 - admin operations
 
+## Job Exposure (균형 노출)
+
+- 순수 모듈 `src/jobExposure.js`(테스트 `src/jobExposure.test.js`)가 목록 노출 순서를 계산합니다. React·DOM 의존이 없어 단위 테스트로 검증합니다.
+- `balancedOrder`: 진료과(dept) 라운드로빈 + 지역(region) 보조 분산으로 안정적 인터리빙. 가장 작은 버킷 내부는 원본 등록 순서를 유지(최신 등록순 대용).
+- `orderPremium`: 광고 등급 우선순위(spotlight→featured→basic)를 유지한 채 등급 내부에서만 진료과·지역 균형.
+- 회전 seed는 UTC 일 단위(`Math.floor(Date.now()/86400000)`)로 세션당 1회 계산 → 하루 동안 순서 고정, 매일 첫 진료과만 순환. 세션 내 무작위 재정렬 없음, 항목 손실/중복 없음.
+- `JobsPage`는 프리미엄 초기 6건 / 일반 초기 9건만 노출하고 더보기로 확장해, 광고가 많아도 일반 목록을 끝없이 밀어내지 않습니다(유료 최상단 유지 + 목록 균형).
+
 ## Current Rules
 
 - 결제 승인, 권한 검사, 개인정보 접근은 브라우저에서 확정하지 않습니다.

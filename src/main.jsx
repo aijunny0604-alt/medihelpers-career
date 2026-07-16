@@ -20,6 +20,7 @@ import {
   writeStoredValue
 } from './browserStorage.js';
 import { appBase, withBase } from './basePath.js';
+import { balancedOrder, orderPremium, countByDept } from './jobExposure.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
@@ -452,6 +453,16 @@ function Redirect({ to }) {
   }, [to]);
   return null;
 }
+const PREMIUM_STEP = 6;
+const STANDARD_STEP = 9;
+
+function matchesJob(job, { dept, region, keyword }) {
+  const deptOk = dept === '전체 진료과' || job.dept === dept;
+  const regionOk = region === '전국' || job.region === region;
+  const keywordOk = !keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${job.benefits.join(' ')}`.toLowerCase().includes(keyword.toLowerCase());
+  return deptOk && regionOk && keywordOk;
+}
+
 function JobsPage({ route }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [dept, setDept] = useState(params.get('dept') || '전체 진료과');
@@ -459,14 +470,55 @@ function JobsPage({ route }) {
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
   const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
-  const filtered = useMemo(() => prioritizeJobs(jobs.filter((job) => (dept === '전체 진료과' || job.dept === dept || (dept === '전문의' && job.dept === '전문의')) && (region === '전국' || job.region === region) && (!keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${job.benefits.join(' ')}`.toLowerCase().includes(keyword.toLowerCase())))), [dept, region, keyword]);
-  const promotedJobs = filtered.filter((job) => job.adTier);
-  const standardJobs = filtered.filter((job) => !job.adTier);
+  const [premiumVisible, setPremiumVisible] = useState(PREMIUM_STEP);
+  const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
+
+  // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
+  const daySeed = useMemo(() => Math.floor(Date.now() / 86400000), []);
+
+  // 진료과 빠른 필터용: 진료과 필터 이전, 지역+키워드만 적용한 결과의 진료과별 개수.
+  const specialtyStrip = useMemo(() => {
+    const scoped = jobs.filter((job) => matchesJob(job, { dept: '전체 진료과', region, keyword }));
+    const counts = Object.fromEntries(countByDept(scoped).map((item) => [item.key, item.count]));
+    const items = [{ key: '전체 진료과', label: '전체', count: scoped.length }];
+    departments.forEach((name) => {
+      if (name === '전체 진료과') return;
+      if (counts[name]) items.push({ key: name, label: name, count: counts[name] });
+    });
+    return items;
+  }, [region, keyword]);
+
+  const filtered = useMemo(() => jobs.filter((job) => matchesJob(job, { dept, region, keyword })), [dept, region, keyword]);
+  // 프리미엄: 등급 우선순위 유지 + 등급 내부 진료과·지역 균형.
+  const orderedPromoted = useMemo(() => orderPremium(filtered.filter((job) => job.adTier), { seed: daySeed }), [filtered, daySeed]);
+  // 일반: 진료과·지역 라운드로빈 균형.
+  const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => !job.adTier), { seed: daySeed }), [filtered, daySeed]);
+
+  // 필터 변경 시 더보기 카운트 초기화.
+  useEffect(() => {
+    setPremiumVisible(PREMIUM_STEP);
+    setStandardVisible(STANDARD_STEP);
+  }, [dept, region, keyword]);
+
   const toggleSaved = (id) => setSaved((current) => {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
     writeStoredValue('medihelpers_saved_jobs', next);
     return next;
   });
+  const resetFilters = () => {
+    setDept('전체 진료과');
+    setRegion('전국');
+    setKeyword('');
+    setPremiumVisible(PREMIUM_STEP);
+    setStandardVisible(STANDARD_STEP);
+  };
+  const renderCard = (job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
+
+  const visiblePromoted = orderedPromoted.slice(0, premiumVisible);
+  const visibleStandard = orderedStandard.slice(0, standardVisible);
+  const premiumRemaining = orderedPromoted.length - visiblePromoted.length;
+  const standardRemaining = orderedStandard.length - visibleStandard.length;
+
   return <>
     <PageHero
       tone="jobs-hero"
@@ -475,9 +527,15 @@ function JobsPage({ route }) {
       description={<><span className="jobs-description-part">현재 의사 채용정보를</span>{' '}<span className="jobs-description-part">우선 운영하고 있습니다.</span>{' '}<span className="jobs-description-part">다른 보건의료 직군은 전용관에서</span>{' '}<span className="jobs-description-part">오픈 알림을 신청할 수 있습니다.</span></>}
     ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
+      <div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
-      {filtered.length ? <>{promotedJobs.length > 0 && <div className="promoted-jobs"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong></div><small>집중채용 · 추천 광고 우선 노출</small></div><div className="job-grid promoted-grid">{promotedJobs.map((job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />)}</div></div>}{standardJobs.length > 0 && <div className="standard-jobs">{promotedJobs.length > 0 && <div className="standard-heading"><strong>전체 채용공고</strong><span>최신 등록순</span></div>}<div className="job-grid">{standardJobs.map((job) => <JobCard key={job.id} job={job} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />)}</div></div>}<div className="decision-nudge"><div><span><Crown /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}개 병원, 조건별로 비교해보세요` : '관심 병원을 고르고 매칭 리포트를 만들어보세요'}</h3><p>근무·보수·거리·진료 범위를 비교하고 확인할 질문을 헤드헌터에게 그대로 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=doctor" onClick={() => trackConversion('jobs_matching_report', { savedCount: saved.length })}>매칭 리포트 만들기 <ArrowRight /></Link></div></> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={() => { setDept('전체 진료과'); setRegion('전국'); setKeyword(''); }}>검색 초기화</button></div>}
+      {filtered.length ? <>
+        <div className="balance-legend"><span className="balance-legend-icon"><Sparkles /></span><div><strong>균형 노출</strong><p>집중채용·추천 광고는 최상단 프리미엄 영역에 그대로 유지되고, 그 아래 전체 공고는 진료과·지역이 번갈아 나오도록 배치됩니다. 순위를 무작위로 섞지 않으며 유료 노출도 숨기지 않습니다.</p></div></div>
+        {orderedPromoted.length > 0 && <div className="promoted-jobs"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong></div><small>집중채용 · 추천 광고 우선 노출 · 진료과·지역 균형</small></div><div className="job-grid promoted-grid">{visiblePromoted.map(renderCard)}</div>{premiumRemaining > 0 && <button type="button" className="premium-more" onClick={() => setPremiumVisible((current) => current + PREMIUM_STEP)}><Crown size={15} /> 프리미엄 공고 더보기 <em>{premiumRemaining}개</em></button>}</div>}
+        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><strong>전체 채용공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><div className="job-grid">{visibleStandard.map(renderCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
+        <div className="decision-nudge"><div><span><Crown /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}개 병원, 조건별로 비교해보세요` : '관심 병원을 고르고 매칭 리포트를 만들어보세요'}</h3><p>근무·보수·거리·진료 범위를 비교하고 확인할 질문을 헤드헌터에게 그대로 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=doctor" onClick={() => trackConversion('jobs_matching_report', { savedCount: saved.length })}>매칭 리포트 만들기 <ArrowRight /></Link></div>
+      </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
     {selected && <JobDetail job={selected} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
