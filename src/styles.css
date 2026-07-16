@@ -2037,6 +2037,49 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   .premium-ad .logo-stage.media-mark .ad-hospital-caption small{font-size:10px!important}
 }
 @media(max-width:390px){.premium-ad .logo-stage.media-mark,.featured-section .premium-ad .logo-stage.media-mark{grid-template-columns:60px minmax(0,1fr);gap:12px}.premium-ad .logo-stage.media-mark .hospital-logo.prominent.has-image:not(.brand-asset-bluecare),.featured-section .premium-ad .logo-stage.media-mark .hospital-logo.prominent.has-image:not(.brand-asset-bluecare){width:58px;height:58px}.premium-ad .logo-stage.media-mark .ad-hospital-caption strong,.featured-section .premium-ad .logo-stage.media-mark .ad-hospital-caption strong{font-size:16px}}
+
+/* Doctor recruitment hub — Medigate-inspired information flow, simplified for Medihelpers. */
+.page-hero.jobs-hero{padding:56px 24px 50px;background:linear-gradient(135deg,#f8fbff 0%,#eef5ff 58%,#f0faf7 100%)}
+.page-hero.jobs-hero h1{margin-top:15px;font-size:clamp(38px,3.2vw,54px)}
+.page-hero.jobs-hero p{margin-bottom:20px}
+.job-hub-nav{position:relative;z-index:8;border-bottom:1px solid #dfe6ef;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(27,57,96,.05)}
+.job-hub-nav>div{max-width:1500px;min-height:70px;margin:auto;padding:0 max(24px,calc((100vw - 1500px)/2));display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.job-hub-nav a{min-height:40px;padding:0 17px;border-radius:999px;color:#65738a;display:inline-flex;align-items:center;font-size:13px;font-weight:750;white-space:nowrap}
+.job-hub-nav a:hover,.job-hub-nav a:focus-visible{background:#f1f5fa;color:#173b6d;outline:0}
+.job-hub-nav a.active{background:#1263e8;color:#fff;box-shadow:0 8px 18px rgba(18,99,232,.2)}
+.job-hub-nav a.job-hub-register{margin-left:8px;border:1px solid #cedaea;background:#fff;color:#173b6d}
+.jobs-page{padding-top:36px}
+.doctor-search-dock{margin-bottom:20px;padding:22px;border:1px solid #bcd0eb;border-top:4px solid #1263e8;border-radius:18px;background:#fff;box-shadow:0 20px 52px rgba(27,66,121,.1)}
+.doctor-search-title{margin-bottom:15px;display:flex;align-items:center;gap:14px}
+.doctor-search-title>span{color:#1263e8;display:flex;align-items:center;gap:6px;font:800 10px 'Manrope';letter-spacing:1px}
+.doctor-search-title>span svg{width:14px}
+.doctor-search-title>strong{color:#1d3352;font-size:17px;letter-spacing:-.4px}
+.doctor-search-title>button{margin-left:auto;border:0;background:transparent;color:#8692a3;font-size:12px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.doctor-search-dock .filter-bar{margin-bottom:12px;padding:0;border:0;border-radius:0;background:transparent;gap:0}
+.doctor-search-dock .filter-bar label{height:58px;border-radius:0;border-color:#dce4ef;border-right:0;padding-inline:17px}
+.doctor-search-dock .filter-bar label:first-child{border-radius:12px 0 0 12px}
+.doctor-search-dock .filter-bar label:last-child{border-right:1px solid #dce4ef;border-radius:0 12px 12px 0}
+.doctor-search-dock .doctor-condition-filter{margin-bottom:0;padding-top:2px}
+.promoted-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.premium-rotation-page.single-item{grid-template-columns:minmax(0,calc(33.333% - 12px))}
+.standard-heading>div small{color:#1263e8;font:800 10px 'Manrope';letter-spacing:1px}
+.standard-job-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.job-card.job-card-compact{min-height:290px;padding:17px;border-radius:14px;display:flex;flex-direction:column;box-shadow:none}
+.job-card.job-card-compact:hover{transform:translateY(-2px);border-color:#9ebce4;box-shadow:0 13px 28px rgba(30,64,108,.08)}
+.job-card-compact .tag{padding:4px 7px}
+.job-card-compact .job-hospital{margin-top:13px;gap:7px}
+.job-card-compact .hospital-logo{width:28px;height:28px;border-radius:7px}
+.job-card-compact .job-hospital strong{font-size:12px;color:#66758b}
+.job-card-compact h3{min-height:66px;margin:13px 0 9px;font-size:16px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.job-card-compact .meta{flex-wrap:wrap;gap:7px 11px;font-size:11px}
+.job-card-compact .meta svg{width:13px}
+.job-card-compact .job-bottom{margin-top:auto;padding-top:13px;align-items:center}
+.job-card-compact .job-bottom strong{color:#0d478f;font-size:12px}
+.job-card-compact .card-action{margin-top:11px;padding-top:11px;font-size:11px}
+@media(max-width:1180px){.promoted-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.premium-rotation-page.single-item{grid-template-columns:minmax(0,calc(50% - 10px))}.standard-job-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.job-hub-nav>div{justify-content:flex-start;overflow-x:auto;scrollbar-width:none}.job-hub-nav>div::-webkit-scrollbar{display:none}.standard-job-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.doctor-search-title{align-items:flex-start;flex-wrap:wrap}.doctor-search-title>button{margin-left:auto}}
+@media(max-width:780px){.page-hero.jobs-hero{padding:45px 20px 42px}.page-hero.jobs-hero h1{font-size:31px}.job-hub-nav>div{min-height:62px;padding-inline:16px}.job-hub-nav a{min-height:38px;padding-inline:14px}.doctor-search-dock{margin-inline:-4px;padding:15px;border-radius:16px}.doctor-search-dock .filter-bar{gap:8px}.doctor-search-dock .filter-bar label,.doctor-search-dock .filter-bar label:first-child,.doctor-search-dock .filter-bar label:last-child{height:52px;border:1px solid #dce4ef;border-radius:10px}.promoted-grid,.premium-rotation-page.single-item{grid-template-columns:1fr}.standard-job-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.job-card.job-card-compact{min-height:270px;padding:14px}.job-card-compact h3{font-size:15px}}
+@media(max-width:520px){.doctor-search-title>span{width:100%}.doctor-search-title>strong{max-width:75%;font-size:15px}.standard-job-grid{grid-template-columns:1fr}.job-card.job-card-compact{min-height:0}.job-card-compact h3{min-height:0;-webkit-line-clamp:2}.job-hub-nav a.job-hub-register{margin-left:0}}
 @media(prefers-reduced-motion:reduce){html:not(.force-motion) .doctor-condition-filter button{transition:none;transform:none}}
 .brand-banner-upload{display:grid;grid-template-columns:minmax(210px,1.25fr) minmax(230px,1fr);align-items:center;gap:17px;margin-bottom:15px;padding:16px;border:1px solid #d7e2ef;border-radius:16px;background:linear-gradient(135deg,#eef5ff,#f8fbff 58%,#eefaf7)}
 .banner-preview{aspect-ratio:3/1;min-height:112px;border:1px solid rgba(167,188,216,.7);border-radius:13px;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 10px 24px rgba(27,58,99,.08)}
