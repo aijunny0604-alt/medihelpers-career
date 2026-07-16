@@ -1474,3 +1474,60 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(hover:none) {
   .premium-rotation-actions button:hover { transform: none; }
 }
+
+/* Keep the hero card restrained while making the actual search controls roomier. */
+@media(min-width:1101px) {
+  .hero-search-card { width:min(100%,1040px); padding:22px 24px 24px; border-radius:25px; }
+  .hero-search-title { padding-bottom:16px; }
+  .hero-search-title>span { width:48px; height:48px; border-radius:15px; }
+  .hero-search-title>span svg { width:23px; }
+  .hero-search-title strong { font-size:18px; }
+  .hero-search-title small { font-size:13px; }
+  .hero-search-fields {
+    grid-template-columns:minmax(210px,1fr) minmax(250px,1.2fr) minmax(190px,.9fr) 220px;
+    border-radius:19px;
+  }
+  .hero-search-fields label { min-height:104px; padding:18px 22px; }
+  .hero-search-fields label>small { margin-bottom:10px; font-size:13px; }
+  .hero-search-fields label>span { gap:12px; }
+  .hero-search-fields label>span>svg { width:21px; height:21px; }
+  .hero-select-trigger { min-height:38px; font-size:18px; line-height:1.25; }
+  .hero-select-trigger>span { overflow:visible; text-overflow:clip; white-space:normal; word-break:keep-all; }
+  .hero-search-button { min-width:0; margin:8px; border-radius:15px; font-size:17px; }
+  .popular-searches { padding-top:15px; }
+}
+@media(min-width:1101px) and (max-width:1399px) {
+  .hero-search-card { width:min(100%,960px); padding:20px 22px 22px; }
+  .hero-search-fields { grid-template-columns:minmax(185px,1fr) minmax(220px,1.18fr) minmax(170px,.9fr) 200px; }
+  .hero-search-fields label { min-height:98px; padding:17px 18px; }
+  .hero-select-trigger { font-size:17px; }
+  .hero-search-button { font-size:16px; }
+}
+
+.phone-verification-field { grid-column:1 / -1; }
+.signup-phone-row { display:grid; grid-template-columns:minmax(0,1fr) 150px; gap:10px; }
+.signup-phone-row button {
+  min-height:58px;
+  padding:0 16px;
+  border:1px solid #a9c8ef;
+  border-radius:14px;
+  background:#edf5ff;
+  color:#105ccc;
+  font-size:14px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.signup-phone-row button:hover { border-color:#6c9fe3; background:#e4f0ff; }
+.signup-phone-row button:focus-visible { outline:3px solid rgba(18,99,232,.22); outline-offset:2px; }
+.phone-verification-preview { display:flex; align-items:flex-start; gap:9px; padding:13px 14px; border:1px solid #cce4dc; border-radius:13px; background:#f1faf7; color:#177e69; }
+.phone-verification-preview>svg { width:18px; flex:0 0 auto; margin-top:1px; }
+.phone-verification-preview>span { display:flex; flex-direction:column; }
+.phone-verification-preview strong { font-size:13px; }
+.phone-verification-preview small { margin-top:3px; color:#5f776f; font-size:12px; line-height:1.55; word-break:keep-all; }
+@media(max-width:520px) {
+  .signup-phone-row { grid-template-columns:minmax(0,1fr) 128px; gap:8px; }
+  .signup-phone-row button { padding-inline:10px; font-size:13px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .signup-phone-row button { transition:none; }
+}

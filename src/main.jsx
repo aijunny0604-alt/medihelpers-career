@@ -392,8 +392,9 @@ function HeroSelect({ value, onChange, options, disabled = false, label }) {
     window.addEventListener('keydown', close);
     return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', close); };
   }, []);
+  const selectedOption = options.map((option) => typeof option === 'string' ? { value: option, label: option } : option).find((option) => option.value === value);
   return <div ref={rootRef} className={`hero-custom-select ${open ? 'open' : ''} opens-${placement} ${disabled ? 'disabled' : ''}`}>
-    <button type="button" className="hero-select-trigger" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}><span>{value}</span><ChevronDown /></button>
+    <button type="button" className="hero-select-trigger" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}><span>{selectedOption?.label || value}</span><ChevronDown /></button>
     {open && <div className="hero-select-menu" role="listbox" aria-label={`${label} 목록`} data-lenis-prevent>{options.map((option) => { const item = typeof option === 'string' ? { value: option, label: option } : option; return <button type="button" role="option" aria-selected={item.value === value} className={item.value === value ? 'selected' : ''} key={item.value} onClick={() => { onChange(item.value); setOpen(false); }}>{item.label}{item.value === value && <Check />}</button>; })}</div>}
   </div>;
 }

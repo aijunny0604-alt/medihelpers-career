@@ -58,7 +58,7 @@ const roleContent = {
 // autocomplete / inputMode / label 은 접근성과 입력 편의를 위해 필드별로 지정합니다.
 const FIELD_META = {
   name: { label: '이름', type: 'text', autoComplete: 'name', placeholder: '홍길동' },
-  phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true },
+  phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, hint: '주민등록번호 대신 본인 명의 휴대폰으로 확인합니다.' },
   email: { label: '이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'user@example.com' },
   password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8자 이상', hint: '영문과 숫자를 포함해 8자 이상으로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
@@ -94,7 +94,7 @@ function MemberTypeChooser() {
       <a href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>의료인 회원</small><strong>이직·채용정보를 찾고 있어요</strong><p>공고 탐색 · 비공개 상담 · 지원 관리</p></div><ArrowRight /></a>
       <a href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>병원 회원</small><strong>의료인을 채용하고 싶어요</strong><p>공고 등록 · 채용 의뢰 · 인재 소개</p></div><ArrowRight /></a>
     </div>
-    <div className="signup-security-copy"><ShieldCheck /> 어느 유형이든 가입 단계에서는 주민등록번호·면허번호·기관 서류를 받지 않습니다.</div>
+    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호는 받지 않고, 정식 오픈 시 휴대폰 본인확인으로 중복 가입을 확인합니다.</div>
   </section>;
 }
 
@@ -123,6 +123,34 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
 }
 
 // 정식 오픈 전(백엔드 signupEnabled=false)에서 동작하는 프론트엔드 전용 회원가입 신청 폼입니다.
+
+function PhoneVerificationField({ fieldId, meta, value, error, prepared, onChange, onBlur, onRequest }) {
+  const errorId = `${fieldId}-error`;
+  const hintId = `${fieldId}-hint`;
+  const describedBy = [hintId, error ? errorId : null].filter(Boolean).join(' ');
+  return <div className={`signup-field phone-verification-field ${error ? 'has-error' : ''}`}>
+    <label htmlFor={fieldId}>{meta.label}</label>
+    <div className="signup-phone-row">
+      <input
+        id={fieldId}
+        name={fieldId}
+        type="tel"
+        autoComplete="tel"
+        inputMode="numeric"
+        placeholder={meta.placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={describedBy}
+      />
+      <button type="button" onClick={onRequest}>휴대폰 인증</button>
+    </div>
+    {!error && <small id={hintId} className="signup-field-hint">{meta.hint}</small>}
+    {error && <em id={errorId} className="signup-field-error" role="alert">{error}</em>}
+    {prepared && <div className="phone-verification-preview" role="status"><ShieldCheck /><span><strong>휴대폰 본인확인 연결 위치입니다</strong><small>현재는 개인정보를 전송하지 않는 미리보기입니다. 정식 오픈 시 PASS·SMS 본인확인 창이 열립니다.</small></span></div>}
+  </div>;
+}
 // 실제 계정을 만들지 않으며, 어떤 개인정보도 브라우저에 저장하지 않습니다.
 function SignupApplicationForm({ memberType }) {
   const content = roleContent[memberType];
@@ -133,10 +161,12 @@ function SignupApplicationForm({ memberType }) {
   const [touched, setTouched] = useState({});
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [phoneVerificationPrepared, setPhoneVerificationPrepared] = useState(false);
   const formRef = useRef(null);
 
   const setField = (field, value) => {
     const nextValue = FIELD_META[field]?.phone ? formatKoreanPhone(value) : value;
+    if (field === 'phone') setPhoneVerificationPrepared(false);
     setDraft((current) => {
       const next = { ...current, [field]: nextValue };
       if (submittedOnce || touched[field]) {
@@ -154,6 +184,13 @@ function SignupApplicationForm({ memberType }) {
   const blurField = (field) => {
     setTouched((current) => ({ ...current, [field]: true }));
     setErrors((current) => ({ ...current, [field]: validateField(field, draft) }));
+  };
+
+  const preparePhoneVerification = () => {
+    const phoneError = validateField('phone', draft);
+    setTouched((current) => ({ ...current, phone: true }));
+    setErrors((current) => ({ ...current, phone: phoneError }));
+    if (!phoneError) setPhoneVerificationPrepared(true);
   };
 
   const toggleConsent = (key, value) => {
@@ -196,6 +233,7 @@ function SignupApplicationForm({ memberType }) {
     setErrors({});
     setTouched({});
     setSubmittedOnce(false);
+    setPhoneVerificationPrepared(false);
   };
 
   const resetForm = () => {
@@ -204,6 +242,7 @@ function SignupApplicationForm({ memberType }) {
     setErrors({});
     setTouched({});
     setSubmittedOnce(false);
+    setPhoneVerificationPrepared(false);
   };
 
   if (completed) {
@@ -212,7 +251,7 @@ function SignupApplicationForm({ memberType }) {
       <small>DRAFT CHECK COMPLETE</small>
       <h2>가입 양식 확인 완료</h2>
       <p>입력하신 항목이 형식에 맞는지 확인했습니다. 아직 실제 계정은 만들어지지 않았습니다.</p>
-      <div className="signup-launch-boundary"><LockKeyhole /><span><strong>정식 오픈 시 연결됩니다.</strong><small>본인인증과 서버 계정 생성은 법무 검토·사업자 앱 연동이 끝난 정식 오픈 시점에 연결됩니다.</small></span></div>
+      <div className="signup-launch-boundary"><LockKeyhole /><span><strong>정식 오픈 시 휴대폰 본인확인과 연결됩니다.</strong><small>본인확인기관이 제공하는 중복가입 방지정보를 서버에서 확인한 뒤 계정을 생성합니다.</small></span></div>
       <dl>
         <div><dt>선택한 회원 유형</dt><dd>{content.label}</dd></div>
         <div><dt>저장된 개인정보</dt><dd>없음</dd></div>
@@ -234,15 +273,19 @@ function SignupApplicationForm({ memberType }) {
     <p>정식 오픈 전에 미리 작성해볼 수 있는 화면입니다. 실제 계정 생성과 본인인증은 정식 오픈 시 연결되며, 지금 입력한 내용은 저장되지 않습니다.</p>
     <form ref={formRef} onSubmit={submit} noValidate>
       <div className="signup-field-grid">
-        {fields.map((field) => <SignupField
+        {fields.map((field) => field === 'phone' ? <PhoneVerificationField
           key={field}
           fieldId={`signup-${memberType}-${field}`}
           meta={FIELD_META[field]}
           value={draft[field]}
           error={submittedOnce || touched[field] ? errors[field] : ''}
+          prepared={phoneVerificationPrepared}
           onChange={(value) => setField(field, value)}
           onBlur={() => blurField(field)}
-        />)}
+          onRequest={preparePhoneVerification}
+        /> : <SignupField key={field} fieldId={`signup-${memberType}-${field}`} meta={FIELD_META[field]}
+          value={draft[field]} error={submittedOnce || touched[field] ? errors[field] : ''}
+          onChange={(value) => setField(field, value)} onBlur={() => blurField(field)} />)}
       </div>
 
       <div className="signup-consent-block">
@@ -288,7 +331,7 @@ function SignedOutCard({ memberType }) {
     <a className="button primary full signup-provider" href={withBase(`/signin-with-chatgpt?return_to=${withBase(`/signup/${memberType}`)}`)}>
       {content.label}으로 계속 <ArrowRight />
     </a>
-    <div className="signup-security-copy"><ShieldCheck /> 인증 후에도 주민등록번호·면허번호를 가입 단계에서 요구하지 않습니다.</div>
+    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 휴대폰 본인확인 결과로 가입자를 확인합니다.</div>
     <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 가입</a>
   </section>;
 }
