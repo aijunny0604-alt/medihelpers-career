@@ -1,9 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
-  LockKeyhole, ShieldCheck, Stethoscope, UserRound
+  ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
+  LockKeyhole, Mail, RotateCcw, ShieldCheck, Sparkles, Stethoscope, UserRound
 } from 'lucide-react';
 import { accountRoleLabel, validateSignup } from './signupModel.js';
+import { readStoredValue, writeStoredValue } from './browserStorage.js';
+import {
+  PREP_STEPS,
+  PREP_STORAGE_KEY,
+  SIGNUP_PROVIDERS,
+  advanceStep,
+  canAdvance,
+  isComplete,
+  providerLabel,
+  regressStep,
+  resetPreparation,
+  sanitizePreparationState,
+  selectProvider,
+  stepIndex,
+  toStoredPreparation,
+  toggleConsent
+} from './signupPreparation.js';
 import { withBase } from './basePath.js';
 
 const initialForm = (role = '') => ({
@@ -21,6 +38,11 @@ const roleContent = {
     description: '채용 탐색과 비공개 이직 상담을 위한 계정입니다.',
     afterTitle: '필요할 때만 의료인 자격 확인',
     afterCopy: '비공개 공고 열람이나 소개 진행 시점에 면허·자격 확인을 별도로 안내합니다.',
+    benefits: [
+      '채용공고 탐색과 관심공고 저장',
+      '비공개 이직 상담 우선 연결',
+      '지원·제안 진행 상황 관리'
+    ],
     icon: Stethoscope
   },
   hospital: {
@@ -30,9 +52,23 @@ const roleContent = {
     description: '채용 의뢰와 동의 기반 인재 소개를 위한 기관 담당자 계정입니다.',
     afterTitle: '필요할 때만 의료기관 확인',
     afterCopy: '공고 등록이나 인재 소개 요청 시점에 기관과 담당자 관계를 별도로 확인합니다.',
+    benefits: [
+      '채용공고 등록과 노출 관리',
+      '동의 기반 인재 소개 요청',
+      '채용 진행 상황과 상담 관리'
+    ],
     icon: Building2
   }
 };
+
+const providerVisual = {
+  email: { mark: '@', tone: 'email', icon: Mail },
+  kakao: { mark: 'K', tone: 'kakao' },
+  naver: { mark: 'N', tone: 'naver' },
+  google: { mark: 'G', tone: 'google' }
+};
+
+const stepTitles = { benefits: '가입 유형·혜택', provider: '가입 방식', consent: '필수 동의', complete: '준비 완료' };
 
 async function accountRequest(method = 'GET', body) {
   const response = await fetch('/api/account', {
@@ -74,17 +110,150 @@ function MemberTypeChooser() {
   </section>;
 }
 
-function PreparationGate({ memberType }) {
-  const content = roleContent[memberType];
-  return <section className="signup-card signup-gate">
-    <span className="signup-card-icon"><ShieldCheck /></span>
-    <small>{content.eyebrow} · SAFE LAUNCH</small>
-    <h2>{content.label} 가입을 안전하게 준비하고 있습니다</h2>
-    <p>{content.description} 가입 기능은 구현되어 있지만 법무·개인정보 검토가 끝난 뒤에만 공개됩니다.</p>
+function PrepProgress({ current }) {
+  const activeIndex = stepIndex(current);
+  return <ol className="prep-progress" aria-label="가입 준비 단계">
+    {PREP_STEPS.map((step, index) => {
+      const state = index < activeIndex ? 'done' : index === activeIndex ? 'current' : 'todo';
+      return <li key={step} className={`prep-step-dot ${state}`} aria-current={index === activeIndex ? 'step' : undefined}>
+        <span aria-hidden="true">{index < activeIndex ? <Check /> : index + 1}</span>
+        <small>{stepTitles[step]}</small>
+      </li>;
+    })}
+  </ol>;
+}
+
+function PrepBenefits({ content }) {
+  const RoleIcon = content.icon;
+  return <>
+    <div className="signup-fixed-role prep-role-badge"><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
+    <h2>{content.label}으로 준비할 수 있어요</h2>
+    <p>{content.description} 아래 혜택을 확인하고 가입 준비를 이어가세요.</p>
+    <ul className="prep-benefit-list">
+      {content.benefits.map((benefit) => <li key={benefit}><span aria-hidden="true"><Check /></span>{benefit}</li>)}
+    </ul>
     <SignupPreview />
-    <div className="signup-gate-note"><LockKeyhole /><span><strong>현재 개인정보는 수집하지 않습니다.</strong><small>가입을 기다리지 않고 상담이 필요하면 바로 연락해주세요.</small></span></div>
-    <a className="button primary full" href="mailto:hr@medihelpers.co.kr">오픈 알림 문의 <ArrowRight /></a>
-    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 보기</a>
+    <div className="signup-gate-note"><LockKeyhole /><span><strong>지금은 개인정보를 수집하지 않습니다.</strong><small>이름·전화번호·이메일 없이 가입 흐름만 미리 확인할 수 있습니다.</small></span></div>
+  </>;
+}
+
+function PrepProviders({ selectedProvider, onSelect }) {
+  return <>
+    <h2>가입 방식을 선택해주세요</h2>
+    <p>정식 오픈 시 아래 방식으로 계정을 연결합니다. 지금은 비밀번호나 인증 정보를 입력하지 않습니다.</p>
+    <div className="prep-provider-grid" role="radiogroup" aria-label="가입 방식 선택">
+      {SIGNUP_PROVIDERS.map((provider) => {
+        const visual = providerVisual[provider.id] || {};
+        const Icon = visual.icon;
+        const active = selectedProvider === provider.id;
+        return <button
+          key={provider.id}
+          type="button"
+          role="radio"
+          aria-checked={active}
+          className={`prep-provider ${active ? 'selected' : ''}`}
+          onClick={() => onSelect(provider.id)}
+        >
+          <span className={`prep-provider-mark tone-${visual.tone || 'email'}`} aria-hidden="true">{Icon ? <Icon /> : visual.mark}</span>
+          <span className="prep-provider-copy"><strong>{provider.label}로 가입</strong><small>{provider.note}</small></span>
+          {active ? <CircleCheck className="prep-provider-check" /> : <span className="prep-provider-soon" aria-hidden="true">준비중</span>}
+        </button>;
+      })}
+    </div>
+    <div className="signup-security-copy"><ShieldCheck /> 실제 로그인·비밀번호·본인인증은 법무 검토와 사업자 앱 연동이 끝난 정식 오픈 시 연결됩니다.</div>
+  </>;
+}
+
+function PrepConsent({ state, errors, onToggle }) {
+  return <>
+    <h2>필수 동의를 확인해주세요</h2>
+    <p>가입 준비를 마치려면 아래 필수 항목에 동의해야 합니다. 마케팅 수신 동의는 받지 않습니다.</p>
+    <div className="signup-agreements">
+      <label><input type="checkbox" checked={state.termsAccepted} onChange={(event) => onToggle('termsAccepted', event.target.checked)} /><span><b>[필수]</b> 서비스 이용약관에 동의합니다.</span></label>
+      <details><summary>이용약관 주요 내용</summary><p>계정은 본인만 사용하며 허위 정보·무단 정보 수집·연락처 거래를 금지합니다. 의료인과 병원의 인증 권한은 운영 확인 후 별도로 부여됩니다. 정식 공개 전 사업자 정보와 전체 약관을 확정합니다.</p></details>
+      <label><input type="checkbox" checked={state.ageConfirmed} onChange={(event) => onToggle('ageConfirmed', event.target.checked)} /><span><b>[필수]</b> 만 14세 이상입니다.</span></label>
+      <label><input type="checkbox" checked={state.privacyAcknowledged} onChange={(event) => onToggle('privacyAcknowledged', event.target.checked)} /><span><b>[필수 확인]</b> 개인정보 처리 안내를 확인했습니다.</span></label>
+      <details><summary>개인정보 처리 안내</summary><p>정식 오픈 시 계정 생성과 보안을 위해 인증 사업자 식별정보, 인증된 이메일, 회원 유형, 가입·동의 기록을 처리합니다. 준비 흐름에서는 어떤 개인정보도 저장하지 않으며, 회원 유형과 동의 확인 상태만 이 브라우저에 남습니다.</p></details>
+      {errors && <em role="alert">필수 약관과 안내를 모두 확인해주세요.</em>}
+    </div>
+    <div className="signup-no-marketing"><CircleCheck /><span><strong>광고 수신 동의는 받지 않습니다</strong><small>마케팅 알림은 정식 가입 후 원할 때만 별도로 선택할 수 있습니다.</small></span></div>
+  </>;
+}
+
+function PrepComplete({ content, state, onReset }) {
+  return <div className="prep-complete">
+    <span className="account-check"><CircleCheck /></span>
+    <small>READY TO JOIN</small>
+    <h2>가입 준비 프로필이 완료되었습니다</h2>
+    <p>정식 오픈 시 아래 선택으로 바로 가입을 이어갈 수 있도록 준비되었습니다. 실제 계정 활성화는 법무 검토 완료 후 진행됩니다.</p>
+    <dl>
+      <div><dt>회원 유형</dt><dd>{content.label}</dd></div>
+      <div><dt>선택한 가입 방식</dt><dd>{providerLabel(state.selectedProvider) || '미선택'} <span className="prep-soon-tag">정식 오픈 시 연결</span></dd></div>
+      <div><dt>필수 동의</dt><dd>이용약관 · 만 14세 · 개인정보 안내 확인</dd></div>
+      <div><dt>수집한 개인정보</dt><dd>없음</dd></div>
+    </dl>
+    <div className="signup-gate-note"><LockKeyhole /><span><strong>지금은 개인정보를 저장하지 않습니다.</strong><small>이 브라우저에는 회원 유형·선택한 방식·동의 확인 상태만 남습니다.</small></span></div>
+    <div className="account-actions">
+      <a className="button primary" href="mailto:hr@medihelpers.co.kr">오픈 알림 신청 <ArrowRight /></a>
+      <a className="button outline" href={withBase(content.role === 'doctor' ? '/jobs' : '/talent')}>먼저 둘러보기 <ArrowRight /></a>
+    </div>
+    <button type="button" className="account-delete" onClick={onReset}><RotateCcw size={13} /> 준비 내용 초기화</button>
+  </div>;
+}
+
+function PreparationFlow({ memberType }) {
+  const content = { ...roleContent[memberType], role: memberType };
+  const [state, setState] = useState(() => {
+    const stored = readStoredValue(PREP_STORAGE_KEY, null);
+    return sanitizePreparationState(stored, memberType);
+  });
+  const [showConsentError, setShowConsentError] = useState(false);
+
+  // 비민감 상태만 저장하고 새로고침 시 이어하기를 지원합니다. PII는 toStoredPreparation이 구조적으로 제거합니다.
+  useEffect(() => {
+    writeStoredValue(PREP_STORAGE_KEY, toStoredPreparation(state));
+  }, [state]);
+
+  const goNext = () => {
+    if (state.step === 'consent' && !canAdvance(state)) {
+      setShowConsentError(true);
+      return;
+    }
+    setShowConsentError(false);
+    setState((current) => advanceStep(current));
+  };
+  const goBack = () => {
+    setShowConsentError(false);
+    setState((current) => regressStep(current));
+  };
+  const reset = () => {
+    setShowConsentError(false);
+    setState(resetPreparation(memberType));
+  };
+
+  const total = PREP_STEPS.length;
+  const position = stepIndex(state.step) + 1;
+  const completed = isComplete(state);
+
+  let body;
+  if (state.step === 'benefits') body = <PrepBenefits content={content} />;
+  else if (state.step === 'provider') body = <PrepProviders selectedProvider={state.selectedProvider} onSelect={(id) => setState((current) => selectProvider(current, id))} />;
+  else if (state.step === 'consent') body = <PrepConsent state={state} errors={showConsentError} onToggle={(field, value) => setState((current) => toggleConsent(current, field, value))} />;
+  else body = <PrepComplete content={content} state={state} onReset={reset} />;
+
+  return <section className="signup-card signup-prep">
+    <div className="prep-header">
+      <span className="prep-launch-tag"><Sparkles size={13} /> {content.eyebrow} · 가입 준비 미리보기</span>
+      <PrepProgress current={state.step} />
+    </div>
+    <p className="prep-live-status" role="status" aria-live="polite">단계 {position}/{total} · {stepTitles[state.step]}</p>
+    {body}
+    {!completed && <div className="prep-actions">
+      {state.step !== 'benefits' ? <button type="button" className="button outline" onClick={goBack}><ArrowLeft size={16} /> 이전</button> : <a className="button outline" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>{memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 보기</a>}
+      {/* consent 미완료 시에도 버튼을 비활성화하지 않는다: 눌러야 goNext가 필수 동의 안내(role=alert)를 노출한다. aria-disabled도 쓰지 않고 실제로 클릭 가능하게 유지한다. */}
+      <button type="button" className="button primary" onClick={goNext}>{state.step === 'consent' ? '가입 준비 완료' : '다음'} <ArrowRight size={16} /></button>
+    </div>}
+    {!completed && <button type="button" className="prep-reset-link" onClick={reset}><RotateCcw size={13} /> 처음부터 다시</button>}
   </section>;
 }
 
@@ -196,7 +365,7 @@ export default function AccountPage({ memberType = '' }) {
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} onDeleted={() => setState((current) => ({ ...current, account: null }))} />;
   else if (!memberType) content = <MemberTypeChooser />;
-  else if (!state.signupEnabled) content = <PreparationGate memberType={memberType} />;
+  else if (!state.signupEnabled) content = <PreparationFlow memberType={memberType} />;
   else if (!state.signedIn) content = <SignedOutCard memberType={memberType} />;
   else content = <SignupForm identity={state.identity} memberType={memberType} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
   return <div className="signup-page">

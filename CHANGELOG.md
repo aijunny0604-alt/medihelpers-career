@@ -1,5 +1,16 @@
 # 업데이트 기록
 
+## 2026-07-16 · 프론트엔드 회원가입 준비 흐름 완성
+
+- `SIGNUP_ENABLED=false`일 때 차단 게이트(`PreparationGate`) 대신 완성된 다단계 가입 준비 흐름(`PreparationFlow`)을 표시
+- 의료인·병원 각각 4단계: 가입 유형·혜택 → 가입 방식 선택(이메일·카카오·네이버·Google) → 필수 약관·만 14세·개인정보 동의 → `가입 준비 프로필 완료`
+- 가입 방식은 "정식 오픈 시 연결"만 표기하고 실제 OAuth·비밀번호 입력·가짜 인증은 제공하지 않음
+- `localStorage`에는 role·selectedProvider·동의 UI 상태 등 비민감 정보만 저장(PII 미수집), 새로고침 이어하기와 초기화 지원
+- 저장값 화이트리스트 정제와 단계 클램프로 조작된 완료 화면 건너뛰기 차단
+- `src/signupPreparation.js` 순수 로직과 `src/signupPreparation.test.js` 테스트 12건 추가
+- 진행 표시, `aria-live` 상태, 44px 터치 타깃, 한글 줄바꿈, 390/360 반응형 적용
+- `SIGNUP_ENABLED=true`의 실제 플랫폼 인증·API 가입 흐름은 그대로 유지 (실제 인증·정식 계정 활성화는 법무 확정 후)
+
 ## 2026-07-16 · v64 회원가입 진입 안정화
 
 - `src/basePath.js` 공유 base 경로 도우미를 추가해 앱 전반의 내부 링크 경로 기준을 통일
