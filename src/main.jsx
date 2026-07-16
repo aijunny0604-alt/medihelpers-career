@@ -4,7 +4,7 @@ import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import {
   Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
-  CalendarDays, Check, ChevronDown, CircleCheck, ClipboardCheck, Clock3,
+  CalendarDays, Check, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, FileCheck2, Heart, HeartPulse, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
   ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
@@ -12,6 +12,7 @@ import {
 import { adPlans, jobs, membershipPlans, navItems, professions, talent } from './data.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
 import AccountPage from './AccountPage.jsx';
+import HeroSelect from './CustomSelect.jsx';
 import {
   appendStoredRecord,
   readStoredArray,
@@ -370,35 +371,6 @@ function MemberTeaser() {
   return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>MEDIHELPERS MEMBERSHIP</small><h2>둘러보기는 무료, 결정에 필요한 핵심정보는 멤버십으로</h2><p>의료인은 프리미엄 공고를, 병원은 검증된 인재정보와 소개 요청권을 이용할 수 있습니다.</p></div><Link className="button dark" to="/membership">멤버십 비교 <ArrowRight /></Link></section>;
 }
 
-function HeroSelect({ value, onChange, options, disabled = false, label }) {
-  const [open, setOpen] = useState(false);
-  const [placement, setPlacement] = useState('down');
-  const rootRef = useRef(null);
-  useLayoutEffect(() => {
-    if (!open || !rootRef.current) return;
-    const rect = rootRef.current.getBoundingClientRect();
-    const menuHeight = Math.min(options.length * 52 + 18, 340);
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    setPlacement(spaceBelow < menuHeight && spaceAbove > spaceBelow ? 'up' : 'down');
-  }, [open, options.length]);
-  useEffect(() => {
-    const close = (event) => {
-      if (event.type === 'keydown' && event.key !== 'Escape') return;
-      if (event.type === 'pointerdown' && rootRef.current?.contains(event.target)) return;
-      setOpen(false);
-    };
-    window.addEventListener('pointerdown', close);
-    window.addEventListener('keydown', close);
-    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', close); };
-  }, []);
-  const selectedOption = options.map((option) => typeof option === 'string' ? { value: option, label: option } : option).find((option) => option.value === value);
-  return <div ref={rootRef} className={`hero-custom-select ${open ? 'open' : ''} opens-${placement} ${disabled ? 'disabled' : ''}`}>
-    <button type="button" className="hero-select-trigger" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}><span>{selectedOption?.label || value}</span><ChevronDown /></button>
-    {open && <div className="hero-select-menu" role="listbox" aria-label={`${label} 목록`} data-lenis-prevent>{options.map((option) => { const item = typeof option === 'string' ? { value: option, label: option } : option; return <button type="button" role="option" aria-selected={item.value === value} className={item.value === value ? 'selected' : ''} key={item.value} onClick={() => { onChange(item.value); setOpen(false); }}>{item.label}{item.value === value && <Check />}</button>; })}</div>}
-  </div>;
-}
-
 function MotionNotice() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -648,7 +620,7 @@ function TalentPage() {
   });
   return <>
     <PageHero tone="mint" eyebrow="VERIFIED TALENT" title="병원이 기다리는 익명 의료인 인재풀" description="후보자의 동의 전에는 개인정보를 공개하지 않습니다. 필요한 진료과와 조건을 알려주시면 전담 컨설턴트가 직접 연결합니다."><Link className="button primary" to="/headhunting?role=hospital">우리 병원 인재 추천받기</Link></PageHero>
-    <section className="section"><div className="notice-bar"><ShieldCheck /><div><strong>안전한 익명 인재정보</strong><p>전문과·연차·희망 조건·입사 가능 시점까지 무료로 비교하세요. 검증 상세정보와 소개 요청은 필요한 후보에게만 사용할 수 있습니다.</p></div></div><div className="talent-toolbar"><div><span className="section-kicker">ACTIVE CANDIDATES</span><h2>최근 상담 완료 인재</h2></div><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.slice(0, -2).map((item) => <option key={item}>{item}</option>)}</select></div><div className="talent-grid">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /><button className={`talent-save ${saved.includes(person.code) ? 'saved' : ''}`} onClick={() => toggleSaved(person.code)} aria-label={`${person.code} 후보 찜하기`}><Heart fill={saved.includes(person.code) ? 'currentColor' : 'none'} /></button></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>입사 가능</dt><dd>{person.available}</dd></div></dl><div className="talent-lock-preview"><span><LockKeyhole /> 유료 상세정보</span><p>근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모</p></div><Link className="button outline full" to={`/membership?type=hospital&candidate=${person.code}`} onClick={() => trackConversion('talent_intro_cta', { candidate: person.code })}>이 후보 소개 요청 · 39,000원</Link></article>)}</div><div className="decision-nudge report-nudge"><div><span><BarChart3 /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}명 후보, 채용조건과 비교해보세요` : '관심 후보를 찜하고 적합 조건을 비교해보세요'}</h3><p>전문과목·경력·희망 지역·입사 시점을 비교하고 확인 질문을 헤드헌터에게 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=hospital">후보 매칭 리포트 <ArrowRight /></Link></div></section>
+    <section className="section"><div className="notice-bar"><ShieldCheck /><div><strong>안전한 익명 인재정보</strong><p>전문과·연차·희망 조건·입사 가능 시점까지 무료로 비교하세요. 검증 상세정보와 소개 요청은 필요한 후보에게만 사용할 수 있습니다.</p></div></div><div className="talent-toolbar"><div><span className="section-kicker">ACTIVE CANDIDATES</span><h2>최근 상담 완료 인재</h2></div><div className="talent-filter-control"><Stethoscope /><HeroSelect label="인재 진료과 필터" value={dept} onChange={setDept} options={departments.slice(0, -2)} /></div></div><div className="talent-grid">{visible.map((person) => <article className="talent-card" key={person.code}><div className="talent-top"><span className="avatar"><UserRound /></span><div><small>{person.code}</small><h3>{person.dept} · {person.career}</h3></div><BadgeCheck /><button className={`talent-save ${saved.includes(person.code) ? 'saved' : ''}`} onClick={() => toggleSaved(person.code)} aria-label={`${person.code} 후보 찜하기`}><Heart fill={saved.includes(person.code) ? 'currentColor' : 'none'} /></button></div><dl><div><dt>희망 지역</dt><dd>{person.region}</dd></div><div><dt>희망 조건</dt><dd>{person.preference}</dd></div><div><dt>입사 가능</dt><dd>{person.available}</dd></div></dl><div className="talent-lock-preview"><span><LockKeyhole /> 유료 상세정보</span><p>근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모</p></div><Link className="button outline full" to={`/membership?type=hospital&candidate=${person.code}`} onClick={() => trackConversion('talent_intro_cta', { candidate: person.code })}>이 후보 소개 요청 · 39,000원</Link></article>)}</div><div className="decision-nudge report-nudge"><div><span><BarChart3 /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}명 후보, 채용조건과 비교해보세요` : '관심 후보를 찜하고 적합 조건을 비교해보세요'}</h3><p>전문과목·경력·희망 지역·입사 시점을 비교하고 확인 질문을 헤드헌터에게 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=hospital">후보 매칭 리포트 <ArrowRight /></Link></div></section>
     <section className="section soft"><div className="feature-grid"><div><UserRoundSearch /><h3>조건 기반 후보 탐색</h3><p>진료과뿐 아니라 지역, 근무형태, 입사 가능 시점까지 확인합니다.</p></div><div><FileCheck2 /><h3>경력·자격 사전 확인</h3><p>후보자가 제공한 경력과 자격 정보를 소개 전에 점검합니다.</p></div><div><ShieldCheck /><h3>동의 기반 정보 공개</h3><p>양측의 의사를 확인한 뒤 필요한 범위의 정보만 전달합니다.</p></div></div></section>
     <ConversionBanner title="찾는 인재가 따로 있으신가요?" description="채용 조건을 남기면 공개되지 않은 인재풀까지 확인해드립니다." hospital />
   </>;
@@ -674,6 +646,8 @@ function HeadhuntingPage({ route }) {
 function Checkout({ plan, onClose }) {
   const [done, setDone] = useState(false);
   const [method, setMethod] = useState('card');
+  const [facilityType, setFacilityType] = useState('');
+  const [facilityError, setFacilityError] = useState('');
   const [logoPreview, setLogoPreview] = useState('');
   const [logoName, setLogoName] = useState('');
   const [logoError, setLogoError] = useState('');
@@ -693,6 +667,10 @@ function Checkout({ plan, onClose }) {
   };
   const submit = (event) => {
     event.preventDefault();
+    if (!facilityType) {
+      setFacilityError('기관 유형을 선택해주세요.');
+      return;
+    }
     const formData = new FormData(event.currentTarget);
     const logo = formData.get('logo');
     formData.delete('logo');
@@ -700,7 +678,7 @@ function Checkout({ plan, onClose }) {
     appendStoredRecord('medihelpers_ad_requests', { id: `AD-${Date.now()}`, planId: plan.id, amount: plan.price, paymentMethod: method, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
     setDone(true);
   };
-  return <Modal onClose={onClose} wide label="병원 광고 상품 신청">{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>광고 결제 요청이 접수되었습니다</h2><p>공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를 보내드립니다.<br />PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <><div className="checkout-title"><small>ADVERTISEMENT ORDER</small><h2>광고 상품 신청</h2><p>병원 브랜드와 채용정보를 함께 검수한 뒤 결제 링크와 게시 일정을 안내합니다.</p></div><form className="checkout-grid" onSubmit={submit}><div className="checkout-form"><div className="brand-upload"><div className="logo-preview">{logoPreview ? <img src={logoPreview} alt="선택한 병원 로고 미리보기" /> : <Building2 />}</div><label><span>병원 로고 <i>선택 · 권장</i></span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectLogo} /><div className="upload-button"><Upload /><div><strong>{logoName || '로고 파일 선택'}</strong><small>PNG·JPG·WEBP, 최대 5MB</small></div></div>{logoError && <em>{logoError}</em>}</label></div><div className="form-grid"><label><span>병원명 *</span><input required name="hospital" placeholder="병원명을 입력해주세요" /></label><label><span>기관 유형 *</span><select required name="facilityType" defaultValue=""><option value="" disabled>기관 유형 선택</option><option>종합병원</option><option>병원</option><option>요양병원</option><option>한방병원</option><option>의원</option><option>검진·전문센터</option><option>기타 의료기관</option></select></label><label><span>담당자명 *</span><input required name="manager" placeholder="담당자 성함" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" placeholder="billing@hospital.co.kr" /></label><label><span>병원 위치 *</span><input required name="address" placeholder="예: 부산광역시 연제구" /></label></div><label className="wide-field"><span>채용 직군·전문영역 *</span><input required name="department" placeholder="예: 정형외과 전문의, 방사선사 CT" /></label><label className="wide-field"><span>병원·채용 소개 <i>선택</i></span><textarea name="introduction" rows="3" placeholder="진료 환경, 기관의 강점, 채용 인원과 일정을 간단히 적어주세요." /></label><div className="payment-choice"><span>결제 안내 방식</span><div><button type="button" className={method === 'card' ? 'active' : ''} onClick={() => setMethod('card')}><CreditCard /> 카드 결제 링크</button><button type="button" className={method === 'transfer' ? 'active' : ''} onClick={() => setMethod('transfer')}><Banknote /> 계좌이체·세금계산서</button></div></div><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원 로고는 사용 권한을 확인한 파일만 등록합니다.</span></label></div><aside className="order-summary"><small>선택한 상품</small><h3>{plan.name}</h3><p>{plan.unit} 노출</p><ul>{plan.features.map((item) => <li key={item}><Check />{item}</li>)}</ul><div className="price-row"><span>결제 예정금액<small>부가세 포함</small></span><strong>{plan.price.toLocaleString()}원</strong></div><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.</p></aside></form></>}</Modal>;
+  return <Modal onClose={onClose} wide label="병원 광고 상품 신청">{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>광고 결제 요청이 접수되었습니다</h2><p>공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를 보내드립니다.<br />PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <><div className="checkout-title"><small>ADVERTISEMENT ORDER</small><h2>광고 상품 신청</h2><p>병원 브랜드와 채용정보를 함께 검수한 뒤 결제 링크와 게시 일정을 안내합니다.</p></div><form className="checkout-grid" onSubmit={submit}><div className="checkout-form"><div className="brand-upload"><div className="logo-preview">{logoPreview ? <img src={logoPreview} alt="선택한 병원 로고 미리보기" /> : <Building2 />}</div><label><span>병원 로고 <i>선택 · 권장</i></span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectLogo} /><div className="upload-button"><Upload /><div><strong>{logoName || '로고 파일 선택'}</strong><small>PNG·JPG·WEBP, 최대 5MB</small></div></div>{logoError && <em>{logoError}</em>}</label></div><div className="form-grid"><label><span>병원명 *</span><input required name="hospital" placeholder="병원명을 입력해주세요" /></label><label><span>기관 유형 *</span><HeroSelect label="기관 유형" name="facilityType" value={facilityType} onChange={(next) => { setFacilityType(next); setFacilityError(''); }} options={[{ value: '', label: '기관 유형 선택' }, '종합병원', '병원', '요양병원', '한방병원', '의원', '검진·전문센터', '기타 의료기관']} className="form-custom-select" />{facilityError && <em className="field-error">{facilityError}</em>}</label><label><span>담당자명 *</span><input required name="manager" placeholder="담당자 성함" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" placeholder="billing@hospital.co.kr" /></label><label><span>병원 위치 *</span><input required name="address" placeholder="예: 부산광역시 연제구" /></label></div><label className="wide-field"><span>채용 직군·전문영역 *</span><input required name="department" placeholder="예: 정형외과 전문의, 방사선사 CT" /></label><label className="wide-field"><span>병원·채용 소개 <i>선택</i></span><textarea name="introduction" rows="3" placeholder="진료 환경, 기관의 강점, 채용 인원과 일정을 간단히 적어주세요." /></label><div className="payment-choice"><span>결제 안내 방식</span><div><button type="button" className={method === 'card' ? 'active' : ''} onClick={() => setMethod('card')}><CreditCard /> 카드 결제 링크</button><button type="button" className={method === 'transfer' ? 'active' : ''} onClick={() => setMethod('transfer')}><Banknote /> 계좌이체·세금계산서</button></div></div><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원 로고는 사용 권한을 확인한 파일만 등록합니다.</span></label></div><aside className="order-summary"><small>선택한 상품</small><h3>{plan.name}</h3><p>{plan.unit} 노출</p><ul>{plan.features.map((item) => <li key={item}><Check />{item}</li>)}</ul><div className="price-row"><span>결제 예정금액<small>부가세 포함</small></span><strong>{plan.price.toLocaleString()}원</strong></div><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.</p></aside></form></>}</Modal>;
 }
 
 function AdvertisePage() {
