@@ -1742,3 +1742,65 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   html:not(.force-motion) .modal-card.job-detail .hospital-facts>div,
   html:not(.force-motion) .modal-card.job-detail .benefit-list>span{transition:none}
 }
+
+/* Clear visual hierarchy between spotlight and recommended advertisements. */
+.ad-stage-value{position:absolute;z-index:2;right:15px;top:13px;min-height:28px;padding:0 9px;border:1px solid color-mix(in srgb,var(--job-color) 20%,#dce5f0);border-radius:999px;background:rgba(255,255,255,.9);color:#50647f;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:-.1px;white-space:nowrap;box-shadow:0 5px 14px rgba(25,57,102,.08);backdrop-filter:blur(8px)}
+.ad-stage-value svg{width:13px;height:13px}
+.ad-spotlight .ad-stage-value{border-color:rgba(255,255,255,.52);background:rgba(16,33,63,.9);color:#fff;box-shadow:0 7px 18px rgba(12,36,72,.2)}
+.ad-featured .ad-stage-value{border-color:#d9cff9;background:rgba(248,245,255,.94);color:#684ac8}
+.spotlight-section .premium-rotator{border:1px solid #c8d9f2;background:linear-gradient(135deg,#edf4ff 0%,#f8fbff 56%,#edf9f6 100%);box-shadow:0 24px 65px rgba(23,66,126,.12)}
+.featured-section .premium-rotator{border:1px solid #e1dafa;background:linear-gradient(135deg,#faf8ff 0%,#fff 64%,#f8f6ff 100%);box-shadow:0 16px 42px rgba(78,56,145,.07)}
+.spotlight-section .promotion-heading strong{font-size:30px;letter-spacing:-1.2px}
+.featured-section .promotion-heading strong{font-size:25px;letter-spacing:-.8px}
+.spotlight-section .promoted-grid{gap:24px}
+.featured-section .promoted-grid{gap:16px}
+.spotlight-section .job-card.ad-spotlight{padding:28px;border-width:1px;border-top-width:6px;border-radius:24px;box-shadow:0 25px 64px color-mix(in srgb,var(--job-color) 16%,rgba(22,52,96,.12))}
+.spotlight-section .ad-spotlight .ad-brand-stage{min-height:218px;margin-top:20px;padding:55px 26px 25px;border-radius:21px}
+.spotlight-section .ad-spotlight .ad-brand-stage .hospital-logo.prominent.has-image{width:min(245px,76%);height:102px;border-radius:16px}
+.spotlight-section .ad-spotlight .ad-hospital-caption{margin-top:12px}
+.spotlight-section .ad-spotlight .ad-hospital-caption strong{font-size:17px}
+.spotlight-section .ad-spotlight>h3{min-height:62px;margin-top:23px;font-size:22px;line-height:1.42}
+.spotlight-section .ad-spotlight .meta{font-size:13px}
+.spotlight-section .ad-spotlight .card-action{font-size:14px;padding-top:18px}
+.featured-section .job-card.ad-featured{padding:20px;border-top-width:3px;border-radius:18px;box-shadow:0 13px 32px rgba(68,49,127,.08)}
+.featured-section .ad-featured .ad-brand-stage{min-height:136px;margin:14px -2px 0;padding:40px 17px 16px;border-width:1px;border-radius:15px;box-shadow:none}
+.featured-section .ad-featured .ad-brand-stage .hospital-logo.prominent.has-image{width:min(172px,65%);height:64px;border-radius:11px}
+.featured-section .ad-featured .ad-hospital-caption{margin-top:7px}
+.featured-section .ad-featured .ad-hospital-caption strong{font-size:13px}
+.featured-section .ad-featured>h3{min-height:50px;margin-top:16px;font-size:18px}
+.featured-section .ad-featured .meta{font-size:11px}
+.featured-section .ad-featured .job-bottom{margin-top:15px;padding-top:13px}
+.featured-section .ad-featured .card-action{margin-top:13px;padding-top:13px}
+@media(hover:hover) and (any-pointer:fine){
+  .spotlight-section .job-card.ad-spotlight:hover,.spotlight-section .job-card.ad-spotlight.scroll-reveal:hover{transform:translateY(-6px);box-shadow:0 32px 78px color-mix(in srgb,var(--job-color) 21%,rgba(19,46,86,.14))}
+  .featured-section .job-card.ad-featured:hover,.featured-section .job-card.ad-featured.scroll-reveal:hover{transform:translateY(-2px);box-shadow:0 18px 42px rgba(68,49,127,.11)}
+  .spotlight-section .ad-spotlight:hover .ad-brand-stage{transform:translateY(-3px)}
+  .featured-section .ad-featured:hover .ad-brand-stage{transform:translateY(-1px)}
+}
+@media(min-width:781px) and (max-width:1100px){
+  .spotlight-section .job-card.ad-spotlight{padding:24px}
+  .spotlight-section .ad-spotlight .ad-brand-stage{min-height:188px}
+  .spotlight-section .ad-spotlight .ad-brand-stage .hospital-logo.prominent.has-image{height:86px}
+  .featured-section .job-card.ad-featured{padding:19px}
+}
+@media(max-width:780px){
+  .spotlight-section .promotion-heading strong{font-size:24px}
+  .featured-section .promotion-heading strong{font-size:21px}
+  .spotlight-section .job-card.ad-spotlight{padding:21px;border-top-width:5px;border-radius:21px}
+  .spotlight-section .ad-spotlight .ad-brand-stage{min-height:168px;margin-top:16px;padding:47px 18px 20px}
+  .spotlight-section .ad-spotlight .ad-brand-stage .hospital-logo.prominent.has-image{width:min(205px,76%);height:78px}
+  .spotlight-section .ad-spotlight>h3{min-height:0;margin-top:19px;font-size:20px}
+  .featured-section .job-card.ad-featured{padding:17px}
+  .featured-section .ad-featured .ad-brand-stage{min-height:126px}
+  .featured-section .ad-featured>h3{min-height:0}
+}
+@media(max-width:390px){
+  .ad-stage-value{right:11px;top:11px;min-height:25px;padding-inline:7px;font-size:9px}
+  .ad-stage-value svg{width:11px;height:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  html:not(.force-motion) .spotlight-section .job-card.ad-spotlight,
+  html:not(.force-motion) .featured-section .job-card.ad-featured,
+  html:not(.force-motion) .spotlight-section .ad-brand-stage,
+  html:not(.force-motion) .featured-section .ad-brand-stage{transition:none;transform:none}
+}
