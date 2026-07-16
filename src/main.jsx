@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import {
@@ -10,6 +11,14 @@ import {
 } from 'lucide-react';
 import { adPlans, jobs, membershipPlans, navItems, professions, talent } from './data.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
+import AccountPage from './AccountPage.jsx';
+import {
+  appendStoredRecord,
+  readStoredArray,
+  readStoredString,
+  writeStoredString,
+  writeStoredValue
+} from './browserStorage.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
@@ -32,8 +41,8 @@ function useRoute() {
 }
 
 function motionIsReduced() {
-  if (new URLSearchParams(window.location.search).get('motion') === 'full') localStorage.setItem('medihelpers_motion', 'full');
-  const forced = localStorage.getItem('medihelpers_motion') === 'full';
+  if (new URLSearchParams(window.location.search).get('motion') === 'full') writeStoredString('medihelpers_motion', 'full');
+  const forced = readStoredString('medihelpers_motion') === 'full';
   document.documentElement.classList.toggle('force-motion', forced);
   return !forced && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -149,14 +158,17 @@ function useSmoothPageScroll() {
 }
 
 function trackConversion(event, detail = {}) {
-  const records = JSON.parse(localStorage.getItem('medihelpers_conversion_events') || '[]');
-  records.push({ event, detail, path: getRoute(), createdAt: new Date().toISOString() });
-  localStorage.setItem('medihelpers_conversion_events', JSON.stringify(records.slice(-100)));
+  appendStoredRecord('medihelpers_conversion_events', {
+    event,
+    detail,
+    path: getRoute(),
+    createdAt: new Date().toISOString()
+  }, 100);
 }
 
-function Link({ to, className = '', children, onClick }) {
-  return <a href={withBase(to)} className={className} onClick={(event) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+function Link({ to, className = '', children, onClick, ...anchorProps }) {
+  return <a {...anchorProps} href={withBase(to)} className={className} onClick={(event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     onClick?.();
     navigate(to);
@@ -192,12 +204,12 @@ function Modal({ children, onClose, wide = false, label = '상세 정보' }) {
       previousFocus?.focus?.();
     };
   }, [onClose]);
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+  return createPortal(<div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={label} tabIndex="-1" data-lenis-prevent>
       <button className="modal-close" onClick={onClose} aria-label="닫기"><X /></button>
-      {children}
+      <div className="modal-scroll" data-lenis-prevent>{children}</div>
     </div>
-  </div>;
+  </div>, document.body);
 }
 
 function Header({ path }) {
@@ -207,14 +219,16 @@ function Header({ path }) {
       <Link className="brand" to="/" onClick={() => setOpen(false)} aria-label="메디헬퍼스 홈">
         <img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" />
       </Link>
-      <nav className={open ? 'open' : ''}>
+      <nav id="primary-navigation" className={open ? 'open' : ''}>
         {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
+        <Link to="/signup" onClick={() => setOpen(false)} className={`mobile-account-link ${path.startsWith('/signup') ? 'active' : ''}`}>로그인·회원가입</Link>
       </nav>
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
+        <Link className="header-account" to="/signup"><UserRound size={16} /> 로그인</Link>
         <Link className="button primary compact" to="/advertise">채용공고 등록</Link>
       </div>
-      <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="메뉴 열기">{open ? <X /> : <Menu />}</button>
+      <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>
   </header>;
 }
@@ -229,7 +243,7 @@ function Footer() {
       </div>
       <div className="footer-column"><strong>의료인</strong><Link to="/jobs">채용정보</Link><Link to="/headhunting">구직 상담</Link><Link to="/about">서비스 소개</Link></div>
       <div className="footer-column"><strong>의료기관</strong><Link to="/talent">인재정보</Link><Link to="/headhunting">채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
-      <div className="footer-column"><strong>안내</strong><a href="mailto:hr@medihelpers.co.kr">문의하기</a><Link to="/about">개인정보 안내</Link><Link to="/about">이용약관</Link></div>
+      <div className="footer-column"><strong>안내</strong><Link to="/signup">로그인·회원가입</Link><a href="mailto:hr@medihelpers.co.kr">문의하기</a><Link to="/about">개인정보 안내</Link><Link to="/about">이용약관</Link></div>
     </div>
     <div className="footer-bottom"><span>© 2026 MEDIHELPERS. All rights reserved.</span><span>부산광역시 북구 만덕대로 116번길 28</span></div>
   </footer>;
@@ -311,12 +325,12 @@ function JobDetail({ job, saved, onSave, onClose }) {
   </Modal>;
 }
 
-function ConsultationForm({ initialRole = 'doctor', initialContext = '', initialProfession = '' }) {
+function ConsultationForm({ initialRole = 'doctor', initialContext = '', initialProfession = '', initialTopic = '' }) {
   const [role, setRole] = useState(initialRole);
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(null);
   const professionName = professions.find((item) => item.id === initialProfession)?.name || '';
-  const [data, setData] = useState({ topic: initialProfession ? '직군 오픈 알림' : initialContext ? '특정 공고 문의' : '', department: professionName, region: '', workType: '', message: '', name: '', phone: '', contactMethod: '전화', contactTime: '상관없음' });
+  const [data, setData] = useState({ topic: initialTopic || (initialProfession ? '직군 오픈 알림' : initialContext ? '특정 공고 문의' : ''), department: professionName, region: '', workType: '', message: '', name: '', phone: '', contactMethod: '전화', contactTime: '상관없음' });
   const topics = role === 'doctor' ? ['이직 가능성 확인', '비공개 포지션', '급여·근무조건 상담', '특정 공고 문의', '직군 오픈 알림'] : ['채용공고 등록', '의료인 추천', '급여·채용조건 설계', '긴급 채용'];
   const workTypes = role === 'doctor' ? ['주 4일', '주 4.5일', '주 5일', '협의 가능'] : ['정규직', '파트타임', '당직·대진', '협의 가능'];
   const update = (key, value) => setData((current) => ({ ...current, [key]: value }));
@@ -328,9 +342,7 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '', initial
   const submit = (event) => {
     event.preventDefault();
     const id = `MH-C-${String(Date.now()).slice(-6)}`;
-    const records = JSON.parse(localStorage.getItem('medihelpers_consultations') || '[]');
-    records.push({ id, role, context: initialContext, profession: initialProfession, status: 'new', createdAt: new Date().toISOString(), ...data });
-    localStorage.setItem('medihelpers_consultations', JSON.stringify(records));
+    appendStoredRecord('medihelpers_consultations', { id, role, context: initialContext, profession: initialProfession, status: 'new', createdAt: new Date().toISOString(), ...data });
     trackConversion('consultation_submit', { role, topic: data.topic, context: initialContext });
     setSubmitted(id);
   };
@@ -361,7 +373,16 @@ function MemberTeaser() {
 
 function HeroSelect({ value, onChange, options, disabled = false, label }) {
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState('down');
   const rootRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) return;
+    const rect = rootRef.current.getBoundingClientRect();
+    const menuHeight = Math.min(options.length * 52 + 18, 340);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    setPlacement(spaceBelow < menuHeight && spaceAbove > spaceBelow ? 'up' : 'down');
+  }, [open, options.length]);
   useEffect(() => {
     const close = (event) => {
       if (event.type === 'keydown' && event.key !== 'Escape') return;
@@ -372,7 +393,7 @@ function HeroSelect({ value, onChange, options, disabled = false, label }) {
     window.addEventListener('keydown', close);
     return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', close); };
   }, []);
-  return <div ref={rootRef} className={`hero-custom-select ${open ? 'open' : ''} ${disabled ? 'disabled' : ''}`}>
+  return <div ref={rootRef} className={`hero-custom-select ${open ? 'open' : ''} opens-${placement} ${disabled ? 'disabled' : ''}`}>
     <button type="button" className="hero-select-trigger" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}><span>{value}</span><ChevronDown /></button>
     {open && <div className="hero-select-menu" role="listbox" aria-label={`${label} 목록`} data-lenis-prevent>{options.map((option) => { const item = typeof option === 'string' ? { value: option, label: option } : option; return <button type="button" role="option" aria-selected={item.value === value} className={item.value === value ? 'selected' : ''} key={item.value} onClick={() => { onChange(item.value); setOpen(false); }}>{item.label}{item.value === value && <Check />}</button>; })}</div>}
   </div>;
@@ -381,18 +402,18 @@ function HeroSelect({ value, onChange, options, disabled = false, label }) {
 function MotionNotice() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const forced = localStorage.getItem('medihelpers_motion') === 'full';
+    const forced = readStoredString('medihelpers_motion') === 'full';
     document.documentElement.classList.toggle('force-motion', forced);
     setVisible(window.matchMedia('(prefers-reduced-motion: reduce)').matches && !forced);
   }, []);
   if (!visible) return null;
-  return <aside className="motion-notice"><Activity /><div><strong>이 PC에서 모션 효과가 줄어들고 있습니다</strong><span>Windows 또는 브라우저의 애니메이션 줄이기 설정을 감지했습니다.</span></div><button onClick={() => { localStorage.setItem('medihelpers_motion', 'full'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>이 사이트에서는 켜기</button></aside>;
+  return <aside className="motion-notice"><Activity /><div><strong>이 PC에서 모션 효과가 줄어들고 있습니다</strong><span>Windows 또는 브라우저의 애니메이션 줄이기 설정을 감지했습니다.</span></div><button onClick={() => { writeStoredString('medihelpers_motion', 'full'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>이 사이트에서는 켜기</button></aside>;
 }
 function HomePage() {
   const [profession, setProfession] = useState('doctor');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
-  const search = () => profession === 'doctor' ? navigate(`/jobs?dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`) : navigate(`/professions?profession=${profession}`);
+  const search = () => profession === 'doctor' ? navigate(`/jobs?dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`) : navigate(`/headhunting?profession=${profession}`);
   return <>
     <section className="home-hero">
       <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 모든 의료 커리어를 한곳에서</span><h1>의료인 채용,<br /><em>직군부터 정확하게.</em></h1><p>의사부터 간호·약무·방사선·임상병리·재활까지<br />내 전문영역을 선택하면 맞는 공간으로 연결됩니다.</p>
@@ -402,7 +423,7 @@ function HomePage() {
             <label><small>의료 직군</small><span><UsersRound size={19} /><HeroSelect label="의료 직군" value={profession} onChange={setProfession} options={professions.map((item) => ({ value: item.id, label: item.short }))} /></span></label>
             <label><small>{profession === 'doctor' ? '진료과' : '전문영역'}</small><span><Stethoscope size={19} /><HeroSelect label={profession === 'doctor' ? '진료과' : '전문영역'} value={profession === 'doctor' ? dept : '전체 전문영역'} disabled={profession !== 'doctor'} onChange={setDept} options={profession === 'doctor' ? departments : ['전체 전문영역']} /></span></label>
             <label><small>지역</small><span><MapPin size={19} /><HeroSelect label="지역" value={region} onChange={setRegion} options={regions} /></span></label>
-            <button className="hero-search-button" onClick={search}>{profession === 'doctor' ? '채용정보 보기' : '직군 전용관 보기'} <ArrowRight /></button>
+            <button className="hero-search-button" onClick={search}>{profession === 'doctor' ? '채용정보 보기' : '오픈 알림 신청'} <ArrowRight /></button>
           </div>
           <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
         </div>
@@ -425,38 +446,26 @@ function HomePage() {
   </>;
 }
 
-const professionIcons = { doctor: Stethoscope, nurse: HeartPulse, pharmacy: Pill, radiology: ScanLine, laboratory: Microscope, rehabilitation: Activity, dental: Smile, emergency: Ambulance };
-
-function ProfessionsPage({ route }) {
-  const params = new URLSearchParams(route.split('?')[1] || '');
-  const initialProfession = professions.some((item) => item.id === params.get('profession')) ? params.get('profession') : 'doctor';
-  const [selected, setSelected] = useState(initialProfession);
-  const activeProfession = professions.find((item) => item.id === selected) || professions[0];
-  const ActiveIcon = professionIcons[activeProfession.id];
+function ProfessionsPage() {
   return <>
-    <PageHero tone="profession" eyebrow="ONE HEALTHCARE NETWORK" title="하나로 연결하고, 직군별로 깊게" description="계정과 상담은 하나로 간단하게 이용하고 채용정보, 경력 기준, 익명 커뮤니티는 각 전문직군에 맞게 나눕니다."><Link className="button primary" to="/headhunting?profession=all">내 직군 오픈 알림 신청</Link></PageHero>
-    <section className="section profession-section">
-      <div className="profession-philosophy"><div><span className="section-kicker">UNIFIED, NOT MIXED</span><h2>직군은 나누고,<br />상담은 한곳에서</h2></div><p>필요한 기준은 직군마다 다르지만 상담 창구는 복잡할 필요가 없습니다. 직군을 선택하면 꼭 필요한 조건만 보여드리고, 모든 문의는 전담 헤드헌터에게 한 번에 연결합니다.</p></div>
-      <div className="profession-explorer">
-        <div className="profession-select-list" role="tablist" aria-label="의료 직군 선택">
-          {professions.map((item) => {
-            const Icon = professionIcons[item.id];
-            const isActive = selected === item.id;
-            return <button key={item.id} type="button" role="tab" aria-selected={isActive} className={`profession-select-button ${isActive ? 'active' : ''}`} onClick={() => setSelected(item.id)}><span><Icon /></span><div><strong>{item.name}</strong><small>{item.status === 'active' ? '채용정보 운영 중' : '오픈 알림 접수 중'}</small></div><ChevronDown /></button>;
-          })}
-        </div>
-        <article className={`profession-focus ${activeProfession.status}`} role="tabpanel">
-          <div className="profession-focus-top"><span><ActiveIcon /></span><div><small>{activeProfession.status === 'active' ? 'AVAILABLE NOW' : 'OPENING SOON'}</small><h2>{activeProfession.name}</h2></div><i>{activeProfession.status === 'active' ? '운영 중' : '파트너 모집'}</i></div>
-          <p>{activeProfession.description}</p>
-          <div className="profession-focus-label">이 직군에서 먼저 확인할 조건</div>
-          <div className="profession-focus-tags">{activeProfession.specialties.map((tag, index) => <span key={tag}><b>{String(index + 1).padStart(2, '0')}</b>{tag}</span>)}</div>
-          <div className="profession-focus-note"><UserRoundSearch /><div><strong>어떤 직군을 선택해도 상담은 한곳으로 연결됩니다</strong><p>선택한 직군과 궁금한 조건을 전달하면 전담 헤드헌터가 확인 후 연락드립니다.</p></div></div>
-          <div className="profession-focus-actions">{activeProfession.status === 'active' && <Link className="button outline" to="/jobs">채용정보 보기 <ArrowRight /></Link>}<Link className="button primary" to={`/headhunting?profession=${activeProfession.id}`}>{activeProfession.status === 'active' ? '이 직군 상담하기' : '오픈 알림·상담 신청'} <ArrowRight /></Link></div>
-        </article>
-      </div>
+    <section className="doctor-concierge-hero">
+      <div className="doctor-concierge-copy"><span className="eyebrow"><Stethoscope size={15} /> DOCTOR CAREER CONCIERGE</span><h1>의사 이직,<br /><em>공고를 보기 전에</em><br />먼저 이야기하세요</h1><p>진료과, 희망 지역, 근무일, 보수와 이직 시점을 듣고 공개·비공개 포지션을 함께 찾습니다. 지금 당장 이직하지 않아도 괜찮습니다.</p><div className="doctor-hero-actions"><a className="button primary" href="#doctor-consult">비공개 상담 신청 <ArrowRight /></a><a className="button outline" href="tel:0513425463"><Phone /> 051-342-5463</a></div><small><ShieldCheck /> 상담 내용과 이직 의사는 병원에 먼저 공개하지 않습니다.</small></div>
+      <aside className="consultant-profile"><div className="consultant-profile-top"><span><UserRoundSearch /></span><div><small>MEDIHELPERS HEADHUNTER</small><strong>의사 채용 전담 헤드헌터</strong></div><i>1:1 직접 상담</i></div><blockquote>“좋은 공고를 권하기 전에, 어떤 진료와 삶을 원하는지부터 듣겠습니다.”</blockquote><div className="consultant-scope"><span><Check /> 봉직의·전문의·일반의</span><span><Check /> 원장·네트워크·검진 포지션</span><span><Check /> 공개 전 비공개 이직 상담</span><span><Check /> 보수·일정·진료범위 조율</span></div><a href="tel:0513425463"><Phone /><span><small>평일 09:00–18:00</small><strong>전화로 바로 상담하기</strong></span><ArrowRight /></a></aside>
     </section>
-    <section className="section soft community-plan"><div className="section-head"><div><span className="section-kicker">PROFESSIONAL COMMUNITY</span><h2>익명 커뮤니티도 직군별로 정확하게</h2><p>사람을 모으기 위한 잡담 게시판보다 실제 커리어 결정에 도움이 되는 정보부터 시작합니다.</p></div></div><div className="community-grid"><div><BadgeCheck /><h3>면허·자격 기반 인증</h3><p>이름은 익명으로 활동할 수 있지만 해당 직군 구성원인지 확인합니다.</p></div><div><WalletCards /><h3>급여·근무표 인사이트</h3><p>직군과 경력, 지역, 교대형태에 따라 조건을 비교합니다.</p></div><div><MessageCircle /><h3>실무 질문과 경험</h3><p>부서 이동, 장비 경험, 교육, 면접과 이직 경험을 나눕니다.</p></div><div><BriefcaseBusiness /><h3>대화에서 채용으로</h3><p>관심 있는 정보에서 익명 상담과 검증된 채용으로 자연스럽게 연결합니다.</p></div></div></section>
-    <ConversionBanner title="당신의 직군도 메디헬퍼스에 필요합니다" description="먼저 참여한 의료인과 병원의 의견을 바탕으로 직군별 전용관을 순서대로 엽니다." />
+    <section className="section doctor-decision-section">
+      <div className="section-head centered"><div><span className="section-kicker">WHEN TO TALK</span><h2>이런 고민일 때 상담이 필요합니다</h2><p>지원서를 쓰기 전, 현재 조건을 기준으로 가능성부터 확인하세요.</p></div></div>
+      <div className="doctor-decision-grid">{[[Search,'이직 가능성만 확인','현재 연봉과 일정에서 더 나은 선택지가 있는지 조용히 확인합니다.'],[LockKeyhole,'비공개 포지션 탐색','사이트에 공개되지 않은 병원과 채용 계획까지 상담 범위에서 확인합니다.'],[Banknote,'보수와 조건 협상','연봉뿐 아니라 인센티브, 당직, 진료량과 휴무 조건을 함께 비교합니다.'],[CalendarDays,'퇴사·입사 시점 조율','현 병원 일정과 새 근무지의 채용 시점을 현실적으로 맞춥니다.']].map(([Icon,title,description]) => <article key={title}><span><Icon /></span><h3>{title}</h3><p>{description}</p></article>)}</div>
+    </section>
+    <section className="section soft doctor-prepare-section">
+      <div className="doctor-prepare-copy"><span className="section-kicker">5-MINUTE PREP</span><h2>상담 전에<br />다섯 가지만 생각해 주세요</h2><p>정확한 이력서가 아직 없어도 됩니다. 아래 조건을 대략 알려주시면 첫 상담을 시작할 수 있습니다.</p><a className="button dark" href="#doctor-consult">내 조건 남기기 <ArrowRight /></a></div>
+      <ol className="doctor-prepare-list">{[['01','진료과와 경력','전문의 여부, 주요 진료와 경력 연차'],['02','희망 지역','통근 가능 범위와 이사 가능 여부'],['03','근무 일정','희망 근무일, 당직과 주말 근무 가능 여부'],['04','보수 기준','현재 조건과 희망 보수·인센티브 기준'],['05','이직 시점','즉시, 1~3개월, 좋은 제안이 있을 때']].map(([number,title,description]) => <li key={number}><b>{number}</b><div><strong>{title}</strong><span>{description}</span></div></li>)}</ol>
+    </section>
+    <section className="section doctor-process-section"><div className="section-head centered"><div><span className="section-kicker">PRIVATE PROCESS</span><h2>접수 후에는 이렇게 진행합니다</h2></div></div><div className="step-grid three">{[[MessageCircle,'01','조건을 직접 듣습니다','남긴 내용을 확인하고 편한 연락 시간에 전담 헤드헌터가 직접 연락합니다.'],[Target,'02','맞는 병원만 선별합니다','공개 공고와 비공개 포지션 중 핵심 조건이 맞는 선택지만 정리합니다.'],[ClipboardCheck,'03','동의 후 연결합니다','병원에 정보를 전달하기 전에 의사를 확인하고 면접과 조건 협상을 돕습니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div></section>
+    <section className="section doctor-consult-section" id="doctor-consult">
+      <div className="doctor-consult-intro"><span className="section-kicker">START PRIVATE TALK</span><h2>아직 결정하지 않아도<br />상담은 시작할 수 있습니다</h2><p>입력한 내용은 첫 상담을 준비하는 데만 사용합니다. 병원명이나 현재 근무지는 첫 단계에서 적지 않아도 됩니다.</p><div><ShieldCheck /><span><strong>병원 전달 전 동의 확인</strong><small>이직 의사와 개인정보를 임의로 공개하지 않습니다.</small></span></div><div><Phone /><span><strong>직접 전화 상담</strong><small>평일 09:00–18:00 · 051-342-5463</small></span></div></div>
+      <ConsultationForm initialRole="doctor" initialTopic="이직 가능성 확인" />
+    </section>
+    <section className="other-profession-note"><div><strong>간호·약무·방사선·임상병리 등 다른 의료직군이신가요?</strong><p>현재는 의사 채용을 우선 운영하며, 다른 직군은 상담 접수 후 오픈 일정과 가능한 지원 범위를 안내합니다.</p></div><Link className="button outline" to="/headhunting?profession=all">다른 직군 문의 <ArrowRight /></Link></section>
   </>;
 }
 function JobsPage({ route }) {
@@ -464,14 +473,14 @@ function JobsPage({ route }) {
   const [dept, setDept] = useState(params.get('dept') || '전체 진료과');
   const [region, setRegion] = useState(params.get('region') || '전국');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
-  const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem('medihelpers_saved_jobs') || '[]'));
+  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
   const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
   const filtered = useMemo(() => prioritizeJobs(jobs.filter((job) => (dept === '전체 진료과' || job.dept === dept || (dept === '전문의' && job.dept === '전문의')) && (region === '전국' || job.region === region) && (!keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${job.benefits.join(' ')}`.toLowerCase().includes(keyword.toLowerCase())))), [dept, region, keyword]);
   const promotedJobs = filtered.filter((job) => job.adTier);
   const standardJobs = filtered.filter((job) => !job.adTier);
   const toggleSaved = (id) => setSaved((current) => {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-    localStorage.setItem('medihelpers_saved_jobs', JSON.stringify(next));
+    writeStoredValue('medihelpers_saved_jobs', next);
     return next;
   });
   return <>
@@ -480,7 +489,7 @@ function JobsPage({ route }) {
       eyebrow="MEDICAL JOBS"
       title={<><span className="jobs-hero-part">조건부터 비교하는</span>{' '}<span className="jobs-hero-part">의료 채용정보</span></>}
       description={<><span className="jobs-description-part">현재 의사 채용정보를</span>{' '}<span className="jobs-description-part">우선 운영하고 있습니다.</span>{' '}<span className="jobs-description-part">다른 보건의료 직군은 전용관에서</span>{' '}<span className="jobs-description-part">오픈 알림을 신청할 수 있습니다.</span></>}
-    ><Link className="button outline" to="/professions">전체 의료 직군 보기 <ArrowRight /></Link></PageHero>
+    ><Link className="button outline" to="/professions">의사 이직상담 <ArrowRight /></Link></PageHero>
     <section className="section jobs-page"><div className="filter-bar"><label><Stethoscope /><select value={dept} onChange={(e) => setDept(e.target.value)}>{departments.map((item) => <option key={item}>{item}</option>)}</select></label><label><MapPin /><select value={region} onChange={(e) => setRegion(e.target.value)}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 근무조건 검색" /></label></div>
       <Link className="job-ad-banner" to="/advertise"><span>초기 파트너 모집</span><strong>검수된 의료인 채용공고를 등록하세요</strong><small>30일 59,000원부터 · 공고 문구 검수 지원</small><b>광고 상품 보기 <ArrowRight /></b></Link>
       <div className="result-row"><strong>{filtered.length}개의 채용공고</strong><span><Heart size={15} /> 관심공고 {saved.length}개</span></div>
@@ -493,11 +502,11 @@ function JobsPage({ route }) {
 
 function TalentPage() {
   const [dept, setDept] = useState('전체 진료과');
-  const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem('medihelpers_saved_talent') || '[]'));
+  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_talent'));
   const visible = dept === '전체 진료과' ? talent : talent.filter((person) => person.dept === dept);
   const toggleSaved = (code) => setSaved((current) => {
     const next = current.includes(code) ? current.filter((item) => item !== code) : [...current, code];
-    localStorage.setItem('medihelpers_saved_talent', JSON.stringify(next));
+    writeStoredValue('medihelpers_saved_talent', next);
     return next;
   });
   return <>
@@ -551,30 +560,12 @@ function Checkout({ plan, onClose }) {
     const logo = formData.get('logo');
     formData.delete('logo');
     const data = { ...Object.fromEntries(formData.entries()), logoName: logo instanceof File && logo.size ? logo.name : '' };
-    const records = JSON.parse(localStorage.getItem('medihelpers_ad_requests') || '[]');
-    records.push({ id: `AD-${Date.now()}`, planId: plan.id, amount: plan.price, paymentMethod: method, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
-    localStorage.setItem('medihelpers_ad_requests', JSON.stringify(records));
+    appendStoredRecord('medihelpers_ad_requests', { id: `AD-${Date.now()}`, planId: plan.id, amount: plan.price, paymentMethod: method, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
     setDone(true);
   };
   return <Modal onClose={onClose} wide label="병원 광고 상품 신청">{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>광고 결제 요청이 접수되었습니다</h2><p>공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를 보내드립니다.<br />PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <><div className="checkout-title"><small>ADVERTISEMENT ORDER</small><h2>광고 상품 신청</h2><p>병원 브랜드와 채용정보를 함께 검수한 뒤 결제 링크와 게시 일정을 안내합니다.</p></div><form className="checkout-grid" onSubmit={submit}><div className="checkout-form"><div className="brand-upload"><div className="logo-preview">{logoPreview ? <img src={logoPreview} alt="선택한 병원 로고 미리보기" /> : <Building2 />}</div><label><span>병원 로고 <i>선택 · 권장</i></span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={selectLogo} /><div className="upload-button"><Upload /><div><strong>{logoName || '로고 파일 선택'}</strong><small>PNG·JPG·WEBP, 최대 5MB</small></div></div>{logoError && <em>{logoError}</em>}</label></div><div className="form-grid"><label><span>병원명 *</span><input required name="hospital" placeholder="병원명을 입력해주세요" /></label><label><span>기관 유형 *</span><select required name="facilityType" defaultValue=""><option value="" disabled>기관 유형 선택</option><option>종합병원</option><option>병원</option><option>요양병원</option><option>한방병원</option><option>의원</option><option>검진·전문센터</option><option>기타 의료기관</option></select></label><label><span>담당자명 *</span><input required name="manager" placeholder="담당자 성함" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" placeholder="billing@hospital.co.kr" /></label><label><span>병원 위치 *</span><input required name="address" placeholder="예: 부산광역시 연제구" /></label></div><label className="wide-field"><span>채용 직군·전문영역 *</span><input required name="department" placeholder="예: 정형외과 전문의, 방사선사 CT" /></label><label className="wide-field"><span>병원·채용 소개 <i>선택</i></span><textarea name="introduction" rows="3" placeholder="진료 환경, 기관의 강점, 채용 인원과 일정을 간단히 적어주세요." /></label><div className="payment-choice"><span>결제 안내 방식</span><div><button type="button" className={method === 'card' ? 'active' : ''} onClick={() => setMethod('card')}><CreditCard /> 카드 결제 링크</button><button type="button" className={method === 'transfer' ? 'active' : ''} onClick={() => setMethod('transfer')}><Banknote /> 계좌이체·세금계산서</button></div></div><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원 로고는 사용 권한을 확인한 파일만 등록합니다.</span></label></div><aside className="order-summary"><small>선택한 상품</small><h3>{plan.name}</h3><p>{plan.unit} 노출</p><ul>{plan.features.map((item) => <li key={item}><Check />{item}</li>)}</ul><div className="price-row"><span>결제 예정금액<small>부가세 포함</small></span><strong>{plan.price.toLocaleString()}원</strong></div><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.</p></aside></form></>}</Modal>;
 }
 
-function PremiumAdShowcase({ job, onApply }) {
-  return <article className="premium-showcase" style={{ '--showcase-color': job.color }}>
-    <div className="premium-showcase-brand">
-      <div className="showcase-edition"><Crown /> PREMIER 01</div>
-      <div className="showcase-brand-lockup"><HospitalLogo job={job} prominent /><div><small>FEATURED HOSPITAL</small><strong>{job.hospital}</strong><span>병원의 이름과 로고를 하나의 브랜드로 기억하게 합니다.</span></div></div>
-      <div className="showcase-brand-index" aria-hidden="true">M</div>
-    </div>
-    <div className="premium-showcase-position">
-      <div className="showcase-position-head"><span><Sparkles /> 집중채용</span><small>AD · 최상단 우선 노출</small></div>
-      <h3>{job.title}</h3>
-      <div className="showcase-position-meta"><span><MapPin />{job.location}</span><span><Clock3 />{job.schedule}</span></div>
-      <div className="showcase-position-points"><span><Check />대형 브랜드 영역</span><span><Check />포지션 정보 분리</span><span><Check />전담 컨설턴트 연결</span></div>
-      <button type="button" className="showcase-apply" onClick={onApply}><span><small>이 레이아웃으로</small><strong>집중채용 광고하기</strong></span><ArrowRight /></button>
-    </div>
-  </article>;
-}
 function AdvertisePage() {
   const [plan, setPlan] = useState(null);
   return <>
@@ -591,13 +582,13 @@ function AdvertisePage() {
       </div>
       <div className="exposure-rank-card" aria-label="광고 상품별 노출 순서 예시">
         <div className="exposure-rank-head"><span><Crown /> 채용정보 목록 노출 순서</span><small>디자인 예시</small></div>
-        <div className="exposure-row spotlight"><b>01</b><span className="exposure-mark"><Sparkles /></span><div><small>집중채용</small><strong>최상단 대형 브랜드 카드</strong></div><em>가장 먼저</em></div>
+        <div className="exposure-row spotlight"><b>01</b><span className="exposure-mark"><Sparkles /></span><div><small>집중채용</small><strong>최상단 브랜드 강조 카드</strong></div><em>가장 먼저</em></div>
         <div className="exposure-row featured"><b>02</b><span className="exposure-mark"><TrendingUp /></span><div><small>추천 광고</small><strong>추천 영역 강조 노출</strong></div><em>우선 노출</em></div>
         <div className="exposure-row basic"><b>03</b><span className="exposure-mark"><FileCheck2 /></span><div><small>일반공고</small><strong>최신 등록순 기본 노출</strong></div><em>기본</em></div>
         <p className="exposure-note"><ShieldCheck /> 실제 노출 위치와 기간은 결제 전에 확인합니다.</p>
       </div>
     </section>
-    <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE AD PREVIEW</span><h2>로고를 등록하면<br />이렇게 먼저 보입니다</h2><p>집중채용 상품의 실제 노출 형태를 미리 확인하세요. 병원 로고를 중심에 두고 광고 등급, 채용 분야, 근무 조건이 자연스럽게 이어집니다.</p><ul><li><Check /> 병원 로고를 카드의 중심 브랜드 자산으로 노출</li><li><Check /> 집중채용 등급은 목록 최상단 우선 배치</li><li><Check /> 과하지 않은 광원과 깊이감으로 시선 유도</li></ul><button className="button primary" onClick={() => setPlan(adPlans[2])}>집중채용 광고 신청 <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><PremiumAdShowcase job={advertisementPreviewJob} onApply={() => setPlan(adPlans[2])} /></div></section>
+    <section className="section ad-preview-section" id="ad-preview"><div className="ad-preview-copy"><span className="section-kicker">LIVE LIST CARD PREVIEW</span><h2>실제 채용정보에서는<br />이 카드로 노출됩니다</h2><p>광고 신청 전에 사용자가 보게 될 집중채용 카드의 크기와 정보 순서를 그대로 확인하세요. 병원명, 공고 제목, 지역과 근무조건이 한 흐름으로 이어집니다.</p><ul><li><Check /> 실제 채용정보 목록과 동일한 카드 디자인</li><li><Check /> 병원 로고와 집중채용 등급을 선명하게 강조</li><li><Check /> 목록 최상단 우선 배치와 전담 컨설턴트 연결</li></ul><button className="button primary" onClick={() => setPlan(adPlans[2])}>집중채용 광고 신청 <ArrowRight /></button></div><div className="ad-preview-frame"><span className="preview-disclaimer"><ShieldCheck /> 디자인 예시 · 실제 공고 아님</span><div className="preview-list-heading"><span><Crown /> PREMIUM PLACEMENT</span><strong>먼저 보는 집중채용</strong><small>채용정보 실제 노출 카드</small></div><JobCard job={advertisementPreviewJob} saved={false} onSave={() => {}} onOpen={() => setPlan(adPlans[2])} preview /></div></section>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => setPlan(item)}>이 상품 신청하기</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
     {plan && <Checkout plan={plan} onClose={() => setPlan(null)} />}
@@ -609,9 +600,7 @@ function MembershipCheckout({ plan, onClose }) {
   const submit = (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const records = JSON.parse(localStorage.getItem('medihelpers_membership_requests') || '[]');
-    records.push({ id: `MEM-${Date.now()}`, planId: plan.id, amount: plan.price, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
-    localStorage.setItem('medihelpers_membership_requests', JSON.stringify(records));
+    appendStoredRecord('medihelpers_membership_requests', { id: `MEM-${Date.now()}`, planId: plan.id, amount: plan.price, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
     trackConversion('checkout_request', { planId: plan.id, amount: plan.price });
     setDone(true);
   };
@@ -675,6 +664,9 @@ export function App() {
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage />;
   else if (path === '/membership') page = <MembershipPage route={route} />;
+  else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
+  else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
+  else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
   return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} /><main key={route} className="route-stage">{page}</main><Footer /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to="/advertise"><Building2 />공고 등록</Link></div></div>;

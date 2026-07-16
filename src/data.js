@@ -94,7 +94,7 @@ export const adPlans = [
 
 export const navItems = [
   { path: '/jobs', label: '채용정보' },
-  { path: '/professions', label: '직군별' },
+  { path: '/professions', label: '의사 이직상담' },
   { path: '/headhunting', label: '헤드헌팅' },
   { path: '/matching-report', label: '매칭리포트' },
   { path: '/advertise', label: '광고센터' },

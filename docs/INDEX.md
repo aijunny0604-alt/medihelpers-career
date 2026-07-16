@@ -13,6 +13,7 @@
 - `ARCHITECTURE.md`: 시스템 구조
 - `DB.md`: 핵심 데이터 모델
 - `AUTH.md`: 회원과 권한
+- `LEGAL_PRIVACY_SIGNUP.md`: 회원가입 동의 문구, 개인정보·소셜 로그인 법무/보안 기준
 - `BILLING.md`: 광고 상품과 결제
 - `API.md`: 외부 연동 및 API 원칙
 - `DEPLOY.md`: 배포 운영
