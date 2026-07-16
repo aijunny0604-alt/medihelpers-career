@@ -1856,6 +1856,99 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .premium-ad .hospital-wordmark i{background:linear-gradient(90deg,var(--job-color),var(--job-accent))}
 .premium-ad.has-brand-banner .ad-brand-stage{padding-inline:15px;background:linear-gradient(135deg,color-mix(in srgb,var(--job-surface) 70%,#fff),#fff)}
 .premium-ad.has-brand-banner .brand-media-backdrop{opacity:.1;filter:blur(28px) saturate(.82)}
+
+/* Registered 3:1 banners become the brand stage itself, not a thumbnail inside it. */
+.premium-ad.has-brand-banner .logo-stage.media-banner{
+  position:relative;
+  min-height:210px;
+  padding:0;
+  display:block;
+  border-color:color-mix(in srgb,var(--job-color) 28%,#d9e3ef);
+  background:var(--job-surface);
+  box-shadow:0 16px 36px color-mix(in srgb,var(--job-color) 14%,rgba(22,48,84,.12));
+}
+.premium-ad.has-brand-banner .logo-stage.media-banner:before{display:none}
+.premium-ad.has-brand-banner .logo-stage.media-banner .brand-media-backdrop{display:none}
+.premium-ad.has-brand-banner .logo-stage.media-banner .hospital-logo.prominent.has-image{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  width:100%!important;
+  height:100%!important;
+  max-width:none;
+  border:0;
+  border-radius:inherit;
+  background:#fff;
+  box-shadow:none;
+}
+.premium-ad.has-brand-banner .logo-stage.media-banner .hospital-logo.prominent.has-image img{
+  width:100%;
+  height:100%;
+  padding:0;
+  object-fit:cover;
+  object-position:center;
+  transform:none;
+}
+.premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-label,
+.premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-value{
+  z-index:5;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid rgba(255,255,255,.78);
+  border-radius:999px;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 8px 22px rgba(16,37,68,.14);
+  backdrop-filter:blur(12px) saturate(1.12);
+}
+.premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-label{left:14px;top:14px;color:var(--job-deep)}
+.premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-value{right:14px;top:14px}
+.premium-ad.has-brand-banner .logo-stage.media-banner .ad-hospital-caption{
+  position:absolute;
+  z-index:5;
+  right:16px;
+  bottom:16px;
+  left:auto;
+  top:auto;
+  width:auto;
+  max-width:min(58%,360px);
+  margin:0;
+  padding:13px 16px;
+  align-items:flex-start;
+  border:1px solid rgba(255,255,255,.8);
+  border-radius:13px;
+  background:rgba(255,255,255,.88);
+  color:var(--job-deep);
+  text-align:left;
+  box-shadow:0 12px 30px rgba(16,37,68,.16);
+  backdrop-filter:blur(14px) saturate(1.1);
+  transform:none;
+}
+.premium-ad.has-brand-banner .logo-stage.media-banner .ad-hospital-caption strong{
+  color:var(--job-deep);
+  font-size:clamp(18px,1.35vw,23px);
+  line-height:1.2;
+  letter-spacing:-.65px;
+  text-shadow:none;
+}
+.premium-ad.has-brand-banner .logo-stage.media-banner .ad-hospital-caption small{
+  margin-top:5px;
+  color:#6d7890;
+  font-size:11px!important;
+}
+.spotlight-section .premium-ad.has-brand-banner .logo-stage.media-banner{min-height:250px}
+.featured-section .premium-ad.has-brand-banner .logo-stage.media-banner{min-height:210px;margin-top:16px;border-radius:18px}
+@media(max-width:780px){
+  .premium-ad.has-brand-banner .logo-stage.media-banner,
+  .spotlight-section .premium-ad.has-brand-banner .logo-stage.media-banner,
+  .featured-section .premium-ad.has-brand-banner .logo-stage.media-banner{min-height:168px}
+  .premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-label,
+  .premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-value{top:10px;min-height:27px;padding-inline:8px;font-size:9px}
+  .premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-label{left:10px}
+  .premium-ad.has-brand-banner .logo-stage.media-banner .ad-stage-value{right:10px}
+  .premium-ad.has-brand-banner .logo-stage.media-banner .ad-hospital-caption{right:10px;bottom:10px;max-width:68%;padding:10px 12px;border-radius:11px}
+  .premium-ad.has-brand-banner .logo-stage.media-banner .ad-hospital-caption strong{font-size:16px}
+  .premium-ad.has-brand-banner .logo-stage.media-banner .ad-hospital-caption small{display:none}
+}
 .brand-banner-upload{display:grid;grid-template-columns:minmax(210px,1.25fr) minmax(230px,1fr);align-items:center;gap:17px;margin-bottom:15px;padding:16px;border:1px solid #d7e2ef;border-radius:16px;background:linear-gradient(135deg,#eef5ff,#f8fbff 58%,#eefaf7)}
 .banner-preview{aspect-ratio:3/1;min-height:112px;border:1px solid rgba(167,188,216,.7);border-radius:13px;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 10px 24px rgba(27,58,99,.08)}
 .banner-preview>img{width:100%;height:100%;object-fit:cover}
