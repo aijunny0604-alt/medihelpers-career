@@ -1576,3 +1576,18 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .jobs-ad-payment-note svg{width:15px;color:var(--mint)}
 @media(max-width:980px){.jobs-ad-plan-grid{grid-template-columns:1fr}.jobs-ad-plan>p{min-height:0}.jobs-ad-plan-action{align-items:center}.jobs-ad-launcher-head{grid-template-columns:auto minmax(0,1fr)}.jobs-ad-launcher-head>a{grid-column:1/-1;width:100%;justify-content:center}}
 @media(max-width:560px){.jobs-ad-launcher{margin:18px 0 28px;padding:18px 15px;border-radius:20px}.jobs-ad-launcher-head{align-items:start;gap:11px}.jobs-ad-launcher-icon{width:42px;height:42px;border-radius:13px}.jobs-ad-launcher-head h2{font-size:19px}.jobs-ad-launcher-head p{font-size:13px}.jobs-ad-plan{padding:16px}.jobs-ad-plan-action{align-items:stretch;flex-direction:column}.jobs-ad-plan-action button{width:100%;font-size:13px}.jobs-ad-payment-note{align-items:flex-start;justify-content:flex-start;line-height:1.55;word-break:keep-all}}
+
+/* Jobs filters use the same custom listbox interaction as the home search. */
+.filter-bar{position:relative;z-index:26;overflow:visible}
+.filter-bar>label{position:relative;min-width:0;overflow:visible;transition:border-color .22s ease,box-shadow .22s ease,background .22s ease}
+.filter-bar>label:focus-within{border-color:#9dbff0;background:#fbfdff;box-shadow:0 0 0 4px rgba(18,99,232,.08)}
+.filter-bar .hero-custom-select{width:100%;min-width:0}
+.filter-bar .hero-select-trigger{min-height:42px;color:#243650;font-size:16px;font-weight:700}
+.filter-bar .hero-select-trigger>span{padding-right:4px}
+.filter-bar .hero-select-menu{top:calc(100% + 12px);left:-42px;width:max(calc(100% + 56px),270px);padding:10px;border-radius:16px;box-shadow:0 24px 54px rgba(22,50,91,.22)}
+.filter-bar>label:nth-child(2) .hero-select-menu{left:-42px}
+.filter-bar .hero-select-menu button{min-height:52px;font-size:16px}
+.filter-bar .hero-custom-select.opens-up .hero-select-menu{top:auto;bottom:calc(100% + 12px)}
+@media(max-width:780px){.filter-bar .hero-select-menu{left:-40px;width:max(calc(100% + 54px),245px)}}
+@media(max-width:460px){.filter-bar .hero-select-menu{position:fixed;left:14px!important;right:14px!important;top:auto!important;bottom:78px!important;width:auto;max-height:54vh}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .filter-bar .hero-select-menu{animation:none}html:not(.force-motion) .filter-bar .hero-select-trigger svg,html:not(.force-motion) .filter-bar>label{transition:none}}
