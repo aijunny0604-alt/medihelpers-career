@@ -425,7 +425,7 @@ function MediAngelAssistant() {
   return <aside ref={assistantRef} className={`medi-angel-assistant ${open ? 'is-open' : ''}`} aria-label="메디헬퍼스 안내 도우미">
     {open && <section id="medi-angel-panel" className="medi-angel-panel" role="dialog" aria-modal="false" aria-labelledby="medi-angel-title">
       <div className="medi-angel-panel-head">
-        <span><img src={withBase('/assets/medi-angel-assistant.png')} alt="" /></span>
+        <span><img src={withBase('/assets/medi-angel-assistant-v2.png')} alt="" /></span>
         <div><small>MEDIHELPERS GUIDE</small><strong id="medi-angel-title">안녕하세요, 메디예요</strong></div>
         <button type="button" aria-label="안내 도우미 닫기" onClick={closeAssistant}><X /></button>
       </div>
@@ -440,7 +440,7 @@ function MediAngelAssistant() {
     {!open && <button type="button" className="medi-angel-nudge" onClick={() => setOpen(true)}><Sparkles /> 무엇을 도와드릴까요?</button>}
     <button type="button" className="medi-angel-toggle" aria-expanded={open} aria-controls="medi-angel-panel" aria-label={open ? '메디 도우미 닫기' : '메디 도우미 열기'} onClick={() => setOpen((value) => !value)}>
       <span className="medi-angel-sparkle"><Sparkles /></span>
-      <img src={withBase('/assets/medi-angel-assistant.png')} alt="메디헬퍼스 수호천사 메디" />
+      <img src={withBase('/assets/medi-angel-assistant-v2.png')} alt="메디헬퍼스 수호천사 메디" />
       <span className="medi-angel-status">상담 안내</span>
     </button>
   </aside>;
@@ -576,7 +576,6 @@ function PremiumAdCarousel({ items, renderCard }) {
       <div className="premium-rotation-dots" role="group" aria-label="프리미엄 광고 묶음 선택">
         {Array.from({ length: pageCount }, (_, index) => <button key={index} type="button" className={index === safePage ? 'active' : ''} onClick={() => go(index)} aria-label={`${index + 1}번째 광고 묶음`} aria-current={index === safePage ? 'true' : undefined} />)}
       </div>
-      {!reducedMotion && <div className="premium-rotation-progress" aria-hidden="true"><i key={safePage} /></div>}
     </>}
   </div>;
 }

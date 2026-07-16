@@ -527,11 +527,7 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
 }
 .premium-rotation-dots button.active { width: 28px; background: linear-gradient(90deg, var(--blue), #6d59e9); }
 .premium-rotation-dots button:focus-visible { outline: 3px solid rgba(18,99,232,.25); outline-offset: 4px; }
-.premium-rotation-progress { position: absolute; left: 16px; right: 16px; bottom: 0; height: 3px; overflow: hidden; border-radius: 10px 10px 0 0; }
-.premium-rotation-progress i { display: block; width: 100%; height: 100%; transform-origin: left; background: linear-gradient(90deg, var(--blue), #735ce9, var(--mint)); animation: premium-progress 7s linear both; }
-.premium-rotator.is-paused .premium-rotation-progress i { animation-play-state: paused; }
 @keyframes premium-page-enter { from { opacity: 0; transform: translate3d(22px,0,0); } to { opacity: 1; transform: none; } }
-@keyframes premium-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes premium-live-pulse { 50% { box-shadow: 0 0 0 8px rgba(34,174,143,0); } }
 .standard-jobs { margin-top: 4px; }
 .standard-heading {
@@ -1466,7 +1462,6 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 }
 @media(prefers-reduced-motion:reduce) {
   html:not(.force-motion) .premium-rotation-page,
-  html:not(.force-motion) .premium-rotation-progress i,
   html:not(.force-motion) .live-dot { animation: none!important; }
   html:not(.force-motion) .premium-rotation-actions button,
   html:not(.force-motion) .premium-rotation-dots button { transition: none!important; }
