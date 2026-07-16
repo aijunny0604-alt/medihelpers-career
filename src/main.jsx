@@ -416,7 +416,7 @@ function HomePage() {
     <section className="home-hero">
       <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 모든 의료 커리어를 한곳에서</span><h1>의료인 채용,<br /><em>직군부터 정확하게.</em></h1><p>의사부터 간호·약무·방사선·임상병리·재활까지<br />내 전문영역을 선택하면 맞는 공간으로 연결됩니다.</p>
         <div className="hero-search-card" role="search" aria-label="의료 채용 검색">
-          <div className="hero-search-title"><span><Search /></span><div><strong>내 전문영역의 채용 찾기</strong><small>직군·전문영역·지역만 선택하면 됩니다</small></div></div>
+          <div className="hero-search-title"><span><Search /></span><div><strong>내 전문영역의 채용 찾기</strong><small>직군·전문영역·지역만 선택하면 됩니다</small></div><em className="hero-search-badge">1분 검색</em></div>
           <div className="hero-search-fields">
             <label><small>의료 직군</small><span><UsersRound size={19} /><HeroSelect label="의료 직군" value={profession} onChange={setProfession} options={professions.map((item) => ({ value: item.id, label: item.short }))} /></span></label>
             <label><small>{profession === 'doctor' ? '진료과' : '전문영역'}</small><span><Stethoscope size={19} /><HeroSelect label={profession === 'doctor' ? '진료과' : '전문영역'} value={profession === 'doctor' ? dept : '전체 전문영역'} disabled={profession !== 'doctor'} onChange={setDept} options={profession === 'doctor' ? departments : ['전체 전문영역']} /></span></label>

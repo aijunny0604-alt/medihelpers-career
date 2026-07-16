@@ -1202,3 +1202,44 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(max-width:780px){.signup-field-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.signup-consent-block{padding:18px 15px}.signup-launch-boundary,.signup-complete-draft dl>div{flex-direction:column;align-items:flex-start;gap:6px}.signup-complete-draft dl>div{align-items:flex-start}}
 @media(prefers-reduced-motion:reduce){.signup-field input{transition:none}}
+
+/* Enlarged primary hero search panel — reads as the primary action, balanced with the concierge card.
+   Placed last so it wins over the earlier min-width:781px "Roomier" block without !important. */
+.hero-search-badge{flex:0 0 auto;margin-left:auto;align-self:center;padding:6px 11px;border-radius:999px;background:linear-gradient(120deg,#eaf2ff,#e6f7f1);border:1px solid #cfe0f6;color:#1257c8;font:800 11px Manrope,sans-serif;font-style:normal;letter-spacing:.3px;white-space:nowrap}
+@media(min-width:1101px){
+  .hero-search-card{width:min(100%,1080px);padding:30px;border-radius:31px;border:1px solid #c1d5f2;box-shadow:0 3px 10px rgba(28,58,110,.05),0 30px 74px rgba(30,64,120,.18)}
+  .hero-search-badge{padding:7px 13px;font-size:12px}
+  .hero-search-title{gap:14px;padding-bottom:22px}
+  .hero-search-title>span{width:58px;height:58px;border-radius:17px}
+  .hero-search-title>span svg{width:27px}
+  .hero-search-title strong{font-size:21px}
+  .hero-search-title small{font-size:15px}
+  .hero-search-fields{grid-template-columns:1fr 1.16fr 1fr 258px;border-radius:20px}
+  .hero-search-fields label{min-height:97px;padding:17px 22px}
+  .hero-search-fields label>small{font-size:13px;margin-bottom:9px}
+  .hero-search-fields label>span{gap:12px}
+  .hero-search-fields label>span>svg{width:21px;height:21px}
+  .hero-search-fields select,.hero-search-fields input,.hero-select-trigger{font-size:18px}
+  .hero-select-trigger svg{width:20px}
+  .hero-search-button{margin:9px;border-radius:16px;font-size:18px;box-shadow:0 12px 26px rgba(18,99,232,.26);transition:background .2s ease,box-shadow .2s ease,transform .2s ease}
+  .hero-search-button:hover{box-shadow:0 16px 34px rgba(18,99,232,.32);transform:translateY(-1px)}
+  .hero-search-button:focus-visible{outline:3px solid rgba(18,99,232,.42);outline-offset:3px}
+  .hero-search-button svg{width:19px}
+  .popular-searches{gap:11px;padding-top:19px}
+  .popular-searches>span{font-size:14px}
+  .popular-searches a{padding:10px 15px;font-size:14px}
+  .hero-assurance{margin-top:19px;font-size:14px}
+  .hero-assurance svg{width:18px}
+}
+/* Compact desktop (1101–1399): keep the panel prominent but let the CTA and controls fit the narrower hero column. */
+@media(min-width:1101px) and (max-width:1399px){
+  .hero-search-card{width:min(100%,1000px);padding:26px;border-radius:29px}
+  .hero-search-title>span{width:54px;height:54px}
+  .hero-search-title>span svg{width:25px}
+  .hero-search-fields{grid-template-columns:1fr 1.14fr 1fr 224px}
+  .hero-search-fields label{min-height:90px;padding:15px 18px}
+  .hero-search-fields select,.hero-search-fields input,.hero-select-trigger{font-size:17px}
+  .hero-search-button{font-size:17px}
+}
+/* Mobile: keep the intentional stacked layout, only guarantee the CTA stays a comfortable tap target (>=52px). */
+@media(max-width:780px){.hero-search-button{min-height:52px}}
