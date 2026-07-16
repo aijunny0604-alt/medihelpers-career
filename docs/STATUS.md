@@ -1,6 +1,6 @@
 # 현재 구현 상태
 
-## 2026-07-16 회원가입 진입 안정화 (v54)
+## 2026-07-16 회원가입 진입 안정화 (v64)
 
 - 공유 base 경로 도우미를 추가해 앱 전반의 내부 링크 경로 기준을 통일하고 GitHub Pages 하위 경로에서의 계정 화면 내부 링크 404를 수정했습니다.
 - GitHub Pages처럼 서버 API가 없는 정적 미러에서는 오류 배너 대신 개인정보를 수집하지 않는 안전한 준비 게이트를 표시하도록 보강했습니다.
@@ -38,7 +38,7 @@
 - Sites 공개본: https://medihelpers-career.junnyai.chatgpt.site
 - GitHub Pages 공개본: https://aijunny0604-alt.github.io/medihelpers-career/
 - GitHub 저장소: https://github.com/aijunny0604-alt/medihelpers-career
-- 최신 Sites 버전: v54
+- 최신 Sites 버전: v64
 
 ## 공개 화면에 구현됨
 
