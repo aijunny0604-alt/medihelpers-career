@@ -693,6 +693,38 @@ function AdQuickLauncher({ onSelect }) {
     <p className="jobs-ad-payment-note"><ShieldCheck /> 실제 결제 전 공고 내용과 노출 기간·금액을 한 번 더 확인합니다.</p>
   </section>;
 }
+
+function SmartAdDock({ total, onSelect }) {
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    const scheduleReveal = (delay = 1450) => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      setVisible(false);
+      const nearFooter = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 280;
+      if (nearFooter) return;
+      timerRef.current = window.setTimeout(() => setVisible(true), delay);
+    };
+    const onScroll = () => scheduleReveal();
+    scheduleReveal(2200);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  if (dismissed) return null;
+  return <aside className={`smart-ad-dock ${visible ? 'is-visible' : ''}`} aria-label="병원 채용공고 등록 바로가기" aria-hidden={!visible}>
+    <div className="smart-ad-dock-brand"><Building2 /><span><small>병원 채용 담당자</small><strong>의사 초빙공고를 등록하세요</strong></span></div>
+    <div className="smart-ad-dock-count"><small>현재 초빙공고</small><strong>{total.toLocaleString()}</strong><span>건</span></div>
+    <div className="smart-ad-dock-links"><Link to="/advertise">상품 안내</Link><Link to="/headhunting?role=hospital">채용 상담</Link></div>
+    <button type="button" className="smart-ad-dock-cta" onClick={() => { trackConversion('smart_ad_dock_open'); onSelect(adPlans[0]); }}>초빙공고 등록하기 <ArrowRight /></button>
+    <button type="button" className="smart-ad-dock-close" onClick={() => setDismissed(true)} aria-label="공고 등록창 닫기"><X /></button>
+  </aside>;
+}
 function JobsPage({ route, qa }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [recruitmentType, setRecruitmentType] = useState(params.get('recruitmentType') || '전체 초빙');
@@ -725,8 +757,6 @@ function JobsPage({ route, qa }) {
   const filtered = useMemo(() => jobs.filter((job) => matchesJob(job, { dept, region, keyword, recruitmentType, condition })), [dept, region, keyword, recruitmentType, condition]);
   // 프리미엄: 등급 우선순위 유지 + 등급 내부 진료과·지역 균형.
   const orderedPromoted = useMemo(() => orderPremium(filtered.filter((job) => job.adTier), { seed: premiumSessionSeed }), [filtered, premiumSessionSeed]);
-  const spotlightPromoted = orderedPromoted.filter((job) => job.adTier === 'spotlight');
-  const featuredPromoted = orderedPromoted.filter((job) => job.adTier === 'featured');
   // 일반: 진료과·지역 라운드로빈 균형.
   const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => !job.adTier), { seed: daySeed }), [filtered, daySeed]);
   const standardDisplayOrder = useMemo(() => jobSort === 'recent' ? filtered.filter((job) => !job.adTier) : orderedStandard, [filtered, orderedStandard, jobSort]);
@@ -749,7 +779,7 @@ function JobsPage({ route, qa }) {
     setKeyword('');
     setStandardVisible(STANDARD_STEP);
   };
-  const renderCard = (job) => <JobCard key={job.id} job={job} qa={qa} saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
+  const renderPortalCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
   const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
 
   const visibleStandard = standardDisplayOrder.slice(0, standardVisible);
@@ -768,14 +798,14 @@ function JobsPage({ route, qa }) {
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-                {spotlightPromoted.length > 0 && <div className="promoted-jobs spotlight-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM PLACEMENT</span><strong>지금 주목할 집중채용</strong></div><div className="tier-heading-actions"><small>화면을 보고 있을 때만 다음 광고로 자동 전환됩니다</small><button type="button" className="tier-apply-button spotlight" onClick={() => setAdPlan(adPlans[2])}>집중채용 광고 올리기 <ArrowRight /></button></div></div><PremiumAdCarousel items={spotlightPromoted} renderCard={renderCard} /></div>}
-        {featuredPromoted.length > 0 && <div className="promoted-jobs featured-section"><div className="promotion-heading"><div><span><Sparkles /> RECOMMENDED ADS</span><strong>먼저 살펴볼 추천공고</strong></div><div className="tier-heading-actions"><small>추천 광고도 진료과·지역을 고르게 섞어 순환합니다</small><button type="button" className="tier-apply-button featured" onClick={() => setAdPlan(adPlans[1])}>추천공고 광고 올리기 <ArrowRight /></button></div></div><PremiumAdCarousel items={featuredPromoted} renderCard={renderCard} /></div>}
-<div className="balance-legend"><span className="balance-legend-icon"><Sparkles /></span><div><strong>균형 노출</strong><p>광고 등급 우선순위는 그대로 유지하고, 같은 등급 안에서는 진료과·지역을 고르게 섞어 순환합니다. 일반 공고도 특정 영역에 몰리지 않도록 번갈아 배치합니다.</p></div></div>
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong></div><div className="tier-heading-actions"><small>병원 로고와 핵심 조건을 같은 규격으로 빠르게 비교하세요</small><button type="button" className="tier-apply-button spotlight" onClick={() => setAdPlan(adPlans[2])}>플래티넘 공고 등록 <ArrowRight /></button></div></div><div className="job-grid portal-premium-grid">{orderedPromoted.map(renderPortalCard)}</div></div>}
+        <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => setAdPlan(adPlans[0])}>베이직 공고 올리기 <ArrowRight /></button></div><div className="job-grid standard-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}개 병원, 조건별로 비교해보세요` : '관심 병원을 고르고 매칭 리포트를 만들어보세요'}</h3><p>근무·보수·거리·진료 범위를 비교하고 확인할 질문을 헤드헌터에게 그대로 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=doctor" onClick={() => trackConversion('jobs_matching_report', { savedCount: saved.length })}>매칭 리포트 만들기 <ArrowRight /></Link></div>
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
       <AdQuickLauncher onSelect={setAdPlan} />
     </section>
+    <SmartAdDock total={jobs.length} onSelect={setAdPlan} />
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
     {selected && <JobDetail job={selected} qa={qa} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
     {adPlan && <Checkout plan={adPlan} onClose={() => setAdPlan(null)} />}
