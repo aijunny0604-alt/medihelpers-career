@@ -1849,3 +1849,22 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(max-width:780px){.qa-preview-ribbon{left:10px;right:92px;bottom:75px;min-height:56px;grid-template-columns:minmax(0,1fr) auto;padding:8px}.qa-preview-ribbon>span,.qa-preview-ribbon small,.qa-preview-ribbon>button{display:none}.qa-preview-ribbon>div{padding-left:5px}.qa-preview-ribbon strong{font-size:11px}.qa-preview-ribbon>a{min-height:40px}.qa-preview-page{padding-top:42px}.qa-simulation-notice{grid-template-columns:42px 1fr}.qa-simulation-notice>svg{width:42px;height:42px}.qa-simulation-notice button{grid-column:1/3;width:100%;justify-content:center}.qa-section-head{margin-top:44px;align-items:flex-start;flex-direction:column}.qa-section-head h2{font-size:26px}.qa-state-grid{grid-template-columns:1fr}.qa-state-card{min-height:auto}.qa-dashboard{padding:25px 20px}.qa-dashboard-copy h2{font-size:25px}.qa-metrics{grid-template-columns:1fr}.qa-metrics>div{min-height:72px}.qa-route-grid{grid-template-columns:1fr}.qa-checklist ul{grid-template-columns:1fr}.qa-membership-active{margin:22px 20px 0;padding:20px;grid-template-columns:45px 1fr}.qa-membership-active>a{grid-column:1/3;width:100%;justify-content:center}}
 @media(max-width:390px){.qa-preview-ribbon{right:86px}.qa-simulation-notice{padding:16px}.qa-current-chip{white-space:normal}.qa-dashboard{border-radius:21px}.qa-capabilities span{font-size:10px}}
 @media(prefers-reduced-motion:reduce){html:not(.force-motion) .qa-preview-ribbon{animation:none}html:not(.force-motion) .qa-state-card,html:not(.force-motion) .qa-route-grid>a{transition:none;transform:none}}
+/* Premium hospital mood system and 3:1 banner intake */
+.job-card.premium-ad{background:linear-gradient(180deg,color-mix(in srgb,var(--job-surface) 74%,#fff),#fff 39%);border-color:color-mix(in srgb,var(--job-color) 34%,#dce5f0)}
+.premium-ad .ad-brand-stage{background:radial-gradient(circle at 87% 10%,color-mix(in srgb,var(--job-accent) 22%,transparent),transparent 38%),linear-gradient(135deg,var(--job-surface),#fff 72%)}
+.premium-ad .hospital-wordmark>strong{color:var(--job-deep)}
+.premium-ad .hospital-wordmark i{background:linear-gradient(90deg,var(--job-color),var(--job-accent))}
+.premium-ad.has-brand-banner .ad-brand-stage{padding-inline:15px;background:linear-gradient(135deg,color-mix(in srgb,var(--job-surface) 70%,#fff),#fff)}
+.premium-ad.has-brand-banner .brand-media-backdrop{opacity:.1;filter:blur(28px) saturate(.82)}
+.brand-banner-upload{display:grid;grid-template-columns:minmax(210px,1.25fr) minmax(230px,1fr);align-items:center;gap:17px;margin-bottom:15px;padding:16px;border:1px solid #d7e2ef;border-radius:16px;background:linear-gradient(135deg,#eef5ff,#f8fbff 58%,#eefaf7)}
+.banner-preview{aspect-ratio:3/1;min-height:112px;border:1px solid rgba(167,188,216,.7);border-radius:13px;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 10px 24px rgba(27,58,99,.08)}
+.banner-preview>img{width:100%;height:100%;object-fit:cover}
+.banner-preview>div{padding:18px;display:grid;grid-template-columns:31px 1fr;align-items:center;column-gap:10px;color:#1c3f72}
+.banner-preview svg{grid-row:1/3;width:27px;color:#1263e8}
+.banner-preview strong{font-size:13px;line-height:1.3;word-break:keep-all}
+.banner-preview small{margin-top:3px;color:#73839a;font-size:10px!important;line-height:1.45;word-break:keep-all}
+.brand-banner-upload label{min-width:0}.brand-banner-upload label>span{display:block;color:#34445c;font-size:13px;font-weight:800}.brand-banner-upload label>span i{color:#8c99aa;font-style:normal;font-weight:500}
+.brand-banner-upload input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.brand-banner-upload em{display:block;margin-top:6px;color:#c64555;font-size:12px;font-style:normal;line-height:1.45}
+@media(max-width:780px){.brand-banner-upload{grid-template-columns:1fr;padding:14px}.banner-preview{min-height:96px}.brand-banner-upload .upload-button{min-height:52px}}
+@media(max-width:420px){.banner-preview>div{padding:14px}.banner-preview small{font-size:9px!important}.brand-banner-upload .upload-button small{display:block}}
