@@ -2115,6 +2115,36 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   .compact-process+.conversion{max-width:1192px;margin-top:0}
 }
 
+/* Portal-style home hero: search is the primary centered action, concierge is a compact proof strip. */
+@media(min-width:1101px){
+  .home-hero{min-height:auto;grid-template-columns:1fr;align-items:start;gap:20px;padding-top:62px;padding-bottom:58px}
+  .home-hero .hero-copy{width:100%;max-width:1500px;margin:0 auto;text-align:center}
+  .home-hero .hero-copy h1{max-width:none;margin:18px 0 14px;font-size:clamp(52px,4vw,70px)}
+  .home-hero .hero-copy>p{margin-bottom:0;font-size:clamp(18px,1.1vw,21px)}
+  .home-hero .hero-search-card{width:min(100%,1180px);margin:32px auto 0;padding:26px 28px 28px;text-align:left;border-radius:28px}
+  .home-hero .hero-search-title{padding-bottom:18px}
+  .home-hero .hero-search-fields{grid-template-columns:1fr 1.16fr 1fr 248px}
+  .home-hero .hero-search-fields label{min-height:104px}
+  .home-hero .hero-search-button{font-size:18px}
+  .home-hero .hero-assurance{justify-content:center}
+  .home-hero .concierge-card{width:min(100%,1180px);margin:0 auto;padding:16px 18px;border-radius:21px;display:grid;grid-template-columns:220px 250px repeat(2,minmax(0,1fr));align-items:center;gap:14px;text-align:left}
+  .home-hero .concierge-head{min-width:0;padding:0 14px 0 0;border:0;border-right:1px solid #e4eaf2}
+  .home-hero .concierge-head>span{width:44px;height:44px}
+  .home-hero .concierge-head i{padding:5px 7px;font-size:8px}
+  .home-hero .match-score{min-width:0;margin:0;padding:0 14px 0 0;border-right:1px solid #e4eaf2;gap:11px}
+  .home-hero .score-ring{width:58px;height:58px;padding-top:17px}
+  .home-hero .score-ring:before{inset:6px}
+  .home-hero .score-ring strong{font-size:18px}
+  .home-hero .match-score h3{margin-top:2px;font-size:15px;line-height:1.35}
+  .home-hero .mini-position{min-height:78px;margin:0;padding:10px 11px;border-radius:13px}
+  .home-hero .mini-position p{font-size:10px}
+  .home-hero .concierge-foot{grid-column:1/-1;margin:0;padding-top:10px;border-top:1px solid #edf1f6;font-size:12px}
+}
+@media(min-width:1101px) and (max-width:1300px){
+  .home-hero .concierge-card{grid-template-columns:1fr 1fr}
+  .home-hero .concierge-head,.home-hero .match-score{border-right:0}
+}
+
 /* Adaptive performance mode: automatically removes expensive rendering on constrained devices. */
 html.performance-lite{scroll-behavior:auto!important}
 html.performance-lite *,html.performance-lite *:before,html.performance-lite *:after{
