@@ -32,10 +32,10 @@ export const QA_STATE_OPTIONS = Object.freeze([
     id: 'doctor',
     label: '의사 일반 회원',
     shortLabel: '의사 회원',
-    description: '의사 인증 후 무료 상세조건과 상담 기능을 점검합니다.',
+    description: '의사 인증 상태에서 멤버십 상세조건 잠금과 상담 기능을 점검합니다.',
     tone: 'doctor',
-    capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: false, privateDetails: true },
-    metrics: [['상세조건', '무료 열람'], ['관심공고', '3건'], ['프리미엄', '미이용']]
+    capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: false, privateDetails: false },
+    metrics: [['상세조건', '멤버십 잠금'], ['관심공고', '3건'], ['프리미엄', '미이용']]
   },
   {
     id: 'doctor-member',

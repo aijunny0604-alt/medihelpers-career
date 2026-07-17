@@ -622,7 +622,13 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   }, [qa?.active, qa?.state]);
   const isAd = Boolean(job.adTier);
   const restricted = isAd || job.badge === "비공개";
-  const memberUnlocked = verifiedDoctor || Boolean(qa?.active && qa.info.capabilities.admin);
+  const memberUnlocked = Boolean(
+    qa?.active &&
+      (qa.info.capabilities.membership || qa.info.capabilities.admin),
+  );
+  const membershipTarget = verifiedDoctor
+    ? `/membership?type=doctor&job=${job.id}`
+    : `/signup/doctor?next=/membership?type=doctor&job=${job.id}`;
   const qaUnlocked =
     restricted && memberUnlocked;
   const locked = restricted && !qaUnlocked;
@@ -780,7 +786,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                 <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {memberUnlocked ? <><BadgeCheck /> 의사 인증 열람 중</> : <><LockKeyhole /> 의사 인증 후 무료</>}
+                {memberUnlocked ? <><BadgeCheck /> 멤버십 상세정보 열람 중</> : <><LockKeyhole /> 멤버십 구독 후 열람</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
@@ -794,14 +800,23 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                     {rows.map(([label, value]) => (
                       <div key={label}>
                         <dt>{label}</dt>
-                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="의사 인증 후 무료 공개">의사 인증 후 무료 공개</span>}</dd>
+                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="멤버십 구독 후 공개">멤버십 구독 후 공개</span>}</dd>
                       </div>
                     ))}
                   </dl>
                 </article>
               ))}
+              {!memberUnlocked && (
+                <div className="decision-sheet-lock-overlay">
+                  <span><LockKeyhole /></span>
+                  <small>DOCTOR MEMBERSHIP</small>
+                  <strong>멤버십 구독 후 상세조건 열람</strong>
+                  <p>보수·실제 근무표·진료 강도·입사 판단 정보가 모두 공개됩니다.</p>
+                  <Link className="button primary" to={membershipTarget}>멤버십 구독하고 상세보기 <ArrowRight /></Link>
+                </div>
+              )}
             </div>
-            {memberUnlocked ? (
+            {memberUnlocked && (
               <div className="headhunter-verified-note">
                 <span><BadgeCheck /></span>
                 <div>
@@ -810,14 +825,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                   <p>{job.summary} 환자 수·당직 수당처럼 ‘확인 필요’로 표시된 항목은 지원 전 담당자가 병원에 다시 확인합니다.</p>
                 </div>
                 <Link to={`/headhunting?job=${job.id}`}>조건 확인·협상 요청 <ArrowRight /></Link>
-              </div>
-            ) : (
-              <div className="decision-sheet-gate">
-                <div>
-                  <strong>의사 인증 후 16개 판단 항목을 무료로 확인하세요</strong>
-                  <span>정확한 시간·당직·환자량·지원 인력·채용 사유까지 열람료 없이 제공합니다.</span>
-                </div>
-                <Link className="button primary" to={`/signup/doctor?next=/jobs/${job.id}`}>의사 인증하고 무료 보기 <ArrowRight /></Link>
               </div>
             )}
           </section>
