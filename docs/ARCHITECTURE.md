@@ -1,59 +1,61 @@
 # ARCHITECTURE
 
-## Purpose
+## 현재 구조
 
-프론트엔드 MVP가 실제 플랫폼으로 성장할 때의 구조를 정의합니다.
+```text
+브라우저 React SPA
+  ├─ 공개 화면·검색·상담·마이페이지·관리자 콘솔
+  └─ /api/*
+       └─ OpenAI Sites Worker 런타임
+            ├─ D1: 회원·동의·상담·콘텐츠·CRM·주문·감사 로그
+            ├─ Resend: 상담 이메일 알림(설정 시)
+            └─ Solapi: 상담 문자 알림(설정 시)
+```
 
-## Current State
+- 프론트엔드: React + Vite
+- 호스팅·서버 런타임: OpenAI Sites
+- 데이터베이스: Sites D1 바인딩 `DB`
+- 배포 산출물: `scripts/package-sites.mjs`가 SPA와 API Worker를 `dist/`에 구성
+- 마이그레이션: `drizzle/0000`~`0005`
 
-현재는 React SPA와 Sites 정적 런타임으로 구성됩니다. 다음 단계에서 Supabase를 운영 데이터 계층으로 연결합니다.
+## 데이터 공급원
 
-### Target Structure
+1. `src/data.js`: 시연용 기본 공고·인재 데이터
+2. D1 `admin_content_records`: 관리자가 작성한 운영 콘텐츠
+3. `/api/site-operations`: 역할에 맞는 공개 콘텐츠·설정·기능 플래그 반환
+4. 클라이언트가 두 공급원을 병합하여 목록 표시
 
-- Frontend: React + Vite
-- Hosting: OpenAI Sites
-- Database/Auth/Storage: Supabase
-- Payment: Toss Payments
-- Email: Resend 또는 Supabase Edge Function
-- Analytics: 개인정보 최소 수집형 이벤트 분석
+따라서 아직 D1이 전체 공개 목록의 단일 원장은 아닙니다. 운영 전 기본 데이터를 D1로 이전하고 정적 데이터는 개발용 fixture로만 남겨야 합니다.
 
-### Main Domains
+## 권한 경계
 
-- public jobs and profiles
-- profession hubs and profession-specific filters
-- credential-verified profession communities
-- profession launch waitlists
-- consultation leads
-- hospital advertisement orders
-- matching workflow
-- account and verification
-- admin operations
+- 인증: Sites가 전달한 인증 사용자 헤더
+- 계정 식별자: 이메일 원문을 직접 키로 쓰지 않고 `ACCOUNT_HASH_SECRET` 기반 HMAC 키 사용
+- 관리자: `ADMIN_EMAILS` 허용목록을 서버에서 검사
+- 역할: 내부 값 `doctor`는 일반/의료인 회원 화면, `hospital`은 병원 회원 화면에 대응
+- 상태 변경 요청: 동일 출처 검사와 서버 역할 검사
+- 공개 콘텐츠: `public`, `doctor`, `hospital`, `admin` 공개범위를 서버에서 필터링
 
-## Job Exposure (균형 노출)
+## 주요 도메인
 
-- 순수 모듈 `src/jobExposure.js`(테스트 `src/jobExposure.test.js`)가 목록 노출 순서를 계산합니다. React·DOM 의존이 없어 단위 테스트로 검증합니다.
-- `balancedOrder`: 진료과(dept) 라운드로빈 + 지역(region) 보조 분산으로 안정적 인터리빙. 가장 작은 버킷 내부는 원본 등록 순서를 유지(최신 등록순 대용).
-- `orderPremium`: 광고 등급 우선순위(spotlight→featured→basic)를 유지한 채 등급 내부에서만 진료과·지역 균형.
-- 회전 seed는 UTC 일 단위(`Math.floor(Date.now()/86400000)`)로 세션당 1회 계산 → 하루 동안 순서 고정, 매일 첫 진료과만 순환. 세션 내 무작위 재정렬 없음, 항목 손실/중복 없음.
-- `JobsPage`는 프리미엄 초기 6건 / 일반 초기 9건만 노출하고 더보기로 확장해, 광고가 많아도 일반 목록을 끝없이 밀어내지 않습니다(유료 최상단 유지 + 목록 균형).
+- 계정·동의·회원 프로필
+- 상담 접수와 운영 알림
+- 의사 초빙공고·의료인 채용공고·익명 인재 콘텐츠
+- 헤드헌팅 채용 건과 후보 동의·면접·성공보수
+- 광고·멤버십 주문, 거래 이벤트, 환불 요청, 증빙
+- 관리자 설정·카테고리·기능 플래그·감사 로그
 
-## Current Rules
+## 비기능 기준
 
-- 결제 승인, 권한 검사, 개인정보 접근은 브라우저에서 확정하지 않습니다.
-- 업로드 파일은 공개 URL로 두지 않고 만료형 접근 권한을 사용합니다.
-- 상담 접수와 결제 웹훅은 중복 호출되어도 한 번만 처리되게 설계합니다.
-- 계정·결제·상담은 공통으로 운영하고, 검색 조건·자격 검증·커뮤니티 채널은 직군별 스키마로 확장합니다.
+- 결제 승인과 민감정보 공개는 클라이언트 상태로 확정하지 않습니다.
+- 깨진 레거시 JSON 한 건이 전체 관리 화면을 중단하지 않도록 안전하게 파싱합니다.
+- 상태 변경과 민감정보 열람은 감사 로그 대상으로 관리합니다.
+- `prefers-reduced-motion`과 기기 성능 감지를 통해 장식 애니메이션을 자동 축소합니다.
+- 공개 목록의 정렬은 광고 등급을 지키되 진료과·지역 균형 노출을 적용합니다.
 
-## Related Docs
+## 다음 구조 변경
 
-- `DB.md`
-- `API.md`
-- `AUTH.md`
-
-## 프리미엄 광고 로테이터
-
-`PremiumAdCarousel`은 `orderPremium`이 만든 등급 우선·진료과·지역 균형 배열을 받아 반응형 묶음으로 순환한다. 자동 전환은 IntersectionObserver, Page Visibility API, 포인터·포커스 상태, reduced-motion 설정을 함께 확인해 실제로 광고 영역을 보고 있는 경우에만 실행한다.
-
-## 회원 중복 가입 방지 방향
-
-서비스는 주민등록번호를 직접 수집하지 않는다. 정식 오픈 시 지정 본인확인기관의 휴대폰 본인확인(PASS·SMS)을 연동하고, 본인확인기관이 반환하는 중복가입 방지정보(DI)를 서버 계정의 유일성 판정에 사용한다. 휴대폰 번호 문자열만으로 중복 계정을 판정하지 않으며, 결과정보의 저장 범위·보호 방식·보유기간은 연동 전 법무·보안 검토로 확정한다.
+- 이미지·이력서 파일: R2 비공개 저장과 만료형 접근 URL
+- 후보 개인정보: 공개 프로필과 분리된 비공개 저장소
+- 결제: PG 승인·취소 API와 서명 검증 웹훅
+- 콘텐츠: 정적 fixture 제거 후 D1 단일 원장

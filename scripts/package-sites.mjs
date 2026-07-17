@@ -49,8 +49,8 @@ const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatemen
 const termsVersion = 'signup-terms-draft-2026-07-16';
 const privacyNoticeVersion = 'privacy-notice-draft-2026-07-16';
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
+function json(data, status = 200, headers = {}) {
+  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers } });
 }
 function signupEnabled(env) {
   const approvedCopyEmbedded = !termsVersion.includes('draft') && !privacyNoticeVersion.includes('draft');
@@ -108,6 +108,14 @@ function cleanConsultationPayload(payload) {
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>\"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' })[character]);
 }
+function parseJsonObject(value) {
+  try {
+    const parsed = JSON.parse(value || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 async function sendConsultationEmail(env, record) {
   if (!env.RESEND_API_KEY || !env.RESEND_FROM || !env.ALERT_EMAIL_TO) return 'not_configured';
   const label = record.requestType === 'doctor' ? '의사 구직희망' : '병원 구인희망';
@@ -147,8 +155,18 @@ async function consultationApi(request, env, pathname) {
     const payload = cleanConsultationPayload(body.payload || {});
     const requesterName = requestType === 'doctor' ? payload.name : payload.hospital;
     if (!['doctor','hospital'].includes(requestType) || !requesterName || !payload.phone || !payload.specialty) return json({ error:'필수 정보를 모두 입력해 주세요.' }, 400);
+    if (env.ACCOUNT_HASH_SECRET && String(env.ACCOUNT_HASH_SECRET).length >= 32) {
+      try {
+        await ensureAccountSchema(env);
+        const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+        const account = await env.DB.prepare('SELECT role FROM accounts WHERE user_key = ?').bind(key).first();
+        if (account && account.role !== requestType) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
+      } catch {
+        return json({ error:'회원 권한을 확인할 수 없습니다.' }, 503);
+      }
+    }
     const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
-    await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, payload.email || '', payload.specialty, JSON.stringify(payload)).run();
+    await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload)).run();
     if (requestType === 'hospital') {
       try {
         await ensureRecruitmentCrmSchema(env);
@@ -262,7 +280,7 @@ async function memberCenterApi(request, env) {
     const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
     const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
     const orders = await env.DB.prepare('SELECT order_number AS orderNumber, product_name AS productName, total_amount AS totalAmount, status, payment_method AS paymentMethod, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => ({ ...row, payload:JSON.parse(row.payloadJson || '{}'), payloadJson:undefined })), orders:orders.results || [] });
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orders.results || [] });
   }
   if (request.method === 'PATCH') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -495,7 +513,7 @@ async function adminConsoleApi(request, env) {
       },
       settings, features,
       categories:(categoryResult.results || []).map(row => ({ ...row, enabled:Boolean(row.enabled) })),
-      contents:(contentResult.results || []).map(row => ({ ...row, payload:JSON.parse(row.payloadJson || '{}') })),
+      contents:(contentResult.results || []).map(row => ({ ...row, payload:parseJsonObject(row.payloadJson) })),
       members:memberResult.results || [],
       payments:paymentResult.results || [],
       transactions:transactionResult.results || [],
