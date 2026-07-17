@@ -1168,8 +1168,9 @@ function HomePage({ liveJobs = jobs }) {
   const [region, setRegion] = useState('전국');
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
-    <section className="home-hero home-hero-simple">
-      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 의사 채용·이직 전문 헤드헌팅</span><h1>병원과 의사의 결정까지,<br /><em>전담 헤드헌터가 책임집니다.</em></h1><p>채용 의뢰부터 후보 발굴·동의·추천·면접·조건 협상·입사까지<br />한 사람의 전담 헤드헌터가 끝까지 연결합니다.</p>
+    <section className="home-job-hub">
+      <div className="home-job-hub-inner">
+        <div className="home-job-hub-head"><div><span className="section-kicker">DOCTOR RECRUITMENT</span><h1>의사 초빙정보</h1></div><p>진료과와 지역, 근무형태를 선택하면 원하는 공고를 바로 확인할 수 있습니다.</p></div>
         <div className="hero-search-card" role="search" aria-label="의사 초빙정보 검색">
           <div className="hero-search-title"><span><Search /></span><div><strong>의사 초빙정보 바로 찾기</strong><small>초빙유형·진료과·지역을 선택하세요</small></div><em className="hero-search-badge">의사 전용</em></div>
           <div className="hero-search-fields">
@@ -1180,11 +1181,9 @@ function HomePage({ liveJobs = jobs }) {
           </div>
           <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
         </div>
-        <div className="hero-assurance"><ShieldCheck /><span><strong>이직 의사는 상담 전까지 비공개</strong> · 초빙정보 탐색은 무료입니다</span></div>
       </div>
     </section>
-    <section className="section soft" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">CURATED DOCTOR POSITIONS</span><h2>지금 주목할 의사 초빙</h2><p>진료과와 근무조건, 병원 정보를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(liveJobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
-    <ConversionBanner />
+    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">LATEST DOCTOR POSITIONS</span><h2>진행 중인 의사 초빙공고</h2><p>병원과 근무조건을 같은 기준으로 비교하고 상세 공고를 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(liveJobs).slice(0, 8).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
   </>;
 }
 
