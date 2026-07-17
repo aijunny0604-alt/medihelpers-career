@@ -3100,3 +3100,22 @@ html.performance-lite .motion-notice{background:#fff}
     border-top:1px solid #e5ecef;
   }
 }
+.talent-more{
+  min-height:58px;
+  margin-top:20px;
+  border-color:#cddfd9;
+  background:linear-gradient(110deg,#fff,#f3faf8);
+  color:#137d68;
+  box-shadow:0 10px 24px rgba(25,112,94,.06);
+}
+.talent-more em{
+  padding:5px 8px;
+  border-radius:8px;
+  background:#e8f5f1;
+  color:#4e786f;
+}
+.talent-more:hover{
+  border-color:#5eb39f;
+  background:#eef9f6;
+  color:#0c8069;
+}

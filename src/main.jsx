@@ -33,6 +33,7 @@ const departments = ['전체 진료과', '내과', '정형외과', '소아청소
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
 const recruitmentTypes = ['전체 초빙', '봉직의', '원장·센터장', '검진·판독', '비임상·기업'];
 const doctorConditions = ['전체 조건', '주 4일', '당직 협의', '숙소 지원', '검진 중심'];
+const TALENT_PAGE_SIZE = 12;
 function getRoute() {
   const pathname = appBase && window.location.pathname.startsWith(appBase) ? window.location.pathname.slice(appBase.length) || '/' : window.location.pathname;
   return `${pathname}${window.location.search}`;
@@ -1282,6 +1283,7 @@ function TalentPage() {
   const [availability, setAvailability] = useState("전체 시점");
   const [keyword, setKeyword] = useState("");
   const [talentSort, setTalentSort] = useState("recent");
+  const [talentVisible, setTalentVisible] = useState(TALENT_PAGE_SIZE);
   const [selectedTalent, setSelectedTalent] = useState(null);
   const [saved, setSaved] = useState(() =>
     readStoredArray("medihelpers_saved_talent"),
@@ -1327,6 +1329,11 @@ function TalentPage() {
         )
       : filteredTalent;
   }, [dept, region, availability, keyword, talentSort]);
+  useEffect(() => {
+    setTalentVisible(TALENT_PAGE_SIZE);
+  }, [dept, region, availability, keyword, talentSort]);
+  const visibleTalent = visible.slice(0, talentVisible);
+  const talentRemaining = Math.max(0, visible.length - visibleTalent.length);
   const toggleSaved = (code) =>
     setSaved((current) => {
       const next = current.includes(code)
@@ -1453,7 +1460,7 @@ function TalentPage() {
         </div>
         <div className="result-row portal-result-row">
           <div>
-            <small>전체 인재정보</small>
+            <small>전체 인재정보 · 현재 {visibleTalent.length}명 표시</small>
             <strong>
               총 <em>{visible.length}</em>명의 상담 완료 의사
             </strong>
@@ -1479,7 +1486,7 @@ function TalentPage() {
           </div>
         </div>
         <div className="talent-grid talent-portal-list">
-          {visible.map((person) => (
+          {visibleTalent.map((person) => (
             <article className="talent-card" key={person.code}>
               <div className="talent-top">
                 <span className="avatar">
@@ -1541,6 +1548,19 @@ function TalentPage() {
             </article>
           ))}
         </div>
+        {talentRemaining > 0 && (
+          <button
+            type="button"
+            className="standard-more talent-more"
+            onClick={() =>
+              setTalentVisible((current) => current + TALENT_PAGE_SIZE)
+            }
+          >
+            인재 더보기
+            <em>남은 {talentRemaining}명</em>
+            <ArrowRight size={16} />
+          </button>
+        )}
         {!visible.length && (
           <div className="empty-state">
             <UserRoundSearch />
