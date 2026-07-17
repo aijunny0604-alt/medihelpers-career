@@ -3898,3 +3898,53 @@ html.performance-lite .motion-notice{background:#fff}
   .medical-staff-job-list article{grid-template-columns:1fr}
   .medical-staff-career,.medical-staff-job-list article>strong,.medical-staff-deadline,.medical-staff-job-list article>button{grid-column:auto}
 }
+/* Headhunting consultation: make the guided form the primary focal point. */
+.consultation-focus{position:relative;width:100%;max-width:1360px;margin-inline:auto;padding:clamp(64px,6vw,92px) clamp(28px,5vw,72px) 100px;display:flex;flex-direction:column;align-items:center;gap:36px;background:radial-gradient(circle at 50% 38%,rgba(225,238,255,.78),transparent 34%)}
+.consultation-focus .consult-copy{width:100%;max-width:1080px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.consultation-focus .consult-copy .section-kicker{font-size:13px}
+.consultation-focus .consult-copy h2{max-width:none;margin:12px 0 16px;font-size:clamp(40px,3.4vw,54px);line-height:1.2;letter-spacing:-2.7px}
+.consultation-focus .consult-copy h2>span{display:inline;white-space:normal}
+.consultation-focus .consult-copy h2>span+span:before{content:' ';white-space:pre}
+.consultation-focus .consult-copy>p{max-width:840px;margin:0 auto;color:#62758d;font-size:17px;line-height:1.75}
+.consultation-focus .consult-points{width:100%;max-width:960px;margin-top:26px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.consultation-focus .consult-points>div{min-height:86px;padding:16px 18px;border:1px solid #dbe6f2;border-radius:16px;background:rgba(255,255,255,.88);text-align:left;align-items:center;box-shadow:0 8px 24px rgba(30,65,108,.04)}
+.consultation-focus .consult-points>div>span{width:44px;height:44px;border-radius:13px}
+.consultation-focus .consult-points strong{font-size:15px}
+.consultation-focus .consult-points p{margin-top:4px;font-size:12px;line-height:1.5}
+.consultation-focus .direct-contact{width:auto;margin-top:18px;padding:9px 12px 9px 18px;border:1px solid #cfe0f2;border-radius:999px;background:#fff;display:flex;flex-direction:row;align-items:center;gap:12px;box-shadow:0 8px 22px rgba(22,69,126,.06)}
+.consultation-focus .direct-contact small{font-size:12px}
+.consultation-focus .direct-contact a{margin:0;padding:7px 13px;border-radius:999px;background:#edf4ff;font-size:18px}
+.consultation-focus .direct-contact span{font-size:11px}
+.consultation-focus .consult-form.guided{width:min(100%,1020px);border:1px solid #cbdced;border-top:5px solid #1263e8;border-radius:28px;background:#fff;box-shadow:0 30px 80px rgba(21,57,103,.17)}
+.consultation-focus .guided-head{padding:34px 42px 27px}
+.consultation-focus .guided-head small{font-size:13px}
+.consultation-focus .guided-head h3{margin-top:7px;font-size:30px;letter-spacing:-1.2px}
+.consultation-focus .guided-head>span{padding:9px 14px;font-size:13px}
+.consultation-focus .consult-progress{padding:20px 42px}
+.consultation-focus .guided-body,.consultation-focus .consult-step{padding-left:42px;padding-right:42px}
+.consultation-focus .consult-step{padding-bottom:42px}
+.consultation-focus .role-tabs{margin-bottom:28px;padding:5px;border-radius:15px}
+.consultation-focus .role-tabs button{min-height:62px;font-size:17px}
+.consultation-focus .step-question h4{font-size:25px;margin:8px 0 20px}
+.consultation-focus .choice-grid{gap:12px}
+.consultation-focus .choice-grid button{min-height:60px;padding-inline:18px;font-size:16px;border-radius:14px}
+.consultation-focus .consult-step>.button.full{min-height:60px;margin-top:18px;font-size:17px;border-radius:14px}
+@media(max-width:780px){
+  .consultation-focus{padding:48px 16px 70px;gap:28px;background:linear-gradient(180deg,#f8fbff,#fff)}
+  .consultation-focus .consult-copy h2{font-size:36px;letter-spacing:-1.8px}
+  .consultation-focus .consult-copy h2>span{display:block}
+  .consultation-focus .consult-copy h2>span+span:before{content:none}
+  .consultation-focus .consult-copy>p{font-size:15px}
+  .consultation-focus .consult-points{grid-template-columns:1fr;gap:9px}
+  .consultation-focus .consult-points>div{min-height:72px;padding:13px 15px}
+  .consultation-focus .direct-contact{border-radius:18px;flex-wrap:wrap;justify-content:center}
+  .consultation-focus .direct-contact span{width:100%}
+  .consultation-focus .consult-form.guided{border-radius:22px}
+  .consultation-focus .guided-head{padding:27px 22px 22px}
+  .consultation-focus .guided-head h3{font-size:24px}
+  .consultation-focus .consult-progress{padding:17px 22px}
+  .consultation-focus .guided-body,.consultation-focus .consult-step{padding-left:20px;padding-right:20px}
+  .consultation-focus .consult-step{padding-bottom:24px}
+  .consultation-focus .role-tabs button{min-height:54px;font-size:15px}
+  .consultation-focus .choice-grid{grid-template-columns:1fr}
+}

@@ -1941,7 +1941,7 @@ function HeadhuntingPage({ route }) {
           </>
         }
       ><div className="headhunting-quick-actions"><Link className="button light" to="/request/job-seeker"><Stethoscope /> 의료인 구직희망 무료 접수</Link><Link className="button glass" to="/request/hiring"><Building2 /> 병원 구인희망 무료 접수</Link></div></PageHero>
-      <section className="section consultation-layout">
+      <section className="section consultation-layout consultation-focus">
         <div className="consult-copy">
           <span className="section-kicker">1:1 DOCTOR HEADHUNTING</span>
           <h2>
