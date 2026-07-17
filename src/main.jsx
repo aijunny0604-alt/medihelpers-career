@@ -32,7 +32,7 @@ import {
   writeStoredValue
 } from './browserStorage.js';
 import { appBase, withBase } from './basePath.js';
-import { balancedOrder, orderPremium, countByDept } from './jobExposure.js';
+import { balancedOrder, countByDept } from './jobExposure.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
@@ -1323,7 +1323,6 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
 
   // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
   const daySeed = useMemo(() => Math.floor(Date.now() / 86400000), []);
-  const premiumSessionSeed = useMemo(() => daySeed + Math.floor(Math.random() * 1000000), [daySeed]);
 
   // 진료과 빠른 필터용: 진료과 필터 이전, 지역+키워드만 적용한 결과의 진료과별 개수.
   const specialtyStrip = useMemo(() => {
@@ -1339,7 +1338,9 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
 
   const filtered = useMemo(() => liveJobs.filter((job) => matchesJob(job, { dept, region, keyword, recruitmentType, condition })), [liveJobs, dept, region, keyword, recruitmentType, condition]);
   // 프리미엄: 등급 우선순위 유지 + 등급 내부 진료과·지역 균형.
-  const orderedPromoted = useMemo(() => orderPremium(filtered.filter((job) => job.adTier), { seed: premiumSessionSeed }), [filtered, premiumSessionSeed]);
+  // Keep the promoted catalogue in the same stable tier/order as the home page.
+  // Re-randomising it on every visit made familiar spotlight cards appear to be missing.
+  const orderedPromoted = useMemo(() => prioritizeJobs(filtered.filter((job) => job.adTier)), [filtered]);
   // 일반: 진료과·지역 라운드로빈 균형.
   const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => !job.adTier), { seed: daySeed }), [filtered, daySeed]);
   const standardDisplayOrder = useMemo(() => jobSort === 'recent' ? filtered.filter((job) => !job.adTier) : orderedStandard, [filtered, orderedStandard, jobSort]);
