@@ -179,6 +179,50 @@ function PhoneVerificationField({ fieldId, meta, value, error, prepared, onChang
     {prepared && <div className="phone-verification-preview" role="status"><ShieldCheck /><span><strong>휴대폰 본인확인 연결 위치입니다</strong><small>현재는 개인정보를 전송하지 않는 미리보기입니다. 정식 오픈 시 PASS·SMS 본인확인 창이 열립니다.</small></span></div>}
   </div>;
 }
+
+function AgreementItem({ id, checked, onChange, title, children, confirmation = '동의합니다' }) {
+  return <article className="signup-agreement-item">
+    <div className="signup-agreement-heading">
+      <label htmlFor={id}>
+        <input id={id} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+        <span><b>필수</b><strong>{title}</strong></span>
+      </label>
+      <details>
+        <summary>내용 보기</summary>
+        <div className="signup-legal-copy">{children}</div>
+      </details>
+    </div>
+    <p>{confirmation}</p>
+  </article>;
+}
+
+function TermsCopy() {
+  return <>
+    <h4>메디헬퍼스 서비스 이용약관 주요 내용</h4>
+    <dl>
+      <div><dt>이용 목적</dt><dd>의사·의료인 채용정보, 인재정보, 비공개 이직상담, 병원 채용의뢰 및 관련 관리 서비스를 제공합니다.</dd></div>
+      <div><dt>계정과 인증</dt><dd>계정은 가입자 본인 또는 등록된 병원 담당자만 사용할 수 있으며, 의사·병원 인증 권한은 운영 확인 후 부여됩니다.</dd></div>
+      <div><dt>이용자 의무</dt><dd>허위 공고, 타인의 정보 도용, 무단 연락처 수집·판매, 후보자 동의 없는 개인정보 전달을 금지합니다.</dd></div>
+      <div><dt>유료 서비스</dt><dd>공고·열람·채용 상품의 금액, 제공기간, 환불조건은 결제 전에 별도로 안내하고 동의를 받습니다.</dd></div>
+      <div><dt>서비스 제한</dt><dd>약관 위반, 허위 기관·자격 정보, 개인정보 침해가 확인되면 게시물 또는 계정 이용을 제한할 수 있습니다.</dd></div>
+    </dl>
+    <p className="signup-legal-notice">정식 운영 약관은 사업자 정보, 유료서비스 및 분쟁처리 기준을 법무 검토한 뒤 시행일과 함께 게시합니다.</p>
+  </>;
+}
+
+function PrivacyCopy({ memberType }) {
+  return <>
+    <h4>개인정보 수집·이용 안내</h4>
+    <dl>
+      <div><dt>수집 목적</dt><dd>회원 식별, 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의와 결제내역 관리</dd></div>
+      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 기록{memberType === 'hospital' ? ', 담당자 직책, 병원명, 기관 유형, 대표자명, 대표전화, 주소' : ''}</dd></div>
+      <div><dt>보유 기간</dt><dd>회원 탈퇴 시까지 보관하며, 결제·계약 등 관계 법령상 보존 의무가 있는 기록은 해당 기간 동안 분리 보관합니다.</dd></div>
+      <div><dt>동의 거부</dt><dd>동의를 거부할 수 있으나 필수정보 수집에 동의하지 않으면 회원가입과 계정 기반 서비스를 이용할 수 없습니다.</dd></div>
+    </dl>
+    <p className="signup-legal-notice">주민등록번호, 면허·자격 서류, 사업자등록증 원본과 마케팅 수신 동의는 가입 단계에서 받지 않습니다.</p>
+  </>;
+}
+
 // 실제 계정을 만들지 않으며, 어떤 개인정보도 브라우저에 저장하지 않습니다.
 function SignupApplicationForm({ memberType }) {
   const content = roleContent[memberType];
@@ -338,19 +382,15 @@ function SignupApplicationForm({ memberType }) {
           <span><b>전체 동의</b> 아래 필수 항목에 한 번에 동의합니다. (마케팅 수신 동의는 포함되지 않습니다.)</span>
         </label>
         <div className="signup-agreements">
-          <label>
-            <input id={`signup-${memberType}-termsAccepted`} type="checkbox" checked={draft.termsAccepted} onChange={(event) => toggleConsent('termsAccepted', event.target.checked)} aria-invalid={submittedOnce && errors.termsAccepted ? 'true' : undefined} />
-            <span><b>[필수]</b> 서비스 이용약관에 동의합니다.</span>
-          </label>
-          <details><summary>이용약관 초안 요약</summary><p>계정은 본인만 사용하며 허위 정보·무단 정보 수집·연락처 거래를 금지합니다. 의사와 병원의 인증 권한은 운영 확인 후 별도로 부여됩니다. <b>최종 약관 전문과 사업자 정보는 정식 오픈 전 법무 검토 후 확정·게시됩니다.</b></p></details>
-          <label>
-            <input id={`signup-${memberType}-privacyAccepted`} type="checkbox" checked={draft.privacyAccepted} onChange={(event) => toggleConsent('privacyAccepted', event.target.checked)} aria-invalid={submittedOnce && errors.privacyAccepted ? 'true' : undefined} />
-            <span><b>[필수]</b> 개인정보 수집·이용에 동의합니다.</span>
-          </label>
-          <details><summary>개인정보 수집·이용 초안 요약</summary><p>정식 오픈 시 계정 생성과 연락을 위해 이름·휴대폰 번호·이메일{memberType === 'hospital' ? '·병원명·담당자 역할' : ''}을 수집·이용할 예정입니다. <b>지금 이 화면에서는 어떤 개인정보도 저장하지 않으며,</b> 보유기간·처리 위탁 등 최종 처리방침은 정식 오픈 전 확정·게시됩니다.</p></details>
-          <label>
+          <AgreementItem id={`signup-${memberType}-termsAccepted`} checked={draft.termsAccepted} onChange={(value) => toggleConsent('termsAccepted', value)} title="서비스 이용약관">
+            <TermsCopy />
+          </AgreementItem>
+          <AgreementItem id={`signup-${memberType}-privacyAccepted`} checked={draft.privacyAccepted} onChange={(value) => toggleConsent('privacyAccepted', value)} title="개인정보 수집·이용">
+            <PrivacyCopy memberType={memberType} />
+          </AgreementItem>
+          <label className="signup-age-confirm">
             <input id={`signup-${memberType}-ageConfirmed`} type="checkbox" checked={draft.ageConfirmed} onChange={(event) => toggleConsent('ageConfirmed', event.target.checked)} aria-invalid={submittedOnce && errors.ageConfirmed ? 'true' : undefined} />
-            <span><b>[필수]</b> 만 14세 이상입니다.</span>
+            <span><b>필수</b><strong>만 14세 이상임을 확인합니다.</strong></span>
           </label>
           {consentError && <em role="alert">필수 동의 항목을 모두 확인해주세요.</em>}
         </div>
@@ -415,11 +455,13 @@ function SignupForm({ identity, memberType, onComplete }) {
     <form onSubmit={submit} noValidate>
       <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
       <div className="signup-agreements">
-        <label><input type="checkbox" checked={form.termsAccepted} onChange={(event) => update('termsAccepted', event.target.checked)} /><span><b>[필수]</b> 서비스 이용약관에 동의합니다.</span></label>
-        <details><summary>이용약관 주요 내용</summary><p>계정은 본인만 사용하며 허위 정보·무단 정보 수집·연락처 거래를 금지합니다. 의사와 병원의 인증 권한은 운영 확인 후 별도로 부여됩니다. 정식 공개 전 사업자 정보와 전체 약관을 확정합니다.</p></details>
-        <label><input type="checkbox" checked={form.ageConfirmed} onChange={(event) => update('ageConfirmed', event.target.checked)} /><span><b>[필수]</b> 만 14세 이상입니다.</span></label>
-        <label><input type="checkbox" checked={form.privacyAcknowledged} onChange={(event) => update('privacyAcknowledged', event.target.checked)} /><span><b>[필수 확인]</b> 개인정보 처리 안내를 확인했습니다.</span></label>
-        <details><summary>개인정보 처리 안내</summary><p>계정 생성과 보안을 위해 인증 사업자 식별정보, 인증된 이메일, 회원 유형, 가입·동의 기록을 처리합니다. 서비스에는 이메일 원문 대신 서버 비밀키를 사용한 HMAC-SHA-256 값을 계정 키로 저장하며, 회원 탈퇴 시 관계 법령상 보존 의무가 없는 정보는 삭제합니다.</p></details>
+        <AgreementItem id={`live-${memberType}-termsAccepted`} checked={form.termsAccepted} onChange={(value) => update('termsAccepted', value)} title="서비스 이용약관">
+          <TermsCopy />
+        </AgreementItem>
+        <AgreementItem id={`live-${memberType}-privacyAcknowledged`} checked={form.privacyAcknowledged} onChange={(value) => update('privacyAcknowledged', value)} title="개인정보 수집·이용" confirmation="안내를 확인하고 동의합니다">
+          <PrivacyCopy memberType={memberType} />
+        </AgreementItem>
+        <label className="signup-age-confirm"><input type="checkbox" checked={form.ageConfirmed} onChange={(event) => update('ageConfirmed', event.target.checked)} /><span><b>필수</b><strong>만 14세 이상임을 확인합니다.</strong></span></label>
         {(errors.termsAccepted || errors.ageConfirmed || errors.privacyAcknowledged) && <em>필수 약관과 안내를 확인해주세요.</em>}
       </div>
       <div className="signup-no-marketing"><CircleCheck /><span><strong>광고 수신 동의는 받지 않습니다</strong><small>마케팅 알림은 가입 후 원할 때만 별도로 선택할 수 있습니다.</small></span></div>
