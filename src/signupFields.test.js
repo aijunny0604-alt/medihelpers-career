@@ -33,13 +33,22 @@ function validHospitalDraft(overrides = {}) {
     role: 'hospital',
     hospitalName: '서울메디컬센터',
     hospitalRole: '채용 담당자',
+    representativeName: '김대표',
+    institutionType: '병원',
+    institutionPhone: '02-1234-5678',
+    postalCode: '06236',
+    address: '서울 강남구 테헤란로 123',
     ...overrides
   };
 }
 
 test('fieldsForRole: 병원만 조건부 기관 필드를 추가한다', () => {
   assert.deepEqual(fieldsForRole('doctor'), ['name', 'phone', 'email', 'password', 'passwordConfirm']);
-  assert.deepEqual(fieldsForRole('hospital'), ['name', 'phone', 'email', 'password', 'passwordConfirm', 'hospitalName', 'hospitalRole']);
+  assert.deepEqual(fieldsForRole('hospital'), [
+    'name', 'hospitalRole', 'department', 'phone', 'email', 'password', 'passwordConfirm',
+    'hospitalName', 'representativeName', 'institutionType', 'institutionPhone',
+    'postalCode', 'address', 'addressDetail', 'website', 'businessNumber', 'fax'
+  ]);
   // 알 수 없는 역할은 공통 필드만 반환한다.
   assert.deepEqual(fieldsForRole(''), ['name', 'phone', 'email', 'password', 'passwordConfirm']);
 });
@@ -61,12 +70,25 @@ test('의료인: 빈 필수 입력은 각 필드 오류를 낸다', () => {
   assert.equal(result.errors.hospitalRole, undefined);
 });
 
-test('병원: 기관명·담당자 역할이 비면 조건부 필드 오류가 난다', () => {
-  const draft = validHospitalDraft({ hospitalName: '', hospitalRole: '' });
+test('병원: 기관명·담당자 역할과 기관 필수정보가 비면 오류가 난다', () => {
+  const draft = validHospitalDraft({
+    hospitalName: '',
+    hospitalRole: '',
+    representativeName: '',
+    institutionType: '',
+    institutionPhone: '',
+    postalCode: '',
+    address: ''
+  });
   const result = validateApplicationDraft(draft, 'hospital');
   assert.equal(result.valid, false);
   assert.ok(result.errors.hospitalName);
   assert.ok(result.errors.hospitalRole);
+  assert.ok(result.errors.representativeName);
+  assert.ok(result.errors.institutionType);
+  assert.ok(result.errors.institutionPhone);
+  assert.ok(result.errors.postalCode);
+  assert.ok(result.errors.address);
 });
 
 test('병원: 조건부 필드를 채우면 통과한다', () => {
@@ -121,7 +143,7 @@ test('초기화: clearDraftFields 는 PII 없는 깨끗한 draft와 false 동의
   // 회원 유형은 유지한다
   assert.equal(cleared.role, 'hospital');
   // 모든 PII 필드는 빈 문자열이어야 한다
-  for (const field of ['name', 'phone', 'email', 'password', 'passwordConfirm', 'hospitalName', 'hospitalRole']) {
+  for (const field of fieldsForRole('hospital')) {
     assert.equal(cleared[field], '', `${field} 는 비워져야 한다`);
   }
   // 모든 필수 동의는 false 로 재설정된다

@@ -1,15 +1,22 @@
 import { ACCOUNT_ROLES } from './signupModel.js';
 
-// 정식 오픈 전 프론트엔드 전용 회원가입 신청 폼의 순수 로직입니다.
-// 이 모듈은 어떤 브라우저 저장소(localStorage/sessionStorage/쿠키)도 사용하지 않습니다.
-// 값은 폼이 열려 있는 동안 React 컴포넌트 상태로만 존재하며, 완료·초기화 시 즉시 비웁니다.
-// 서버 계정 생성과 본인인증은 정식 오픈 시 별도로 연결되며, 이 draft는 서버로 전송되지 않습니다.
-
-// 모든 회원이 공통으로 입력하는 최소 항목입니다.
+// 정식 오픈 전에 사용하는 프론트엔드 전용 회원가입 신청서입니다.
+// 입력값은 브라우저 저장소에 남기지 않으며, 실제 계정 생성은 인증 서버가 열린 뒤 연결합니다.
 const COMMON_FIELDS = ['name', 'phone', 'email', 'password', 'passwordConfirm'];
-// 병원 회원만 추가로 입력하는 항목입니다. (기관명 + 담당자 역할/관계)
-const HOSPITAL_FIELDS = ['hospitalName', 'hospitalRole'];
-// 필수 동의 항목입니다. 마케팅 수신 동의는 포함하지 않습니다.
+const HOSPITAL_ACCOUNT_FIELDS = ['hospitalRole', 'department'];
+const HOSPITAL_INFO_FIELDS = [
+  'hospitalName',
+  'representativeName',
+  'institutionType',
+  'institutionPhone',
+  'postalCode',
+  'address',
+  'addressDetail',
+  'website',
+  'businessNumber',
+  'fax'
+];
+const OPTIONAL_FIELDS = new Set(['department', 'addressDetail', 'website', 'businessNumber', 'fax']);
 const CONSENT_KEYS = ['termsAccepted', 'privacyAccepted', 'ageConfirmed'];
 
 function normalizeRole(role) {
@@ -22,12 +29,18 @@ function digitsOnly(value) {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_PATTERN = /^01[016789]\d{7,8}$/;
+const PHONE_PATTERN = /^(0(?:2|3[1-3]|4[1-4]|5[1-5]|6[1-4]|70))\d{7,8}$/;
+const URL_PATTERN = /^https?:\/\/.+/i;
+
+function requiredText(value, label, minimum = 2) {
+  const text = String(value ?? '').trim();
+  if (!text) return `${label}을(를) 입력해주세요.`;
+  if (text.length < minimum) return `${label}을(를) ${minimum}자 이상 입력해주세요.`;
+  return '';
+}
 
 function validateName(value) {
-  const name = String(value ?? '').trim();
-  if (!name) return '이름을 입력해주세요.';
-  if (name.length < 2) return '이름을 2자 이상 입력해주세요.';
-  return '';
+  return requiredText(value, '이름');
 }
 
 function validatePhone(value) {
@@ -37,14 +50,20 @@ function validatePhone(value) {
   return '';
 }
 
+function validateInstitutionPhone(value) {
+  const digits = digitsOnly(value);
+  if (!digits) return '병원 대표 전화번호를 입력해주세요.';
+  if (!PHONE_PATTERN.test(digits) && !MOBILE_PATTERN.test(digits)) return '전화번호를 지역번호와 함께 정확히 입력해주세요.';
+  return '';
+}
+
 function validateEmail(value) {
   const email = String(value ?? '').trim();
-  if (!email) return '이메일을 입력해주세요.';
+  if (!email) return '로그인에 사용할 이메일을 입력해주세요.';
   if (!EMAIL_PATTERN.test(email)) return '이메일 형식을 확인해주세요.';
   return '';
 }
 
-// 비밀번호 규칙: 8자 이상, 영문과 숫자를 모두 포함합니다.
 function validatePassword(value) {
   const password = String(value ?? '');
   if (!password) return '비밀번호를 입력해주세요.';
@@ -59,61 +78,67 @@ function validatePasswordConfirm(password, confirm) {
   return '';
 }
 
-function validateHospitalName(value) {
-  const name = String(value ?? '').trim();
-  if (!name) return '병원·기관명을 입력해주세요.';
-  if (name.length < 2) return '병원·기관명을 2자 이상 입력해주세요.';
-  return '';
+function validateSelect(value, label) {
+  return String(value ?? '').trim() ? '' : `${label}을(를) 선택해주세요.`;
 }
 
-function validateHospitalRole(value) {
-  const role = String(value ?? '').trim();
-  if (!role) return '담당자 역할을 입력해주세요. 예: 채용 담당자';
-  return '';
+export function hospitalAccountFields() {
+  return [...COMMON_FIELDS.slice(0, 1), ...HOSPITAL_ACCOUNT_FIELDS, ...COMMON_FIELDS.slice(1)];
 }
 
-// 입력에 필요한 필드 순서를 회원 유형에 맞게 반환합니다.
-// 병원은 공통 항목 뒤에 기관명·담당자 역할 조건부 필드를 추가합니다.
+export function hospitalInfoFields() {
+  return [...HOSPITAL_INFO_FIELDS];
+}
+
 export function fieldsForRole(memberType) {
-  return normalizeRole(memberType) === 'hospital' ? [...COMMON_FIELDS, ...HOSPITAL_FIELDS] : [...COMMON_FIELDS];
+  return normalizeRole(memberType) === 'hospital'
+    ? [...hospitalAccountFields(), ...hospitalInfoFields()]
+    : [...COMMON_FIELDS];
 }
 
-// 한국 휴대폰 번호를 표시/입력용으로만 하이픈 포맷팅합니다. 저장하지 않습니다.
 export function formatKoreanPhone(value) {
   const digits = digitsOnly(value).slice(0, 11);
+  if (digits.startsWith('02')) {
+    if (digits.length < 6) return digits;
+    if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
   if (digits.length < 4) return digits;
   if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
   if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
-// 개별 필드 검증기입니다. 통과하면 빈 문자열을 반환합니다.
 export function validateField(field, draft = {}) {
+  if (OPTIONAL_FIELDS.has(field) && !String(draft[field] ?? '').trim()) return '';
   switch (field) {
     case 'name': return validateName(draft.name);
     case 'phone': return validatePhone(draft.phone);
     case 'email': return validateEmail(draft.email);
     case 'password': return validatePassword(draft.password);
     case 'passwordConfirm': return validatePasswordConfirm(draft.password, draft.passwordConfirm);
-    case 'hospitalName': return validateHospitalName(draft.hospitalName);
-    case 'hospitalRole': return validateHospitalRole(draft.hospitalRole);
+    case 'hospitalRole': return requiredText(draft.hospitalRole, '담당자 직책');
+    case 'hospitalName': return requiredText(draft.hospitalName, '병원·기관명');
+    case 'representativeName': return requiredText(draft.representativeName, '대표자명');
+    case 'institutionType': return validateSelect(draft.institutionType, '기관 유형');
+    case 'institutionPhone': return validateInstitutionPhone(draft.institutionPhone);
+    case 'postalCode': return requiredText(draft.postalCode, '우편번호', 5);
+    case 'address': return requiredText(draft.address, '병원 주소', 5);
+    case 'website': return URL_PATTERN.test(String(draft.website ?? '').trim()) ? '' : '홈페이지 주소는 http:// 또는 https://로 시작해주세요.';
     default: return '';
   }
 }
 
-// 모든 필수 동의가 체크되었는지 확인합니다.
 export function allConsentsAccepted(draft = {}) {
   return CONSENT_KEYS.every((key) => draft[key] === true);
 }
 
-// '전체 동의' 토글용: 모든 필수 동의를 한 번에 설정합니다.
 export function setAllConsents(draft = {}, value) {
   const next = { ...draft };
   for (const key of CONSENT_KEYS) next[key] = value === true;
   return next;
 }
 
-// 폼 전체를 검증합니다. 회원 유형에 따라 병원 조건부 필드를 포함하고, 필수 동의 3종을 확인합니다.
 export function validateApplicationDraft(draft = {}, memberType = draft.role) {
   const errors = {};
   for (const field of fieldsForRole(memberType)) {
@@ -126,7 +151,6 @@ export function validateApplicationDraft(draft = {}, memberType = draft.role) {
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
-// 빈 신청서 상태를 생성합니다. 회원 유형만 유지하고 나머지는 모두 비어 있습니다.
 export function createEmptyDraft(memberType = '') {
   return {
     role: normalizeRole(memberType),
@@ -135,16 +159,24 @@ export function createEmptyDraft(memberType = '') {
     email: '',
     password: '',
     passwordConfirm: '',
-    hospitalName: '',
     hospitalRole: '',
+    department: '',
+    hospitalName: '',
+    representativeName: '',
+    institutionType: '',
+    institutionPhone: '',
+    postalCode: '',
+    address: '',
+    addressDetail: '',
+    website: '',
+    businessNumber: '',
+    fax: '',
     termsAccepted: false,
     privacyAccepted: false,
     ageConfirmed: false
   };
 }
 
-// 완료·초기화 시 회원 유형만 남기고 이름·연락처·이메일·비밀번호 등 모든 PII와
-// 필수 동의를 즉시 비운 깨끗한 draft를 반환합니다. 모든 동의는 false 로 재설정됩니다.
 export function clearDraftFields(draft = {}) {
   return createEmptyDraft(normalizeRole(draft.role));
 }

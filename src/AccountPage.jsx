@@ -10,6 +10,8 @@ import {
   createEmptyDraft,
   fieldsForRole,
   formatKoreanPhone,
+  hospitalAccountFields,
+  hospitalInfoFields,
   setAllConsents,
   validateApplicationDraft,
   validateField
@@ -57,13 +59,28 @@ const roleContent = {
 // 프론트엔드 전용 신청 폼의 입력 필드 메타데이터입니다.
 // autocomplete / inputMode / label 은 접근성과 입력 편의를 위해 필드별로 지정합니다.
 const FIELD_META = {
-  name: { label: '이름', type: 'text', autoComplete: 'name', placeholder: '홍길동' },
+  name: { label: '담당자 성명', type: 'text', autoComplete: 'name', placeholder: '예: 홍길동' },
   phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, hint: '주민등록번호 대신 본인 명의 휴대폰으로 확인합니다.' },
-  email: { label: '이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'user@example.com' },
+  email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.' },
   password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8자 이상', hint: '영문과 숫자를 포함해 8자 이상으로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
+  hospitalRole: { label: '담당자 직책', type: 'text', autoComplete: 'organization-title', placeholder: '예: 행정팀장, 원장' },
+  department: { label: '부서명', optional: true, type: 'text', placeholder: '예: 인사팀, 원무과' },
   hospitalName: { label: '병원·기관명', type: 'text', autoComplete: 'organization', placeholder: '예: 서울메디컬센터' },
-  hospitalRole: { label: '담당자 역할', type: 'text', autoComplete: 'organization-title', placeholder: '예: 채용 담당자' }
+  representativeName: { label: '대표자명', type: 'text', placeholder: '예: 김메디' },
+  institutionType: {
+    label: '기관 유형',
+    type: 'select',
+    placeholder: '기관 유형을 선택해주세요',
+    options: ['종합병원', '병원', '의원', '검진센터', '요양병원', '치과병·의원', '한방병·의원', '기타']
+  },
+  institutionPhone: { label: '병원 대표 전화', type: 'tel', inputMode: 'numeric', placeholder: '02-0000-0000', phone: true },
+  postalCode: { label: '우편번호', type: 'text', inputMode: 'numeric', placeholder: '예: 06236' },
+  address: { label: '병원 주소', type: 'text', autoComplete: 'street-address', placeholder: '예: 서울 강남구 테헤란로 123', wide: true },
+  addressDetail: { label: '상세 주소', optional: true, type: 'text', placeholder: '예: 5층 인사팀', wide: true },
+  website: { label: '홈페이지', optional: true, type: 'url', autoComplete: 'url', placeholder: 'https://www.hospital.co.kr' },
+  businessNumber: { label: '사업자등록번호', optional: true, type: 'text', inputMode: 'numeric', placeholder: '000-00-00000', hint: '가입 단계에서는 선택사항이며, 광고 결제·기관 인증 전에 확인합니다.' },
+  fax: { label: '팩스번호', optional: true, type: 'tel', inputMode: 'numeric', placeholder: '02-0000-0000', phone: true }
 };
 
 async function accountRequest(method = 'GET', body) {
@@ -102,9 +119,20 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
   const errorId = `${fieldId}-error`;
   const hintId = `${fieldId}-hint`;
   const describedBy = [meta.hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
-  return <div className={`signup-field ${error ? 'has-error' : ''}`}>
-    <label htmlFor={fieldId}>{meta.label}</label>
-    <input
+  return <div className={`signup-field ${meta.wide ? 'wide' : ''} ${error ? 'has-error' : ''}`}>
+    <label htmlFor={fieldId}>{meta.label}{meta.optional ? <small>선택</small> : <b>*</b>}</label>
+    {meta.type === 'select' ? <select
+      id={fieldId}
+      name={fieldId}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onBlur={onBlur}
+      aria-invalid={error ? 'true' : undefined}
+      aria-describedby={describedBy}
+    >
+      <option value="">{meta.placeholder}</option>
+      {meta.options.map((option) => <option key={option} value={option}>{option}</option>)}
+    </select> : <input
       id={fieldId}
       name={fieldId}
       type={meta.type}
@@ -116,7 +144,7 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
       onBlur={onBlur}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={describedBy}
-    />
+    />}
     {meta.hint && !error && <small id={hintId} className="signup-field-hint">{meta.hint}</small>}
     {error && <em id={errorId} className="signup-field-error" role="alert">{error}</em>}
   </div>;
@@ -129,7 +157,7 @@ function PhoneVerificationField({ fieldId, meta, value, error, prepared, onChang
   const hintId = `${fieldId}-hint`;
   const describedBy = [hintId, error ? errorId : null].filter(Boolean).join(' ');
   return <div className={`signup-field phone-verification-field ${error ? 'has-error' : ''}`}>
-    <label htmlFor={fieldId}>{meta.label}</label>
+    <label htmlFor={fieldId}>{meta.label}<b>*</b></label>
     <div className="signup-phone-row">
       <input
         id={fieldId}
@@ -265,28 +293,44 @@ function SignupApplicationForm({ memberType }) {
   }
 
   const consentError = submittedOnce && (errors.termsAccepted || errors.privacyAccepted || errors.ageConfirmed);
+  const renderMeta = (field) => field === 'name' && memberType === 'doctor' ? { ...FIELD_META[field], label: '이름' } : FIELD_META[field];
+  const renderField = (field) => field === 'phone' ? <PhoneVerificationField
+    key={field}
+    fieldId={`signup-${memberType}-${field}`}
+    meta={renderMeta(field)}
+    value={draft[field]}
+    error={submittedOnce || touched[field] ? errors[field] : ''}
+    prepared={phoneVerificationPrepared}
+    onChange={(value) => setField(field, value)}
+    onBlur={() => blurField(field)}
+    onRequest={preparePhoneVerification}
+  /> : <SignupField
+    key={field}
+    fieldId={`signup-${memberType}-${field}`}
+    meta={renderMeta(field)}
+    value={draft[field]}
+    error={submittedOnce || touched[field] ? errors[field] : ''}
+    onChange={(value) => setField(field, value)}
+    onBlur={() => blurField(field)}
+  />;
 
   return <section className="signup-card signup-application">
     <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
     <span className="signup-draft-tag"><Sparkles size={13} /> 정식 오픈 전 가입 신청 미리 작성</span>
     <h2>{content.label} 가입 신청서</h2>
-    <p>정식 오픈 전에 미리 작성해볼 수 있는 화면입니다. 실제 계정 생성과 본인인증은 정식 오픈 시 연결되며, 지금 입력한 내용은 저장되지 않습니다.</p>
+    <p>{memberType === 'hospital' ? '채용 담당자 계정과 병원 기본정보를 한 번에 등록합니다. 기관 서류는 가입 후 공고 등록이나 결제 전에 별도 확인합니다.' : '정식 오픈 전에 미리 작성해볼 수 있는 화면입니다. 실제 계정 생성과 본인인증은 정식 오픈 시 연결되며, 지금 입력한 내용은 저장되지 않습니다.'}</p>
     <form ref={formRef} onSubmit={submit} noValidate>
-      <div className="signup-field-grid">
-        {fields.map((field) => field === 'phone' ? <PhoneVerificationField
-          key={field}
-          fieldId={`signup-${memberType}-${field}`}
-          meta={FIELD_META[field]}
-          value={draft[field]}
-          error={submittedOnce || touched[field] ? errors[field] : ''}
-          prepared={phoneVerificationPrepared}
-          onChange={(value) => setField(field, value)}
-          onBlur={() => blurField(field)}
-          onRequest={preparePhoneVerification}
-        /> : <SignupField key={field} fieldId={`signup-${memberType}-${field}`} meta={FIELD_META[field]}
-          value={draft[field]} error={submittedOnce || touched[field] ? errors[field] : ''}
-          onChange={(value) => setField(field, value)} onBlur={() => blurField(field)} />)}
-      </div>
+      {memberType === 'hospital' ? <>
+        <section className="signup-form-section">
+          <header><span>01</span><div><h3>담당자 계정</h3><p>공고·문의·결제 알림을 실제로 받을 담당자 정보를 입력해주세요.</p></div></header>
+          <div className="signup-field-grid">{hospitalAccountFields().map(renderField)}</div>
+        </section>
+        <section className="signup-form-section hospital-info-section">
+          <header><span>02</span><div><h3>병원·기관 정보</h3><p>의사가 신뢰할 수 있는 공고와 기관 인증에 필요한 기본정보입니다.</p></div></header>
+          <div className="signup-field-grid">{hospitalInfoFields().map(renderField)}</div>
+          <div className="hospital-verification-note"><ShieldCheck /><span><strong>병원 서류는 지금 올리지 않아도 됩니다</strong><small>사업자등록증·의료기관 개설 관련 서류는 공고 등록이나 결제가 필요한 시점에 안전하게 확인합니다.</small></span></div>
+        </section>
+      </> : <div className="signup-field-grid">{fields.map(renderField)}</div>}
 
       <div className="signup-consent-block">
         <label className="signup-consent-all">
