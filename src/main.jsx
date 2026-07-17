@@ -1913,33 +1913,28 @@ function HeadhuntingPage({ route }) {
   return (
     <>
       <PageHero
-        tone="dark headhunting-hero"
-        eyebrow="PRIVATE CONSULTING"
+        tone="headhunting-hero"
+        eyebrow="1:1 DOCTOR HEADHUNTING"
         title={
           <>
-            <span className="headhunting-title-line">이직과 채용,</span>
-            <span className="headhunting-title-line">
-              <span>공개하기 전에</span> <span>먼저 상담하세요</span>
-            </span>
+            <span className="headhunting-title-line">의사 전문 헤드헌터에게</span>
+            <span className="headhunting-title-line">편하게 상담하세요</span>
           </>
         }
         description={
           <>
             <span className="headhunting-description-part">
-              의료 채용 현장을 아는
+              이직을 고민하는 단계부터
             </span>{" "}
             <span className="headhunting-description-part">
-              전담 헤드헌터가
+              조건 비교·병원 제안·면접·협상까지
             </span>{" "}
             <span className="headhunting-description-part">
-              조건 정리부터 면접과 협상까지
-            </span>{" "}
-            <span className="headhunting-description-part">
-              한 사람처럼 함께합니다.
+              전담 헤드헌터가 비공개로 함께합니다.
             </span>
           </>
         }
-      ><div className="headhunting-quick-actions"><Link className="button light" to="/request/job-seeker"><Stethoscope /> 의료인 구직희망 무료 접수</Link><Link className="button glass" to="/request/hiring"><Building2 /> 병원 구인희망 무료 접수</Link></div></PageHero>
+      ><div className="headhunting-quick-actions"><Link className="button primary" to="/request/job-seeker"><Stethoscope /> 의사 헤드헌터에게 상담하기 <ArrowRight /></Link></div></PageHero>
       <section className="section consultation-layout consultation-focus">
         <div className="consult-copy">
           <span className="section-kicker">1:1 DOCTOR HEADHUNTING</span>
