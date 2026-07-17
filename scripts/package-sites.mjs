@@ -401,12 +401,17 @@ async function seedAdminConsole(env) {
   };
   const features = {
     doctorRecruitment:[1,'의사 채용공고 목록과 상세 페이지'], talentSearch:[1,'병원 회원의 익명 인재 검색'],
-    resumeRegistration:[1,'의사 회원 이력서 작성 및 관리'], medicalStaffHub:[0,'간호·보건 직군 확장 영역'],
+    resumeRegistration:[1,'의사 회원 이력서 작성 및 관리'], medicalStaffHub:[1,'간호·보건 직군 채용정보'],
     paidCareerService:[0,'유료 조건 비교·계약 분석'], adRegistration:[1,'공고 상품 신청과 검수']
   };
+  const medicalStaffRestored = await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key='migration_medical_staff_hub_v1'").first();
   const statements = categories.map(([group,name,slug,sort]) => env.DB.prepare('INSERT OR IGNORE INTO admin_categories (id, group_key, name, slug, sort_order) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), group, name, slug, sort));
   Object.entries(settings).forEach(([key,value]) => statements.push(env.DB.prepare('INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES (?, ?)').bind(key, value)));
   Object.entries(features).forEach(([key,[enabled,description]]) => statements.push(env.DB.prepare('INSERT OR IGNORE INTO feature_flags (flag_key, enabled, description) VALUES (?, ?, ?)').bind(key, enabled, description)));
+  if (!medicalStaffRestored) {
+    statements.push(env.DB.prepare("UPDATE feature_flags SET enabled=1, description='간호·보건 직군 채용정보' WHERE flag_key='medicalStaffHub'"));
+    statements.push(env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_medical_staff_hub_v1','completed')"));
+  }
   await env.DB.batch(statements);
 }
 async function publicCategoriesApi(request, env) {
