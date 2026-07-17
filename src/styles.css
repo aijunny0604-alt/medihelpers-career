@@ -2090,6 +2090,13 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(max-width:520px){.doctor-search-title>span{width:100%}.doctor-search-title>strong{max-width:75%;font-size:15px}.standard-job-grid{grid-template-columns:1fr}.job-card.job-card-compact{min-height:0}.job-card-compact h3{min-height:0;-webkit-line-clamp:2}.job-hub-nav a.job-hub-register{margin-left:0}}
 @media(max-width:620px){.job-hub-title{font-size:17px}.talent-filter-grid{grid-template-columns:1fr}.talent-keyword{grid-column:auto}.portal-result-row{display:block;padding:15px 4px}.portal-result-row>div:first-child{margin-bottom:10px}.result-actions{justify-content:flex-start}.talent-portal-list .talent-card dl{display:block}.talent-portal-list .talent-card dl>div:nth-child(2){grid-column:auto}}
 
+/* Talent profile facts use one consistent label/value grid on every row. */
+.talent-portal-list .talent-card dl{display:grid;grid-template-columns:1fr;gap:0;margin:20px 0 16px}
+.talent-portal-list .talent-card dl>div,.talent-portal-list .talent-card dl>div:nth-child(2){grid-column:auto;display:grid;grid-template-columns:112px minmax(0,1fr);align-items:center;gap:18px;min-height:48px;padding:11px 0}
+.talent-portal-list .talent-card dt{font-size:14px;font-weight:700}
+.talent-portal-list .talent-card dd{min-width:0;text-align:left;font-size:14px;line-height:1.55;overflow-wrap:anywhere;word-break:keep-all}
+@media(max-width:520px){.talent-portal-list .talent-card dl>div,.talent-portal-list .talent-card dl>div:nth-child(2){grid-template-columns:88px minmax(0,1fr);gap:12px}.talent-portal-list .talent-card dt,.talent-portal-list .talent-card dd{font-size:13px}}
+
 /* Adaptive performance mode: automatically removes expensive rendering on constrained devices. */
 html.performance-lite{scroll-behavior:auto!important}
 html.performance-lite *,html.performance-lite *:before,html.performance-lite *:after{
