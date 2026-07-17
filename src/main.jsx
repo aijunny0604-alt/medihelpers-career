@@ -207,7 +207,7 @@ function Link({ to, className = '', children, onClick, ...anchorProps }) {
   }}>{children}</a>;
 }
 
-function Modal({ children, onClose, wide = false, label = '상세 정보', variant = '', accent = '' }) {
+function Modal({ children, onClose, wide = false, label = '상세 정보', variant = '', accent = '', embedded = false }) {
   const dialogRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const closeTimerRef = useRef(null);
@@ -218,6 +218,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
   }, [onClose]);
 
   const requestClose = useCallback(() => {
+    if (embedded) return;
     if (closeTimerRef.current) return;
     if (motionIsReduced()) {
       onCloseRef.current();
@@ -225,7 +226,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
     }
     setClosing(true);
     closeTimerRef.current = window.setTimeout(() => onCloseRef.current(), 240);
-  }, []);
+  }, [embedded]);
 
   useEffect(() => {
     const previousFocus = document.activeElement;
@@ -254,14 +255,14 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
       window.removeEventListener('keydown', onKey);
       previousFocus?.focus?.();
     };
-  }, [requestClose]);
+  }, [embedded, requestClose]);
 
-  return createPortal(<div className={`modal-backdrop ${closing ? 'is-closing' : ''}`} onPointerDown={(event) => event.target === event.currentTarget && requestClose()}>
-    <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''} ${variant}`} style={accent ? { '--modal-accent': accent } : undefined} role="dialog" aria-modal="true" aria-label={label} tabIndex="-1" data-lenis-prevent>
-      <button className="modal-close" onClick={requestClose} aria-label="닫기"><X /></button>
-      <div className="modal-scroll" data-lenis-prevent>{children}</div>
-    </div>
-  </div>, document.body);
+  const card = <div ref={dialogRef} className={`modal-card ${wide ? 'wide' : ''} ${variant} ${embedded ? 'embedded' : ''}`} style={accent ? { '--modal-accent': accent } : undefined} role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : 'true'} aria-label={label} tabIndex={embedded ? undefined : '-1'} data-lenis-prevent={!embedded || undefined}>
+    {!embedded && <button className="modal-close" onClick={requestClose} aria-label="닫기"><X /></button>}
+    <div className="modal-scroll" data-lenis-prevent={!embedded || undefined}>{children}</div>
+  </div>;
+  if (embedded) return <section className="job-detail-page">{card}</section>;
+  return createPortal(<div className={`modal-backdrop ${closing ? 'is-closing' : ''}`} onPointerDown={(event) => event.target === event.currentTarget && requestClose()}>{card}</div>, document.body);
 }
 
 function Header({ path, qa }) {
@@ -562,6 +563,7 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
   const next = useCallback(() => onIndex((index + 1) % total), [index, onIndex, total]);
 
   useEffect(() => {
+    if (embedded) return undefined;
     const onKeyDown = (event) => {
       if (!['Escape', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       event.preventDefault();
@@ -593,7 +595,7 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
   </div>, document.body);
 }
 
-function JobDetail({ job, saved, onSave, onClose, qa }) {
+function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   const [photoIndex, setPhotoIndex] = useState(null);
   const isAd = Boolean(job.adTier);
   const restricted = isAd || job.badge === "비공개";
@@ -622,10 +624,12 @@ function JobDetail({ job, saved, onSave, onClose, qa }) {
     <Modal
       onClose={onClose}
       wide
+      embedded={page}
       variant="job-detail"
       accent={job.color}
       label={`${job.hospital} 채용공고 상세 정보`}
     >
+      {page && <nav className="detail-page-nav" aria-label="공고 상세 위치"><Link to="/jobs"><ArrowLeft /> 전체 채용정보</Link><span>채용정보</span><b>{job.hospital}</b></nav>}
       <div className="detail-heading" style={{ "--job-color": job.color }}>
         <div className="detail-brand">
           <HospitalLogo job={job} prominent />
@@ -859,6 +863,17 @@ function JobDetail({ job, saved, onSave, onClose, qa }) {
   );
 }
 
+function JobDetailRoute({ job, qa }) {
+  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs').includes(job.id));
+  const toggleSaved = () => {
+    const current = readStoredArray('medihelpers_saved_jobs');
+    const next = current.includes(job.id) ? current.filter((id) => id !== job.id) : [...current, job.id];
+    writeStoredValue('medihelpers_saved_jobs', next);
+    setSaved(next.includes(job.id));
+  };
+  return <JobDetail job={job} qa={qa} page saved={saved} onSave={toggleSaved} onClose={() => navigate('/jobs')} />;
+}
+
 function ConsultationForm({ initialRole = 'doctor', initialContext = '', initialProfession = '', initialTopic = '' }) {
   const [role, setRole] = useState(initialRole);
   const [step, setStep] = useState(1);
@@ -970,7 +985,6 @@ function HomePage() {
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
-  const [selectedJob, setSelectedJob] = useState(null);
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
     <section className="home-hero">
@@ -995,10 +1009,9 @@ function HomePage() {
         <div className="concierge-foot"><CircleCheck size={16} /> 상담부터 조건 협상까지 함께합니다</div>
       </div>
     </section>
-    <section className="section soft" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">CURATED DOCTOR POSITIONS</span><h2>지금 주목할 의사 초빙</h2><p>진료과와 근무조건, 병원 정보를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(jobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => setSelectedJob(job)} />)}</div></section>
+    <section className="section soft" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">CURATED DOCTOR POSITIONS</span><h2>지금 주목할 의사 초빙</h2><p>진료과와 근무조건, 병원 정보를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(jobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
     <QuickAccess />
     <MemberTeaser />
-    {selectedJob && <JobDetail job={selectedJob} saved={false} onSave={() => {}} onClose={() => setSelectedJob(null)} />}
     <section className="dual-path section"><div className="path-card doctor"><span className="path-icon"><Stethoscope /></span><small>이직을 고민하는 의사라면</small><h2>내 조건을 먼저 말하고<br />비공개 제안을 받으세요</h2><p>이력서를 공개하지 않아도 의사 전담 헤드헌터가 적합한 병원을 찾아드립니다.</p><ul><li><Check /> 이직 의사 비공개</li><li><Check /> 보수·진료범위 협상</li><li><Check /> 퇴사·입사 일정 조율</li></ul><Link className="button dark" to="/headhunting">의사 이직 상담</Link></div><div className="path-card hospital"><span className="path-icon"><Building2 /></span><small>의사를 채용하는 병원이라면</small><h2>광고와 의사 추천을<br />한 번에 시작하세요</h2><p>초빙공고 등록부터 후보 발굴, 면접 일정까지 필요한 만큼 선택할 수 있습니다.</p><ul><li><Check /> 전문과목별 의사 인재풀</li><li><Check /> 의사 초빙공고 검수</li><li><Check /> 성과형 헤드헌팅</li></ul><Link className="button light" to="/advertise">의사 채용 시작</Link></div></section>
     <section className="section compact-process"><div className="compact-process-shell"><div className="compact-process-copy"><span className="section-kicker">HOW IT WORKS</span><h2>공고를 넘어,<br />채용 결정까지</h2><p>조건을 듣고 맞는 상대를 연결한 뒤 면접과 입사 조율까지 함께합니다.</p><Link className="button primary" to="/headhunting">1:1 매칭 상담 <ArrowRight /></Link></div><div className="compact-process-flow">{[[MessageCircle,'01','조건 상담','희망 지역과 근무조건을 정리합니다.'],[Target,'02','맞춤 연결','공개·비공개 포지션과 검증 인재를 선별합니다.'],[ClipboardCheck,'03','결정 조율','면접·보수·근무조건과 입사 일정을 조율합니다.']].map(([Icon,n,t,d]) => <div className="compact-process-step" key={n}><span className="compact-step-icon"><Icon /></span><div><small>{n}</small><h3>{t}</h3><p>{d}</p></div></div>)}</div></div></section>
     <ConversionBanner />
@@ -1189,7 +1202,6 @@ function JobsPage({ route, qa }) {
   const [condition, setCondition] = useState(params.get('condition') || '전체 조건');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
-  const [selected, setSelected] = useState(() => jobs.find((job) => job.id === params.get('open')) || null);
   const [adPlan, setAdPlan] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
@@ -1237,8 +1249,9 @@ function JobsPage({ route, qa }) {
     setKeyword('');
     setStandardVisible(STANDARD_STEP);
   };
-  const renderPortalCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
-  const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => { trackConversion('job_detail_open', { jobId: job.id }); setSelected(job); }} />;
+  const openJob = (job) => { trackConversion('job_detail_open', { jobId: job.id }); navigate(`/jobs/${job.id}`); };
+  const renderPortalCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} />;
+  const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} />;
 
   const visibleStandard = standardDisplayOrder.slice(0, standardVisible);
   const standardRemaining = standardDisplayOrder.length - visibleStandard.length;
@@ -1265,7 +1278,6 @@ function JobsPage({ route, qa }) {
     </section>
     <SmartAdDock total={jobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
-    {selected && <JobDetail job={selected} qa={qa} saved={saved.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={() => setSelected(null)} />}
     {adPlan && <Checkout plan={adPlan} onClose={() => setAdPlan(null)} />}
   </>;
 }
@@ -2488,6 +2500,10 @@ export function App() {
   let page;
   if (path === '/') page = <HomePage />;
   else if (path === '/jobs') page = <JobsPage route={route} qa={qa} />;
+  else if (path.startsWith('/jobs/')) {
+    const job = jobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
+    page = job ? <JobDetailRoute job={job} qa={qa} /> : <NotFoundPage />;
+  }
   else if (path === '/professions') page = <Redirect to="/headhunting" />;
   else if (path === '/talent') page = <TalentPage />;
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
