@@ -26,7 +26,7 @@ export const QA_STATE_OPTIONS = Object.freeze([
     description: '채용공고 등록과 후보 연결 흐름을 점검합니다.',
     tone: 'hospital',
     capabilities: { signedIn: true, admin: false, hospital: true, doctor: false, membership: false, privateDetails: false },
-    metrics: [['등록 공고', '2건'], ['소개 요청', '3명'], ['광고 상태', '추천 노출']]
+    metrics: [['등록 공고', '2건'], ['후보 상담', '3명'], ['광고 상태', '추천 노출']]
   },
   {
     id: 'doctor',
