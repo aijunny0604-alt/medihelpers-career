@@ -1883,40 +1883,59 @@ function Checkout({ plan, onClose }) {
   const [facilityError, setFacilityError] = useState("");
   const [logoPreview, setLogoPreview] = useState("");
   const [logoName, setLogoName] = useState("");
+  const [logoFile, setLogoFile] = useState(null);
   const [logoError, setLogoError] = useState("");
   const [bannerPreview, setBannerPreview] = useState("");
   const [bannerName, setBannerName] = useState("");
+  const [bannerFile, setBannerFile] = useState(null);
   const [bannerError, setBannerError] = useState("");
   const [facilityPhotos, setFacilityPhotos] = useState([]);
   const [photoError, setPhotoError] = useState("");
-  useEffect(
-    () => () => {
-      if (logoPreview) URL.revokeObjectURL(logoPreview);
-      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-    },
-    [logoPreview, bannerPreview],
-  );
-  const selectLogo = (event) => {
-    const file = event.target.files?.[0];
+  const [activeDrop, setActiveDrop] = useState("");
+  useEffect(() => () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+  }, [logoPreview]);
+  useEffect(() => () => {
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+  }, [bannerPreview]);
+  const chooseLogo = (file, input) => {
     setLogoError("");
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      event.target.value = "";
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      if (input) input.value = "";
       setLogoName("");
+      setLogoFile(null);
+      setLogoError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      if (input) input.value = "";
+      setLogoName("");
+      setLogoFile(null);
       setLogoError("5MB 이하 파일을 선택해주세요.");
       return;
     }
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
     setLogoName(file.name);
+    setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
   };
-  const selectBanner = (event) => {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
+  const selectLogo = (event) =>
+    chooseLogo(event.currentTarget.files?.[0], event.currentTarget);
+  const chooseBanner = (file, input) => {
     setBannerError("");
     if (!file) return;
-    if (file.size > premiumBannerGuide.maxBytes) {
-      input.value = "";
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      if (input) input.value = "";
       setBannerName("");
+      setBannerFile(null);
+      setBannerError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
+      return;
+    }
+    if (file.size > premiumBannerGuide.maxBytes) {
+      if (input) input.value = "";
+      setBannerName("");
+      setBannerFile(null);
       setBannerError("8MB 이하 파일을 선택해주세요.");
       return;
     }
@@ -1928,32 +1947,36 @@ function Checkout({ plan, onClose }) {
         ratio < premiumBannerGuide.minRatio ||
         ratio > premiumBannerGuide.maxRatio
       ) {
-        input.value = "";
+        if (input) input.value = "";
         setBannerName("");
+        setBannerFile(null);
         setBannerError("가로 3:1 비율의 배너를 사용해주세요. 권장 1500×500px");
         URL.revokeObjectURL(previewUrl);
         return;
       }
       if (bannerPreview) URL.revokeObjectURL(bannerPreview);
       setBannerName(file.name);
+      setBannerFile(file);
       setBannerPreview(previewUrl);
     };
     image.onerror = () => {
-      input.value = "";
+      if (input) input.value = "";
       setBannerName("");
+      setBannerFile(null);
       setBannerError("이미지 파일을 확인해주세요.");
       URL.revokeObjectURL(previewUrl);
     };
     image.src = previewUrl;
   };
-  const selectFacilityPhotos = (event) => {
-    const input = event.currentTarget;
-    const selected = [...(input.files || [])];
+  const selectBanner = (event) =>
+    chooseBanner(event.currentTarget.files?.[0], event.currentTarget);
+  const chooseFacilityPhotos = (files, input) => {
+    const selected = [...(files || [])];
     setPhotoError("");
     const available = Math.max(0, 6 - facilityPhotos.length);
     if (!available) {
       setPhotoError("병원 사진은 최대 6장까지 등록할 수 있습니다.");
-      input.value = "";
+      if (input) input.value = "";
       return;
     }
     const valid = selected
@@ -1973,8 +1996,29 @@ function Checkout({ plan, onClose }) {
         url: URL.createObjectURL(file),
       })),
     ]);
-    input.value = "";
+    if (input) input.value = "";
   };
+  const selectFacilityPhotos = (event) =>
+    chooseFacilityPhotos(event.currentTarget.files, event.currentTarget);
+  const dropZoneProps = (target, onFiles) => ({
+    onDragEnter: (event) => {
+      event.preventDefault();
+      setActiveDrop(target);
+    },
+    onDragOver: (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setActiveDrop(target);
+    },
+    onDragLeave: (event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setActiveDrop("");
+    },
+    onDrop: (event) => {
+      event.preventDefault();
+      setActiveDrop("");
+      onFiles(event.dataTransfer.files);
+    },
+  });
   const removeFacilityPhoto = (index) => {
     setFacilityPhotos((current) => {
       URL.revokeObjectURL(current[index].url);
@@ -1988,19 +2032,14 @@ function Checkout({ plan, onClose }) {
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const logo = formData.get("logo");
-    const banner = formData.get("banner");
     formData.delete("logo");
     formData.delete("banner");
     const data = {
       ...Object.fromEntries(formData.entries()),
-      logoName: logo instanceof File && logo.size ? logo.name : "",
-      bannerName: banner instanceof File && banner.size ? banner.name : "",
+      logoName: logoFile?.name || "",
+      bannerName: bannerFile?.name || "",
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
-      premiumBrandMode:
-        banner instanceof File && banner.size
-          ? "hospital-banner"
-          : "auto-wordmark",
+      premiumBrandMode: bannerFile ? "hospital-banner" : "auto-wordmark",
     };
     appendStoredRecord("medihelpers_ad_requests", {
       id: `AD-${Date.now()}`,
@@ -2043,7 +2082,7 @@ function Checkout({ plan, onClose }) {
           </div>
           <form className="checkout-grid" onSubmit={submit}>
             <div className="checkout-form">
-              <div className="brand-banner-upload">
+              <div className={`brand-banner-upload ${activeDrop === "banner" ? "is-dragging" : ""}`} {...dropZoneProps("banner", (files) => chooseBanner(files?.[0]))}>
                 <div className="banner-preview">
                   {bannerPreview ? (
                     <img
@@ -2074,13 +2113,13 @@ function Checkout({ plan, onClose }) {
                     <Upload />
                     <div>
                       <strong>{bannerName || "3:1 배너 파일 선택"}</strong>
-                      <small>권장 1500×500px · PNG·JPG·WEBP · 최대 8MB</small>
+                      <small>클릭 또는 드래그 · 권장 1500×500px · 최대 8MB</small>
                     </div>
                   </div>
                   {bannerError && <em>{bannerError}</em>}
                 </label>
               </div>
-              <div className="brand-upload">
+              <div className={`brand-upload ${activeDrop === "logo" ? "is-dragging" : ""}`} {...dropZoneProps("logo", (files) => chooseLogo(files?.[0]))}>
                 <div className="logo-preview">
                   {logoPreview ? (
                     <img src={logoPreview} alt="선택한 병원 로고 미리보기" />
@@ -2102,13 +2141,13 @@ function Checkout({ plan, onClose }) {
                     <Upload />
                     <div>
                       <strong>{logoName || "로고 파일 선택"}</strong>
-                      <small>PNG·JPG·WEBP, 최대 5MB</small>
+                      <small>클릭 또는 드래그 · PNG·JPG·WEBP · 최대 5MB</small>
                     </div>
                   </div>
                   {logoError && <em>{logoError}</em>}
                 </label>
               </div>
-              <section className="facility-photo-upload">
+              <section className={`facility-photo-upload ${activeDrop === "facility" ? "is-dragging" : ""}`} {...dropZoneProps("facility", chooseFacilityPhotos)}>
                 <div className="facility-upload-head">
                   <div>
                     <strong>병원 사진</strong>
@@ -2121,7 +2160,7 @@ function Checkout({ plan, onClose }) {
                       multiple
                       onChange={selectFacilityPhotos}
                     />
-                    <Upload /> 사진 추가
+                    <Upload /> 클릭 또는 드래그
                   </label>
                 </div>
                 {facilityPhotos.length ? (
@@ -2608,8 +2647,50 @@ function NotFoundPage() {
   return <section className="not-found"><span>404</span><h1>페이지를 찾을 수 없습니다</h1><p>주소가 바뀌었거나 아직 준비되지 않은 페이지입니다.</p><Link className="button primary" to="/"><ArrowLeft /> 홈으로 돌아가기</Link></section>;
 }
 
-function ResumeAccessGate() {
-  return <section className="resume-access-gate"><span><LockKeyhole /></span><small>DOCTOR MEMBERS ONLY</small><h1>이력서 등록은 의사 회원만 이용할 수 있습니다</h1><p>민감한 경력과 구직 정보를 안전하게 관리하기 위해 의사 회원 확인 후 등록 화면을 열어드립니다.</p><div><Link className="button primary" to="/signup/doctor?next=/resume"><UserRound /> 의사 회원 로그인·가입</Link><Link className="button outline" to="/jobs">채용공고 먼저 보기</Link></div><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
+function ResumeAccessGate({ signedIn = false }) {
+  return <section className="resume-access-gate"><span><LockKeyhole /></span><small>DOCTOR MEMBERS ONLY</small><h1>{signedIn ? '의사 회원 전용 화면입니다' : '이력서 등록은 의사 회원만 이용할 수 있습니다'}</h1><p>{signedIn ? '현재 로그인한 회원 유형으로는 이력서를 등록할 수 없습니다. 의사 회원 계정으로 다시 로그인해주세요.' : '민감한 경력과 구직 정보를 안전하게 관리하기 위해 의사 회원 확인 후 등록 화면을 열어드립니다.'}</p><div><Link className="button primary" to="/signup/doctor?next=/resume"><UserRound /> 의사 회원 로그인·가입</Link><Link className="button outline" to="/jobs">채용공고 먼저 보기</Link></div><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
+}
+
+function ResumeRoute({ qa }) {
+  const qaDoctor = qa.active && (qa.info.capabilities.doctor || qa.info.capabilities.admin);
+  const [accountState, setAccountState] = useState({
+    loading: !qaDoctor,
+    signedIn: false,
+    allowed: qaDoctor,
+  });
+
+  useEffect(() => {
+    if (qaDoctor) {
+      setAccountState({ loading: false, signedIn: true, allowed: true });
+      return undefined;
+    }
+    let active = true;
+    fetch("/api/account", {
+      credentials: "same-origin",
+      headers: { accept: "application/json" },
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("account lookup failed"))))
+      .then((result) => {
+        if (!active) return;
+        const signedIn = Boolean(result.signedIn);
+        setAccountState({
+          loading: false,
+          signedIn,
+          allowed: signedIn && result.account?.role === "doctor",
+        });
+      })
+      .catch(() => {
+        if (active) setAccountState({ loading: false, signedIn: false, allowed: false });
+      });
+    return () => {
+      active = false;
+    };
+  }, [qaDoctor]);
+
+  if (accountState.loading) {
+    return <section className="resume-access-gate resume-access-loading"><span><ShieldCheck /></span><small>SECURE ACCOUNT CHECK</small><h1>의사 회원 정보를 확인하고 있습니다</h1><p>안전한 이력서 등록 화면을 준비하고 있습니다.</p></section>;
+  }
+  return accountState.allowed ? <ResumePage /> : <ResumeAccessGate signedIn={accountState.signedIn} />;
 }
 
 function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', description = '이직과 채용, 어느 쪽이든 전담 헤드헌터가 먼저 듣겠습니다.', hospital = false }) {
@@ -2661,7 +2742,7 @@ export function App() {
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
-  else if (path === '/resume') page = qa.active && qa.info.capabilities.doctor ? <ResumePage /> : <ResumeAccessGate />;
+  else if (path === '/resume') page = <ResumeRoute qa={qa} />;
   else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" qa={qa} />;
   else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" qa={qa} />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;

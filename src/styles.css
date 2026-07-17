@@ -3119,3 +3119,109 @@ html.performance-lite .motion-notice{background:#fff}
   background:#eef9f6;
   color:#0c8069;
 }
+
+/* Larger, calmer resume workspace and consistent drag-and-drop feedback. */
+.resume-photo-field,
+.resume-file-box,
+.brand-upload,
+.brand-banner-upload,
+.facility-photo-upload{
+  transition:border-color .18s ease,background .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+.resume-photo-field.is-dragging,
+.resume-file-box.is-dragging,
+.brand-upload.is-dragging,
+.brand-banner-upload.is-dragging,
+.facility-photo-upload.is-dragging{
+  border-color:#1263e8;
+  background:#edf5ff;
+  box-shadow:0 0 0 4px rgba(18,99,232,.11),0 16px 34px rgba(18,99,232,.11);
+}
+.resume-photo-field.is-dragging,
+.resume-file-box.is-dragging{transform:translateY(-2px)}
+.resume-file-box>em{
+  flex:1 0 100%;
+  color:#c64555;
+  font-size:12px;
+  font-style:normal;
+  line-height:1.5;
+}
+.resume-file-box{flex-wrap:wrap}
+.resume-access-loading>span svg{animation:resume-account-pulse 1.2s ease-in-out infinite}
+@keyframes resume-account-pulse{50%{opacity:.42;transform:scale(.9)}}
+
+@media(min-width:1081px){
+  .resume-hero{
+    padding:68px max(40px,calc((100vw - 1440px)/2)) 58px;
+  }
+  .resume-hero h1{font-size:50px;letter-spacing:-2.4px}
+  .resume-hero p{max-width:780px;font-size:17px}
+  .resume-hero>div:first-child>span{font-size:12px}
+  .resume-security{max-width:390px;padding:20px 22px}
+  .resume-security strong{font-size:15px}
+  .resume-security small{font-size:12px}
+  .resume-layout{
+    max-width:1440px;
+    margin-top:40px;
+    padding:0 30px;
+    grid-template-columns:220px minmax(0,1fr) 290px;
+    gap:24px;
+  }
+  .resume-step-nav,.resume-editor,.resume-preview{border-radius:21px}
+  .resume-progress{padding:24px 22px}
+  .resume-progress>div{font-size:13px}
+  .resume-progress strong{font-size:21px}
+  .resume-step-nav>button{padding:16px 19px;gap:12px}
+  .resume-step-nav>button>span{width:36px;height:36px}
+  .resume-step-nav>button>span svg{width:18px}
+  .resume-step-nav>button small{font-size:9px}
+  .resume-step-nav>button strong{font-size:14px}
+  .resume-help{margin:15px;padding:16px}
+  .resume-help strong{font-size:12px}
+  .resume-help small{font-size:10px}
+  .resume-editor{padding:40px 42px}
+  .resume-panel-head{margin-bottom:30px}
+  .resume-panel-head>small,.resume-panel-head>div>small{font-size:11px}
+  .resume-panel-head h2{margin-top:7px;font-size:32px;letter-spacing:-1.4px}
+  .resume-panel-head p{font-size:15px;line-height:1.6}
+  .resume-form-grid{gap:20px}
+  .resume-form-grid label,.resume-intro{gap:9px}
+  .resume-form-grid label>span,.resume-intro>span,.resume-form-grid legend{font-size:14px}
+  .resume-form-grid input,.resume-form-grid select,.resume-form-grid textarea,.resume-intro textarea{
+    min-height:54px;
+    padding:14px 16px;
+    border-radius:12px;
+    font-size:16px;
+  }
+  .resume-safe-note{padding:15px 17px;font-size:13px}
+  .resume-basic-profile{grid-template-columns:195px minmax(0,1fr);gap:28px}
+  .resume-photo-field{padding:18px;border-radius:17px}
+  .resume-photo-label{font-size:13px}
+  .resume-photo-preview{width:148px;height:184px;border-radius:15px}
+  .resume-photo-button{width:148px;min-height:44px;font-size:13px}
+  .resume-photo-field>small,.resume-photo-field>p{font-size:10px;line-height:1.5}
+  .resume-file-box{min-height:96px;padding:20px;border-radius:14px}
+  .resume-file-box>div>svg{width:28px}
+  .resume-file-box strong{font-size:15px}
+  .resume-file-box small{font-size:12px}
+  .resume-file-box label{max-width:240px;padding:12px 15px;border-radius:10px;font-size:13px}
+  .career-list article,.education-card{padding:22px;border-radius:15px}
+  .career-card-head strong,.education-card>div:first-child strong{font-size:15px}
+  .resume-choice-grid button{min-height:48px;border-radius:10px;font-size:13px}
+  .resume-visibility legend{font-size:15px}
+  .resume-visibility>label{padding:16px 17px;border-radius:12px}
+  .resume-visibility strong{font-size:14px}
+  .resume-visibility small{font-size:12px}
+  .resume-consent{padding:17px;font-size:12px}
+  .resume-step-actions{margin-top:34px;padding-top:24px}
+  .resume-step-actions .button{min-width:142px;min-height:52px;font-size:14px}
+  .resume-preview{padding:27px}
+  .resume-preview>small{font-size:10px}
+  .resume-preview-avatar{width:88px;height:88px}
+  .resume-preview h3{font-size:21px}
+  .resume-preview-role{font-size:12px}
+  .resume-preview dt{font-size:11px}
+  .resume-preview dd{font-size:13px}
+  .resume-preview-privacy strong{font-size:11px}
+  .resume-preview-privacy small{font-size:10px}
+}
