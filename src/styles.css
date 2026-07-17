@@ -4049,7 +4049,7 @@ html.performance-lite .motion-notice{background:#fff}
 .consultation-focus .consult-points p{font-size:13px;line-height:1.6}
 .consultation-focus .direct-contact{margin-top:22px;padding:10px 14px 10px 20px}
 .consultation-focus .direct-contact a{font-size:20px}
-.consultation-focus .consult-form.guided{width:min(100%,1260px);border-radius:30px}
+.consultation-focus .consult-form.guided{width:min(100%,1260px);align-self:center;border-radius:30px}
 .consultation-focus .guided-head{padding:38px 50px 30px}
 .consultation-focus .guided-head h3{font-size:34px}
 .consultation-focus .consult-progress{padding:22px 50px}
