@@ -2587,3 +2587,107 @@ html.performance-lite .motion-notice{background:#fff}
   .portal-result-row>div:first-child>strong{font-size:17px}
   .portal-result-row>div:first-child>strong em{font-size:26px}
 }
+
+/* Use the full width of wide talent cards and remove unproductive vertical space. */
+.talent-portal-list{gap:12px 14px}
+.talent-portal-list .talent-card{
+  padding:18px 20px 19px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 238px;
+  gap:13px 14px;
+  align-items:stretch;
+}
+.talent-portal-list .talent-top{
+  grid-column:1/-1;
+  min-height:48px;
+}
+.talent-portal-list .talent-top>div{margin-left:12px}
+.talent-portal-list .talent-top small{font-size:11px}
+.talent-portal-list .talent-top h3{
+  margin-top:4px;
+  font-size:16px;
+}
+.talent-portal-list .talent-card dl{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  margin:1px 0 0;
+}
+.talent-portal-list .talent-card dl>div,
+.talent-portal-list .talent-card dl>div:nth-child(2){
+  min-height:72px;
+  padding:12px 14px;
+  border:1px solid #e2ebe8;
+  border-radius:11px;
+  background:#f8fbfa;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:6px;
+}
+.talent-portal-list .talent-card dt{
+  color:#81908f;
+  font-size:12px;
+  font-weight:750;
+}
+.talent-portal-list .talent-card dd{
+  width:100%;
+  text-align:left;
+  color:#203653;
+  font-size:14px;
+  line-height:1.4;
+}
+.talent-portal-list .talent-lock-preview{
+  min-width:0;
+  min-height:50px;
+  margin:0;
+  padding:10px 13px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.talent-portal-list .talent-lock-preview span{font-size:12px}
+.talent-portal-list .talent-lock-preview p{
+  margin-top:3px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px;
+}
+.talent-portal-list .talent-profile-open{
+  min-height:50px!important;
+  align-self:stretch;
+}
+
+@media(max-width:1050px){
+  .talent-portal-list .talent-card{grid-template-columns:minmax(0,1fr) 220px}
+  .talent-portal-list .talent-card dl>div,
+  .talent-portal-list .talent-card dl>div:nth-child(2){padding-inline:11px}
+}
+@media(max-width:900px){
+  .talent-portal-list .talent-card{grid-template-columns:minmax(0,1fr) 250px}
+}
+@media(max-width:680px){
+  .talent-portal-list .talent-card{
+    padding:17px;
+    grid-template-columns:1fr;
+    gap:11px;
+  }
+  .talent-portal-list .talent-top,
+  .talent-portal-list .talent-card dl{grid-column:1}
+  .talent-portal-list .talent-card dl{
+    grid-template-columns:1fr;
+    gap:7px;
+  }
+  .talent-portal-list .talent-card dl>div,
+  .talent-portal-list .talent-card dl>div:nth-child(2){
+    min-height:58px;
+    padding:10px 12px;
+    display:grid;
+    grid-template-columns:86px minmax(0,1fr);
+    gap:10px;
+  }
+  .talent-portal-list .talent-lock-preview p{white-space:normal}
+}
