@@ -4153,6 +4153,36 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .crm-back-button:hover{border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.18)}
 .crm-back-button svg{width:18px}
 
+/* One recruitment-card system shared by the home feed and the full job board. */
+.unified-job-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important}
+.unified-job-grid .job-card.job-card-compact{min-height:342px;padding:16px 18px 15px;border:1px solid #d9e4ef!important;border-top:4px solid var(--mood-primary,var(--job-color,#1263e8))!important;border-radius:18px!important;background:#fff!important;box-shadow:0 8px 26px rgba(26,59,99,.055)!important;transform:none!important}
+.unified-job-grid .job-card.job-card-compact:hover{border-color:#aac2de!important;box-shadow:0 16px 36px rgba(26,59,99,.11)!important;transform:translateY(-2px)!important}
+.unified-job-grid .job-card.premium-ad:before,.unified-job-grid .job-card.premium-ad:after,.unified-job-grid .ad-brand-stage:before,.unified-job-grid .ad-brand-stage:after,.unified-job-grid .brand-media-backdrop{display:none!important}
+.unified-job-grid .job-top{position:absolute!important;z-index:5!important;top:14px!important;left:auto!important;right:14px!important;width:auto!important}
+.unified-job-grid .job-top>div{display:none!important}
+.unified-job-grid .heart{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.94);color:#9aabc0;box-shadow:0 3px 12px rgba(23,52,87,.06)}
+.unified-job-grid .listing-brand-stage,.unified-job-grid .premium-ad .ad-brand-stage{min-height:116px!important;margin:0 0 15px!important;padding:13px 16px!important;border:0!important;border-bottom:1px solid #edf1f5!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:13px!important;overflow:hidden!important}
+.unified-job-grid .listing-brand-stage .hospital-logo.prominent,.unified-job-grid .premium-ad .hospital-logo.prominent,.unified-job-grid .premium-ad.has-brand-logo .hospital-logo.prominent.has-image{position:static!important;width:74px!important;height:74px!important;min-width:74px!important;min-height:74px!important;flex:0 0 74px!important;padding:0!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;transform:none!important}
+.unified-job-grid .listing-brand-stage .hospital-logo.prominent img,.unified-job-grid .premium-ad .hospital-logo.prominent img,.unified-job-grid .premium-ad.has-brand-logo .hospital-logo.prominent.has-image img{width:100%!important;height:100%!important;padding:0!important;object-fit:contain!important;object-position:center!important;transform:none!important}
+.unified-job-grid .listing-brand-name,.unified-job-grid .premium-ad .ad-hospital-caption{position:static!important;min-width:0!important;max-width:170px!important;margin:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;align-items:flex-start!important;text-align:left!important}
+.unified-job-grid .listing-brand-name strong,.unified-job-grid .premium-ad .ad-hospital-caption strong{color:#172b49!important;font-size:17px!important;line-height:1.3!important;letter-spacing:-.55px!important;word-break:keep-all}
+.unified-job-grid .listing-brand-name small,.unified-job-grid .premium-ad .ad-hospital-caption small{margin-top:4px!important;color:#8a97a8!important;font-size:10px!important;line-height:1.4!important}
+.unified-job-grid .premium-ad.has-brand-wordmark .hospital-wordmark{width:100%;min-height:74px!important;padding:0!important;border:0!important;background:#fff!important;box-shadow:none!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.unified-job-grid .premium-ad.has-brand-wordmark .hospital-wordmark small,.unified-job-grid .premium-ad.has-brand-wordmark .hospital-wordmark span{display:none!important}
+.unified-job-grid .premium-ad.has-brand-wordmark .hospital-wordmark strong{color:#172b49!important;font-size:clamp(20px,1.45vw,25px)!important;line-height:1.25!important;letter-spacing:-.9px!important;text-align:center!important}
+.unified-job-grid .premium-ad.has-brand-banner .ad-brand-stage.media-banner{min-height:116px!important;padding:10px 14px!important;flex-direction:row!important}
+.unified-job-grid .premium-ad.has-brand-banner .hospital-logo.prominent.logo-fit-banner{width:min(250px,94%)!important;height:82px!important;min-width:0!important;min-height:82px!important;max-width:94%!important;flex:0 1 250px!important}
+.unified-job-grid .premium-ad.has-brand-banner .ad-hospital-caption{display:none!important}
+.unified-job-grid .job-card-compact h3{min-height:50px;margin:0 0 12px!important;color:#142844;font-size:17px;line-height:1.48;letter-spacing:-.4px;-webkit-line-clamp:2}
+.unified-job-grid .job-card-compact .meta{min-height:34px;padding-bottom:12px;gap:6px 12px;color:#7b8b9f;font-size:11px}
+.unified-job-grid .job-card-compact .job-bottom{min-height:48px;margin-top:auto;padding-top:12px;border-top:1px solid #edf1f5}
+.unified-job-grid .job-card-compact .job-bottom>span{padding:6px 8px;border-radius:7px;background:#f2f6fa;color:#64758a;font-size:11px}
+.unified-job-grid .job-card-compact .job-bottom strong{font-size:11px}
+.unified-job-grid .job-card-compact .card-action{min-height:38px;margin-top:0;padding-top:11px;border-top:1px solid #edf1f5;color:var(--mood-primary,var(--job-color,#1263e8));font-size:12px}
+@media(max-width:1180px){.unified-job-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:900px){.unified-job-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:560px){.unified-job-grid{grid-template-columns:1fr!important;gap:12px!important}.unified-job-grid .job-card.job-card-compact{min-height:320px;padding:14px 16px}.unified-job-grid .listing-brand-stage,.unified-job-grid .premium-ad .ad-brand-stage{min-height:105px!important}.unified-job-grid .listing-brand-stage .hospital-logo.prominent,.unified-job-grid .premium-ad .hospital-logo.prominent,.unified-job-grid .premium-ad.has-brand-logo .hospital-logo.prominent.has-image{width:66px!important;height:66px!important;min-width:66px!important;min-height:66px!important;flex-basis:66px!important}}
+
 /* Home: one clear message, one search action, one curated list. */
 .home-hero.home-hero-simple{min-height:auto;padding-top:64px;padding-bottom:70px}
 .home-hero-simple .hero-copy{width:min(100%,1320px);margin-inline:auto}
