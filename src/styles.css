@@ -2458,3 +2458,132 @@ html.performance-lite .motion-notice{background:#fff}
 /* Resume registration is restricted to verified doctor members. */
 .resume-access-gate{min-height:calc(100vh - 78px);padding:100px 24px;background:linear-gradient(145deg,#f5f9ff,#fff);text-align:center;display:flex;align-items:center;flex-direction:column}.resume-access-gate>span{width:72px;height:72px;border-radius:22px;background:#e8f1ff;color:#1263e8;display:grid;place-items:center}.resume-access-gate>span svg{width:32px}.resume-access-gate>small{margin-top:20px;color:#1263e8;font:800 10px 'Manrope';letter-spacing:1.2px}.resume-access-gate h1{max-width:720px;margin:9px 0 12px;color:#132b4f;font-size:36px;line-height:1.3;letter-spacing:-1.6px}.resume-access-gate>p{max-width:640px;margin:0;color:#697a91;font-size:14px;line-height:1.8;word-break:keep-all}.resume-access-gate>div{margin-top:25px;display:flex;gap:10px}.resume-access-gate>aside{width:min(680px,100%);margin-top:35px;padding:16px 18px;border:1px solid #dbe6f3;border-radius:13px;background:#fff;text-align:left;display:flex;align-items:flex-start;gap:11px}.resume-access-gate>aside>svg{width:21px;flex:0 0 auto;color:#159b77}.resume-access-gate>aside span{display:flex;flex-direction:column}.resume-access-gate>aside strong{font-size:12px;color:#263a56}.resume-access-gate>aside small{margin-top:4px;color:#78869a;font-size:10px;line-height:1.55}
 @media(max-width:620px){.photo-lightbox{padding:0}.photo-lightbox-shell{height:100dvh;border:0;border-radius:0;grid-template-rows:56px minmax(0,1fr) auto}.photo-lightbox-stage{padding:10px 8px 70px}.photo-lightbox-arrow{top:auto;bottom:10px;width:44px;height:44px;border-radius:50%;transform:none}.photo-lightbox-arrow.previous{left:calc(50% - 54px)}.photo-lightbox-arrow.next{right:calc(50% - 54px)}.photo-lightbox-thumbnails button{flex-basis:78px;height:54px}.photo-lightbox-shell>footer{padding-inline:10px}.resume-access-gate{padding:70px 20px}.resume-access-gate h1{font-size:30px}.resume-access-gate>div{width:100%;flex-direction:column}.resume-access-gate .button{width:100%}}
+
+/* Bring the talent discovery navigation and filters onto the same premium 1440px rhythm. */
+.talent-hub-nav>div{
+  width:min(1440px,calc(100% - 96px));
+  max-width:none;
+  min-height:88px;
+  padding:0;
+  gap:10px;
+}
+.talent-hub-nav .job-hub-title{
+  font-size:26px;
+  letter-spacing:-1.1px;
+}
+.talent-hub-nav a{
+  min-height:46px;
+  padding-inline:18px;
+  border-radius:13px;
+  font-size:14px;
+}
+.talent-hub-nav a.active{padding-inline:22px}
+.talent-hub-nav a.job-hub-register{margin-left:10px}
+.talent-page.section{
+  max-width:none;
+  padding:44px max(48px,calc((100vw - 1440px)/2)) 96px;
+}
+.talent-search-dock{
+  padding:30px 32px 32px;
+  border-top-width:5px;
+  border-radius:24px;
+  box-shadow:0 22px 58px rgba(27,77,67,.1);
+}
+.talent-search-dock .doctor-search-title{
+  min-height:38px;
+  margin-bottom:24px;
+  gap:17px;
+}
+.talent-search-dock .doctor-search-title>span{
+  gap:7px;
+  font-size:12px;
+  letter-spacing:.65px;
+}
+.talent-search-dock .doctor-search-title>span svg{width:18px;height:18px}
+.talent-search-dock .doctor-search-title>strong{
+  font-size:22px;
+  letter-spacing:-.7px;
+}
+.talent-search-dock .doctor-search-title>button{
+  padding:9px 11px;
+  border-radius:9px;
+  font-size:13px;
+}
+.talent-filter-grid>label{
+  min-height:94px;
+  padding:16px 21px;
+  gap:15px;
+}
+.talent-filter-grid>label>svg{
+  width:24px;
+  height:24px;
+}
+.talent-field-content{gap:8px}
+.talent-field-content>small{font-size:13px}
+.talent-field-content input,
+.talent-field-content .hero-select-trigger{
+  min-height:32px;
+  font-size:17px;
+  letter-spacing:-.25px;
+}
+.talent-privacy-notice{
+  min-height:94px;
+  margin-top:22px;
+  padding:22px 28px;
+  border-radius:18px;
+  gap:16px;
+}
+.talent-privacy-notice>svg{
+  width:27px;
+  height:27px;
+}
+.talent-privacy-notice strong{font-size:19px}
+.talent-privacy-notice p{
+  margin-top:5px;
+  font-size:15px;
+  line-height:1.65;
+}
+.portal-result-row{
+  min-height:88px;
+  margin:30px 0 24px;
+  padding-inline:18px;
+}
+.portal-result-row>div:first-child{gap:10px}
+.portal-result-row>div:first-child>small{font-size:13px}
+.portal-result-row>div:first-child>strong{font-size:19px}
+.portal-result-row>div:first-child>strong em{font-size:31px}
+.portal-result-row .result-actions{gap:12px}
+.portal-result-row .result-actions span,
+.portal-result-row .result-actions button{font-size:13px}
+
+@media(max-width:1100px){
+  .talent-hub-nav>div{width:calc(100% - 48px)}
+  .talent-page.section{padding:36px 24px 80px}
+  .talent-hub-nav .job-hub-title{font-size:23px}
+  .talent-hub-nav a{padding-inline:15px}
+  .talent-search-dock{padding:26px}
+}
+@media(max-width:900px){
+  .talent-hub-nav>div{width:100%;padding-inline:24px}
+  .talent-hub-nav .job-hub-title{padding-right:20px}
+  .talent-search-dock .doctor-search-title>strong{font-size:20px}
+}
+@media(max-width:620px){
+  .talent-hub-nav>div{min-height:72px;padding-inline:16px}
+  .talent-hub-nav .job-hub-title{font-size:20px}
+  .talent-hub-nav a{min-height:40px;padding-inline:13px;font-size:13px}
+  .talent-page.section{padding:24px 14px 64px}
+  .talent-search-dock{padding:20px 17px 18px;border-radius:19px}
+  .talent-search-dock .doctor-search-title{margin-bottom:18px;gap:9px}
+  .talent-search-dock .doctor-search-title>span{font-size:10px}
+  .talent-search-dock .doctor-search-title>strong{max-width:100%;font-size:19px}
+  .talent-search-dock .doctor-search-title>button{margin-left:0}
+  .talent-filter-grid>label{min-height:78px;padding:12px 15px}
+  .talent-field-content input,.talent-field-content .hero-select-trigger{font-size:16px}
+  .talent-privacy-notice{min-height:0;padding:19px 18px}
+  .talent-privacy-notice strong{font-size:17px}
+  .talent-privacy-notice p{font-size:13px}
+  .portal-result-row{min-height:0;margin-top:22px;padding:15px 4px}
+  .portal-result-row>div:first-child>strong{font-size:17px}
+  .portal-result-row>div:first-child>strong em{font-size:26px}
+}
