@@ -3606,3 +3606,70 @@ html.performance-lite .motion-notice{background:#fff}
   .membership-intake summary{grid-template-columns:38px 1fr}
   .membership-intake summary>em{grid-column:2}
 }
+
+/* Recruitment detail page: use wide desktop screens fully while keeping readable breakpoints. */
+@media(min-width:1181px){
+  .job-detail-page{
+    padding:40px max(28px,calc((100vw - 1680px)/2)) 110px;
+  }
+  .job-detail-page .detail-page-nav{
+    min-height:60px;
+    padding-inline:clamp(44px,3.5vw,68px);
+    font-size:14px;
+  }
+  .job-detail-page .detail-heading{
+    padding:clamp(48px,3.5vw,64px) clamp(48px,4vw,72px) 44px;
+  }
+  .job-detail-page .detail-heading h2{
+    font-size:clamp(40px,2.35vw,48px);
+    line-height:1.25;
+  }
+  .job-detail-page .detail-brand strong{font-size:clamp(26px,1.55vw,31px)}
+  .job-detail-page .detail-brand small{font-size:14px}
+  .job-detail-page .meta.large{font-size:16px;gap:24px}
+  .job-detail-page .detail-grid{
+    grid-template-columns:minmax(0,1fr) clamp(370px,23vw,420px);
+    gap:clamp(44px,3.4vw,62px);
+    padding:clamp(46px,3.5vw,62px) clamp(48px,4vw,72px) 76px;
+  }
+  .job-detail-page .detail-content{gap:42px}
+  .job-detail-page .detail-content>section+section{padding-top:42px}
+  .job-detail-page .detail-section-title{margin-bottom:22px}
+  .job-detail-page .detail-section-title>span{width:50px;height:50px}
+  .job-detail-page .detail-section-title h3{font-size:25px}
+  .job-detail-page .detail-section-title small{font-size:12px}
+  .job-detail-page .job-recruitment-overview{padding:34px!important}
+  .job-detail-page .job-recruitment-overview dl>div{
+    grid-template-columns:145px minmax(0,1fr);
+    padding:17px 12px;
+  }
+  .job-detail-page .job-recruitment-overview dt{font-size:14px}
+  .job-detail-page .job-recruitment-overview dd{font-size:17px}
+  .job-detail-page .recruitment-deadline{margin-top:22px;padding:20px 22px}
+  .job-detail-page .recruitment-deadline>svg{width:24px}
+  .job-detail-page .recruitment-deadline small{font-size:12px}
+  .job-detail-page .recruitment-deadline strong{font-size:18px}
+  .job-detail-page .recruitment-deadline>a{font-size:14px}
+  .job-detail-page .detail-grid aside{padding:34px}
+  .job-detail-page .detail-grid aside>span,
+  .job-detail-page .detail-grid aside>small{font-size:14px}
+  .job-detail-page .detail-grid aside>strong{font-size:31px}
+  .job-detail-page .detail-grid aside .button{min-height:58px;font-size:16px}
+  .job-detail-page .doctor-decision-sheet{padding:34px!important}
+  .job-detail-page .decision-sheet-intro{font-size:16px!important}
+  .job-detail-page .decision-sheet-grid{gap:18px}
+  .job-detail-page .decision-sheet-grid article{padding:23px}
+  .job-detail-page .decision-sheet-grid article>header strong{font-size:17px}
+  .job-detail-page .decision-sheet-grid dl>div{
+    grid-template-columns:130px minmax(0,1fr);
+    min-height:51px;
+  }
+  .job-detail-page .decision-sheet-grid dt{font-size:13px}
+  .job-detail-page .decision-sheet-grid dd{font-size:15px}
+}
+
+@media(min-width:981px) and (max-width:1180px){
+  .job-detail-page{padding:28px 24px 84px}
+  .job-detail-page .detail-grid{grid-template-columns:1fr}
+  .job-detail-page .detail-grid aside{position:static}
+}
