@@ -3009,3 +3009,94 @@ html.performance-lite .motion-notice{background:#fff}
     font-size:12px;
   }
 }
+
+/* Simplify talent cards: one information band, one action, fewer nested boxes. */
+.talent-portal-list .talent-card{
+  padding:20px 21px;
+  grid-template-columns:minmax(0,1fr) 226px;
+  gap:12px 16px;
+  border-color:#dce5ee;
+  border-radius:17px;
+}
+.talent-portal-list .talent-card dl{
+  min-height:68px;
+  gap:0;
+  border-block:1px solid #e5ecef;
+  background:transparent;
+}
+.talent-portal-list .talent-card dl>div,
+.talent-portal-list .talent-card dl>div:nth-child(2){
+  min-height:68px;
+  padding:12px 15px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.talent-portal-list .talent-card dl>div+div{border-left:1px solid #e5ecef}
+.talent-portal-list .talent-card dt{
+  color:#8995a4;
+  font-size:11px;
+}
+.talent-portal-list .talent-card dd{
+  color:#203653;
+  font-size:14px;
+}
+.talent-public-chip{
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  color:#159377;
+  font-size:10px;
+}
+.talent-public-chip svg{width:15px;height:15px}
+.talent-portal-list .talent-lock-preview{
+  min-height:48px;
+  padding:5px 2px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.talent-portal-list .talent-lock-preview span{
+  color:#856b32;
+  font-size:11px;
+}
+.talent-portal-list .talent-lock-preview p{
+  color:#8a8f95;
+  font-size:10px;
+}
+.talent-portal-list .talent-profile-open{
+  min-height:48px!important;
+  border-color:#159579!important;
+  background:#159579!important;
+  color:#fff!important;
+  box-shadow:0 8px 18px rgba(21,149,121,.14);
+}
+.talent-portal-list .talent-profile-open:hover{
+  border-color:#0e7f68!important;
+  background:#0e7f68!important;
+}
+
+@media(max-width:1050px){
+  .talent-portal-list .talent-card{grid-template-columns:minmax(0,1fr) 210px}
+}
+@media(max-width:900px){
+  .talent-portal-list .talent-card{grid-template-columns:minmax(0,1fr) 235px}
+}
+@media(max-width:680px){
+  .talent-portal-list .talent-card{grid-template-columns:1fr;padding:17px}
+  .talent-portal-list .talent-card dl{
+    min-height:0;
+    border:1px solid #e5ecef;
+    border-radius:11px;
+    overflow:hidden;
+  }
+  .talent-portal-list .talent-card dl>div,
+  .talent-portal-list .talent-card dl>div:nth-child(2){
+    min-height:52px;
+    padding:9px 12px;
+  }
+  .talent-portal-list .talent-card dl>div+div{
+    border-left:0;
+    border-top:1px solid #e5ecef;
+  }
+}
