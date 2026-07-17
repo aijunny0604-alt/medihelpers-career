@@ -2752,3 +2752,122 @@ html.performance-lite .motion-notice{background:#fff}
   .talent-access-split>span{min-height:0}
   .talent-public-chip{padding:6px 8px;font-size:10px}
 }
+
+/* Optional, consent-gated profile photo for doctor resume registration. */
+.resume-basic-profile{
+  display:grid;
+  grid-template-columns:170px minmax(0,1fr);
+  gap:22px;
+  align-items:start;
+}
+.resume-basic-profile>.resume-form-grid{min-width:0}
+.resume-photo-field{
+  padding:15px;
+  border:1px solid #dce6f0;
+  border-radius:15px;
+  background:#f8fbfe;
+  display:flex;
+  align-items:center;
+  flex-direction:column;
+}
+.resume-photo-label{
+  width:100%;
+  margin-bottom:10px;
+  color:#44536a;
+  font-size:11px;
+  font-weight:750;
+}
+.resume-photo-label i{
+  margin-left:4px;
+  color:#8794a5;
+  font-style:normal;
+  font-weight:600;
+}
+.resume-photo-preview{
+  position:relative;
+  width:124px;
+  height:154px;
+  border:1px dashed #b7c9da;
+  border-radius:13px;
+  background:linear-gradient(145deg,#edf3f8,#f8fbfd);
+  color:#9ba9b9;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+}
+.resume-photo-preview>svg{width:52px;height:52px}
+.resume-photo-preview.has-photo{border-style:solid;background:#fff}
+.resume-photo-preview img{width:100%;height:100%;object-fit:cover}
+.resume-photo-preview button{
+  position:absolute;
+  top:7px;
+  right:7px;
+  width:28px;
+  height:28px;
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:50%;
+  background:rgba(18,34,56,.72);
+  color:#fff;
+  display:grid;
+  place-items:center;
+}
+.resume-photo-preview button svg{width:15px}
+.resume-photo-button{
+  width:124px;
+  min-height:38px;
+  margin-top:10px;
+  border:1px solid #b8cce5;
+  border-radius:9px;
+  background:#fff;
+  color:#1263e8;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+.resume-photo-button input{display:none}
+.resume-photo-button svg{width:16px}
+.resume-photo-field>small{
+  margin-top:8px;
+  color:#8a96a5;
+  font-size:9px;
+}
+.resume-photo-field>p{
+  margin:7px 0 0;
+  color:#c04a57;
+  font-size:9px;
+  line-height:1.45;
+  text-align:center;
+}
+.resume-preview-avatar{
+  width:76px;
+  height:76px;
+  margin:15px 0 14px;
+  border-radius:22px;
+  background:#eaf3ff;
+  color:#1263e8;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+}
+.resume-preview-avatar svg{width:34px;height:34px}
+.resume-preview-avatar.has-photo{background:#fff;box-shadow:inset 0 0 0 1px #dce6f0}
+.resume-preview-avatar img{width:100%;height:100%;object-fit:cover}
+
+@media(max-width:760px){
+  .resume-basic-profile{grid-template-columns:1fr}
+  .resume-photo-field{
+    display:grid;
+    grid-template-columns:110px minmax(0,1fr);
+    grid-template-rows:auto auto auto;
+    gap:8px 14px;
+    align-items:center;
+  }
+  .resume-photo-label{grid-column:1/-1;margin-bottom:0}
+  .resume-photo-preview{grid-row:2/5;width:110px;height:136px}
+  .resume-photo-button{width:100%;margin-top:0}
+  .resume-photo-field>small,.resume-photo-field>p{text-align:left}
+}
