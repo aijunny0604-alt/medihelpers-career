@@ -4037,6 +4037,30 @@ html.performance-lite .motion-notice{background:#fff}
 @media(max-width:1180px){.admin-monitor-summary{grid-template-columns:1fr 1fr}.admin-monitor-toolbar{align-items:stretch;flex-direction:column}.admin-monitor-toolbar>label{width:100%}.admin-monitor-table{overflow-x:auto}.admin-monitor-table>div,.admin-monitor-table>button{min-width:900px}}
 @media(max-width:700px){.admin-monitor>header{align-items:flex-start;flex-direction:column}.admin-monitor-summary{grid-template-columns:1fr 1fr}.admin-monitor-summary>button{min-height:100px;padding:15px}.admin-monitor-toolbar>div{display:grid;grid-template-columns:1fr 1fr}.admin-monitor-detail-body{padding:18px}.admin-monitor-detail-body dl{grid-template-columns:1fr}}
 
+/* Wide-screen headhunting consultation proportions */
+.consultation-focus{max-width:1600px;scroll-margin-top:110px;padding:clamp(72px,5vw,96px) clamp(36px,4vw,72px) 112px;gap:44px;background:radial-gradient(circle at 50% 34%,rgba(220,235,255,.82),transparent 39%)}
+.consultation-focus .consult-copy{max-width:1320px}
+.consultation-focus .consult-copy h2{font-size:clamp(46px,3.15vw,62px);line-height:1.18;letter-spacing:-3px}
+.consultation-focus .consult-copy>p{max-width:980px;font-size:19px;line-height:1.78}
+.consultation-focus .consult-points{max-width:1240px;margin-top:30px;gap:16px}
+.consultation-focus .consult-points>div{min-height:104px;padding:20px 22px;border-radius:18px}
+.consultation-focus .consult-points>div>span{width:50px;height:50px}
+.consultation-focus .consult-points strong{font-size:16px}
+.consultation-focus .consult-points p{font-size:13px;line-height:1.6}
+.consultation-focus .direct-contact{margin-top:22px;padding:10px 14px 10px 20px}
+.consultation-focus .direct-contact a{font-size:20px}
+.consultation-focus .consult-form.guided{width:min(100%,1260px);border-radius:30px}
+.consultation-focus .guided-head{padding:38px 50px 30px}
+.consultation-focus .guided-head h3{font-size:34px}
+.consultation-focus .consult-progress{padding:22px 50px}
+.consultation-focus .guided-body,.consultation-focus .consult-step{padding-left:50px;padding-right:50px}
+.consultation-focus .consult-step{padding-bottom:48px}
+.consultation-focus .choice-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.consultation-focus .choice-grid button{min-height:64px;padding-inline:16px}
+.consult-submit-error{margin:14px 0 0;padding:13px 15px;border:1px solid #fecaca;border-radius:12px;background:#fff1f2;color:#be123c;font-size:14px;font-weight:750;line-height:1.5}
+@media(max-width:1300px){.consultation-focus{max-width:1120px}.consultation-focus .choice-grid{grid-template-columns:1fr 1fr}.consultation-focus .consult-form.guided{max-width:1080px}}
+@media(max-width:780px){.consultation-focus{padding:52px 16px 72px;gap:28px;scroll-margin-top:82px}.consultation-focus .consult-copy h2{font-size:36px;letter-spacing:-1.8px}.consultation-focus .consult-copy>p{font-size:15px}.consultation-focus .consult-points{grid-template-columns:1fr}.consultation-focus .consult-points>div{min-height:76px;padding:14px 15px}.consultation-focus .guided-head{padding:27px 22px 22px}.consultation-focus .guided-head h3{font-size:24px}.consultation-focus .consult-progress{padding:17px 22px}.consultation-focus .guided-body,.consultation-focus .consult-step{padding-left:20px;padding-right:20px}.consultation-focus .consult-step{padding-bottom:26px}.consultation-focus .choice-grid{grid-template-columns:1fr}}
+
 /* Category counts make the admin taxonomy scope visible at a glance. */
 .admin-category-tabs button{padding:9px 11px 9px 15px;display:inline-flex;align-items:center;gap:8px}
 .admin-category-tabs button b{min-width:25px;height:25px;padding:0 7px;border-radius:999px;background:#e7edf5;color:#52677f;display:grid;place-items:center;font-size:11px}
