@@ -4,6 +4,72 @@ import {
   Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
   ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';
+import { jobs, talent } from './data.js';
+import { sampleJobs as medicalStaffJobs } from './MedicalStaffPage.jsx';
+
+const catalogContents = [
+  ...jobs.map((job) => ({
+    id:`catalog-doctor-${job.id}`,
+    contentType:'doctor_job',
+    title:job.title,
+    subtitle:job.hospital,
+    status:'published',
+    visibility:'doctor',
+    updatedAt:job.deadline || '',
+    source:'catalog',
+    payload:{
+      primary:job.location || job.region || '',
+      secondary:job.pay || '',
+      department:job.dept || '',
+      region:job.region || job.location || '',
+      employmentType:job.type || '',
+      deadline:job.deadline || '',
+      schedule:job.schedule || job.workHours || '',
+      description:job.summary || '',
+    },
+  })),
+  ...medicalStaffJobs.map((job) => ({
+    id:`catalog-medical-${job.id}`,
+    contentType:'medical_job',
+    title:job.title,
+    subtitle:job.hospital,
+    status:'published',
+    visibility:'public',
+    updatedAt:job.deadline || '',
+    source:'catalog',
+    payload:{
+      primary:job.region || '',
+      secondary:job.pay || '',
+      role:job.role || '',
+      region:job.region || '',
+      employmentType:job.type || '',
+      career:job.career || '',
+      deadline:job.deadline || '',
+    },
+  })),
+  ...talent.map((person) => ({
+    id:`catalog-talent-${person.code}`,
+    contentType:'talent_profile',
+    title:`${person.dept} · ${person.career}`,
+    subtitle:person.name,
+    status:'published',
+    visibility:'hospital',
+    updatedAt:'',
+    source:'catalog',
+    payload:{
+      primary:person.region || '',
+      secondary:person.preference || '',
+      department:person.dept || '',
+      career:person.career || '',
+      description:`입사 가능 ${person.available || '협의'}`,
+    },
+  })),
+];
+
+const mergeContentInventory = (contents = []) => [
+  ...contents.map((item) => ({ ...item, source:item.source || 'database' })),
+  ...catalogContents,
+];
 
 const groups = [
   { title: '운영 대시보드', items: [
@@ -34,7 +100,7 @@ const demoCategorySeed = {
 const demoCategories = Object.entries(demoCategorySeed).flatMap(([groupKey, names]) => names.map((name, index) => ({ id:`${groupKey}-${index + 1}`, groupKey, name, slug:`${groupKey}-${index + 1}`, sortOrder:(index + 1) * 10, enabled:true })));
 
 const demoData = {
-  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: 24, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0 },
+  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: catalogContents.length, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0 },
   settings: {
     siteName: '메디헬퍼스',
     supportPhone: '051-342-5463',
@@ -51,12 +117,7 @@ const demoData = {
     adRegistration: true,
   },
   categories: demoCategories,
-  contents: [
-    { id:'p1', contentType:'doctor_job', title:'정형외과 전문의 집중 초빙', subtitle:'해운대바른척추병원', status:'published', visibility:'doctor', updatedAt:'2026-07-17 15:30', payload:{ primary:'부산 해운대구', secondary:'월 1,500만원~', description:'주 4.5일 · 토요일 격주 근무' } },
-    { id:'p2', contentType:'medical_job', title:'MRI·CT 방사선사 채용', subtitle:'수원 중앙영상의학센터', status:'published', visibility:'public', updatedAt:'2026-07-17 14:10', payload:{ primary:'경기 수원', secondary:'연 4,500만원~', description:'경력 3년 이상' } },
-    { id:'p3', contentType:'talent_profile', title:'가정의학과 · 전문의 4년', subtitle:'정○○ · 이름 비공개', status:'published', visibility:'hospital', updatedAt:'2026-07-17 12:40', payload:{ primary:'경기·인천', secondary:'검진 / 주 4일', description:'후보 동의 후 상세정보 공개' } },
-    { id:'p4', contentType:'notice', title:'2026년 하반기 의사 채용 상담 안내', subtitle:'운영 공지', status:'draft', visibility:'public', updatedAt:'2026-07-17 10:20', payload:{ primary:'공지사항', secondary:'', description:'초안 작성 중' } },
-  ],
+  contents: catalogContents,
   members: [
     { id:'m1', role:'doctor', email:'doctor@example.com', fullName:'김현우', status:'active', verificationStatus:'verified', phone:'010-1234-5678', organization:'', jobTitle:'정형외과 전문의', consentCount:3, orderCount:1, lifetimeValue:39000, createdAt:'2026-07-16 09:30', lastLoginAt:'2026-07-17 15:40' },
     { id:'m2', role:'hospital', email:'hr@samplehospital.co.kr', fullName:'박지은', status:'active', verificationStatus:'pending', phone:'010-9876-5432', organization:'샘플메디컬센터', jobTitle:'채용팀장', consentCount:3, orderCount:2, lifetimeValue:409000, createdAt:'2026-07-15 11:20', lastLoginAt:'2026-07-17 14:15' },
@@ -130,7 +191,9 @@ export default function AdminConsolePage({ qa = false }) {
     if (qa) return;
     setLoading(true);
     try {
-      setData(await loadConsole());
+      const next = await loadConsole();
+      const contents = mergeContentInventory(next.contents);
+      setData({ ...next, contents, metrics:{ ...next.metrics, contents:contents.length, databaseContents:(next.contents || []).length } });
       setMessage('');
     } catch (error) {
       setMessage(error.message);
@@ -395,7 +458,11 @@ function ContentManager({ data, setData, mutate, qa }) {
   const contents = data.contents || [];
   const visible = contents.filter((item) => (type === 'all' || item.contentType === type) && (!keyword || `${item.title} ${item.subtitle}`.toLowerCase().includes(keyword.toLowerCase())));
   const openNew = () => setEditing({ ...emptyContent, payload:{ ...emptyContent.payload } });
-  const openEdit = (item) => { setSelected(null); setEditing({ ...item, payload:{ ...emptyContent.payload, ...(item.payload || {}) } }); };
+  const openEdit = (item) => {
+    if (item.source === 'catalog') return;
+    setSelected(null);
+    setEditing({ ...item, payload:{ ...emptyContent.payload, ...(item.payload || {}) } });
+  };
   const change = (key, value) => setEditing((old) => ({ ...old, [key]:value }));
   const changePayload = (key, value) => setEditing((old) => ({ ...old, payload:{ ...old.payload, [key]:value } }));
   const save = async () => {
@@ -407,6 +474,7 @@ function ContentManager({ data, setData, mutate, qa }) {
     if (qa || saved) setEditing(null);
   };
   const remove = async (item) => {
+    if (item.source === 'catalog') return;
     if (!window.confirm(`‘${item.title}’ 항목을 삭제할까요? 삭제 후에는 목록에서 복구할 수 없습니다.`)) return;
     if (qa) setData((old) => ({ ...old, contents:(old.contents || []).filter((entry) => entry.id !== item.id), metrics:{ ...old.metrics, contents:Math.max(0,(old.metrics.contents || 0)-1) } }));
     await mutate('content_delete', { id:item.id }, '콘텐츠를 삭제했습니다.');
@@ -440,7 +508,7 @@ function ContentManager({ data, setData, mutate, qa }) {
     </div>}
     <div className="admin-content-table">
       <div className="head"><span>유형</span><span>제목·기관</span><span>공개 범위</span><span>상태</span><span>최근 수정</span><span>관리</span></div>
-      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{item.title}</strong><small>{item.subtitle || '보조 정보 없음'}</small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title} 삭제`}><Trash2 /></button></div></div>)}
+      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{item.title}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button>{item.source !== 'catalog' && <><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title} 삭제`}><Trash2 /></button></>}</div></div>)}
       {!visible.length && <div className="admin-content-empty"><FileText /><span>조건에 맞는 운영 데이터가 없습니다.</span></div>}
     </div>
     {selected && <ContentDetail item={selected} onClose={() => setSelected(null)} onEdit={() => openEdit(selected)} />}
@@ -472,7 +540,7 @@ function ContentDetail({ item, onClose, onEdit }) {
         <section><h3>등록 내용</h3>{payload.length ? <dl>{payload.map(([key, value]) => <div className={key === 'description' ? 'wide' : ''} key={key}><dt>{payloadLabels[key] || key}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl> : <p className="admin-content-detail-empty">등록된 상세 내용이 없습니다.</p>}</section>
         <aside><h3>운영 기록</h3><dl><div><dt>데이터 ID</dt><dd>{item.id}</dd></div><div><dt>작성 시각</dt><dd>{String(item.createdAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>최근 수정</dt><dd>{String(item.updatedAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>공개 시작</dt><dd>{String(item.publishedAt || '-').slice(0,16).replace('T',' ')}</dd></div></dl><p><ShieldCheck /> 수정·공개·삭제 작업은 관리자 변경 이력에 기록됩니다.</p></aside>
       </div>
-      <footer><button className="button outline" onClick={onClose}>닫기</button><button className="admin-primary" onClick={onEdit}><PencilLine />이 내용 수정</button></footer>
+      <footer><button className="button outline" onClick={onClose}>닫기</button>{item.source !== 'catalog' ? <button className="admin-primary" onClick={onEdit}><PencilLine />이 내용 수정</button> : <span className="catalog-readonly"><ShieldCheck /> 기본 콘텐츠는 여기서 읽기만 할 수 있습니다.</span>}</footer>
     </section>
   </div>;
 }

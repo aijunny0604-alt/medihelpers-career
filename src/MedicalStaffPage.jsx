@@ -4,7 +4,7 @@ import { withBase } from './basePath.js';
 import { operationalMedicalJobs } from './siteOperations.js';
 
 const categories = ['전체 직군', '간호사', '간호조무사', '방사선사', '임상병리사', '물리·작업치료사', '치과위생사', '병원 행정직'];
-const sampleJobs = [
+export const sampleJobs = [
   { id:'ms-01', role:'간호사', title:'외래·검진센터 간호사', hospital:'서울 온누리검진센터', region:'서울 강남', type:'정규직', career:'경력 2년↑', pay:'연 4,200만원~', deadline:'D-5' },
   { id:'ms-02', role:'방사선사', title:'MRI·CT 방사선사', hospital:'수원 중앙영상의학센터', region:'경기 수원', type:'주 5일', career:'경력 3년↑', pay:'연 4,500만원~', deadline:'D-8' },
   { id:'ms-03', role:'임상병리사', title:'진단검사실 임상병리사', hospital:'부산 메디컬병원', region:'부산 해운대', type:'정규직', career:'신입·경력', pay:'경력별 협의', deadline:'D-12' },

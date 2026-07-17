@@ -4069,4 +4069,31 @@ html.performance-lite .motion-notice{background:#fff}
 .crm-back-button{min-height:42px;margin:0 0 20px;padding:0 15px;border:1px solid rgba(255,255,255,.28);border-radius:11px;background:rgba(255,255,255,.1);color:#fff;display:inline-flex;align-items:center;gap:8px;font-weight:800;cursor:pointer;transition:background .18s ease,border-color .18s ease}
 .crm-back-button:hover{border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.18)}
 .crm-back-button svg{width:18px}
+
+/* Home: one clear message, one search action, one curated list. */
+.home-hero.home-hero-simple{min-height:auto;padding-top:64px;padding-bottom:70px}
+.home-hero-simple .hero-copy{width:min(100%,1320px);margin-inline:auto}
+.home-hero-simple .hero-copy h1{font-size:clamp(50px,4.4vw,72px);line-height:1.15}
+.home-hero-simple .hero-copy>p{max-width:860px;margin:22px auto 0}
+.home-hero-simple .hero-search-card{margin-top:34px}
+.home-hero-simple .hero-assurance{margin-top:18px}
+
+/* Head-hunting: keep the phone number in the content rhythm, not as a floating pill. */
+.consultation-focus .direct-contact{width:100%;margin:22px 0 0;padding:18px 0 0;border:0;border-top:1px solid #dce6f1;border-radius:0;background:transparent;box-shadow:none;justify-content:center}
+.consultation-focus .direct-contact a{padding:0;background:transparent;font-size:22px}
+.consultation-focus .direct-contact small,.consultation-focus .direct-contact span{color:#73839a}
+
+/* Admin inventory: distinguish code-backed catalog items from editable DB records. */
+.content-source{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:850}
+.content-source.catalog{background:#edf2f8;color:#667991}
+.content-source.database{background:#e8f8f2;color:#0d8b70}
+.catalog-readonly{display:inline-flex;align-items:center;gap:7px;color:#65758a;font-size:12px;font-weight:750}
+.catalog-readonly svg{width:16px}
+
+@media(max-width:780px){
+  .home-hero.home-hero-simple{padding:44px 18px 52px}
+  .home-hero-simple .hero-copy h1{font-size:39px}
+  .home-hero-simple .hero-search-card{margin-top:26px}
+  .consultation-focus .direct-contact{border-radius:0;padding-top:16px}
+}
 .consult-admin-preview-note{max-width:540px;margin:0 auto 18px;padding:17px 19px;border:1px solid #f0d8ad;border-radius:15px;background:#fff9ed;text-align:left}.consult-admin-preview-note strong{display:block;color:#8e5a09;font-size:14px}.consult-admin-preview-note p{margin:5px 0 0;color:#806f55;font-size:12px!important;font-weight:600!important;line-height:1.65}.consult-admin-error{display:block;max-width:540px;margin:0 auto 18px;padding:10px 14px;border-radius:10px;background:#f3f6fa;color:#68788e;font-size:12px;font-style:normal}.consult-admin-access-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.consult-admin-access-actions .button{min-height:54px;padding-inline:22px}.consult-admin-access-actions svg{width:17px}.consult-admin-access .consult-admin-help{margin:20px auto 0;color:#8390a2;font-size:11px;font-weight:600}.consult-admin-access .consult-admin-help b{color:#5b6d84}
