@@ -3225,3 +3225,108 @@ html.performance-lite .motion-notice{background:#fff}
   .resume-preview-privacy strong{font-size:11px}
   .resume-preview-privacy small{font-size:10px}
 }
+
+/* Brand assets are optional: without a real upload, show the hospital name only. */
+.listing-brand-stage.no-brand-asset{
+  min-height:104px;
+  padding-inline:18px;
+  justify-content:center;
+  text-align:center;
+}
+.listing-brand-stage.no-brand-asset .listing-brand-name{
+  max-width:100%;
+  align-items:center;
+}
+.listing-brand-stage.no-brand-asset .listing-brand-name strong{
+  font-size:19px;
+  line-height:1.35;
+}
+.listing-brand-stage.no-brand-asset .listing-brand-name small{font-size:11px}
+.job-hospital.no-brand-asset{margin-top:18px}
+.job-hospital.no-brand-asset .listing-brand-name{max-width:100%}
+
+/* One compact advertising explanation instead of two long preview sections. */
+.ad-showcase-compact{
+  min-height:0;
+  padding-top:66px;
+  padding-bottom:72px;
+  background:linear-gradient(145deg,#fff 0%,#f7faff 100%);
+}
+.ad-showcase-compact .ad-exposure-copy{max-width:520px}
+.ad-showcase-compact .ad-exposure-copy h2{
+  margin-bottom:18px;
+  font-size:clamp(40px,4vw,58px);
+  line-height:1.15;
+}
+.ad-showcase-compact .ad-exposure-copy>p{
+  max-width:500px;
+  font-size:16px;
+  line-height:1.8;
+}
+.ad-showcase-points{
+  margin:22px 0 26px;
+  padding:0;
+  list-style:none;
+  display:grid;
+  gap:10px;
+}
+.ad-showcase-points li{
+  color:#52647b;
+  font-size:14px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.ad-showcase-points svg{width:17px;color:#159b77}
+.ad-showcase-cta{
+  min-width:250px;
+  min-height:58px;
+  border-radius:14px;
+  font-size:16px;
+  box-shadow:0 14px 28px rgba(18,99,232,.2);
+}
+.ad-showcase-compact .exposure-rank-card{
+  padding:24px;
+  border-radius:24px;
+}
+.ad-showcase-compact .exposure-row{padding-block:14px}
+
+/* Primary headhunting paths should read as large, confident actions. */
+.headhunting-hero .headhunting-quick-actions{
+  margin-top:36px;
+  gap:18px;
+}
+.headhunting-hero .headhunting-quick-actions .button{
+  min-width:370px;
+  min-height:76px;
+  padding:0 34px;
+  border-radius:18px;
+  font-size:19px;
+  box-shadow:0 16px 34px rgba(0,0,0,.2);
+}
+.headhunting-hero .headhunting-quick-actions .button svg{
+  width:25px;
+  height:25px;
+}
+
+@media(max-width:950px){
+  .ad-showcase-compact{padding-top:54px;padding-bottom:60px}
+}
+@media(max-width:780px){
+  .headhunting-hero .headhunting-quick-actions{
+    width:100%;
+    flex-direction:column;
+  }
+  .headhunting-hero .headhunting-quick-actions .button{
+    width:min(100%,520px);
+    min-width:0;
+    min-height:64px;
+    font-size:16px;
+  }
+}
+@media(max-width:580px){
+  .ad-showcase-compact .ad-exposure-copy h2{font-size:35px}
+  .ad-showcase-compact .ad-exposure-copy>p{font-size:14px}
+  .ad-showcase-cta{width:100%}
+}
