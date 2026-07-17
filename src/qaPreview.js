@@ -32,19 +32,19 @@ export const QA_STATE_OPTIONS = Object.freeze([
     id: 'doctor',
     label: '의사 일반 회원',
     shortLabel: '의사 회원',
-    description: '관심공고와 무료 비교 기능을 점검합니다.',
+    description: '의사 인증 후 무료 상세조건과 상담 기능을 점검합니다.',
     tone: 'doctor',
-    capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: false, privateDetails: false },
-    metrics: [['관심공고', '3건'], ['매칭 리포트', '1건'], ['멤버십', '미구독']]
+    capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: false, privateDetails: true },
+    metrics: [['상세조건', '무료 열람'], ['관심공고', '3건'], ['프리미엄', '미이용']]
   },
   {
     id: 'doctor-member',
     label: '의사 멤버십 구독',
     shortLabel: '의사 · 구독 중',
-    description: '잠금 해제된 상세조건과 구독 상태를 점검합니다.',
+    description: '무료 상세조건과 선택형 커리어 서비스를 점검합니다.',
     tone: 'member',
     capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: true, privateDetails: true },
-    metrics: [['열람 가능', '전체 공고'], ['이용권', '월 패스'], ['다음 결제', '2026.08.16']]
+    metrics: [['상세조건', '무료 열람'], ['서비스', '커리어 컨시어지'], ['다음 결제', '2026.08.16']]
   }
 ]);
 

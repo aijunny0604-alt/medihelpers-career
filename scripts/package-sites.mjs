@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { accountSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements } from '../db/schema.js';
+import { accountSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
 
 const sourceDir = 'client-build';
 const html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
@@ -43,6 +43,7 @@ const jsPath = ${JSON.stringify(jsPath)};
 const accountSchemaStatements = ${JSON.stringify(accountSchemaStatements)};
 const consultationSchemaStatements = ${JSON.stringify(consultationSchemaStatements)};
 const memberCenterSchemaStatements = ${JSON.stringify(memberCenterSchemaStatements)};
+const recruitmentCrmSchemaStatements = ${JSON.stringify(recruitmentCrmSchemaStatements)};
 const termsVersion = 'signup-terms-draft-2026-07-16';
 const privacyNoticeVersion = 'privacy-notice-draft-2026-07-16';
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
@@ -80,6 +81,10 @@ async function ensureConsultationSchema(env) {
 async function ensureMemberCenterSchema(env) {
   if (!env || !env.DB) throw new Error('MEMBER_CENTER_DB_UNAVAILABLE');
   await env.DB.batch(memberCenterSchemaStatements.map(statement => env.DB.prepare(statement)));
+}
+async function ensureRecruitmentCrmSchema(env) {
+  if (!env || !env.DB) throw new Error('RECRUITMENT_CRM_DB_UNAVAILABLE');
+  await env.DB.batch(recruitmentCrmSchemaStatements.map(statement => env.DB.prepare(statement)));
 }
 function adminIdentity(request, env) {
   const identity = authenticatedUser(request);
@@ -134,6 +139,13 @@ async function consultationApi(request, env, pathname) {
     if (!['doctor','hospital'].includes(requestType) || !requesterName || !payload.phone || !payload.specialty) return json({ error:'필수 정보를 모두 입력해 주세요.' }, 400);
     const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
     await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, payload.email || '', payload.specialty, JSON.stringify(payload)).run();
+    if (requestType === 'hospital') {
+      try {
+        await ensureRecruitmentCrmSchema(env);
+        const caseId = 'CASE-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
+        await env.DB.prepare('INSERT INTO recruitment_cases (id, consultation_id, hospital_name, specialty, position_title, next_action) VALUES (?, ?, ?, ?, ?, ?)').bind(caseId, id, payload.hospital, payload.specialty, payload.specialty + ' 의사 초빙', '병원 채용조건 확인').run();
+      } catch {}
+    }
     const record = { id, requestType, requesterName, phone:payload.phone, payload };
     let emailStatus = 'failed'; let smsStatus = 'failed';
     try { emailStatus = await sendConsultationEmail(env, record); } catch { emailStatus = 'failed'; }
@@ -243,11 +255,45 @@ async function memberCenterApi(request, env) {
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
+async function recruitmentCrmApi(request, env, pathname) {
+  const admin = adminIdentity(request, env);
+  if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 401);
+  try { await ensureRecruitmentCrmSchema(env); } catch { return json({ error:'채용 CRM 저장소를 사용할 수 없습니다.' }, 503); }
+  if (request.method === 'GET' && pathname === '/api/recruitment-crm') {
+    const result = await env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all();
+    await env.DB.prepare('INSERT INTO access_audit_logs (id, actor_key, action, metadata_json) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), admin.email, 'crm_list_view', JSON.stringify({ count:(result.results || []).length })).run();
+    return json({ admin, cases:result.results || [] });
+  }
+  if (request.method === 'POST' && pathname === '/api/recruitment-crm') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    const hospitalName = typeof body.hospitalName === 'string' ? body.hospitalName.trim().slice(0,160) : '';
+    if (!hospitalName) return json({ error:'병원명을 입력해 주세요.' }, 400);
+    const id = 'CASE-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
+    await env.DB.prepare('INSERT INTO recruitment_cases (id, hospital_name, specialty, position_title, assigned_recruiter, success_fee_terms, estimated_fee, next_action) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(id, hospitalName, String(body.specialty || '').slice(0,120), String(body.positionTitle || '').slice(0,180), String(body.assignedRecruiter || '').slice(0,120), String(body.successFeeTerms || '').slice(0,500), Math.max(0, Number(body.estimatedFee) || 0), String(body.nextAction || '병원 채용조건 확인').slice(0,300)).run();
+    await env.DB.prepare('INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, case_id) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), admin.email, 'crm_case_create', hospitalName, id).run();
+    return json({ id, created:true }, 201);
+  }
+  const match = pathname.match(/^\\/api\\/recruitment-crm\\/([^\\/]+)$/);
+  if (request.method === 'PATCH' && match) {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    const allowedStages = ['new_request','condition_review','candidate_search','candidate_consent','hospital_submitted','interview','negotiation','hired','closed'];
+    if (!allowedStages.includes(body.stage)) return json({ error:'채용 단계를 확인해 주세요.' }, 400);
+    const id = decodeURIComponent(match[1]);
+    const hiredAt = body.stage === 'hired' ? new Date().toISOString() : null;
+    await env.DB.prepare('UPDATE recruitment_cases SET stage = ?, assigned_recruiter = ?, hired_at = COALESCE(?, hired_at), updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.stage, String(body.assignedRecruiter || '').slice(0,120), hiredAt, id).run();
+    await env.DB.prepare('INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, case_id, metadata_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), admin.email, 'crm_stage_update', body.stage, id, JSON.stringify({ stage:body.stage })).run();
+    return json({ updated:true });
+  }
+  return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
 async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
+  if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });

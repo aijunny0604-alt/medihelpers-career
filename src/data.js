@@ -123,12 +123,12 @@ export const jobs = [
 ];
 
 export const talent = [
-  { code: 'DR-2048', name: '김현우', identityConsent: true, dept: '내과', career: '전문의 8년', region: '서울·경기', preference: '검진센터 / 주 4.5일', available: '1개월 내', verified: true },
-  { code: 'DR-1982', name: '박서진', identityConsent: true, dept: '정형외과', career: '전문의 12년', region: '부산·경남', preference: '병원급 / 원장 포지션', available: '협의', verified: true },
-  { code: 'DR-2214', name: '이도윤', identityConsent: true, dept: '소아청소년과', career: '전문의 6년', region: '전국', preference: '외래 중심 / 주 5일', available: '즉시', verified: true },
-  { code: 'DR-1765', name: '최유진', identityConsent: true, dept: '영상의학과', career: '전문의 10년', region: '서울', preference: '판독 중심 / 당직 없음', available: '2개월 내', verified: true },
-  { code: 'DR-2301', name: '정민석', identityConsent: true, dept: '가정의학과', career: '전문의 4년', region: '경기·인천', preference: '검진 / 주 4일', available: '즉시', verified: true },
-  { code: 'DR-1899', name: '한지우', identityConsent: true, dept: '마취통증의학과', career: '전문의 9년', region: '충청권', preference: '통증클리닉 / 원장', available: '협의', verified: true }
+  { code: 'MH-D-2048', name: '김○○', identityConsent: false, dept: '내과', career: '전문의 8년', region: '서울·경기', preference: '검진센터 / 주 4.5일', available: '1개월 내', verified: true },
+  { code: 'MH-D-1982', name: '박○○', identityConsent: false, dept: '정형외과', career: '전문의 12년', region: '부산·경남', preference: '병원급 / 원장 포지션', available: '협의', verified: true },
+  { code: 'MH-D-2214', name: '이○○', identityConsent: false, dept: '소아청소년과', career: '전문의 6년', region: '전국', preference: '외래 중심 / 주 5일', available: '즉시', verified: true },
+  { code: 'MH-D-1765', name: '최○○', identityConsent: false, dept: '영상의학과', career: '전문의 10년', region: '서울', preference: '판독 중심 / 당직 없음', available: '2개월 내', verified: true },
+  { code: 'MH-D-2301', name: '정○○', identityConsent: false, dept: '가정의학과', career: '전문의 4년', region: '경기·인천', preference: '검진 / 주 4일', available: '즉시', verified: true },
+  { code: 'MH-D-1899', name: '한○○', identityConsent: false, dept: '마취통증의학과', career: '전문의 9년', region: '충청권', preference: '통증클리닉 / 원장', available: '협의', verified: true }
 ];
 
 export const adPlans = [
@@ -154,19 +154,19 @@ export const navItems = [
   { path: '/talent', label: '인재정보' },
   { path: '/resume', label: '이력서 등록' },
   { path: '/headhunting', label: '맞춤 헤드헌팅' },
-  { path: '/matching-report', label: '매칭리포트' },
+  { path: '/medical-staff', label: '의료인 채용' },
   { path: '/advertise', label: '광고센터' }
 ];
 
 export const membershipPlans = [
   {
-    id: 'doctor-single', audience: 'doctor', name: '공고 1건 열람권', price: 2900, period: '건별',
-    description: '지원 판단에 필요한 상세조건 16개를 공고 한 건에서 확인합니다.',
-    features: ['급여 구조·인센티브·퇴직금', '실제 근무표·당직·휴무', '환자량·진료범위·지원 인력', '채용 사유·면접 절차·확인 메모']
+    id: 'doctor-single', audience: 'doctor', name: '커리어 체크', price: 19000, period: '1회',
+    description: '지원 전 계약과 보수 조건을 헤드헌터와 함께 빠르게 점검합니다.',
+    features: ['연봉·Net/세전 기준 정리', '계약서 주요 조항 체크', '근무표·당직 조건 비교', '30분 비공개 커리어 상담']
   },
   {
-    id: 'doctor-pass', audience: 'doctor', name: 'Doctor Pass', price: 12900, period: '월', featured: true,
-    description: '여러 병원의 실제 조건을 비교하며 이직을 준비하는 의사용 패스입니다.',
-    features: ['모든 공고 상세조건 무제한 열람', '비공개 포지션 우선 공개', '조건표 저장·병원 간 비교', '헤드헌터 확인 메모·협상 요청']
+    id: 'doctor-pass', audience: 'doctor', name: '커리어 컨시어지', price: 39000, period: '월', featured: true,
+    description: '정보 열람료가 아니라 이직 준비에 드는 시간과 판단을 줄이는 선택 서비스입니다.',
+    features: ['맞춤 포지션 즉시 알림', '우선 상담 일정 예약', '조건 비교·연봉 분석 리포트', '분기별 커리어 점검']
   }
 ];

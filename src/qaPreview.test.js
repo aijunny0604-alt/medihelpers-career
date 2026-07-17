@@ -11,11 +11,11 @@ test('알 수 없는 상태는 저장하지 않고 비로그인 정보로 안전
   assert.equal(getQaStateInfo('root-superuser').id, 'guest');
 });
 
-test('관리자와 구독 의료인만 비공개 상세조건을 미리 볼 수 있다', () => {
+test('관리자와 인증 의사는 구독 여부와 관계없이 상세조건을 미리 볼 수 있다', () => {
   assert.equal(qaCanViewPrivateDetails('admin'), true);
   assert.equal(qaCanViewPrivateDetails('doctor-member'), true);
   assert.equal(qaCanViewPrivateDetails('hospital'), false);
-  assert.equal(qaCanViewPrivateDetails('doctor'), false);
+  assert.equal(qaCanViewPrivateDetails('doctor'), true);
 });
 
 test('멤버십 활성 상태는 구독 의료인에게만 적용한다', () => {

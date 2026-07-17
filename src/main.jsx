@@ -20,6 +20,8 @@ import QaPreviewPage from './QaPreviewPage.jsx';
 import ConsultationAdminPage from './ConsultationAdminPage.jsx';
 import MemberCenterPage from './MemberCenterPage.jsx';
 import AccountRecoveryPage from './AccountRecoveryPage.jsx';
+import MedicalStaffPage from './MedicalStaffPage.jsx';
+import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import {
@@ -276,7 +278,7 @@ function Header({ path, qa }) {
   const signedInPreview = qa.active && qa.info.capabilities.signedIn;
   const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/signup';
   const primaryAction = qa.active && qa.info.capabilities.admin
-    ? { label: '관리 콘솔', to: '/mypage' }
+    ? { label: '채용 CRM', to: '/admin/recruitment-crm' }
     : qa.active && qa.info.capabilities.hospital
       ? { label: '마이페이지', to: '/mypage' }
       : qa.active && qa.info.capabilities.membership
@@ -318,9 +320,9 @@ function Footer() {
         <p>이직도 채용도 결국 사람의 일입니다.<br />메디헬퍼스가 직접 듣고, 꼼꼼히 연결하겠습니다.</p>
         <div className="footer-contact"><a href="tel:0513425463"><Phone size={15} /> 051-342-5463</a><a href="mailto:hr@medihelpers.co.kr"><Mail size={15} /> hr@medihelpers.co.kr</a></div>
       </div>
-      <div className="footer-column"><strong>의료인</strong><Link to="/jobs">초빙정보</Link><Link to="/resume">이력서 등록</Link><Link to="/headhunting">비공개 이직 상담</Link></div>
+      <div className="footer-column"><strong>의사</strong><Link to="/jobs">초빙정보</Link><Link to="/resume">이력서 등록</Link><Link to="/headhunting">비공개 이직 상담</Link></div>
       <div className="footer-column"><strong>병원</strong><Link to="/talent">의사 인재정보</Link><Link to="/headhunting">의사 채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
-      <div className="footer-column"><strong>안내</strong><Link to="/signup">로그인·회원가입</Link><a href="mailto:hr@medihelpers.co.kr">문의하기</a><Link to="/about">개인정보 안내</Link><Link to="/about">이용약관</Link></div>
+      <div className="footer-column"><strong>의료인 채용</strong><Link to="/medical-staff">직군별 채용정보</Link><Link to="/medical-staff">의료인 공고 등록</Link><Link to="/signup">로그인·회원가입</Link><a href="mailto:hr@medihelpers.co.kr">문의하기</a></div>
     </div>
     <div className="footer-bottom"><span>© 2026 MEDIHELPERS. All rights reserved.</span><span>부산광역시 북구 만덕대로 116번길 28</span></div>
   </footer>;
@@ -539,7 +541,7 @@ function JobCard({
         >
           {restricted && !qaUnlocked ? (
             <>
-              <LockKeyhole /> 멤버십 전용
+              <LockKeyhole /> 의사 인증 상세
             </>
           ) : qaUnlocked ? (
             <>
@@ -604,10 +606,22 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
 
 function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   const [photoIndex, setPhotoIndex] = useState(null);
+  const [verifiedDoctor, setVerifiedDoctor] = useState(Boolean(qa?.active && (qa.info.capabilities.doctor || qa.info.capabilities.admin)));
+  useEffect(() => {
+    if (qa?.active) {
+      setVerifiedDoctor(Boolean(qa.info.capabilities.doctor || qa.info.capabilities.admin));
+      return undefined;
+    }
+    let active = true;
+    fetch('/api/account', { credentials:'same-origin', headers:{ accept:'application/json' } })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('account')))
+      .then((result) => { if (active) setVerifiedDoctor(Boolean(result.signedIn && result.account?.role === 'doctor')); })
+      .catch(() => { if (active) setVerifiedDoctor(false); });
+    return () => { active = false; };
+  }, [qa?.active, qa?.state]);
   const isAd = Boolean(job.adTier);
   const restricted = isAd || job.badge === "비공개";
-  const memberUnlocked =
-    qa?.active && qa.info.capabilities.privateDetails;
+  const memberUnlocked = verifiedDoctor || Boolean(qa?.active && qa.info.capabilities.admin);
   const qaUnlocked =
     restricted && memberUnlocked;
   const locked = restricted && !qaUnlocked;
@@ -752,9 +766,9 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               <div><dt>초빙과목</dt><dd>{job.dept}</dd></div>
               <div><dt>초빙유형</dt><dd>{job.type}</dd></div>
               <div><dt>구인사유</dt><dd>{job.recruitmentReason || "진료 인력 충원"}</dd></div>
-              <div><dt>급여수준</dt><dd>{locked ? "멤버십 상세정보" : job.pay}</dd></div>
+              <div><dt>급여수준</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.pay}</dd></div>
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
-              <div><dt>휴무</dt><dd>{locked ? "멤버십 상세정보" : job.daysOff || "협의"}</dd></div>
+              <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
             <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span><Link to={`/request/job-seeker?job=${job.id}`}>무료 구직상담 신청 <ArrowRight /></Link></div>
           </section>
@@ -762,10 +776,10 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
             <div className="decision-sheet-head">
               <div className="detail-section-title">
                 <span><Crown /></span>
-                <div><small>MEMBERSHIP JOB DETAILS</small><h3>채용공고 상세조건</h3></div>
+                <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {memberUnlocked ? <><BadgeCheck /> 멤버십 열람 중</> : <><LockKeyhole /> 멤버십 상세정보</>}
+                {memberUnlocked ? <><BadgeCheck /> 의사 인증 열람 중</> : <><LockKeyhole /> 의사 인증 후 무료</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
@@ -779,7 +793,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                     {rows.map(([label, value]) => (
                       <div key={label}>
                         <dt>{label}</dt>
-                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="멤버십 가입 후 공개">멤버십 가입 후 공개</span>}</dd>
+                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="의사 인증 후 무료 공개">의사 인증 후 무료 공개</span>}</dd>
                       </div>
                     ))}
                   </dl>
@@ -799,10 +813,10 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
             ) : (
               <div className="decision-sheet-gate">
                 <div>
-                  <strong>상담 전에 16개 판단 항목을 먼저 확인하세요</strong>
-                  <span>정확한 시간·당직·환자량·지원 인력·채용 사유까지 한 화면에서 열립니다.</span>
+                  <strong>의사 인증 후 16개 판단 항목을 무료로 확인하세요</strong>
+                  <span>정확한 시간·당직·환자량·지원 인력·채용 사유까지 열람료 없이 제공합니다.</span>
                 </div>
-                <Link className="button primary" to={`/membership?type=doctor&job=${job.id}`}>이 공고 상세조건 열기 <ArrowRight /></Link>
+                <Link className="button primary" to={`/signup/doctor?next=/jobs/${job.id}`}>의사 인증하고 무료 보기 <ArrowRight /></Link>
               </div>
             )}
           </section>
@@ -939,18 +953,18 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                 </div>
                 <Link
                   className="button primary full"
-                  to={`/membership?type=doctor&job=${job.id}`}
+                  to={`/signup/doctor?next=/jobs/${job.id}`}
                   onClick={() =>
                     trackConversion("job_unlock_cta", {
                       jobId: job.id,
-                      offer: "single",
+                      offer: "verified_doctor_free",
                     })
                   }
                 >
-                  이 공고만 2,900원에 열람
+                  의사 인증하고 무료 열람
                 </Link>
                 <small className="value-hint">
-                  5건 이상 비교한다면 월 패스가 더 저렴해요.
+                  열람료 없이 상세조건과 상담을 이용할 수 있어요.
                 </small>
               </div>
             </>
@@ -1045,7 +1059,7 @@ function QuickAccess() {
 }
 
 function MemberTeaser() {
-  return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>MEDIHELPERS DOCTOR MEMBERSHIP</small><h2>초빙정보 탐색은 무료, 상세 조건은 의사 멤버십으로</h2><p>의사는 프리미엄 초빙정보를 이용하고, 병원은 메디헬퍼스 헤드헌터와 상담해 필요한 인재를 찾습니다.</p></div><Link className="button dark" to="/membership">의사 멤버십 비교 <ArrowRight /></Link></section>;
+  return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>VERIFIED DOCTOR BENEFIT</small><h2>상세조건과 헤드헌터 상담은 의사 인증 후 무료</h2><p>유료 서비스는 정보 잠금 해제가 아니라 맞춤 알림, 우선 상담 예약, 연봉·계약 분석처럼 이직 준비 시간을 줄이는 기능에 집중합니다.</p></div><Link className="button dark" to="/membership">선택 서비스 보기 <ArrowRight /></Link></section>;
 }
 
 function MotionNotice() {
@@ -1116,7 +1130,8 @@ function HomePage() {
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
     <section className="home-hero">
-      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 의사 채용·이직 전문 헤드헌팅</span><h1>의사 이직,<br /><em>공고보다 조건을 먼저.</em></h1><p>진료과와 지역, 근무형태와 보수 조건을 기준으로<br />공개·비공개 초빙정보를 전담 헤드헌터가 직접 연결합니다.</p>
+      <div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> 의사 채용·이직 전문 헤드헌팅</span><h1>병원과 의사의 결정까지,<br /><em>전담 헤드헌터가 책임집니다.</em></h1><p>채용 의뢰부터 후보 발굴·동의·추천·면접·조건 협상·입사까지<br />한 사람의 전담 헤드헌터가 끝까지 연결합니다.</p>
+        <div className="home-primary-actions"><Link to="/request/hiring"><Building2 /> 병원 의사 채용 의뢰 <ArrowRight /></Link><Link className="doctor" to="/request/job-seeker"><Stethoscope /> 의사 무료 비공개 이직상담</Link></div>
         <div className="hero-search-card" role="search" aria-label="의사 초빙정보 검색">
           <div className="hero-search-title"><span><Search /></span><div><strong>의사 초빙정보 바로 찾기</strong><small>초빙유형·진료과·지역을 선택하세요</small></div><em className="hero-search-badge">의사 전용</em></div>
           <div className="hero-search-fields">
@@ -1130,9 +1145,11 @@ function HomePage() {
         <div className="hero-assurance"><ShieldCheck /><span><strong>이직 의사는 상담 전까지 비공개</strong> · 초빙정보 탐색은 무료입니다</span></div>
       </div>
     </section>
+    <section className="headhunting-funnel section"><header><div><small>SUCCESS-FEE HEADHUNTING</small><h2>광고 노출이 아니라 입사 완료가 목표입니다</h2></div><p>병원은 필요한 의사를 채용했을 때 성공보수를 지급하고, 의사는 상담·추천·협상 지원을 무료로 이용합니다.</p></header><div className="headhunting-funnel-steps">{['채용 의뢰','조건 검증','후보 탐색','후보 동의','병원 제안','면접·협상','입사·성공보수'].map((item,index) => <div key={item}><span>{String(index + 1).padStart(2,'0')}</span><strong>{item}</strong>{index < 6 && <ArrowRight />}</div>)}</div></section>
     <section className="section soft" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">CURATED DOCTOR POSITIONS</span><h2>지금 주목할 의사 초빙</h2><p>진료과와 근무조건, 병원 정보를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(jobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
     <QuickAccess />
     <MemberTeaser />
+    <section className="revenue-model section"><div className="revenue-model-copy"><small>BUSINESS MODEL</small><h2>전문성은 선명하게,<br />수익은 단계적으로.</h2><p>메디헬퍼스의 핵심은 의사 성공보수형 헤드헌팅입니다. 광고와 의료인 채용은 이 핵심을 해치지 않는 별도 상품으로 운영합니다.</p><Link className="button primary" to="/request/hiring">병원 채용 의뢰 시작 <ArrowRight /></Link></div><div className="revenue-model-grid"><article className="primary"><span>PRIMARY</span><h3>의사 헤드헌팅 성공보수</h3><p>채용 의뢰부터 입사까지 전담 관리</p><strong>입사 확정 시 계약 기준 청구</strong></article><article><span>SECONDARY</span><h3>의사 초빙광고</h3><p>일반·추천·집중채용 노출 상품</p><Link to="/advertise">상품 보기 <ArrowRight /></Link></article><article><span>EXPANSION</span><h3>의료인 채용 허브</h3><p>타 의료직군 공고·인재검색 수익</p><Link to="/medical-staff">별도 허브 보기 <ArrowRight /></Link></article></div></section>
     <section className="dual-path section"><div className="path-card doctor"><span className="path-icon"><Stethoscope /></span><small>이직을 고민하는 의사라면</small><h2>내 조건을 먼저 말하고<br />비공개 제안을 받으세요</h2><p>이력서를 공개하지 않아도 의사 전담 헤드헌터가 적합한 병원을 찾아드립니다.</p><ul><li><Check /> 이직 의사 비공개</li><li><Check /> 보수·진료범위 협상</li><li><Check /> 퇴사·입사 일정 조율</li></ul><Link className="button dark" to="/headhunting">의사 이직 상담</Link></div><div className="path-card hospital"><span className="path-icon"><Building2 /></span><small>의사를 채용하는 병원이라면</small><h2>광고와 의사 추천을<br />한 번에 시작하세요</h2><p>초빙공고 등록부터 후보 발굴, 면접 일정까지 필요한 만큼 선택할 수 있습니다.</p><ul><li><Check /> 전문과목별 의사 인재풀</li><li><Check /> 의사 초빙공고 검수</li><li><Check /> 성과형 헤드헌팅</li></ul><Link className="button light" to="/advertise">의사 채용 시작</Link></div></section>
     <section className="section compact-process"><div className="compact-process-shell"><div className="compact-process-copy"><span className="section-kicker">HOW IT WORKS</span><h2>공고를 넘어,<br />채용 결정까지</h2><p>조건을 듣고 맞는 상대를 연결한 뒤 면접과 입사 조율까지 함께합니다.</p><Link className="button primary" to="/headhunting">1:1 매칭 상담 <ArrowRight /></Link></div><div className="compact-process-flow">{[[MessageCircle,'01','조건 상담','희망 지역과 근무조건을 정리합니다.'],[Target,'02','맞춤 연결','공개·비공개 포지션과 검증 인재를 선별합니다.'],[ClipboardCheck,'03','결정 조율','면접·보수·근무조건과 입사 일정을 조율합니다.']].map(([Icon,n,t,d]) => <div className="compact-process-step" key={n}><span className="compact-step-icon"><Icon /></span><div><small>{n}</small><h3>{t}</h3><p>{d}</p></div></div>)}</div></div></section>
     <ConversionBanner />
@@ -2664,9 +2681,6 @@ function MembershipPage({ route, qa }) {
   const [selected, setSelected] = useState(null);
   const plans = membershipPlans.filter((plan) => plan.audience === type);
   const contextId = params.get("job");
-  const contextPlan = membershipPlans.find(
-    (plan) => plan.id === `${type}-single`,
-  );
   const qaMemberActive =
     qa?.active && qa.info.capabilities.membership && type === "doctor";
   if (hospitalConsult) {
@@ -2680,9 +2694,9 @@ function MembershipPage({ route, qa }) {
     <>
       <PageHero
         tone="membership"
-        eyebrow="EARLY ACCESS PRICE"
-        title="필요한 핵심정보만, 2,900원부터"
-        description="기본 공고 탐색은 무료로 시작하고, 지원 결정을 위한 급여 구조·실제 근무표·진료 강도·병원 확인 메모를 건별 또는 월 패스로 열람합니다."
+        eyebrow="OPTIONAL CAREER SERVICE"
+        title="정보 열람은 무료로, 중요한 판단은 더 정교하게"
+        description="의사 인증 회원은 급여·근무표·당직·진료강도 등 지원 판단에 필요한 핵심정보와 헤드헌터 상담을 무료로 이용합니다. 프리미엄은 알림·분석·우선 일정처럼 시간을 줄이는 선택 서비스입니다."
       />
       {qaMemberActive && (
         <section className="qa-membership-active">
@@ -2691,10 +2705,10 @@ function MembershipPage({ route, qa }) {
           </span>
           <div>
             <small>QA SUBSCRIPTION ACTIVE</small>
-            <strong>의사 월 패스 이용 중</strong>
+            <strong>커리어 컨시어지 이용 중</strong>
             <p>
-              급여 구조·실제 근무표·환자량·지원 인력·채용 사유가 열린
-              상태입니다. 다음 가상 결제일 2026.08.16
+              맞춤 포지션 즉시 알림, 우선 상담 예약과 조건 분석 리포트를
+              이용하고 있습니다. 다음 가상 결제일 2026.08.16
             </p>
           </div>
           <Link to="/qa-preview">
@@ -2712,32 +2726,18 @@ function MembershipPage({ route, qa }) {
               <span>
                 <CircleCheck /> 무료 미리보기 확인 완료
               </span>
-              <h3>
-                {type === "doctor"
-                  ? "선택한 공고의 핵심조건만 바로 열어보세요"
-                  : "선택한 의사 후보의 검증정보와 소개를 요청하세요"}
-              </h3>
+              <h3>의사 인증 후 상세조건을 무료로 확인하세요</h3>
               <p>
-                {type === "doctor"
-                  ? "급여 구조·실제 근무표·환자량·지원 인력 등 16개 상세조건을 한 번에 확인합니다."
-                  : "의사 동의 확인부터 첫 인터뷰 연결까지 지원합니다."}
+                급여 구조·실제 근무표·환자량·지원 인력 등 지원 판단에 필요한 정보를 열람료 없이 제공합니다.
               </p>
             </div>
-            <button
-              className="button primary"
-              onClick={() => {
-                trackConversion("context_single_offer", { type, contextId });
-                setSelected(contextPlan);
-              }}
-            >
-              {contextPlan.price.toLocaleString()}원으로 계속
-            </button>
+            <Link className="button primary" to={`/jobs/${contextId}`}>무료 상세정보 계속 보기 <ArrowRight /></Link>
           </div>
         )}
         <section className="membership-detail-catalog" aria-labelledby="membership-detail-title">
           <div className="membership-detail-heading">
             <span><Crown /></span>
-            <div><small>WHAT YOU ACTUALLY UNLOCK</small><h2 id="membership-detail-title">상담 연결이 아니라, 결정에 필요한 정보가 열립니다</h2><p>지원 전 확인할 주요 조건을 네 묶음으로 정리했습니다.</p></div>
+            <div><small>VERIFIED DOCTOR ACCESS</small><h2 id="membership-detail-title">의사 인증 회원에게 무료로 공개되는 정보</h2><p>지원 여부를 판단하는 데 필요한 조건은 결제 없이 확인합니다.</p></div>
           </div>
           <div className="membership-detail-grid">
             {[
@@ -2746,32 +2746,24 @@ function MembershipPage({ route, qa }) {
               [Stethoscope, "진료 강도", "환자 수, 검사·시술 비중, 의료장비, 간호·보조 인력"],
               [BadgeCheck, "입사 판단", "채용 사유, 의료진 구성, 입사 시점, 면접 절차, 확인 메모"],
             ].map(([Icon, title, copy]) => (
-              <article key={title}><span><Icon /></span><strong>{title}</strong><p>{copy}</p><small><Check /> 공고 상세표에서 즉시 확인</small></article>
+              <article key={title}><span><Icon /></span><strong>{title}</strong><p>{copy}</p><small><Check /> 의사 인증 후 무료 확인</small></article>
             ))}
           </div>
         </section>
         <div className="access-explain">
           <div>
             <span className="access-number">FREE</span>
-            <h3>무료로 충분히 비교</h3>
-            <p>
-              {type === "doctor"
-                ? "진료과, 지역, 기본 근무형태, 모집기간과 공개 요약"
-                : "진료과, 경력 연차, 희망 지역과 입사 가능 시점"}
-            </p>
+            <h3>핵심정보·상담 무료</h3>
+            <p>급여, 근무표, 당직, 진료강도, 병원 확인정보와 헤드헌터 상담</p>
           </div>
           <ArrowRight />
           <div className="paid-access">
-            <span className="access-number">UNLOCK</span>
-            <h3>결정할 때만 결제</h3>
-            <p>
-              {type === "doctor"
-                ? "16개 상세조건표, 병원 확인 메모, 저장·비교와 맞춤 알림"
-                : "메디헬퍼스 헤드헌터의 후보 상담"}
-            </p>
+            <span className="access-number">OPTIONAL</span>
+            <h3>시간을 아끼는 선택 서비스</h3>
+            <p>즉시 알림, 우선 상담 예약, 연봉·계약 분석과 정기 커리어 점검</p>
           </div>
         </div>
-        <ValueCalculator key={type} type={type} onChoose={setSelected} />
+        <div className="membership-free-promise"><ShieldCheck /><div><strong>유료 가입 없이도 이직 상담과 포지션 제안을 받을 수 있습니다</strong><p>프리미엄 가입 여부는 병원 추천 순서나 헤드헌터의 기본 상담 품질에 영향을 주지 않습니다.</p></div><Link className="button outline" to="/request/job-seeker">무료 이직상담 신청</Link></div>
         <div className="membership-grid">
           {plans.map((plan) => (
             <article
@@ -2780,7 +2772,7 @@ function MembershipPage({ route, qa }) {
             >
               {plan.featured && <span className="popular">추천</span>}
               <small>
-                {plan.period === "월" ? "MONTHLY PASS" : "ONE-TIME ACCESS"}
+                {plan.period === "월" ? "CAREER CONCIERGE" : "ONE-TIME REVIEW"}
               </small>
               <h2>{plan.name}</h2>
               <p>{plan.description}</p>
@@ -2804,7 +2796,7 @@ function MembershipPage({ route, qa }) {
                   setSelected(plan);
                 }}
               >
-                이용권 신청
+                선택 서비스 신청
               </button>
             </article>
           ))}
@@ -2930,11 +2922,13 @@ export function App() {
   else if (path === '/talent') page = <TalentPage qa={qa} />;
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
+  else if (path === '/medical-staff') page = <MedicalStaffPage />;
   else if (path === '/advertise/apply') page = <AdvertiseApplyPage route={route} qa={qa} />;
   else if (path === '/advertise') page = <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
+  else if (path === '/admin/recruitment-crm') page = <RecruitmentCrmPage qa={qa} />;
   else if (path === '/mypage') page = <MemberCenterPage route={route} qa={qa} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
