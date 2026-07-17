@@ -12,6 +12,8 @@ import {
   formatKoreanPhone,
   hospitalAccountFields,
   hospitalInfoFields,
+  individualAccountFields,
+  individualProfileFields,
   setAllConsents,
   validateApplicationDraft,
   validateField
@@ -64,6 +66,21 @@ const FIELD_META = {
   email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.' },
   password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8자 이상', hint: '영문과 숫자를 포함해 8자 이상으로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
+  professionType: {
+    label: '의료 직군',
+    type: 'select',
+    placeholder: '직군을 선택해주세요',
+    options: ['의사', '치과의사', '한의사', '간호사', '간호조무사', '방사선사', '임상병리사', '물리치료사', '작업치료사', '치과위생사', '병원 행정·원무', '기타 의료인']
+  },
+  specialty: { label: '전문 분야·주요 업무', type: 'text', placeholder: '예: 정형외과 전문의, MRI 방사선사, 외래 간호' },
+  region: {
+    label: '현재 활동 지역',
+    type: 'select',
+    placeholder: '지역을 선택해주세요',
+    options: ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '전국·해외']
+  },
+  birthYear: { label: '출생연도', optional: true, type: 'number', inputMode: 'numeric', placeholder: '예: 1985', hint: '기본 가입에는 필수가 아니며 이력서에서 나중에 입력할 수 있습니다.' },
+  gender: { label: '성별', optional: true, type: 'select', placeholder: '선택하지 않음', options: ['남성', '여성', '직접 밝히지 않음'] },
   hospitalRole: { label: '담당자 직책', type: 'text', autoComplete: 'organization-title', placeholder: '예: 행정팀장, 원장' },
   department: { label: '부서명', optional: true, type: 'text', placeholder: '예: 인사팀, 원무과' },
   hospitalName: { label: '병원·기관명', type: 'text', autoComplete: 'organization', placeholder: '예: 서울메디컬센터' },
@@ -215,11 +232,11 @@ function PrivacyCopy({ memberType }) {
     <h4>개인정보 수집·이용 안내</h4>
     <dl>
       <div><dt>수집 목적</dt><dd>회원 식별, 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의와 결제내역 관리</dd></div>
-      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 기록{memberType === 'hospital' ? ', 담당자 직책, 병원명, 기관 유형, 대표자명, 대표전화, 주소' : ''}</dd></div>
+      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 기록{memberType === 'hospital' ? ', 담당자 직책, 병원명, 기관 유형, 대표자명, 대표전화, 주소' : ', 의료 직군, 전문 분야, 활동 지역'}</dd></div>
       <div><dt>보유 기간</dt><dd>회원 탈퇴 시까지 보관하며, 결제·계약 등 관계 법령상 보존 의무가 있는 기록은 해당 기간 동안 분리 보관합니다.</dd></div>
       <div><dt>동의 거부</dt><dd>동의를 거부할 수 있으나 필수정보 수집에 동의하지 않으면 회원가입과 계정 기반 서비스를 이용할 수 없습니다.</dd></div>
     </dl>
-    <p className="signup-legal-notice">주민등록번호, 면허·자격 서류, 사업자등록증 원본과 마케팅 수신 동의는 가입 단계에서 받지 않습니다.</p>
+    <p className="signup-legal-notice">주민등록번호, 면허·자격 서류, 사업자등록증 원본과 마케팅 수신 동의는 가입 단계에서 받지 않습니다. 출생연도와 성별은 선택정보이며 입력하지 않아도 가입할 수 있습니다.</p>
   </>;
 }
 
@@ -362,7 +379,7 @@ function SignupApplicationForm({ memberType }) {
     <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
     <span className="signup-draft-tag"><Sparkles size={13} /> 정식 오픈 전 가입 신청 미리 작성</span>
     <h2>{content.label} 가입 신청서</h2>
-    <p>{memberType === 'hospital' ? '채용 담당자 계정과 병원 기본정보를 한 번에 등록합니다. 기관 서류는 가입 후 공고 등록이나 결제 전에 별도 확인합니다.' : '정식 오픈 전에 미리 작성해볼 수 있는 화면입니다. 실제 계정 생성과 본인인증은 정식 오픈 시 연결되며, 지금 입력한 내용은 저장되지 않습니다.'}</p>
+    <p>{memberType === 'hospital' ? '채용 담당자 계정과 병원 기본정보를 한 번에 등록합니다. 기관 서류는 가입 후 공고 등록이나 결제 전에 별도 확인합니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 면허·자격과 경력 상세정보는 가입 후 이력서 또는 인증 단계에서 추가할 수 있습니다.'}</p>
     <form ref={formRef} onSubmit={submit} noValidate>
       {memberType === 'hospital' ? <>
         <section className="signup-form-section">
@@ -374,7 +391,17 @@ function SignupApplicationForm({ memberType }) {
           <div className="signup-field-grid">{hospitalInfoFields().map(renderField)}</div>
           <div className="hospital-verification-note"><ShieldCheck /><span><strong>병원 서류는 지금 올리지 않아도 됩니다</strong><small>사업자등록증·의료기관 개설 관련 서류는 공고 등록이나 결제가 필요한 시점에 안전하게 확인합니다.</small></span></div>
         </section>
-      </> : <div className="signup-field-grid">{fields.map(renderField)}</div>}
+      </> : <>
+        <section className="signup-form-section individual-account-section">
+          <header><span>01</span><div><h3>개인 계정</h3><p>로그인과 본인확인, 상담 연락에 사용할 기본정보입니다.</p></div></header>
+          <div className="signup-field-grid">{individualAccountFields().map(renderField)}</div>
+        </section>
+        <section className="signup-form-section individual-profile-section">
+          <header><span>02</span><div><h3>의료 직군·활동정보</h3><p>맞춤 채용정보와 상담 연결에 필요한 최소 경력정보만 입력해주세요.</p></div></header>
+          <div className="signup-field-grid">{individualProfileFields().map(renderField)}</div>
+          <div className="hospital-verification-note individual-verification-note"><ShieldCheck /><span><strong>자격서류는 가입 후 필요할 때만 확인합니다</strong><small>면허번호·자격증·경력증명서는 이력서 공개 또는 채용 연결 단계에서 본인 동의 후 안전하게 확인합니다.</small></span></div>
+        </section>
+      </>}
 
       <div className="signup-consent-block">
         <label className="signup-consent-all">

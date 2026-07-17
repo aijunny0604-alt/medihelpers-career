@@ -1410,12 +1410,13 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 @media(prefers-reduced-motion:reduce){.signup-field input{transition:none}}
 
 /* Hospital member registration */
-.signup-application:has(.hospital-info-section){padding:44px;max-width:none}
+.signup-application:has(.hospital-info-section),.signup-application:has(.individual-profile-section){padding:44px;max-width:none}
 .signup-form-section{margin-top:28px;padding:27px 28px 30px;border:1px solid #dce7f1;border-radius:21px;background:#fbfdff}
 .signup-form-section+ .signup-form-section{margin-top:22px}
 .signup-form-section>header{margin-bottom:25px;display:flex;align-items:flex-start;gap:14px}
 .signup-form-section>header>span{width:40px;height:40px;border-radius:12px;background:#e9f2ff;color:#1263e8;display:grid;place-items:center;font:900 12px Manrope,sans-serif}
 .hospital-info-section>header>span{background:#e4f7f1;color:#078a70}
+.individual-profile-section>header>span{background:#eef0ff;color:#5663d8}
 .signup-form-section h3{margin:1px 0 5px;color:#17304f;font-size:21px;letter-spacing:-.5px}
 .signup-form-section header p{margin:0;color:#77869a;font-size:13px;line-height:1.55}
 .signup-form-section .signup-field-grid{margin:0}
@@ -1431,7 +1432,9 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .hospital-verification-note>span{display:flex;flex-direction:column}
 .hospital-verification-note strong{font-size:13px}
 .hospital-verification-note small{margin-top:4px;color:#5a7e74;font-size:12px;line-height:1.6}
-@media(max-width:780px){.signup-application:has(.hospital-info-section){padding:30px 22px}.signup-form-section{padding:22px 18px}.signup-field.wide{grid-column:auto}}
+.individual-verification-note{border-color:#cfd8f4;background:#f2f5ff;color:#435f9a}
+.individual-verification-note small{color:#697b9f}
+@media(max-width:780px){.signup-application:has(.hospital-info-section),.signup-application:has(.individual-profile-section){padding:30px 22px}.signup-form-section{padding:22px 18px}.signup-field.wide{grid-column:auto}}
 
 /* Signup agreements */
 .signup-agreement-item{margin:12px 0;padding:18px 19px;border:1px solid #dce5ef;border-radius:15px;background:#fff}

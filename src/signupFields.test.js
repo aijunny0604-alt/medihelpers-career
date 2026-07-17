@@ -20,6 +20,9 @@ function validDoctorDraft(overrides = {}) {
     email: 'user@example.com',
     password: 'medi1234',
     passwordConfirm: 'medi1234',
+    professionType: '의사',
+    specialty: '정형외과 전문의',
+    region: '서울',
     termsAccepted: true,
     privacyAccepted: true,
     ageConfirmed: true,
@@ -42,8 +45,11 @@ function validHospitalDraft(overrides = {}) {
   };
 }
 
-test('fieldsForRole: 병원만 조건부 기관 필드를 추가한다', () => {
-  assert.deepEqual(fieldsForRole('doctor'), ['name', 'phone', 'email', 'password', 'passwordConfirm']);
+test('fieldsForRole: 개인과 병원 회원에게 필요한 조건부 필드를 구분한다', () => {
+  assert.deepEqual(fieldsForRole('doctor'), [
+    'name', 'phone', 'email', 'password', 'passwordConfirm',
+    'professionType', 'specialty', 'region', 'birthYear', 'gender'
+  ]);
   assert.deepEqual(fieldsForRole('hospital'), [
     'name', 'hospitalRole', 'department', 'phone', 'email', 'password', 'passwordConfirm',
     'hospitalName', 'representativeName', 'institutionType', 'institutionPhone',
@@ -62,7 +68,7 @@ test('의료인: 올바른 입력은 통과한다', () => {
 test('의료인: 빈 필수 입력은 각 필드 오류를 낸다', () => {
   const result = validateApplicationDraft(createEmptyDraft('doctor'), 'doctor');
   assert.equal(result.valid, false);
-  for (const field of ['name', 'phone', 'email', 'password', 'passwordConfirm', 'termsAccepted', 'privacyAccepted', 'ageConfirmed']) {
+  for (const field of ['name', 'phone', 'email', 'password', 'passwordConfirm', 'professionType', 'specialty', 'region', 'termsAccepted', 'privacyAccepted', 'ageConfirmed']) {
     assert.ok(result.errors[field], `${field} 오류 필요`);
   }
   // 병원 전용 필드는 의료인 검증 대상이 아니다.

@@ -3,6 +3,7 @@ import { ACCOUNT_ROLES } from './signupModel.js';
 // 정식 오픈 전에 사용하는 프론트엔드 전용 회원가입 신청서입니다.
 // 입력값은 브라우저 저장소에 남기지 않으며, 실제 계정 생성은 인증 서버가 열린 뒤 연결합니다.
 const COMMON_FIELDS = ['name', 'phone', 'email', 'password', 'passwordConfirm'];
+const INDIVIDUAL_PROFILE_FIELDS = ['professionType', 'specialty', 'region', 'birthYear', 'gender'];
 const HOSPITAL_ACCOUNT_FIELDS = ['hospitalRole', 'department'];
 const HOSPITAL_INFO_FIELDS = [
   'hospitalName',
@@ -16,7 +17,7 @@ const HOSPITAL_INFO_FIELDS = [
   'businessNumber',
   'fax'
 ];
-const OPTIONAL_FIELDS = new Set(['department', 'addressDetail', 'website', 'businessNumber', 'fax']);
+const OPTIONAL_FIELDS = new Set(['birthYear', 'gender', 'department', 'addressDetail', 'website', 'businessNumber', 'fax']);
 const CONSENT_KEYS = ['termsAccepted', 'privacyAccepted', 'ageConfirmed'];
 
 function normalizeRole(role) {
@@ -90,10 +91,18 @@ export function hospitalInfoFields() {
   return [...HOSPITAL_INFO_FIELDS];
 }
 
+export function individualAccountFields() {
+  return [...COMMON_FIELDS];
+}
+
+export function individualProfileFields() {
+  return [...INDIVIDUAL_PROFILE_FIELDS];
+}
+
 export function fieldsForRole(memberType) {
-  return normalizeRole(memberType) === 'hospital'
-    ? [...hospitalAccountFields(), ...hospitalInfoFields()]
-    : [...COMMON_FIELDS];
+  if (normalizeRole(memberType) === 'hospital') return [...hospitalAccountFields(), ...hospitalInfoFields()];
+  if (normalizeRole(memberType) === 'doctor') return [...individualAccountFields(), ...individualProfileFields()];
+  return [...COMMON_FIELDS];
 }
 
 export function formatKoreanPhone(value) {
@@ -117,6 +126,9 @@ export function validateField(field, draft = {}) {
     case 'email': return validateEmail(draft.email);
     case 'password': return validatePassword(draft.password);
     case 'passwordConfirm': return validatePasswordConfirm(draft.password, draft.passwordConfirm);
+    case 'professionType': return validateSelect(draft.professionType, '의료 직군');
+    case 'specialty': return requiredText(draft.specialty, '전문 분야');
+    case 'region': return validateSelect(draft.region, '활동 지역');
     case 'hospitalRole': return requiredText(draft.hospitalRole, '담당자 직책');
     case 'hospitalName': return requiredText(draft.hospitalName, '병원·기관명');
     case 'representativeName': return requiredText(draft.representativeName, '대표자명');
@@ -159,6 +171,11 @@ export function createEmptyDraft(memberType = '') {
     email: '',
     password: '',
     passwordConfirm: '',
+    professionType: '',
+    specialty: '',
+    region: '',
+    birthYear: '',
+    gender: '',
     hospitalRole: '',
     department: '',
     hospitalName: '',
