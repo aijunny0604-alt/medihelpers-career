@@ -334,15 +334,17 @@ async function adminConsoleApi(request, env) {
     return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }
   if (request.method === 'GET') {
-    const [accounts, consultations, cases, categories, auditCount, settingsResult, featuresResult, categoryResult, auditResult] = await Promise.all([
+    const [accounts, consultations, cases, categories, contentCount, auditCount, settingsResult, featuresResult, categoryResult, contentResult, auditResult] = await Promise.all([
       env.DB.prepare("SELECT COUNT(*) total, SUM(CASE WHEN role='doctor' THEN 1 ELSE 0 END) doctors, SUM(CASE WHEN role='hospital' THEN 1 ELSE 0 END) hospitals FROM accounts").first(),
       env.DB.prepare('SELECT COUNT(*) total FROM consultation_requests').first(),
       env.DB.prepare("SELECT SUM(CASE WHEN stage NOT IN ('hired','closed') THEN 1 ELSE 0 END) active, SUM(CASE WHEN stage='hired' THEN 1 ELSE 0 END) hired FROM recruitment_cases").first(),
       env.DB.prepare('SELECT COUNT(*) total FROM admin_categories').first(),
+      env.DB.prepare('SELECT COUNT(*) total FROM admin_content_records').first(),
       env.DB.prepare('SELECT COUNT(*) total FROM admin_audit_logs').first(),
       env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings').all(),
       env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
       env.DB.prepare('SELECT id, group_key AS groupKey, name, slug, sort_order AS sortOrder, enabled FROM admin_categories ORDER BY group_key, sort_order, name').all(),
+      env.DB.prepare('SELECT id, content_type AS contentType, title, subtitle, status, visibility, payload_json AS payloadJson, created_by AS createdBy, updated_by AS updatedBy, published_at AS publishedAt, created_at AS createdAt, updated_at AS updatedAt FROM admin_content_records ORDER BY updated_at DESC LIMIT 500').all(),
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all()
     ]);
     const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
@@ -352,10 +354,11 @@ async function adminConsoleApi(request, env) {
       metrics: {
         accounts:Number(accounts?.total || 0), doctors:Number(accounts?.doctors || 0), hospitals:Number(accounts?.hospitals || 0),
         consultations:Number(consultations?.total || 0), activeCases:Number(cases?.active || 0), hiredCases:Number(cases?.hired || 0),
-        categories:Number(categories?.total || 0), auditLogs:Number(auditCount?.total || 0)
+        categories:Number(categories?.total || 0), contents:Number(contentCount?.total || 0), auditLogs:Number(auditCount?.total || 0)
       },
       settings, features,
       categories:(categoryResult.results || []).map(row => ({ ...row, enabled:Boolean(row.enabled) })),
+      contents:(contentResult.results || []).map(row => ({ ...row, payload:JSON.parse(row.payloadJson || '{}') })),
       audit:auditResult.results || []
     });
   }
@@ -391,6 +394,33 @@ async function adminConsoleApi(request, env) {
     if (!id) return json({ error:'삭제할 카테고리를 확인해주세요.' }, 400);
     await env.DB.prepare('DELETE FROM admin_categories WHERE id = ?').bind(id).run();
     await writeAdminAudit(env, admin, 'category_delete', id, {});
+  } else if (action === 'content_create' || action === 'content_update') {
+    const allowedTypes = ['doctor_job','medical_job','talent_profile','notice'];
+    const allowedStatuses = ['draft','published','hidden','closed'];
+    const allowedVisibility = ['public','doctor','hospital','admin'];
+    const contentType = String(payload.contentType || '');
+    const title = String(payload.title || '').trim().slice(0,180);
+    const subtitle = String(payload.subtitle || '').trim().slice(0,300);
+    const status = String(payload.status || 'draft');
+    const visibility = String(payload.visibility || 'public');
+    const details = payload.payload && typeof payload.payload === 'object' ? payload.payload : {};
+    if (!allowedTypes.includes(contentType) || !title || !allowedStatuses.includes(status) || !allowedVisibility.includes(visibility)) return json({ error:'콘텐츠 입력값을 확인해주세요.' }, 400);
+    if (action === 'content_create') {
+      const id = crypto.randomUUID();
+      await env.DB.prepare('INSERT INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, created_by, updated_by, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, contentType, title, subtitle, status, visibility, JSON.stringify(details), admin.email, admin.email, status === 'published' ? new Date().toISOString() : null).run();
+      await writeAdminAudit(env, admin, 'content_create', title, { id, contentType, status });
+    } else {
+      const id = String(payload.id || '');
+      if (!id) return json({ error:'수정할 콘텐츠를 확인해주세요.' }, 400);
+      await env.DB.prepare("UPDATE admin_content_records SET content_type=?, title=?, subtitle=?, status=?, visibility=?, payload_json=?, updated_by=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(contentType, title, subtitle, status, visibility, JSON.stringify(details), admin.email, status, id).run();
+      await writeAdminAudit(env, admin, 'content_update', title, { id, contentType, status });
+    }
+  } else if (action === 'content_delete') {
+    const id = String(payload.id || '');
+    if (!id) return json({ error:'삭제할 콘텐츠를 확인해주세요.' }, 400);
+    const record = await env.DB.prepare('SELECT title, content_type AS contentType FROM admin_content_records WHERE id = ?').bind(id).first();
+    await env.DB.prepare('DELETE FROM admin_content_records WHERE id = ?').bind(id).run();
+    await writeAdminAudit(env, admin, 'content_delete', record?.title || id, { id, contentType:record?.contentType || '' });
   } else {
     return json({ error:'지원하지 않는 관리 작업입니다.' }, 400);
   }

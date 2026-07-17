@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, BriefcaseBusiness, Building2, ChevronRight, Database,
-  FileText, FolderKanban, LayoutDashboard, Plus, Save, Settings,
-  ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound
+  Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, Save, Search, Settings,
+  ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';
 
 const groups = [
@@ -12,6 +12,7 @@ const groups = [
     ['consultations', '상담 접수', UsersRound],
   ] },
   { title: '사이트 관리', items: [
+    ['contents', '공고 · 인재 · 게시글', PencilLine],
     ['categories', '카테고리 관리', FolderKanban],
     ['settings', '사이트 기본정보', FileText],
     ['features', '기능 설정', SlidersHorizontal],
@@ -24,7 +25,7 @@ const groups = [
 ];
 
 const demoData = {
-  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, auditLogs: 41 },
+  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: 24, auditLogs: 41 },
   settings: {
     siteName: '메디헬퍼스',
     supportPhone: '051-342-5463',
@@ -45,6 +46,12 @@ const demoData = {
     { id: 'c2', groupKey: 'doctor_specialty', name: '정형외과', slug: 'orthopedics', sortOrder: 20, enabled: true },
     { id: 'c3', groupKey: 'region', name: '서울', slug: 'seoul', sortOrder: 10, enabled: true },
     { id: 'c4', groupKey: 'medical_role', name: '간호사', slug: 'nurse', sortOrder: 10, enabled: false },
+  ],
+  contents: [
+    { id:'p1', contentType:'doctor_job', title:'정형외과 전문의 집중 초빙', subtitle:'해운대바른척추병원', status:'published', visibility:'doctor', updatedAt:'2026-07-17 15:30', payload:{ primary:'부산 해운대구', secondary:'월 1,500만원~', description:'주 4.5일 · 토요일 격주 근무' } },
+    { id:'p2', contentType:'medical_job', title:'MRI·CT 방사선사 채용', subtitle:'수원 중앙영상의학센터', status:'published', visibility:'public', updatedAt:'2026-07-17 14:10', payload:{ primary:'경기 수원', secondary:'연 4,500만원~', description:'경력 3년 이상' } },
+    { id:'p3', contentType:'talent_profile', title:'가정의학과 · 전문의 4년', subtitle:'정○○ · 이름 비공개', status:'published', visibility:'hospital', updatedAt:'2026-07-17 12:40', payload:{ primary:'경기·인천', secondary:'검진 / 주 4일', description:'후보 동의 후 상세정보 공개' } },
+    { id:'p4', contentType:'notice', title:'2026년 하반기 의사 채용 상담 안내', subtitle:'운영 공지', status:'draft', visibility:'public', updatedAt:'2026-07-17 10:20', payload:{ primary:'공지사항', secondary:'', description:'초안 작성 중' } },
   ],
   audit: [
     { id: 'a1', subject: '의사 초빙공고', action: '기능 공개 설정', actor: 'admin@medihelpers.co.kr', createdAt: '2026-07-17 14:20' },
@@ -176,6 +183,7 @@ export default function AdminConsolePage({ qa = false }) {
           </header>
           {message && <div className="admin-message">{message}</div>}
           {section === 'dashboard' && <Dashboard data={data} select={select} />}
+          {section === 'contents' && <ContentManager data={data} setData={setData} mutate={mutate} qa={qa} />}
           {section === 'categories' && <Categories data={data} setData={setData} mutate={mutate} qa={qa} />}
           {section === 'settings' && <SiteSettings data={data} setData={setData} mutate={mutate} />}
           {section === 'features' && <Features data={data} setData={setData} mutate={mutate} />}
@@ -193,7 +201,7 @@ function Dashboard({ data, select }) {
     ['전체 회원', data.metrics.accounts, UserRoundCog, `의사 ${data.metrics.doctors} · 병원 ${data.metrics.hospitals}`],
     ['상담 접수', data.metrics.consultations, UsersRound, '신규·처리 대기 포함'],
     ['진행 채용', data.metrics.activeCases, BriefcaseBusiness, `입사 확정 ${data.metrics.hiredCases}건`],
-    ['운영 분류', data.metrics.categories, FolderKanban, '진료과·지역·직군'],
+    ['운영 콘텐츠', data.metrics.contents || 0, PencilLine, '공고·인재·게시글'],
   ];
   return <>
     <div className="admin-metric-grid">{cards.map(([label, value, Icon, copy]) => <article key={label}><span><Icon /></span><div><small>{label}</small><strong>{value.toLocaleString()}</strong><p>{copy}</p></div></article>)}</div>
@@ -201,6 +209,7 @@ function Dashboard({ data, select }) {
       <section className="admin-panel">
         <header><div><small>QUICK MANAGEMENT</small><h2>빠른 관리</h2></div></header>
         <div className="admin-quick-grid">
+          <button onClick={() => select('contents')}><PencilLine /><span><strong>콘텐츠 통합 관리</strong><small>공고·인재·게시글 CRUD</small></span><ChevronRight /></button>
           <button onClick={() => select('categories')}><FolderKanban /><span><strong>카테고리 관리</strong><small>진료과·지역·직군</small></span><ChevronRight /></button>
           <button onClick={() => select('features')}><SlidersHorizontal /><span><strong>기능 설정</strong><small>서비스 공개 여부</small></span><ChevronRight /></button>
           <button onClick={() => select('crm')}><BriefcaseBusiness /><span><strong>채용 CRM</strong><small>후보·면접·입사</small></span><ChevronRight /></button>
@@ -250,6 +259,69 @@ function Categories({ data, setData, mutate, qa }) {
   </section>;
 }
 
+const contentTypeLabels = {
+  doctor_job: '의사 초빙공고',
+  medical_job: '의료인 채용공고',
+  talent_profile: '인재 프로필',
+  notice: '공지 · 콘텐츠',
+};
+
+const emptyContent = {
+  contentType:'doctor_job', title:'', subtitle:'', status:'draft', visibility:'public',
+  payload:{ primary:'', secondary:'', description:'' },
+};
+
+function ContentManager({ data, setData, mutate, qa }) {
+  const [type, setType] = useState('all');
+  const [keyword, setKeyword] = useState('');
+  const [editing, setEditing] = useState(null);
+  const contents = data.contents || [];
+  const visible = contents.filter((item) => (type === 'all' || item.contentType === type) && (!keyword || `${item.title} ${item.subtitle}`.toLowerCase().includes(keyword.toLowerCase())));
+  const openNew = () => setEditing({ ...emptyContent, payload:{ ...emptyContent.payload } });
+  const openEdit = (item) => setEditing({ ...item, payload:{ ...emptyContent.payload, ...(item.payload || {}) } });
+  const change = (key, value) => setEditing((old) => ({ ...old, [key]:value }));
+  const changePayload = (key, value) => setEditing((old) => ({ ...old, payload:{ ...old.payload, [key]:value } }));
+  const save = async () => {
+    if (!editing?.title.trim()) return;
+    const isUpdate = Boolean(editing.id);
+    const record = { ...editing, title:editing.title.trim(), subtitle:editing.subtitle.trim(), updatedAt:new Date().toISOString().slice(0,16).replace('T',' ') };
+    if (qa) setData((old) => ({ ...old, contents:isUpdate ? (old.contents || []).map((item) => item.id === record.id ? record : item) : [{ ...record, id:crypto.randomUUID() }, ...(old.contents || [])], metrics:{ ...old.metrics, contents:isUpdate ? old.metrics.contents : (old.metrics.contents || 0) + 1 } }));
+    const saved = await mutate(isUpdate ? 'content_update' : 'content_create', record, isUpdate ? '콘텐츠를 수정했습니다.' : '새 콘텐츠를 등록했습니다.');
+    if (qa || saved) setEditing(null);
+  };
+  const remove = async (item) => {
+    if (!window.confirm(`‘${item.title}’ 항목을 삭제할까요? 삭제 후에는 목록에서 복구할 수 없습니다.`)) return;
+    if (qa) setData((old) => ({ ...old, contents:(old.contents || []).filter((entry) => entry.id !== item.id), metrics:{ ...old.metrics, contents:Math.max(0,(old.metrics.contents || 0)-1) } }));
+    await mutate('content_delete', { id:item.id }, '콘텐츠를 삭제했습니다.');
+  };
+  return <section className="admin-panel admin-content-manager">
+    <header><div><small>CONTENT DATA MANAGEMENT</small><h2>공고 · 인재 · 게시글 통합 관리</h2><p>등록, 수정, 공개 범위, 종료와 삭제를 한곳에서 처리하며 모든 변경은 감사 로그에 남습니다.</p></div><button className="admin-primary" onClick={openNew}><Plus />새 글 작성</button></header>
+    <div className="admin-content-toolbar">
+      <div>{[['all','전체'], ...Object.entries(contentTypeLabels)].map(([key,label]) => <button key={key} className={type === key ? 'active' : ''} onClick={() => setType(key)}>{label}<b>{key === 'all' ? contents.length : contents.filter((item) => item.contentType === key).length}</b></button>)}</div>
+      <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="제목·기관명 검색" /></label>
+    </div>
+    {editing && <div className="admin-content-editor">
+      <header><div><small>{editing.id ? 'EDIT CONTENT' : 'NEW CONTENT'}</small><h3>{editing.id ? '운영 데이터 수정' : '새 운영 데이터 등록'}</h3></div><button className="icon-button" onClick={() => setEditing(null)} aria-label="편집 닫기"><X /></button></header>
+      <div className="admin-content-form">
+        <label><span>콘텐츠 유형 *</span><select value={editing.contentType} onChange={(e) => change('contentType',e.target.value)}>{Object.entries(contentTypeLabels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+        <label><span>운영 상태 *</span><select value={editing.status} onChange={(e) => change('status',e.target.value)}><option value="draft">임시저장</option><option value="published">공개</option><option value="hidden">숨김</option><option value="closed">마감·종료</option></select></label>
+        <label><span>열람 권한 *</span><select value={editing.visibility} onChange={(e) => change('visibility',e.target.value)}><option value="public">전체 공개</option><option value="doctor">의사 회원</option><option value="hospital">병원 회원</option><option value="admin">관리자 전용</option></select></label>
+        <label className="wide"><span>제목 *</span><input value={editing.title} onChange={(e) => change('title',e.target.value)} placeholder="공고 또는 게시글 제목" /></label>
+        <label className="wide"><span>기관명·보조 제목</span><input value={editing.subtitle} onChange={(e) => change('subtitle',e.target.value)} placeholder="병원명, 공개용 후보명, 카테고리" /></label>
+        <label><span>지역·주요 분류</span><input value={editing.payload.primary} onChange={(e) => changePayload('primary',e.target.value)} placeholder="예: 부산 해운대구" /></label>
+        <label><span>급여·핵심 조건</span><input value={editing.payload.secondary} onChange={(e) => changePayload('secondary',e.target.value)} placeholder="예: 월 1,500만원~" /></label>
+        <label className="wide"><span>상세 설명</span><textarea value={editing.payload.description} onChange={(e) => changePayload('description',e.target.value)} placeholder="근무조건, 경력, 공개 기준 등 운영에 필요한 내용을 입력하세요." /></label>
+      </div>
+      <footer><span><ShieldCheck /> 저장 시 관리자와 변경 시각이 자동 기록됩니다.</span><div><button className="button outline" onClick={() => setEditing(null)}>취소</button><button className="admin-primary" disabled={!editing.title.trim()} onClick={save}><Save />{editing.id ? '수정 저장' : '등록하기'}</button></div></footer>
+    </div>}
+    <div className="admin-content-table">
+      <div className="head"><span>유형</span><span>제목·기관</span><span>공개 범위</span><span>상태</span><span>최근 수정</span><span>관리</span></div>
+      {visible.map((item) => <div key={item.id}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{item.title}</strong><small>{item.subtitle || '보조 정보 없음'}</small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={() => openEdit(item)}><PencilLine />수정</button><button onClick={() => remove(item)}><Trash2 /></button></div></div>)}
+      {!visible.length && <div className="admin-content-empty"><FileText /><span>조건에 맞는 운영 데이터가 없습니다.</span></div>}
+    </div>
+  </section>;
+}
+
 function SiteSettings({ data, setData, mutate }) {
   const [form, setForm] = useState(data.settings);
   useEffect(() => setForm(data.settings), [data.settings]);
@@ -285,7 +357,7 @@ function Members({ metrics }) {
 }
 
 function DatabaseStatus({ metrics }) {
-  const rows = [['accounts', '회원 계정', metrics.accounts], ['consultation_requests', '상담 접수', metrics.consultations], ['recruitment_cases', '채용 CRM', metrics.activeCases + metrics.hiredCases], ['admin_categories', '운영 카테고리', metrics.categories], ['admin_audit_logs', '관리자 변경 이력', metrics.auditLogs]];
+  const rows = [['accounts', '회원 계정', metrics.accounts], ['consultation_requests', '상담 접수', metrics.consultations], ['recruitment_cases', '채용 CRM', metrics.activeCases + metrics.hiredCases], ['admin_content_records', '공고·인재·게시글', metrics.contents || 0], ['admin_categories', '운영 카테고리', metrics.categories], ['admin_audit_logs', '관리자 변경 이력', metrics.auditLogs]];
   return <section className="admin-panel"><header><div><small>DATABASE OVERVIEW</small><h2>DB 테이블 현황</h2><p>안전을 위해 임의 SQL 실행 대신 승인된 관리 기능만 제공합니다.</p></div></header><div className="admin-db-table">{rows.map(([table, label, count]) => <div key={table}><Database /><code>{table}</code><strong>{label}</strong><span>{count.toLocaleString()} records</span><em>정상</em></div>)}</div></section>;
 }
 

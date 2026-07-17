@@ -150,6 +150,20 @@ export const recruitmentCrmSchemaStatements = [
 ];
 
 export const adminConsoleSchemaStatements = [
+  `CREATE TABLE IF NOT EXISTS admin_content_records (
+    id TEXT PRIMARY KEY,
+    content_type TEXT NOT NULL CHECK (content_type IN ('doctor_job','medical_job','talent_profile','notice')),
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','hidden','closed')),
+    visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','doctor','hospital','admin')),
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    created_by TEXT NOT NULL DEFAULT '',
+    updated_by TEXT NOT NULL DEFAULT '',
+    published_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
   `CREATE TABLE IF NOT EXISTS admin_categories (
     id TEXT PRIMARY KEY,
     group_key TEXT NOT NULL CHECK (group_key IN ('doctor_specialty','region','medical_role')),
@@ -183,5 +197,6 @@ export const adminConsoleSchemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE INDEX IF NOT EXISTS admin_categories_group_idx ON admin_categories(group_key, sort_order, name)`,
+  `CREATE INDEX IF NOT EXISTS admin_content_records_type_idx ON admin_content_records(content_type, status, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS admin_audit_logs_created_idx ON admin_audit_logs(created_at DESC)`
 ];
