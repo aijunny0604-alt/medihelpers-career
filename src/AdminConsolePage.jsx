@@ -8,6 +8,7 @@ import {
 const groups = [
   { title: '운영 대시보드', items: [
     ['dashboard', '전체 현황', LayoutDashboard],
+    ['monitoring', '통합 모니터링', Activity],
     ['crm', '채용 CRM', BriefcaseBusiness],
     ['consultations', '상담 접수', UsersRound],
   ] },
@@ -71,6 +72,13 @@ const demoData = {
   audit: [
     { id: 'a1', subject: '의사 초빙공고', action: '기능 공개 설정', actor: 'admin@medihelpers.co.kr', createdAt: '2026-07-17 14:20' },
     { id: 'a2', subject: '진료과 카테고리', action: '정형외과 순서 변경', actor: 'admin@medihelpers.co.kr', createdAt: '2026-07-17 13:44' },
+  ],
+  consultations: [
+    { id:'con-demo-1', requestType:'hospital', requesterName:'박정호', phone:'010-9876-5432', email:'hr@samplehospital.co.kr', specialty:'정형외과', status:'new', adminNote:'', emailNotificationStatus:'sent', smsNotificationStatus:'sent', createdAt:'2026-07-17 15:10', updatedAt:'2026-07-17 15:10', payload:{ hospital:'샘플메디컬센터', purpose:'의사 추천', message:'정형외과 전문의 채용 상담 요청' } },
+    { id:'con-demo-2', requestType:'doctor', requesterName:'김현우', phone:'010-1234-5678', email:'doctor@example.com', specialty:'소화기내과', status:'in_progress', adminNote:'희망 조건 확인 중', emailNotificationStatus:'sent', smsNotificationStatus:'skipped', createdAt:'2026-07-17 13:20', updatedAt:'2026-07-17 14:05', payload:{ region:'부산·경남', workType:'외래 중심', message:'비공개 이직 상담' } },
+  ],
+  cases: [
+    { id:'case-demo-1', consultationId:'con-demo-1', hospitalName:'샘플메디컬센터', specialty:'정형외과', positionTitle:'정형외과 전문의', stage:'candidate_search', assignedRecruiter:'김혜원 헤드헌터', estimatedFee:18000000, nextAction:'후보 2명 의사 확인', billingStatus:'success_fee', candidateCount:2, createdAt:'2026-07-17 15:20', updatedAt:'2026-07-17 15:40' },
   ],
 };
 
@@ -198,6 +206,7 @@ export default function AdminConsolePage({ qa = false }) {
           </header>
           {message && <div className="admin-message">{message}</div>}
           {section === 'dashboard' && <Dashboard data={data} select={select} />}
+          {section === 'monitoring' && <OperationsMonitor data={data} select={select} />}
           {section === 'contents' && <ContentManager data={data} setData={setData} mutate={mutate} qa={qa} />}
           {section === 'categories' && <Categories data={data} setData={setData} mutate={mutate} qa={qa} />}
           {section === 'settings' && <SiteSettings data={data} setData={setData} mutate={mutate} />}
@@ -227,6 +236,7 @@ function Dashboard({ data, select }) {
       <section className="admin-panel">
         <header><div><small>QUICK MANAGEMENT</small><h2>빠른 관리</h2></div></header>
         <div className="admin-quick-grid">
+          <button onClick={() => select('monitoring')}><Activity /><span><strong>통합 모니터링</strong><small>공고·상담·채용·결제 상태</small></span><ChevronRight /></button>
           <button onClick={() => select('contents')}><PencilLine /><span><strong>콘텐츠 통합 관리</strong><small>공고·인재·게시글 CRUD</small></span><ChevronRight /></button>
           <button onClick={() => select('payments')}><CreditCard /><span><strong>결제 · 환불 관리</strong><small>주문·승인·영수증·환불</small></span><ChevronRight /></button>
           <button onClick={() => select('categories')}><FolderKanban /><span><strong>카테고리 관리</strong><small>진료과·지역·직군</small></span><ChevronRight /></button>
@@ -245,6 +255,93 @@ function Dashboard({ data, select }) {
       </section>
     </div>
   </>;
+}
+
+const monitorLabels = {
+  consultation: '상담·문의',
+  case: '채용 진행',
+  content: '공고·콘텐츠',
+  payment: '결제·환불',
+};
+
+const consultationStatus = { new:'신규 접수', contacted:'연락 완료', in_progress:'처리 중', closed:'종료' };
+const caseStatus = { new_request:'신규 의뢰', condition_review:'조건 확인', candidate_search:'후보 탐색', candidate_consent:'후보 동의', hospital_submitted:'병원 제안', interview:'면접 예정', negotiation:'조건 협상', hired:'입사 확정', closed:'종료' };
+const contentStatus = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감' };
+const paymentStatus = { pending_review:'검토 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패', cancelled:'취소', partially_refunded:'부분 환불', refunded:'환불 완료' };
+
+function OperationsMonitor({ data, select }) {
+  const [kind, setKind] = useState('all');
+  const [keyword, setKeyword] = useState('');
+  const [selected, setSelected] = useState(null);
+  const records = useMemo(() => [
+    ...(data.consultations || []).map((item) => ({ ...item, monitorType:'consultation', monitorTitle:`${item.requesterName || '이름 미입력'} ${item.requestType === 'hospital' ? '병원 채용 문의' : '의사 이직 상담'}`, monitorSubtitle:item.specialty || item.email || '상담 내용 확인', monitorStatus:consultationStatus[item.status] || item.status, monitorDate:item.updatedAt || item.createdAt })),
+    ...(data.cases || []).map((item) => ({ ...item, monitorType:'case', monitorTitle:item.hospitalName || item.positionTitle || '채용 건', monitorSubtitle:`${item.specialty || '진료과 미정'} · ${item.assignedRecruiter || '담당자 미배정'}`, monitorStatus:caseStatus[item.stage] || item.stage, monitorDate:item.updatedAt || item.createdAt })),
+    ...(data.contents || []).map((item) => ({ ...item, monitorType:'content', monitorTitle:item.title, monitorSubtitle:item.subtitle || contentTypeLabels[item.contentType] || '운영 콘텐츠', monitorStatus:contentStatus[item.status] || item.status, monitorDate:item.updatedAt || item.createdAt })),
+    ...(data.payments || []).map((item) => ({ ...item, monitorType:'payment', monitorTitle:item.productName || item.orderNumber || '결제 주문', monitorSubtitle:`${item.customerName || '회원'} · ${(Number(item.totalAmount) || 0).toLocaleString()}원`, monitorStatus:paymentStatus[item.status] || item.status, monitorDate:item.updatedAt || item.createdAt })),
+  ].sort((a, b) => String(b.monitorDate || '').localeCompare(String(a.monitorDate || ''))), [data]);
+  const counts = Object.fromEntries(Object.keys(monitorLabels).map((key) => [key, records.filter((item) => item.monitorType === key).length]));
+  const visible = records.filter((item) => {
+    if (kind !== 'all' && item.monitorType !== kind) return false;
+    if (!keyword.trim()) return true;
+    const haystack = `${item.monitorTitle} ${item.monitorSubtitle} ${item.monitorStatus} ${item.id}`.toLowerCase();
+    return haystack.includes(keyword.trim().toLowerCase());
+  });
+  const openManager = (item) => {
+    setSelected(null);
+    if (item.monitorType === 'consultation') return go('/admin/consultations');
+    if (item.monitorType === 'case') return go('/admin/recruitment-crm');
+    if (item.monitorType === 'content') return select('contents');
+    return select('payments');
+  };
+  return <section className="admin-panel admin-monitor">
+    <header><div><small>REAL-TIME OPERATIONS MONITOR</small><h2>공고·상담·채용·결제 통합 모니터링</h2><p>새로 접수되거나 상태가 바뀐 운영 데이터를 시간순으로 확인하고 담당 관리 화면으로 바로 이동합니다.</p></div><button className="admin-primary" onClick={() => window.location.reload()}><RotateCcw />새로고침</button></header>
+    <div className="admin-monitor-summary">
+      {Object.entries(monitorLabels).map(([key, label]) => <button key={key} onClick={() => setKind(key)} className={kind === key ? 'active' : ''}><span>{label}</span><strong>{counts[key] || 0}</strong><small>{key === 'consultation' ? '신규 문의와 알림 결과' : key === 'case' ? '후보·면접·입사 단계' : key === 'content' ? '공개·마감·수정 상태' : '주문·승인·환불 상태'}</small></button>)}
+    </div>
+    <div className="admin-monitor-toolbar">
+      <div><button className={kind === 'all' ? 'active' : ''} onClick={() => setKind('all')}>전체 <b>{records.length}</b></button>{Object.entries(monitorLabels).map(([key,label]) => <button className={kind === key ? 'active' : ''} key={key} onClick={() => setKind(key)}>{label} <b>{counts[key] || 0}</b></button>)}</div>
+      <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="이름·병원·공고·주문번호 검색" /></label>
+    </div>
+    <div className="admin-monitor-table">
+      <div className="head"><span>구분</span><span>대상·내용</span><span>현재 상태</span><span>최근 변경</span><span>확인</span></div>
+      {visible.map((item) => <button key={`${item.monitorType}-${item.id}`} onClick={() => setSelected(item)}><span className={`monitor-kind ${item.monitorType}`}>{monitorLabels[item.monitorType]}</span><span><strong>{item.monitorTitle}</strong><small>{item.monitorSubtitle}</small></span><em className={`monitor-status ${item.status || item.stage}`}>{item.monitorStatus}</em><time>{String(item.monitorDate || '-').slice(0,16).replace('T',' ')}</time><i><Eye />상세</i></button>)}
+      {!visible.length && <div className="admin-monitor-empty"><Activity /><span>조건에 맞는 운영 내역이 없습니다.</span></div>}
+    </div>
+    {selected && <MonitorDetail item={selected} onClose={() => setSelected(null)} onManage={() => openManager(selected)} />}
+  </section>;
+}
+
+function MonitorDetail({ item, onClose, onManage }) {
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    const handleKey = (event) => { if (event.key === 'Escape') onClose(); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKey);
+    return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', handleKey); };
+  }, [onClose]);
+  const common = [
+    ['데이터 ID', item.id],
+    ['현재 상태', item.monitorStatus],
+    ['최초 등록', item.createdAt],
+    ['최근 변경', item.updatedAt || item.monitorDate],
+  ];
+  const details = item.monitorType === 'consultation' ? [
+    ['신청자', item.requesterName], ['구분', item.requestType === 'hospital' ? '병원 구인희망' : '의사 구직희망'], ['전화번호', item.phone], ['이메일', item.email], ['진료과', item.specialty], ['관리자 메모', item.adminNote || '작성된 메모 없음'], ['메일 알림', item.emailNotificationStatus], ['문자 알림', item.smsNotificationStatus], ...Object.entries(item.payload || {}).map(([key,value]) => [key, value]),
+  ] : item.monitorType === 'case' ? [
+    ['병원', item.hospitalName], ['포지션', item.positionTitle], ['진료과', item.specialty], ['담당 헤드헌터', item.assignedRecruiter || '미배정'], ['다음 업무', item.nextAction || '미지정'], ['후보 수', `${item.candidateCount || 0}명`], ['예상 성공보수', `${(Number(item.estimatedFee) || 0).toLocaleString()}원`], ['청구 기준', item.billingStatus],
+  ] : item.monitorType === 'content' ? [
+    ['콘텐츠 유형', contentTypeLabels[item.contentType]], ['기관·보조 제목', item.subtitle], ['열람 권한', item.visibility], ['작성자', item.createdBy], ['최근 수정자', item.updatedBy], ...Object.entries(item.payload || {}).map(([key,value]) => [key, value]),
+  ] : [
+    ['주문번호', item.orderNumber], ['회원 유형', item.accountRole], ['구매자', item.customerName], ['이메일', item.customerEmail], ['전화번호', item.customerPhone], ['결제수단', item.paymentMethod || '미지정'], ['공급가액', `${(Number(item.supplyAmount) || 0).toLocaleString()}원`], ['부가세', `${(Number(item.taxAmount) || 0).toLocaleString()}원`], ['결제금액', `${(Number(item.totalAmount) || 0).toLocaleString()}원`], ['관리자 메모', item.adminNote || '작성된 메모 없음'],
+  ];
+  return <div className="admin-content-detail-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <section className="admin-content-detail admin-monitor-detail" role="dialog" aria-modal="true" aria-labelledby="admin-monitor-detail-title">
+      <header><div><small>OPERATION RECORD DETAIL</small><span className={`monitor-kind ${item.monitorType}`}>{monitorLabels[item.monitorType]}</span><h2 id="admin-monitor-detail-title">{item.monitorTitle}</h2><p>{item.monitorSubtitle}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
+      <div className="admin-content-detail-meta">{common.map(([label,value], index) => <div key={label}>{index === 1 ? <Activity /> : index === 0 ? <Database /> : <FileText />}<span><small>{label}</small><strong>{String(value || '-').slice(0,40).replace('T',' ')}</strong></span></div>)}</div>
+      <div className="admin-monitor-detail-body"><h3>접수·처리 상세정보</h3><dl>{details.filter(([,value]) => value !== undefined && value !== null && value !== '').map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></div>
+      <footer><button className="button outline" onClick={onClose}>닫기</button><button className="admin-primary" onClick={onManage}>담당 관리 화면 열기 <ChevronRight /></button></footer>
+    </section>
+  </div>;
 }
 
 function Categories({ data, setData, mutate, qa }) {
