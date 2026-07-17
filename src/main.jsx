@@ -1382,36 +1382,45 @@ function TalentPage() {
           </div>
           <div className="talent-filter-grid">
             <label>
-              <span>진료과</span>
-              <HeroSelect
-                label="의사 진료과 필터"
-                value={dept}
-                onChange={setDept}
-                options={departments.slice(0, -2)}
-              />
+              <Stethoscope />
+              <div className="talent-field-content">
+                <small>진료과</small>
+                <HeroSelect
+                  label="의사 진료과 필터"
+                  value={dept}
+                  onChange={setDept}
+                  options={departments.slice(0, -2)}
+                />
+              </div>
             </label>
             <label>
-              <span>희망 지역</span>
-              <HeroSelect
-                label="의사 희망 지역 필터"
-                value={region}
-                onChange={setRegion}
-                options={talentRegions}
-              />
+              <MapPin />
+              <div className="talent-field-content">
+                <small>희망 지역</small>
+                <HeroSelect
+                  label="의사 희망 지역 필터"
+                  value={region}
+                  onChange={setRegion}
+                  options={talentRegions}
+                />
+              </div>
             </label>
             <label>
-              <span>입사 가능</span>
-              <HeroSelect
-                label="의사 입사 가능 시점 필터"
-                value={availability}
-                onChange={setAvailability}
-                options={availableOptions}
-              />
+              <CalendarDays />
+              <div className="talent-field-content">
+                <small>입사 가능</small>
+                <HeroSelect
+                  label="의사 입사 가능 시점 필터"
+                  value={availability}
+                  onChange={setAvailability}
+                  options={availableOptions}
+                />
+              </div>
             </label>
             <label className="talent-keyword">
-              <span>키워드</span>
-              <div>
-                <Search />
+              <Search />
+              <div className="talent-field-content">
+                <small>키워드</small>
                 <input
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
