@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { accountSchemaStatements } from '../db/schema.js';
+import { accountSchemaStatements, consultationSchemaStatements } from '../db/schema.js';
 
 const sourceDir = 'client-build';
 const html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
@@ -41,6 +41,7 @@ const mediAngelBase64 = ${JSON.stringify(mediAngelBase64)};
 const cssPath = ${JSON.stringify(cssPath)};
 const jsPath = ${JSON.stringify(jsPath)};
 const accountSchemaStatements = ${JSON.stringify(accountSchemaStatements)};
+const consultationSchemaStatements = ${JSON.stringify(consultationSchemaStatements)};
 const termsVersion = 'signup-terms-draft-2026-07-16';
 const privacyNoticeVersion = 'privacy-notice-draft-2026-07-16';
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
@@ -70,6 +71,86 @@ async function userKey(email, secret) {
 async function ensureAccountSchema(env) {
   if (!env || !env.DB) throw new Error('ACCOUNT_DB_UNAVAILABLE');
   await env.DB.batch(accountSchemaStatements.map(statement => env.DB.prepare(statement)));
+}
+async function ensureConsultationSchema(env) {
+  if (!env || !env.DB) throw new Error('CONSULTATION_DB_UNAVAILABLE');
+  await env.DB.batch(consultationSchemaStatements.map(statement => env.DB.prepare(statement)));
+}
+function adminIdentity(request, env) {
+  const identity = authenticatedUser(request);
+  const allowed = String(env.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+  return identity && allowed.includes(identity.email) ? identity : null;
+}
+function cleanConsultationPayload(payload) {
+  const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message'];
+  return Object.fromEntries(allowed.filter(key => typeof payload[key] === 'string').map(key => [key, payload[key].trim().slice(0, key === 'message' ? 3000 : 300)]));
+}
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>\"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' })[character]);
+}
+async function sendConsultationEmail(env, record) {
+  if (!env.RESEND_API_KEY || !env.RESEND_FROM || !env.ALERT_EMAIL_TO) return 'not_configured';
+  const label = record.requestType === 'doctor' ? '의사 구직희망' : '병원 구인희망';
+  const details = Object.entries(record.payload).filter(([, value]) => value).map(([key, value]) => '<tr><th style="padding:8px;text-align:left;background:#f3f7fb">'+escapeHtml(key)+'</th><td style="padding:8px">'+escapeHtml(value)+'</td></tr>').join('');
+  const response = await fetch('https://api.resend.com/emails', { method:'POST', headers:{ authorization:'Bearer '+env.RESEND_API_KEY, 'content-type':'application/json' }, body:JSON.stringify({ from:env.RESEND_FROM, to:[env.ALERT_EMAIL_TO], subject:'[메디헬퍼스] 새 '+label+' 상담 '+record.id, html:'<h2>새 상담 신청이 접수되었습니다.</h2><p><b>접수번호:</b> '+escapeHtml(record.id)+'</p><table style="border-collapse:collapse;width:100%">'+details+'</table><p>관리자 상담함에서 처리 상태를 관리해 주세요.</p>' }) });
+  if (!response.ok) throw new Error('EMAIL_'+response.status);
+  return 'sent';
+}
+async function hmacHex(secret, value) {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+  const digest = await crypto.subtle.sign('HMAC', key, encoder.encode(value));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2,'0')).join('');
+}
+async function sendConsultationSms(env, record) {
+  if (!env.SOLAPI_API_KEY || !env.SOLAPI_API_SECRET || !env.SOLAPI_SENDER || !env.ALERT_SMS_TO) return 'not_configured';
+  const date = new Date().toISOString();
+  const salt = crypto.randomUUID();
+  const signature = await hmacHex(env.SOLAPI_API_SECRET, date + salt);
+  const label = record.requestType === 'doctor' ? '의사 구직' : '병원 구인';
+  const text = '[메디헬퍼스] 새 '+label+' 상담 '+record.id+' / '+record.requesterName+' / '+record.phone;
+  const response = await fetch('https://api.solapi.com/messages/v4/send-many/detail', { method:'POST', headers:{ authorization:'HMAC-SHA256 apiKey='+env.SOLAPI_API_KEY+', date='+date+', salt='+salt+', signature='+signature, 'content-type':'application/json' }, body:JSON.stringify({ messages:[{ to:String(env.ALERT_SMS_TO).replace(/\D/g,''), from:String(env.SOLAPI_SENDER).replace(/\D/g,''), text }] }) });
+  if (!response.ok) throw new Error('SMS_'+response.status);
+  return 'sent';
+}
+async function consultationApi(request, env, pathname) {
+  try { await ensureConsultationSchema(env); } catch { return json({ error:'상담 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  if (request.method === 'POST' && pathname === '/api/consultations') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    const length = Number(request.headers.get('content-length') || 0);
+    if (length > 65536) return json({ error:'입력 내용이 너무 큽니다.' }, 413);
+    let body;
+    try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    const requestType = body.requestType;
+    const payload = cleanConsultationPayload(body.payload || {});
+    const requesterName = requestType === 'doctor' ? payload.name : payload.hospital;
+    if (!['doctor','hospital'].includes(requestType) || !requesterName || !payload.phone || !payload.specialty) return json({ error:'필수 정보를 모두 입력해 주세요.' }, 400);
+    const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
+    await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, payload.email || '', payload.specialty, JSON.stringify(payload)).run();
+    const record = { id, requestType, requesterName, phone:payload.phone, payload };
+    let emailStatus = 'failed'; let smsStatus = 'failed';
+    try { emailStatus = await sendConsultationEmail(env, record); } catch { emailStatus = 'failed'; }
+    try { smsStatus = await sendConsultationSms(env, record); } catch { smsStatus = 'failed'; }
+    await env.DB.prepare('UPDATE consultation_requests SET email_notification_status = ?, sms_notification_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(emailStatus, smsStatus, id).run();
+    return json({ id, saved:true, notifications:{ email:emailStatus, sms:smsStatus } }, 201);
+  }
+  const admin = adminIdentity(request, env);
+  if (!admin) return json({ error:'관리자 로그인이 필요합니다.' }, 401);
+  if (request.method === 'GET' && pathname === '/api/consultations') {
+    const result = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests ORDER BY created_at DESC LIMIT 200').all();
+    const requests = (result.results || []).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...rest } = row; return { ...rest, payload }; });
+    return json({ admin, requests });
+  }
+  const match = pathname.match(/^\\/api\\/consultations\\/([^\\/]+)$/);
+  if (request.method === 'PATCH' && match) {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    if (!['new','contacted','in_progress','closed'].includes(body.status)) return json({ error:'처리 상태를 확인해 주세요.' }, 400);
+    const note = typeof body.adminNote === 'string' ? body.adminNote.trim().slice(0,2000) : '';
+    await env.DB.prepare('UPDATE consultation_requests SET status = ?, admin_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, note, decodeURIComponent(match[1])).run();
+    return json({ updated:true });
+  }
+  return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
 function sameOrigin(request) {
   const origin = request.headers.get('origin');
@@ -123,6 +204,7 @@ async function accountApi(request, env) {
 async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/account') return accountApi(request, env);
+  if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });

@@ -16,6 +16,7 @@ import ResumePage from './ResumePage.jsx';
 import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
 import HeroSelect from './CustomSelect.jsx';
 import QaPreviewPage from './QaPreviewPage.jsx';
+import ConsultationAdminPage from './ConsultationAdminPage.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle, premiumBannerGuide } from './hospitalMood.js';
 import {
@@ -2625,6 +2626,7 @@ export function App() {
   else if (path === '/advertise') page = <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
+  else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/resume') page = qa.active && qa.info.capabilities.doctor ? <ResumePage /> : <ResumeAccessGate />;

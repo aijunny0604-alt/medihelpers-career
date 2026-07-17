@@ -44,25 +44,32 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
   const content = copy[mode];
   const [done, setDone] = useState("");
   const [file, setFile] = useState(null);
-  const submit = (event) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const submit = async (event) => {
     event.preventDefault();
+    setSubmitting(true);
+    setSubmitError("");
     const form = new FormData(event.currentTarget);
-    const id = `${isDoctor ? "SEEK" : "HIRE"}-${String(Date.now()).slice(-7)}`;
     form.delete("attachment");
-    appendStoredRecord(
-      isDoctor
-        ? "medihelpers_jobseeker_requests"
-        : "medihelpers_hiring_requests",
-      {
-        id,
-        createdAt: new Date().toISOString(),
-        status: "new",
-        attachmentName: file?.name || "",
-        ...Object.fromEntries(form.entries()),
-      },
-    );
-    setDone(id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    form.delete("privacy");
+    const payload = { attachmentName: file?.name || "", ...Object.fromEntries(form.entries()) };
+    try {
+      const response = await fetch("/api/consultations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestType: isDoctor ? "doctor" : "hospital", payload }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "상담 접수에 실패했습니다.");
+      appendStoredRecord(isDoctor ? "medihelpers_jobseeker_requests" : "medihelpers_hiring_requests", { id: result.id, createdAt: new Date().toISOString(), status: "new", ...payload }, 20);
+      setDone(result.id);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      setSubmitError(error.message || "잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
   if (done)
     return (
@@ -348,8 +355,12 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
             입력 정보는 헤드헌팅 상담과 채용 매칭 목적으로만 사용하며, 상담 종료 또는 목적 달성 후 지체 없이 파기합니다.
           </span>
         </label>
-        <button className="quick-submit" type="submit">
+        {submitError && <p className="quick-submit-error" role="alert">{submitError}</p>}
+        <button className="quick-submit" type="submit" disabled={submitting}>
+          <span className="quick-submit-label">
           {isDoctor ? "간편 이력서 제출하기" : "의사 초빙 의뢰하기"} <ArrowRight />
+          </span>
+          {submitting && <span>안전하게 접수 중입니다…</span>}
         </button>
         <p className="quick-security">
           <ShieldCheck />{" "}
