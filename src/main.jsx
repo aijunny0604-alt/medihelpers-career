@@ -1313,25 +1313,6 @@ function PremiumAdCarousel({ items, renderCard }) {
   </div>;
 }
 
-function AdQuickLauncher({ onSelect, canRegister }) {
-  return <section className="jobs-ad-launcher" aria-labelledby="jobs-ad-launcher-title">
-    <div className="jobs-ad-launcher-head">
-      <span className="jobs-ad-launcher-icon"><Building2 /></span>
-      <div><small>병원·의료기관 채용 담당자</small><h2 id="jobs-ad-launcher-title">상품을 한 번에 비교하고 등록하세요</h2><p>위 광고 구역의 빠른 등록 버튼을 이용하거나 여기에서 세 상품을 자세히 비교할 수 있습니다.</p></div>
-      <Link to="/advertise">전체 상품 자세히 <ArrowRight /></Link>
-    </div>
-    <div className="jobs-ad-plan-grid">
-      {adPlans.map((item) => <article className={['jobs-ad-plan', item.id].join(' ')} key={item.id}>
-        <div className="jobs-ad-plan-top"><span>{item.id === 'basic' ? '기본 등록' : item.id === 'featured' ? '추천 노출' : '최상단 노출'}</span>{item.featured && <em>가장 많이 선택</em>}</div>
-        <h3>{item.name}</h3>
-        <p>{item.id === 'basic' ? '검색 목록에 빠르게 공고 등록' : item.id === 'featured' ? '병원 로고와 추천 카드 강조' : '브랜드 강조와 전담 채용 지원'}</p>
-        <div className="jobs-ad-plan-action"><span><strong>{item.price.toLocaleString()}원</strong><small>/ {item.unit}</small></span><button type="button" onClick={() => { trackConversion('jobs_ad_quick_select', { planId: item.id }); onSelect(item); }}>{canRegister ? (item.id === 'basic' ? '등록·결제하기' : '바로 결제하기') : '병원 회원가입'} <ArrowRight /></button></div>
-      </article>)}
-    </div>
-    <p className="jobs-ad-payment-note"><ShieldCheck /> 실제 결제 전 공고 내용과 노출 기간·금액을 한 번 더 확인합니다.</p>
-  </section>;
-}
-
 function SmartAdDock({ total, onSelect, canRegister }) {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -1444,7 +1425,6 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '병원 회원가입 후 등록'} <ArrowRight /></button></div><div className="job-grid standard-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> MATCHING REPORT</span><h3>{saved.length ? `찜한 ${saved.length}개 병원, 조건별로 비교해보세요` : '관심 병원을 고르고 매칭 리포트를 만들어보세요'}</h3><p>근무·보수·거리·진료 범위를 비교하고 확인할 질문을 헤드헌터에게 그대로 전달합니다.</p></div><Link className="button dark" to="/matching-report?role=doctor" onClick={() => trackConversion('jobs_matching_report', { savedCount: saved.length })}>매칭 리포트 만들기 <ArrowRight /></Link></div>
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
-      <AdQuickLauncher onSelect={requestAdPlan} canRegister={canRegisterAds} />
     </section>
     <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
