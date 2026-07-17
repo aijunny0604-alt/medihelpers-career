@@ -10,6 +10,7 @@ import {
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
 import { adPlans, jobs, membershipPlans, navItems, talent } from './data.js';
+import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
 import AccountPage from './AccountPage.jsx';
 import ResumePage from './ResumePage.jsx';
@@ -1399,7 +1400,7 @@ function JobsPage({ route, qa }) {
   </>;
 }
 
-function TalentPage() {
+function TalentPage({ qa }) {
   const [dept, setDept] = useState("전체 진료과");
   const [region, setRegion] = useState("전국");
   const [availability, setAvailability] = useState("전체 시점");
@@ -1407,6 +1408,11 @@ function TalentPage() {
   const [talentSort, setTalentSort] = useState("recent");
   const [talentVisible, setTalentVisible] = useState(TALENT_PAGE_SIZE);
   const [selectedTalent, setSelectedTalent] = useState(null);
+  const qaIdentityAccess = Boolean(
+    qa?.active &&
+      canRevealTalentIdentity(qa.info.capabilities, true),
+  );
+  const [accountIdentityAccess, setAccountIdentityAccess] = useState(false);
   const [saved, setSaved] = useState(() =>
     readStoredArray("medihelpers_saved_talent"),
   );
@@ -1456,6 +1462,41 @@ function TalentPage() {
   }, [dept, region, availability, keyword, talentSort]);
   const visibleTalent = visible.slice(0, talentVisible);
   const talentRemaining = Math.max(0, visible.length - visibleTalent.length);
+  const canViewIdentity = qa?.active
+    ? qaIdentityAccess
+    : accountIdentityAccess;
+  useEffect(() => {
+    if (qa?.active) {
+      setAccountIdentityAccess(false);
+      return undefined;
+    }
+    let active = true;
+    fetch("/api/account", {
+      credentials: "same-origin",
+      headers: { accept: "application/json" },
+    })
+      .then((response) =>
+        response.ok
+          ? response.json()
+          : Promise.reject(new Error("account lookup failed")),
+      )
+      .then((result) => {
+        if (!active) return;
+        setAccountIdentityAccess(
+          canRevealTalentIdentity(
+            {
+              admin: Boolean(result.isAdmin),
+              hospital: result.account?.role === "hospital",
+            },
+            true,
+          ),
+        );
+      })
+      .catch(() => active && setAccountIdentityAccess(false));
+    return () => {
+      active = false;
+    };
+  }, [qa?.active]);
   const toggleSaved = (code) =>
     setSaved((current) => {
       const next = current.includes(code)
@@ -1615,18 +1656,18 @@ function TalentPage() {
                   <UserRound />
                 </span>
                 <div>
-                  <small>{person.code}</small>
+                  <small>{talentDisplayName(person, canViewIdentity)}</small>
                   <h3>
                     {person.dept} · {person.career}
                   </h3>
                 </div>
                 <span className="talent-public-chip">
-                  <BadgeCheck /> 기본 공개
+                  <BadgeCheck /> {canViewIdentity && person.identityConsent ? "실명 확인" : "이름 비공개"}
                 </span>
                 <button
                   className={`talent-save ${saved.includes(person.code) ? "saved" : ""}`}
                   onClick={() => toggleSaved(person.code)}
-                  aria-label={`${person.code} 의사 후보 찜하기`}
+                  aria-label={`${talentDisplayName(person, canViewIdentity)} 의사 후보 찜하기`}
                 >
                   <Heart
                     fill={saved.includes(person.code) ? "currentColor" : "none"}
@@ -1742,6 +1783,7 @@ function TalentPage() {
       {selectedTalent && (
         <TalentDetailModal
           person={selectedTalent}
+          canViewIdentity={canViewIdentity}
           onClose={() => setSelectedTalent(null)}
         />
       )}
@@ -1776,7 +1818,7 @@ const talentProfileGuide = {
   },
 };
 
-function TalentDetailModal({ person, onClose }) {
+function TalentDetailModal({ person, canViewIdentity, onClose }) {
   const guide = talentProfileGuide[person.dept] || {
     focus: `${person.preference} 조건을 중심으로 새로운 근무지를 검토합니다.`,
     strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
@@ -1785,14 +1827,14 @@ function TalentDetailModal({ person, onClose }) {
     <Modal
       wide
       variant="talent-detail-modal"
-      label={`${person.code} 익명 의사 프로필`}
+      label={`${talentDisplayName(person, canViewIdentity)} 의사 프로필`}
       onClose={onClose}
     >
       <div className="talent-detail-hero">
         <span className="talent-detail-avatar"><UserRound /></span>
         <div>
           <span className="talent-verified"><BadgeCheck /> 메디헬퍼스 상담 확인</span>
-          <small>{person.code} · 익명 프로필</small>
+          <small>{talentDisplayName(person, canViewIdentity)} · {canViewIdentity ? "실명 확인" : "이름 비공개"}</small>
           <h2>{person.dept} · {person.career}</h2>
           <p>개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.</p>
         </div>
@@ -2891,7 +2933,7 @@ export function App() {
     page = job ? <JobDetailRoute job={job} qa={qa} /> : <NotFoundPage />;
   }
   else if (path === '/professions') page = <Redirect to="/headhunting" />;
-  else if (path === '/talent') page = <TalentPage />;
+  else if (path === '/talent') page = <TalentPage qa={qa} />;
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/advertise') page = <AdvertisePage qa={qa} />;

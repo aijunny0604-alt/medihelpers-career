@@ -123,12 +123,12 @@ export const jobs = [
 ];
 
 export const talent = [
-  { code: 'DR-2048', dept: '내과', career: '전문의 8년', region: '서울·경기', preference: '검진센터 / 주 4.5일', available: '1개월 내', verified: true },
-  { code: 'DR-1982', dept: '정형외과', career: '전문의 12년', region: '부산·경남', preference: '병원급 / 원장 포지션', available: '협의', verified: true },
-  { code: 'DR-2214', dept: '소아청소년과', career: '전문의 6년', region: '전국', preference: '외래 중심 / 주 5일', available: '즉시', verified: true },
-  { code: 'DR-1765', dept: '영상의학과', career: '전문의 10년', region: '서울', preference: '판독 중심 / 당직 없음', available: '2개월 내', verified: true },
-  { code: 'DR-2301', dept: '가정의학과', career: '전문의 4년', region: '경기·인천', preference: '검진 / 주 4일', available: '즉시', verified: true },
-  { code: 'DR-1899', dept: '마취통증의학과', career: '전문의 9년', region: '충청권', preference: '통증클리닉 / 원장', available: '협의', verified: true }
+  { code: 'DR-2048', name: '김현우', identityConsent: true, dept: '내과', career: '전문의 8년', region: '서울·경기', preference: '검진센터 / 주 4.5일', available: '1개월 내', verified: true },
+  { code: 'DR-1982', name: '박서진', identityConsent: true, dept: '정형외과', career: '전문의 12년', region: '부산·경남', preference: '병원급 / 원장 포지션', available: '협의', verified: true },
+  { code: 'DR-2214', name: '이도윤', identityConsent: true, dept: '소아청소년과', career: '전문의 6년', region: '전국', preference: '외래 중심 / 주 5일', available: '즉시', verified: true },
+  { code: 'DR-1765', name: '최유진', identityConsent: true, dept: '영상의학과', career: '전문의 10년', region: '서울', preference: '판독 중심 / 당직 없음', available: '2개월 내', verified: true },
+  { code: 'DR-2301', name: '정민석', identityConsent: true, dept: '가정의학과', career: '전문의 4년', region: '경기·인천', preference: '검진 / 주 4일', available: '즉시', verified: true },
+  { code: 'DR-1899', name: '한지우', identityConsent: true, dept: '마취통증의학과', career: '전문의 9년', region: '충청권', preference: '통증클리닉 / 원장', available: '협의', verified: true }
 ];
 
 export const adPlans = [

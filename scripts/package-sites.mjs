@@ -161,13 +161,14 @@ function sameOrigin(request) {
 async function accountApi(request, env) {
   const enabled = signupEnabled(env);
   const identity = authenticatedUser(request);
+  const isAdmin = Boolean(adminIdentity(request, env));
   if (request.method === 'GET') {
-    if (!enabled) return json({ signupEnabled: false, signedIn: Boolean(identity), account: null, identity: identity || {} });
-    if (!identity) return json({ signupEnabled: true, signedIn: false, account: null, identity: {} });
+    if (!enabled) return json({ signupEnabled: false, signedIn: Boolean(identity), account: null, identity: identity || {}, isAdmin });
+    if (!identity) return json({ signupEnabled: true, signedIn: false, account: null, identity: {}, isAdmin: false });
     try { await ensureAccountSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const row = await env.DB.prepare('SELECT role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
-    return json({ signupEnabled: true, signedIn: true, account: row || null, identity });
+    return json({ signupEnabled: true, signedIn: true, account: row || null, identity, isAdmin });
   }
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
   if (!enabled) return json({ error: '회원가입은 법무 검토 완료 후 열립니다.' }, 503);
