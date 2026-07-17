@@ -1537,16 +1537,6 @@ function TalentPage({ qa, liveTalent = talent }) {
     });
   return (
     <>
-      <PageHero
-        tone="mint talent-hero"
-        eyebrow="VERIFIED DOCTOR TALENT"
-        title="조건으로 찾는 익명 의사 인재정보"
-        description="전문과·경력·희망 지역·입사 가능 시점을 먼저 비교하고, 의사의 동의가 확인된 뒤 필요한 정보만 안전하게 연결합니다."
-      >
-        <Link className="button primary" to="/headhunting?role=hospital">
-          우리 병원 의사 추천받기
-        </Link>
-      </PageHero>
       <nav className="job-hub-nav talent-hub-nav" aria-label="인재정보 메뉴">
         <div>
           <strong className="job-hub-title">인재정보</strong>

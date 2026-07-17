@@ -2514,10 +2514,11 @@ html.performance-lite .motion-notice{background:#fff}
 .talent-hub-nav>div{
   width:min(1440px,calc(100% - 96px));
   max-width:none;
-  min-height:88px;
+  min-height:70px;
   padding:0;
   gap:10px;
 }
+.talent-hub-nav{margin-top:76px}
 .talent-hub-nav .job-hub-title{
   font-size:26px;
   letter-spacing:-1.1px;
@@ -2532,7 +2533,7 @@ html.performance-lite .motion-notice{background:#fff}
 .talent-hub-nav a.job-hub-register{margin-left:10px}
 .talent-page.section{
   max-width:none;
-  padding:44px max(48px,calc((100vw - 1440px)/2)) 96px;
+  padding:24px max(48px,calc((100vw - 1440px)/2)) 96px;
 }
 .talent-search-dock{
   padding:30px 32px 32px;
@@ -2619,6 +2620,7 @@ html.performance-lite .motion-notice{background:#fff}
   .talent-hub-nav .job-hub-title{padding-right:20px}
   .talent-search-dock .doctor-search-title>strong{font-size:20px}
 }
+@media(max-width:780px){.talent-hub-nav{margin-top:66px}}
 @media(max-width:620px){
   .talent-hub-nav>div{min-height:72px;padding-inline:16px}
   .talent-hub-nav .job-hub-title{font-size:20px}
