@@ -2339,7 +2339,7 @@ function MembershipPage({ route, qa }) {
         </section>
       )}
       <section className="section membership-section">
-        <div className="membership-tabs">
+        <div className="membership-tabs membership-tabs--single">
           <button className="active"><Stethoscope /> 의사용 멤버십</button>
         </div>
         {contextId && (
