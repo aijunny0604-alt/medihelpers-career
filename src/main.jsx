@@ -4,7 +4,7 @@ import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import {
   Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
-  CalendarDays, Check, CircleCheck, ClipboardCheck, Clock3,
+  CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, FileCheck2, Heart, HeartPulse, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
   ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
@@ -283,7 +283,7 @@ function Header({ path, qa }) {
         <img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" />
       </Link>
       <nav id="primary-navigation" className={open ? 'open' : ''}>
-        {navItems.map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
+        {navItems.filter((item) => item.path !== '/resume' || (qa.active && qa.info.capabilities.doctor)).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
       </nav>
       <div className="nav-actions">
@@ -551,7 +551,46 @@ function JobCard({
     </article>
   );
 }
+function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
+  const thumbnailRefs = useRef([]);
+  const total = photos.length;
+  const previous = useCallback(() => onIndex((index - 1 + total) % total), [index, onIndex, total]);
+  const next = useCallback(() => onIndex((index + 1) % total), [index, onIndex, total]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (!['Escape', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'Escape') onClose();
+      if (event.key === 'ArrowLeft') previous();
+      if (event.key === 'ArrowRight') next();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [next, onClose, previous]);
+
+  useEffect(() => {
+    thumbnailRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [index]);
+
+  return createPortal(<div className="photo-lightbox" role="dialog" aria-modal="true" aria-label={`${hospital} 시설 사진 보기`} onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="photo-lightbox-shell" data-lenis-prevent>
+      <header><div><strong>{hospital}</strong><span>시설 사진</span></div><b>{index + 1} / {total}</b><button type="button" className="photo-lightbox-close" onClick={onClose} aria-label="사진 보기 닫기"><X /></button></header>
+      <div className="photo-lightbox-stage">
+        {total > 1 && <button type="button" className="photo-lightbox-arrow previous" onClick={previous} aria-label="이전 사진"><ChevronLeft /></button>}
+        <img src={photos[index]} alt={`${hospital} 시설 ${index + 1}`} />
+        {total > 1 && <button type="button" className="photo-lightbox-arrow next" onClick={next} aria-label="다음 사진"><ChevronRight /></button>}
+      </div>
+      <footer><span>← → 방향키로 이동 · ESC로 닫기</span><div className="photo-lightbox-thumbnails" aria-label="병원 사진 미리보기">
+        {photos.map((photo, photoIndex) => <button type="button" key={`${photo}-${photoIndex}`} ref={(element) => { thumbnailRefs.current[photoIndex] = element; }} className={photoIndex === index ? 'active' : ''} onClick={() => onIndex(photoIndex)} aria-label={`${photoIndex + 1}번 사진 보기`} aria-current={photoIndex === index ? 'true' : undefined}><img src={photo} alt="" /></button>)}
+      </div></footer>
+    </div>
+  </div>, document.body);
+}
+
 function JobDetail({ job, saved, onSave, onClose, qa }) {
+  const [photoIndex, setPhotoIndex] = useState(null);
   const isAd = Boolean(job.adTier);
   const restricted = isAd || job.badge === "비공개";
   const qaUnlocked =
@@ -659,9 +698,7 @@ function JobDetail({ job, saved, onSave, onClose, qa }) {
                       type="button"
                       key={photo}
                       className={index === 0 ? "primary-photo" : ""}
-                      onClick={() =>
-                        window.open(photo, "_blank", "noopener,noreferrer")
-                      }
+                      onClick={() => setPhotoIndex(index)}
                       aria-label={`${job.hospital} 병원 사진 ${index + 1} 크게 보기`}
                     >
                       <img
@@ -813,6 +850,7 @@ function JobDetail({ job, saved, onSave, onClose, qa }) {
           </button>
         </aside>
       </div>
+      {photoIndex !== null && <PhotoLightbox photos={hospitalPhotos} index={photoIndex} hospital={job.hospital} onIndex={setPhotoIndex} onClose={() => setPhotoIndex(null)} />}
     </Modal>
   );
 }
@@ -2407,6 +2445,10 @@ function NotFoundPage() {
   return <section className="not-found"><span>404</span><h1>페이지를 찾을 수 없습니다</h1><p>주소가 바뀌었거나 아직 준비되지 않은 페이지입니다.</p><Link className="button primary" to="/"><ArrowLeft /> 홈으로 돌아가기</Link></section>;
 }
 
+function ResumeAccessGate() {
+  return <section className="resume-access-gate"><span><LockKeyhole /></span><small>DOCTOR MEMBERS ONLY</small><h1>이력서 등록은 의사 회원만 이용할 수 있습니다</h1><p>민감한 경력과 구직 정보를 안전하게 관리하기 위해 의사 회원 확인 후 등록 화면을 열어드립니다.</p><div><Link className="button primary" to="/signup/doctor?next=/resume"><UserRound /> 의사 회원 로그인·가입</Link><Link className="button outline" to="/jobs">채용공고 먼저 보기</Link></div><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
+}
+
 function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', description = '이직과 채용, 어느 쪽이든 전담 헤드헌터가 먼저 듣겠습니다.', hospital = false }) {
   return <section className="conversion"><div><small>MEDIHELPERS CONCIERGE</small><h2>{title}</h2><p>{description}</p></div><div><a className="button light" href="tel:0513425463"><Phone size={17} /> 전화 상담</a><Link className="button glass" to={hospital ? '/headhunting?role=hospital' : '/headhunting'}>무료 상담 신청 <ArrowRight size={17} /></Link></div></section>;
 }
@@ -2451,7 +2493,7 @@ export function App() {
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
-  else if (path === '/resume') page = <ResumePage />;
+  else if (path === '/resume') page = qa.active && qa.info.capabilities.doctor ? <ResumePage /> : <ResumeAccessGate />;
   else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" />;
   else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
