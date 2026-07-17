@@ -2109,6 +2109,12 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   .dual-path .path-card .button{min-height:50px}
 }
 
+/* Align the process surface and the following concierge banner as one section flow. */
+@media(min-width:781px){
+  .compact-process:has(+.conversion){padding-bottom:40px}
+  .compact-process+.conversion{max-width:1192px;margin-top:0}
+}
+
 /* Adaptive performance mode: automatically removes expensive rendering on constrained devices. */
 html.performance-lite{scroll-behavior:auto!important}
 html.performance-lite *,html.performance-lite *:before,html.performance-lite *:after{
