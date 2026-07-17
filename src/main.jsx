@@ -2944,7 +2944,7 @@ export function App() {
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
   else if (path === '/admin/recruitment-crm') page = <RecruitmentCrmPage qa={qa} />;
   else if (path === '/admin' || path === '/admin/console') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
-  else if (path === '/mypage') page = <MemberCenterPage route={route} qa={qa} />;
+  else if (path === '/mypage' || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
