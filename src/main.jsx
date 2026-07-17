@@ -22,6 +22,7 @@ import MemberCenterPage from './MemberCenterPage.jsx';
 import AccountRecoveryPage from './AccountRecoveryPage.jsx';
 import MedicalStaffPage from './MedicalStaffPage.jsx';
 import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
+import AdminConsolePage from './AdminConsolePage.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import {
@@ -278,7 +279,7 @@ function Header({ path, qa }) {
   const signedInPreview = qa.active && qa.info.capabilities.signedIn;
   const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/signup';
   const primaryAction = qa.active && qa.info.capabilities.admin
-    ? { label: '채용 CRM', to: '/admin/recruitment-crm' }
+    ? { label: '관리자 모드', to: '/admin' }
     : qa.active && qa.info.capabilities.hospital
       ? { label: '마이페이지', to: '/mypage' }
       : qa.active && qa.info.capabilities.membership
@@ -2929,6 +2930,7 @@ export function App() {
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
   else if (path === '/admin/recruitment-crm') page = <RecruitmentCrmPage qa={qa} />;
+  else if (path === '/admin' || path === '/admin/console') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
   else if (path === '/mypage') page = <MemberCenterPage route={route} qa={qa} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
@@ -2939,5 +2941,8 @@ export function App() {
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
+  if (path === '/admin' || path.startsWith('/admin/')) {
+    return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
+  }
   return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer /><MediAngelAssistant /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
 }

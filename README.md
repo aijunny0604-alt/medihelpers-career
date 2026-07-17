@@ -7,9 +7,11 @@
 - [메디헬퍼스 Sites 공개본](https://medihelpers-career.junnyai.chatgpt.site)
 - [GitHub 저장소](https://github.com/aijunny0604-alt/medihelpers-career)
 - [GitHub Pages 미러](https://aijunny0604-alt.github.io/medihelpers-career/)
-- 최신 Sites 공개 버전: v142
+- 최신 Sites 공개 버전: v143
 
 ## 현재 구현
+
+- 관리자 전용 통합 콘솔(`/admin`): 운영 현황, 채용 CRM·상담함 연결, 카테고리·기능·사이트 기본정보 관리, DB 집계와 변경 감사 로그
 
 - 홈, 채용정보, 헤드헌팅, 매칭리포트, 광고센터, 멤버십, 서비스 소개 페이지
 - 초빙유형·진료과·지역·근무조건 중심의 의사 전용 초빙정보 검색

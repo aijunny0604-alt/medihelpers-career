@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { accountSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
+import { accountSchemaStatements, adminConsoleSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
 
 const sourceDir = 'client-build';
 const html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
@@ -44,6 +44,7 @@ const accountSchemaStatements = ${JSON.stringify(accountSchemaStatements)};
 const consultationSchemaStatements = ${JSON.stringify(consultationSchemaStatements)};
 const memberCenterSchemaStatements = ${JSON.stringify(memberCenterSchemaStatements)};
 const recruitmentCrmSchemaStatements = ${JSON.stringify(recruitmentCrmSchemaStatements)};
+const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatements)};
 const termsVersion = 'signup-terms-draft-2026-07-16';
 const privacyNoticeVersion = 'privacy-notice-draft-2026-07-16';
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
@@ -85,6 +86,10 @@ async function ensureMemberCenterSchema(env) {
 async function ensureRecruitmentCrmSchema(env) {
   if (!env || !env.DB) throw new Error('RECRUITMENT_CRM_DB_UNAVAILABLE');
   await env.DB.batch(recruitmentCrmSchemaStatements.map(statement => env.DB.prepare(statement)));
+}
+async function ensureAdminConsoleSchema(env) {
+  if (!env || !env.DB) throw new Error('ADMIN_CONSOLE_DB_UNAVAILABLE');
+  await env.DB.batch(adminConsoleSchemaStatements.map(statement => env.DB.prepare(statement)));
 }
 function adminIdentity(request, env) {
   const identity = authenticatedUser(request);
@@ -288,12 +293,116 @@ async function recruitmentCrmApi(request, env, pathname) {
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
+const adminSettingKeys = ['siteName','supportPhone','supportEmail','announcement','maintenanceMode'];
+const adminFeatureKeys = ['doctorRecruitment','talentSearch','resumeRegistration','medicalStaffHub','paidCareerService','adRegistration'];
+const adminCategoryGroups = ['doctor_specialty','region','medical_role'];
+async function writeAdminAudit(env, admin, action, subject, payload) {
+  await env.DB.prepare('INSERT INTO admin_audit_logs (id, actor_email, action, subject, payload_json) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), admin.email, action, subject || '', JSON.stringify(payload || {})).run();
+}
+async function seedAdminConsole(env) {
+  const categories = [
+    ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','정형외과','orthopedics',20],
+    ['doctor_specialty','소아청소년과','pediatrics',30], ['doctor_specialty','가정의학과','family-medicine',40],
+    ['region','서울','seoul',10], ['region','경기','gyeonggi',20], ['region','부산','busan',30],
+    ['medical_role','간호사','nurse',10], ['medical_role','간호조무사','nursing-assistant',20],
+    ['medical_role','방사선사','radiologic-technologist',30]
+  ];
+  const settings = {
+    siteName:'메디헬퍼스', supportPhone:'051-342-5463', supportEmail:'hr@medihelpers.co.kr',
+    announcement:'의사 채용·이직 전문 헤드헌팅', maintenanceMode:'false'
+  };
+  const features = {
+    doctorRecruitment:[1,'의사 채용공고 목록과 상세 페이지'], talentSearch:[1,'병원 회원의 익명 인재 검색'],
+    resumeRegistration:[1,'의사 회원 이력서 작성 및 관리'], medicalStaffHub:[0,'간호·보건 직군 확장 영역'],
+    paidCareerService:[0,'유료 조건 비교·계약 분석'], adRegistration:[1,'공고 상품 신청과 검수']
+  };
+  const statements = categories.map(([group,name,slug,sort]) => env.DB.prepare('INSERT OR IGNORE INTO admin_categories (id, group_key, name, slug, sort_order) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), group, name, slug, sort));
+  Object.entries(settings).forEach(([key,value]) => statements.push(env.DB.prepare('INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES (?, ?)').bind(key, value)));
+  Object.entries(features).forEach(([key,[enabled,description]]) => statements.push(env.DB.prepare('INSERT OR IGNORE INTO feature_flags (flag_key, enabled, description) VALUES (?, ?, ?)').bind(key, enabled, description)));
+  await env.DB.batch(statements);
+}
+async function adminConsoleApi(request, env) {
+  const admin = adminIdentity(request, env);
+  if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
+  try {
+    await ensureAccountSchema(env);
+    await ensureConsultationSchema(env);
+    await ensureRecruitmentCrmSchema(env);
+    await ensureAdminConsoleSchema(env);
+    await seedAdminConsole(env);
+  } catch {
+    return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
+  }
+  if (request.method === 'GET') {
+    const [accounts, consultations, cases, categories, auditCount, settingsResult, featuresResult, categoryResult, auditResult] = await Promise.all([
+      env.DB.prepare("SELECT COUNT(*) total, SUM(CASE WHEN role='doctor' THEN 1 ELSE 0 END) doctors, SUM(CASE WHEN role='hospital' THEN 1 ELSE 0 END) hospitals FROM accounts").first(),
+      env.DB.prepare('SELECT COUNT(*) total FROM consultation_requests').first(),
+      env.DB.prepare("SELECT SUM(CASE WHEN stage NOT IN ('hired','closed') THEN 1 ELSE 0 END) active, SUM(CASE WHEN stage='hired' THEN 1 ELSE 0 END) hired FROM recruitment_cases").first(),
+      env.DB.prepare('SELECT COUNT(*) total FROM admin_categories').first(),
+      env.DB.prepare('SELECT COUNT(*) total FROM admin_audit_logs').first(),
+      env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings').all(),
+      env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
+      env.DB.prepare('SELECT id, group_key AS groupKey, name, slug, sort_order AS sortOrder, enabled FROM admin_categories ORDER BY group_key, sort_order, name').all(),
+      env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all()
+    ]);
+    const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
+    const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
+    return json({
+      admin,
+      metrics: {
+        accounts:Number(accounts?.total || 0), doctors:Number(accounts?.doctors || 0), hospitals:Number(accounts?.hospitals || 0),
+        consultations:Number(consultations?.total || 0), activeCases:Number(cases?.active || 0), hiredCases:Number(cases?.hired || 0),
+        categories:Number(categories?.total || 0), auditLogs:Number(auditCount?.total || 0)
+      },
+      settings, features,
+      categories:(categoryResult.results || []).map(row => ({ ...row, enabled:Boolean(row.enabled) })),
+      audit:auditResult.results || []
+    });
+  }
+  if (request.method !== 'PATCH') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+  let body;
+  try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  const action = body.action;
+  const payload = body.payload && typeof body.payload === 'object' ? body.payload : {};
+  if (action === 'settings_update') {
+    const statements = adminSettingKeys.filter(key => Object.hasOwn(payload, key)).map(key => env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value, updated_by) VALUES (?, ?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_by=excluded.updated_by, updated_at=CURRENT_TIMESTAMP").bind(key, String(payload[key]).slice(0,500), admin.email));
+    if (!statements.length) return json({ error:'저장할 설정이 없습니다.' }, 400);
+    await env.DB.batch(statements);
+    await writeAdminAudit(env, admin, 'settings_update', '사이트 기본정보', payload);
+  } else if (action === 'feature_update') {
+    if (!adminFeatureKeys.includes(payload.key) || typeof payload.enabled !== 'boolean') return json({ error:'기능 설정값을 확인해주세요.' }, 400);
+    await env.DB.prepare('UPDATE feature_flags SET enabled = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE flag_key = ?').bind(payload.enabled ? 1 : 0, admin.email, payload.key).run();
+    await writeAdminAudit(env, admin, 'feature_update', payload.key, { enabled:payload.enabled });
+  } else if (action === 'category_create') {
+    const groupKey = String(payload.groupKey || '');
+    const name = String(payload.name || '').trim().slice(0,80);
+    const slug = String(payload.slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,80);
+    if (!adminCategoryGroups.includes(groupKey) || !name || !slug) return json({ error:'카테고리 정보를 확인해주세요.' }, 400);
+    await env.DB.prepare('INSERT INTO admin_categories (id, group_key, name, slug, sort_order) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), groupKey, name, slug, Math.max(0, Number(payload.sortOrder) || 0)).run();
+    await writeAdminAudit(env, admin, 'category_create', name, { groupKey, slug });
+  } else if (action === 'category_update') {
+    const id = String(payload.id || '');
+    if (!id || typeof payload.enabled !== 'boolean') return json({ error:'카테고리 상태를 확인해주세요.' }, 400);
+    await env.DB.prepare('UPDATE admin_categories SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(payload.enabled ? 1 : 0, id).run();
+    await writeAdminAudit(env, admin, 'category_update', id, { enabled:payload.enabled });
+  } else if (action === 'category_delete') {
+    const id = String(payload.id || '');
+    if (!id) return json({ error:'삭제할 카테고리를 확인해주세요.' }, 400);
+    await env.DB.prepare('DELETE FROM admin_categories WHERE id = ?').bind(id).run();
+    await writeAdminAudit(env, admin, 'category_delete', id, {});
+  } else {
+    return json({ error:'지원하지 않는 관리 작업입니다.' }, 400);
+  }
+  return json({ saved:true });
+}
 async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
+  if (pathname === '/api/admin-console') return adminConsoleApi(request, env);
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
