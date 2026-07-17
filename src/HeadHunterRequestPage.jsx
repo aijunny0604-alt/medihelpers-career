@@ -133,7 +133,10 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
           </article>
         ))}
       </section>
-      <form className="quick-request-form" onSubmit={submit}>
+      <form
+        className={`quick-request-form intake-request-form ${isDoctor ? "doctor-intake-form" : "hospital-intake-form"}`}
+        onSubmit={submit}
+      >
         <header>
           <div>
             <small>MEDIHELPERS CONSULTATION</small>
