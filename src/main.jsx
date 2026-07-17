@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Lenis from 'lenis';
-import 'lenis/dist/lenis.css';
 import {
-  Activity, Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
+  Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, FileCheck2, Heart, HeartPulse, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
   ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Upload, UserRound,
@@ -76,18 +74,13 @@ function useRoute() {
 }
 
 function getPerformanceProfile() {
-  const queryMode = new URLSearchParams(window.location.search).get('motion');
-  if (queryMode === 'full' || queryMode === 'lite') writeStoredString('medihelpers_motion', queryMode);
-  const savedMode = readStoredString('medihelpers_motion');
-  const forceFull = savedMode === 'full';
-  const forceLite = savedMode === 'lite';
   const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
   const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const lowCpu = Number.isFinite(navigator.hardwareConcurrency) && navigator.hardwareConcurrency <= 4;
   const lowMemory = Number.isFinite(navigator.deviceMemory) && navigator.deviceMemory <= 4;
   const dataSaver = Boolean(connection?.saveData);
-  const slowNetwork = /(^|-)2g$/.test(connection?.effectiveType || '');
-  const reduced = forceLite || (!forceFull && (prefersReduced || lowCpu || lowMemory || dataSaver || slowNetwork));
+  const slowNetwork = /^(slow-2g|2g|3g)$/.test(connection?.effectiveType || '');
+  const reduced = prefersReduced || lowCpu || lowMemory || dataSaver || slowNetwork;
   const reasons = [
     prefersReduced && '시스템 동작 줄이기',
     lowCpu && '저사양 CPU',
@@ -95,10 +88,10 @@ function getPerformanceProfile() {
     dataSaver && '데이터 절약 모드',
     slowNetwork && '느린 네트워크'
   ].filter(Boolean);
-  document.documentElement.classList.toggle('force-motion', forceFull);
+  document.documentElement.classList.remove('force-motion');
   document.documentElement.classList.toggle('performance-lite', reduced);
   document.documentElement.dataset.performance = reduced ? 'lite' : 'full';
-  return { reduced, reasons, forceFull };
+  return { reduced, reasons };
 }
 
 function motionIsReduced() {
@@ -188,31 +181,17 @@ function navigate(path) {
   window.setTimeout(commitNavigation, 170);
 }
 
-function useSmoothPageScroll() {
+function useAdaptivePerformance() {
   useEffect(() => {
-    const reducedMotion = motionIsReduced();
-    const finePointer = window.matchMedia('(any-pointer: fine)').matches;
-    if (reducedMotion || !finePointer) return undefined;
-    const lenis = new Lenis({
-      autoRaf: true,
-      autoToggle: true,
-      smoothWheel: true,
-      syncTouch: false,
-      duration: 0.9,
-      wheelMultiplier: 0.92,
-      anchors: { offset: -84, duration: 0.9 },
-      stopInertiaOnNavigate: true
-    });
-    const onNavigate = (event) => {
-      event.preventDefault();
-      lenis.scrollTo(0, { immediate: true, force: true });
-    };
-    document.documentElement.classList.add('smooth-wheel-enabled');
-    window.addEventListener('medihelpers:navigate', onNavigate);
+    const update = () => getPerformanceProfile();
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    update();
+    media.addEventListener?.('change', update);
+    connection?.addEventListener?.('change', update);
     return () => {
-      window.removeEventListener('medihelpers:navigate', onNavigate);
-      document.documentElement.classList.remove('smooth-wheel-enabled');
-      lenis.destroy();
+      media.removeEventListener?.('change', update);
+      connection?.removeEventListener?.('change', update);
     };
   }, []);
 }
@@ -257,6 +236,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
   }, [embedded]);
 
   useEffect(() => {
+    if (embedded) return undefined;
     const previousFocus = document.activeElement;
     const dialog = dialogRef.current;
     const onKey = (event) => {
@@ -1098,24 +1078,6 @@ function QuickAccess() {
 
 function MemberTeaser() {
   return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>VERIFIED DOCTOR BENEFIT</small><h2>상세조건과 헤드헌터 상담은 의사 인증 후 무료</h2><p>유료 서비스는 정보 잠금 해제가 아니라 맞춤 알림, 우선 상담 예약, 연봉·계약 분석처럼 이직 준비 시간을 줄이는 기능에 집중합니다.</p></div><Link className="button dark" to="/membership">선택 서비스 보기 <ArrowRight /></Link></section>;
-}
-
-function MotionNotice() {
-  const [profile, setProfile] = useState({ reduced: false, reasons: [] });
-  useEffect(() => {
-    const update = () => setProfile(getPerformanceProfile());
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    update();
-    media.addEventListener?.('change', update);
-    connection?.addEventListener?.('change', update);
-    return () => {
-      media.removeEventListener?.('change', update);
-      connection?.removeEventListener?.('change', update);
-    };
-  }, []);
-  if (!profile.reduced) return null;
-  return <aside className="motion-notice"><Activity /><div><strong>경량 모드가 자동 적용되었습니다</strong><span>{profile.reasons.length ? profile.reasons.join(' · ') : '이 기기에서는 애니메이션을 줄여 더 빠르게 표시합니다.'}</span></div><button onClick={() => { writeStoredString('medihelpers_motion', 'full'); document.documentElement.classList.remove('performance-lite'); document.documentElement.classList.add('force-motion'); window.location.reload(); }}>효과 켜기</button></aside>;
 }
 
 function MediAngelAssistant() {
@@ -2893,7 +2855,7 @@ export function App() {
   const liveJobs = useMemo(() => [...operationalDoctorJobs(operations.contents), ...jobs], [operations.contents]);
   const liveTalent = useMemo(() => [...operationalTalent(operations.contents), ...talent], [operations.contents]);
   const [qaState, setQaState] = useState(() => normalizeQaState(readStoredString(QA_PREVIEW_STORAGE_KEY)));
-  useSmoothPageScroll();
+  useAdaptivePerformance();
   useScrollMotion(route);
 
   const selectQaState = useCallback((nextState) => {
@@ -2949,5 +2911,5 @@ export function App() {
   if (path === '/admin' || path.startsWith('/admin/')) {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
-  return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
+  return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
 }
