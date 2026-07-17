@@ -46,8 +46,8 @@ const memberCenterSchemaStatements = ${JSON.stringify(memberCenterSchemaStatemen
 const commerceSchemaStatements = ${JSON.stringify(commerceSchemaStatements)};
 const recruitmentCrmSchemaStatements = ${JSON.stringify(recruitmentCrmSchemaStatements)};
 const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatements)};
-const termsVersion = 'signup-terms-draft-2026-07-16';
-const privacyNoticeVersion = 'privacy-notice-draft-2026-07-16';
+const termsVersion = 'terms-v1.0-2026-07-18';
+const privacyNoticeVersion = 'privacy-v1.0-2026-07-18';
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers } });

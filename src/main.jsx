@@ -21,6 +21,7 @@ import AccountRecoveryPage from './AccountRecoveryPage.jsx';
 import MedicalStaffPage from './MedicalStaffPage.jsx';
 import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
 import AdminConsolePage from './AdminConsolePage.jsx';
+import { PrivacyPolicyPage, TermsPage } from './LegalPages.jsx';
 import { operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
@@ -329,9 +330,9 @@ function Footer({ operations }) {
       </div>
       <div className="footer-column"><strong>의사</strong><Link to="/jobs">초빙정보</Link><Link to="/resume">이력서 등록</Link><Link to="/headhunting">비공개 이직 상담</Link></div>
       <div className="footer-column"><strong>병원</strong><Link to="/talent">의사 인재정보</Link><Link to="/headhunting">의사 채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
-      <div className="footer-column"><strong>의료인 채용</strong><Link to="/medical-staff">직군별 채용정보</Link><Link to="/medical-staff">의료인 공고 등록</Link><Link to="/signup">로그인·회원가입</Link><a href="mailto:hr@medihelpers.co.kr">문의하기</a></div>
+      <div className="footer-column"><strong>안내</strong><Link to="/medical-staff">의료인 채용</Link><Link to="/signup">로그인·회원가입</Link><Link to="/terms">이용약관</Link><Link to="/privacy">개인정보처리방침</Link></div>
     </div>
-    <div className="footer-bottom"><span>© 2026 MEDIHELPERS. All rights reserved.</span><span>부산광역시 북구 만덕대로 116번길 28</span></div>
+    <div className="footer-bottom"><span>© 2026 MEDIHELPERS. 대표 이형석 · 사업자등록번호 873-92-00515 · 직업정보제공사업 부산북부지청 제2017-1호</span><span>부산광역시 북구 만덕대로116번길 28</span></div>
   </footer>;
 }
 
@@ -2907,6 +2908,8 @@ export function App() {
   else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" qa={qa} />;
   else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" qa={qa} />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
+  else if (path === '/terms') page = <TermsPage />;
+  else if (path === '/privacy') page = <PrivacyPolicyPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
   if (path === '/admin' || path.startsWith('/admin/')) {
