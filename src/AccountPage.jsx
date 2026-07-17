@@ -331,6 +331,7 @@ function SignedOutCard({ memberType }) {
     <a className="button primary full signup-provider" href={withBase(`/signin-with-chatgpt?return_to=${withBase(`/signup/${memberType}`)}`)}>
       {content.label}으로 계속 <ArrowRight />
     </a>
+    <a className="signup-recovery-link" href={withBase('/account/recovery')}>아이디·로그인 정보를 잊으셨나요?</a>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 휴대폰 본인확인 결과로 가입자를 확인합니다.</div>
     <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의사 회원'}으로 가입</a>
   </section>;
@@ -403,7 +404,7 @@ function AccountCard({ account, identity, onDeleted }) {
     <h2>가입이 완료되었습니다</h2>
     <p>{identity.displayName || identity.email || '회원'}님, 필요한 기능을 사용할 때만 추가 정보를 요청하겠습니다.</p>
     <dl><div><dt>회원 유형</dt><dd>{accountRoleLabel(account.role)}</dd></div><div><dt>가입 상태</dt><dd>기본 회원</dd></div><div><dt>마케팅 수신</dt><dd>미동의</dd></div></dl>
-    <div className="account-actions"><a className="button primary" href={withBase(account.role === 'doctor' ? '/jobs' : '/talent')}>서비스 시작 <ArrowRight /></a><a className="button outline" href={withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`)}>로그아웃</a></div>
+    <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><a className="button outline" href={withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`)}>로그아웃</a></div>
     <button className="account-delete" type="button" onClick={remove} disabled={deleting}>{deleting ? '삭제 중…' : '계정 삭제'}</button>
   </section>;
 }

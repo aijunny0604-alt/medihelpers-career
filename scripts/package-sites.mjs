@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { accountSchemaStatements, consultationSchemaStatements } from '../db/schema.js';
+import { accountSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements } from '../db/schema.js';
 
 const sourceDir = 'client-build';
 const html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
@@ -42,6 +42,7 @@ const cssPath = ${JSON.stringify(cssPath)};
 const jsPath = ${JSON.stringify(jsPath)};
 const accountSchemaStatements = ${JSON.stringify(accountSchemaStatements)};
 const consultationSchemaStatements = ${JSON.stringify(consultationSchemaStatements)};
+const memberCenterSchemaStatements = ${JSON.stringify(memberCenterSchemaStatements)};
 const termsVersion = 'signup-terms-draft-2026-07-16';
 const privacyNoticeVersion = 'privacy-notice-draft-2026-07-16';
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
@@ -75,6 +76,10 @@ async function ensureAccountSchema(env) {
 async function ensureConsultationSchema(env) {
   if (!env || !env.DB) throw new Error('CONSULTATION_DB_UNAVAILABLE');
   await env.DB.batch(consultationSchemaStatements.map(statement => env.DB.prepare(statement)));
+}
+async function ensureMemberCenterSchema(env) {
+  if (!env || !env.DB) throw new Error('MEMBER_CENTER_DB_UNAVAILABLE');
+  await env.DB.batch(memberCenterSchemaStatements.map(statement => env.DB.prepare(statement)));
 }
 function adminIdentity(request, env) {
   const identity = authenticatedUser(request);
@@ -204,9 +209,44 @@ async function accountApi(request, env) {
   }
   return json({ error: '지원하지 않는 요청입니다.' }, 405);
 }
+function cleanMemberProfile(profile) {
+  const source = profile && typeof profile === 'object' ? profile : {};
+  const clean = key => typeof source[key] === 'string' ? source[key].trim().slice(0, 160) : '';
+  return { displayName: clean('displayName'), phone: clean('phone'), organization: clean('organization'), jobTitle: clean('jobTitle') };
+}
+async function memberCenterApi(request, env) {
+  const identity = authenticatedUser(request);
+  if (!identity) return json({ signedIn:false, account:null, identity:{} }, 401);
+  if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
+  try { await ensureAccountSchema(env); await ensureConsultationSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+  const account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
+  if (!account) return json({ signedIn:true, account:null, identity });
+  if (request.method === 'GET') {
+    const profile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id).first();
+    const preferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
+    const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
+    const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, specialty, status, created_at AS createdAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:consultations.results || [] });
+  }
+  if (request.method === 'PATCH') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    const profile = cleanMemberProfile(body.profile);
+    const preferences = body.notifications && typeof body.notifications === 'object' ? body.notifications : {};
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO member_profiles (account_id, display_name, phone, organization, job_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, phone=excluded.phone, organization=excluded.organization, job_title=excluded.job_title, updated_at=CURRENT_TIMESTAMP').bind(account.id, profile.displayName, profile.phone, profile.organization, profile.jobTitle),
+      env.DB.prepare('INSERT INTO member_preferences (account_id, email_notifications, sms_notifications, service_notifications, marketing_notifications) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET email_notifications=excluded.email_notifications, sms_notifications=excluded.sms_notifications, service_notifications=excluded.service_notifications, marketing_notifications=excluded.marketing_notifications, updated_at=CURRENT_TIMESTAMP').bind(account.id, preferences.email ? 1 : 0, preferences.sms ? 1 : 0, preferences.service ? 1 : 0, preferences.marketing ? 1 : 0),
+      env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'profile_update', '회원정보를 수정했습니다.', '기본정보 또는 알림 설정 변경')
+    ]);
+    return json({ saved:true, profile, notifications:{ email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } });
+  }
+  return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
 async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/account') return accountApi(request, env);
+  if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });

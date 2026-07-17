@@ -18,6 +18,8 @@ import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
 import HeroSelect from './CustomSelect.jsx';
 import QaPreviewPage from './QaPreviewPage.jsx';
 import ConsultationAdminPage from './ConsultationAdminPage.jsx';
+import MemberCenterPage from './MemberCenterPage.jsx';
+import AccountRecoveryPage from './AccountRecoveryPage.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import {
@@ -271,15 +273,16 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
 function Header({ path, qa }) {
   const [open, setOpen] = useState(false);
   const accountLabel = qa.active ? qa.info.shortLabel : '로그인';
-  const accountTarget = qa.active ? '/qa-preview' : '/signup';
+  const signedInPreview = qa.active && qa.info.capabilities.signedIn;
+  const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/signup';
   const primaryAction = qa.active && qa.info.capabilities.admin
-    ? { label: '관리 콘솔', to: '/qa-preview' }
+    ? { label: '관리 콘솔', to: '/mypage' }
     : qa.active && qa.info.capabilities.hospital
-      ? { label: '내 공고 관리', to: '/qa-preview' }
+      ? { label: '마이페이지', to: '/mypage' }
       : qa.active && qa.info.capabilities.membership
-        ? { label: '멤버십 이용 중', to: '/membership' }
+        ? { label: '마이페이지', to: '/mypage' }
       : qa.active && qa.info.capabilities.doctor
-          ? { label: '내 이력서 등록', to: '/resume' }
+          ? { label: '마이페이지', to: '/mypage' }
           : { label: '병원 회원가입', to: '/signup/hospital?next=/advertise' };
   return <header className="site-header">
     <div className="nav-wrap">
@@ -288,7 +291,7 @@ function Header({ path, qa }) {
       </Link>
       <nav id="primary-navigation" className={open ? 'open' : ''}>
         {navItems.filter((item) => item.path !== '/resume' || (qa.active && qa.info.capabilities.doctor)).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
-        <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
+        <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{signedInPreview ? '마이페이지' : qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
       </nav>
       <div className="nav-actions">
         <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
@@ -2912,8 +2915,8 @@ export function App() {
   const qaActive = path === '/qa-preview' || Boolean(qaState);
   const qaInfo = getQaStateInfo(qaState);
   const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
-  const mobileAction = qa.active && (qa.info.capabilities.admin || qa.info.capabilities.hospital)
-    ? { to: '/qa-preview', label: qa.info.capabilities.admin ? '관리 콘솔' : '내 공고 관리' }
+  const mobileAction = qa.active && qa.info.capabilities.signedIn
+    ? { to: '/mypage', label: qa.info.capabilities.admin ? '관리 콘솔' : '마이페이지' }
     : { to: '/signup/hospital?next=/advertise', label: '병원 가입' };
 
   let page;
@@ -2932,6 +2935,8 @@ export function App() {
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
+  else if (path === '/mypage') page = <MemberCenterPage route={route} qa={qa} />;
+  else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/resume') page = <ResumeRoute qa={qa} />;
