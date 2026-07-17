@@ -7,7 +7,7 @@
 - [메디헬퍼스 Sites 공개본](https://medihelpers-career.junnyai.chatgpt.site)
 - [GitHub 저장소](https://github.com/aijunny0604-alt/medihelpers-career)
 - [GitHub Pages 미러](https://aijunny0604-alt.github.io/medihelpers-career/)
-- 최신 Sites 공개 버전: v136
+- 최신 Sites 공개 버전: v137
 
 ## 현재 구현
 
@@ -24,6 +24,7 @@
 - 데스크톱·태블릿·모바일 반응형 화면
 - 찜한 병원·인재를 조건별로 비교하고 헤드헌터 상담으로 전달하는 매칭 리포트
 - 병원 브랜드와 포지션 정보를 분리한 프리미엄 광고 쇼케이스
+- 모달 대신 독립 페이지로 운영되는 병원 초빙공고 등록 흐름과 브랜드 이미지 1장·병원 갤러리 분리 업로드
 
 ## 핵심 정책
 

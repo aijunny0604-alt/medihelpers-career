@@ -19,7 +19,7 @@ import HeroSelect from './CustomSelect.jsx';
 import QaPreviewPage from './QaPreviewPage.jsx';
 import ConsultationAdminPage from './ConsultationAdminPage.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
-import { getHospitalMood, hospitalMoodStyle, premiumBannerGuide } from './hospitalMood.js';
+import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import {
   appendStoredRecord,
   readStoredArray,
@@ -2040,100 +2040,45 @@ function HeadhuntingPage({ route }) {
   );
 }
 
-function Checkout({ plan, onClose }) {
+function Checkout({ plan }) {
   const [done, setDone] = useState(false);
   const [method, setMethod] = useState("card");
   const [facilityType, setFacilityType] = useState("");
   const [facilityError, setFacilityError] = useState("");
-  const [logoPreview, setLogoPreview] = useState("");
-  const [logoName, setLogoName] = useState("");
-  const [logoFile, setLogoFile] = useState(null);
-  const [logoError, setLogoError] = useState("");
-  const [bannerPreview, setBannerPreview] = useState("");
-  const [bannerName, setBannerName] = useState("");
-  const [bannerFile, setBannerFile] = useState(null);
-  const [bannerError, setBannerError] = useState("");
+  const [brandPreview, setBrandPreview] = useState("");
+  const [brandName, setBrandName] = useState("");
+  const [brandFile, setBrandFile] = useState(null);
+  const [brandError, setBrandError] = useState("");
   const [facilityPhotos, setFacilityPhotos] = useState([]);
   const [photoError, setPhotoError] = useState("");
   const [activeDrop, setActiveDrop] = useState("");
   useEffect(() => () => {
-    if (logoPreview) URL.revokeObjectURL(logoPreview);
-  }, [logoPreview]);
-  useEffect(() => () => {
-    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-  }, [bannerPreview]);
-  const chooseLogo = (file, input) => {
-    setLogoError("");
+    if (brandPreview) URL.revokeObjectURL(brandPreview);
+  }, [brandPreview]);
+  const chooseBrand = (file, input) => {
+    setBrandError("");
     if (!file) return;
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       if (input) input.value = "";
-      setLogoName("");
-      setLogoFile(null);
-      setLogoError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
+      setBrandName("");
+      setBrandFile(null);
+      setBrandError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 8 * 1024 * 1024) {
       if (input) input.value = "";
-      setLogoName("");
-      setLogoFile(null);
-      setLogoError("5MB 이하 파일을 선택해주세요.");
+      setBrandName("");
+      setBrandFile(null);
+      setBrandError("8MB 이하 파일을 선택해주세요.");
       return;
     }
-    if (logoPreview) URL.revokeObjectURL(logoPreview);
-    setLogoName(file.name);
-    setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
+    if (brandPreview) URL.revokeObjectURL(brandPreview);
+    setBrandName(file.name);
+    setBrandFile(file);
+    setBrandPreview(URL.createObjectURL(file));
   };
-  const selectLogo = (event) =>
-    chooseLogo(event.currentTarget.files?.[0], event.currentTarget);
-  const chooseBanner = (file, input) => {
-    setBannerError("");
-    if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      if (input) input.value = "";
-      setBannerName("");
-      setBannerFile(null);
-      setBannerError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
-      return;
-    }
-    if (file.size > premiumBannerGuide.maxBytes) {
-      if (input) input.value = "";
-      setBannerName("");
-      setBannerFile(null);
-      setBannerError("8MB 이하 파일을 선택해주세요.");
-      return;
-    }
-    const previewUrl = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      const ratio = image.naturalWidth / image.naturalHeight;
-      if (
-        ratio < premiumBannerGuide.minRatio ||
-        ratio > premiumBannerGuide.maxRatio
-      ) {
-        if (input) input.value = "";
-        setBannerName("");
-        setBannerFile(null);
-        setBannerError("가로 3:1 비율의 배너를 사용해주세요. 권장 1500×500px");
-        URL.revokeObjectURL(previewUrl);
-        return;
-      }
-      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-      setBannerName(file.name);
-      setBannerFile(file);
-      setBannerPreview(previewUrl);
-    };
-    image.onerror = () => {
-      if (input) input.value = "";
-      setBannerName("");
-      setBannerFile(null);
-      setBannerError("이미지 파일을 확인해주세요.");
-      URL.revokeObjectURL(previewUrl);
-    };
-    image.src = previewUrl;
-  };
-  const selectBanner = (event) =>
-    chooseBanner(event.currentTarget.files?.[0], event.currentTarget);
+  const selectBrand = (event) =>
+    chooseBrand(event.currentTarget.files?.[0], event.currentTarget);
   const chooseFacilityPhotos = (files, input) => {
     const selected = [...(files || [])];
     setPhotoError("");
@@ -2196,14 +2141,14 @@ function Checkout({ plan, onClose }) {
       return;
     }
     const formData = new FormData(event.currentTarget);
-    formData.delete("logo");
-    formData.delete("banner");
+    formData.delete("brandImage");
     const data = {
       ...Object.fromEntries(formData.entries()),
-      logoName: logoFile?.name || "",
-      bannerName: bannerFile?.name || "",
+      brandImageName: brandFile?.name || "",
+      logoName: brandFile?.name || "",
+      bannerName: "",
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
-      premiumBrandMode: bannerFile ? "hospital-banner" : "auto-wordmark",
+      premiumBrandMode: brandFile ? "single-brand-image" : "auto-wordmark",
     };
     appendStoredRecord("medihelpers_ad_requests", {
       id: `AD-${Date.now()}`,
@@ -2217,9 +2162,15 @@ function Checkout({ plan, onClose }) {
     setDone(true);
   };
   return (
-    <Modal onClose={onClose} wide label="의사 초빙광고 상품 신청">
+    <section className="ad-apply-page" aria-label="의사 초빙공고 등록">
+      <div className="ad-apply-shell">
+        <nav className="ad-apply-breadcrumb" aria-label="현재 위치">
+          <Link to="/advertise">광고센터</Link>
+          <ArrowRight />
+          <span>의사 초빙공고 등록</span>
+        </nav>
       {done ? (
-        <div className="checkout-success">
+        <div className="checkout-success ad-apply-success">
           <span>
             <CircleCheck />
           </span>
@@ -2230,87 +2181,82 @@ function Checkout({ plan, onClose }) {
             <br />
             PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.
           </p>
-          <button className="button primary" onClick={onClose}>
-            확인
-          </button>
+          <div className="ad-apply-success-actions">
+            <Link className="button outline" to="/advertise">광고센터로 돌아가기</Link>
+            <Link className="button primary" to="/qa-preview">내 공고 관리</Link>
+          </div>
         </div>
       ) : (
         <>
-          <div className="checkout-title">
-            <small>DOCTOR RECRUITMENT AD</small>
-            <h2>의사 초빙광고 신청</h2>
-            <p>
-              병원 브랜드와 의사 초빙정보를 함께 검수한 뒤 결제 링크와 게시
-              일정을 안내합니다.
-            </p>
-          </div>
+          <header className="ad-apply-header">
+            <div>
+              <small>DOCTOR RECRUITMENT AD</small>
+              <h1>의사 초빙공고 등록</h1>
+              <p>병원 정보와 채용조건을 차례대로 입력해주세요. 접수 후 전담 헤드헌터가 내용과 게시 일정을 확인합니다.</p>
+            </div>
+            <div className="ad-apply-help"><ShieldCheck /><span><strong>결제 전 검수</strong>입력 중에는 비용이 청구되지 않습니다.</span></div>
+          </header>
+          <ol className="ad-apply-steps">
+            <li className="active"><b>1</b><span>병원·브랜드 정보</span></li>
+            <li><b>2</b><span>채용조건 입력</span></li>
+            <li><b>3</b><span>검수·결제 안내</span></li>
+          </ol>
           <form className="checkout-grid" onSubmit={submit}>
             <div className="checkout-form">
-              <div className={`brand-banner-upload ${activeDrop === "banner" ? "is-dragging" : ""}`} {...dropZoneProps("banner", (files) => chooseBanner(files?.[0]))}>
-                <div className="banner-preview">
-                  {bannerPreview ? (
+              <section className="ad-form-section">
+                <div className="ad-form-section-head">
+                  <span>01</span>
+                  <div><h2>병원 브랜드 이미지</h2><p>로고와 배너를 따로 올릴 필요 없이 한 장만 등록하면 됩니다.</p></div>
+                  <em>선택사항</em>
+                </div>
+                <div className={`single-brand-upload ${activeDrop === "brand" ? "is-dragging" : ""}`} {...dropZoneProps("brand", (files) => chooseBrand(files?.[0]))}>
+                  <div className="banner-preview">
+                  {brandPreview ? (
                     <img
-                      src={bannerPreview}
-                      alt="선택한 프리미엄 병원 배너 미리보기"
+                      src={brandPreview}
+                      alt="선택한 병원 브랜드 이미지 미리보기"
                     />
                   ) : (
                     <div>
-                      <Sparkles />
-                      <strong>배너가 없으면 자동 브랜드 배너</strong>
-                      <small>
-                        병원명과 진료 성격에 맞는 절제된 색상으로 제작합니다.
-                      </small>
+                      <Building2 />
+                      <strong>이미지가 없어도 공고 등록 가능</strong>
+                      <small>미등록 시 병원명을 중심으로 단정한 기본 카드를 자동 생성합니다.</small>
                     </div>
                   )}
                 </div>
                 <label>
                   <span>
-                    공고 카드 배너 <i>선택사항 · 모든 공고 상품</i>
+                    병원 브랜드 이미지 <i>공고 목록과 상세 페이지에 공통 사용</i>
                   </span>
                   <input
-                    name="banner"
+                    name="brandImage"
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
-                    onChange={selectBanner}
+                    onChange={selectBrand}
                   />
                   <div className="upload-button">
                     <Upload />
                     <div>
-                      <strong>{bannerName || "공고 배너 선택 (선택사항)"}</strong>
-                      <small>예: 1500×500px · 정확히 3:1 · PNG·JPG·WEBP · 최대 8MB</small>
+                      <strong>{brandName || "클릭하거나 이미지를 끌어 놓으세요"}</strong>
+                      <small>권장 1200×400px 가로형 · PNG·JPG·WEBP · 최대 8MB</small>
                     </div>
                   </div>
-                  {bannerError && <em>{bannerError}</em>}
+                  {brandError && <em>{brandError}</em>}
                 </label>
-              </div>
-              <div className={`brand-upload ${activeDrop === "logo" ? "is-dragging" : ""}`} {...dropZoneProps("logo", (files) => chooseLogo(files?.[0]))}>
-                <div className="logo-preview">
-                  {logoPreview ? (
-                    <img src={logoPreview} alt="선택한 병원 로고 미리보기" />
-                  ) : (
-                    <Building2 />
-                  )}
+                <div className="single-brand-guide">
+                  <strong>어떤 이미지를 올리면 되나요?</strong>
+                  <span><Check /> 병원 로고 또는 병원명 워드마크가 들어간 가로형 이미지 1장</span>
+                  <span><Check /> 투명 배경 PNG를 권장하며, 다른 비율은 여백을 넣어 안전하게 표시</span>
+                  <span><Check /> 홍보 문구가 많은 광고 전단 이미지는 사용하지 않음</span>
                 </div>
-                <label>
-                  <span>
-                    병원 로고 <i>선택사항 · 모든 공고 상품</i>
-                  </span>
-                  <input
-                    name="logo"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={selectLogo}
-                  />
-                  <div className="upload-button">
-                    <Upload />
-                    <div>
-                      <strong>{logoName || "병원 로고 선택 (선택사항)"}</strong>
-                      <small>예: 800×400px · 2:1 투명 PNG 권장 · JPG·WEBP · 최대 5MB</small>
-                    </div>
-                  </div>
-                  {logoError && <em>{logoError}</em>}
-                </label>
               </div>
+              </section>
+              <section className="ad-form-section">
+                <div className="ad-form-section-head">
+                  <span>02</span>
+                  <div><h2>병원 사진</h2><p>진료실·대기실·건물 등 실제 근무환경을 보여주는 상세 갤러리입니다.</p></div>
+                  <em>선택사항</em>
+                </div>
               <section className={`facility-photo-upload ${activeDrop === "facility" ? "is-dragging" : ""}`} {...dropZoneProps("facility", chooseFacilityPhotos)}>
                 <div className="facility-upload-head">
                   <div>
@@ -2356,6 +2302,13 @@ function Checkout({ plan, onClose }) {
                 )}
                 {photoError && <em>{photoError}</em>}
               </section>
+              </section>
+              <section className="ad-form-section">
+                <div className="ad-form-section-head">
+                  <span>03</span>
+                  <div><h2>병원 기본정보</h2><p>지원자가 근무지와 진료환경을 이해하는 데 필요한 정보입니다.</p></div>
+                  <em>필수항목 확인</em>
+                </div>
               <div className="institution-fields-head">
                 <strong>병원 추가 정보</strong>
                 <span>의사가 근무 환경을 판단하는 데 필요한 내용입니다.</span>
@@ -2466,6 +2419,13 @@ function Checkout({ plan, onClose }) {
                   <input name="equipment" placeholder="예: MRI, CT, C-arm" />
                 </label>
               </div>
+              </section>
+              <section className="ad-form-section">
+                <div className="ad-form-section-head">
+                  <span>04</span>
+                  <div><h2>채용조건</h2><p>공개 가능한 핵심 조건부터 멤버십 상세조건까지 입력해주세요.</p></div>
+                  <em>정확할수록 매칭 향상</em>
+                </div>
               <label className="wide-field">
                 <span>채용 진료과·초빙 형태 *</span>
                 <input
@@ -2507,6 +2467,12 @@ function Checkout({ plan, onClose }) {
                   placeholder="진료 환경, 기관의 강점, 초빙 인원과 일정을 간단히 적어주세요."
                 />
               </label>
+              </section>
+              <section className="ad-form-section ad-form-final">
+                <div className="ad-form-section-head">
+                  <span>05</span>
+                  <div><h2>검수·결제 안내</h2><p>원하는 안내 방식을 선택하고 접수를 완료해주세요.</p></div>
+                </div>
               <div className="payment-choice">
                 <span>결제 안내 방식</span>
                 <div>
@@ -2530,9 +2496,10 @@ function Checkout({ plan, onClose }) {
                 <input required type="checkbox" name="terms" value="agreed" />
                 <span>
                   광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원
-                  로고는 사용 권한을 확인한 파일만 등록합니다.
+                  브랜드 이미지는 사용 권한을 확인한 파일만 등록합니다.
                 </span>
               </label>
+              </section>
             </div>
             <aside className="order-summary">
               <small>선택한 상품</small>
@@ -2562,22 +2529,25 @@ function Checkout({ plan, onClose }) {
           </form>
         </>
       )}
-    </Modal>
+      </div>
+    </section>
   );
 }
 
 function AdvertisePage({ qa }) {
-  const [plan, setPlan] = useState(null);
   const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
-  const requestPlan = (nextPlan) => canRegisterAds ? setPlan(nextPlan) : navigate('/signup/hospital?next=/advertise');
+  const requestPlan = (nextPlan) => {
+    const target = `/advertise/apply?plan=${nextPlan.id}`;
+    navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
+  };
   return <>
     <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="초기 파트너 가격 59,000원부터 시작합니다. 의사 초빙공고 등록부터 전담 컨설턴트의 후보 발굴까지 필요한 만큼 선택하세요."><a className="button light" href="#plans">광고 상품 비교</a></PageHero>
     <section className="section ad-exposure-pitch ad-showcase-compact" id="ad-preview">
       <div className="ad-exposure-copy">
         <span className="section-kicker">BE SEEN FIRST</span>
         <h2>좋은 공고를<br />한눈에 먼저 보이게</h2>
-        <p>병원 로고·배너가 있으면 브랜드 이미지로, 없으면 임의 약칭 없이 병원명 중심의 단정한 기본 카드로 노출합니다. 광고 등급에 따라 목록 순서와 강조 범위만 명확하게 달라집니다.</p>
-        <ul className="ad-showcase-points"><li><Check /> 로고·배너 등록은 선택사항</li><li><Check /> 공고 제목과 핵심 조건은 같은 규격으로 비교</li><li><Check /> 결제 전 실제 노출 위치와 기간 확인</li></ul>
+        <p>병원 브랜드 이미지가 있으면 공고 카드에 선명하게 표시하고, 없으면 임의 약칭 없이 병원명 중심의 단정한 기본 카드로 노출합니다. 광고 등급에 따라 목록 순서와 강조 범위만 명확하게 달라집니다.</p>
+        <ul className="ad-showcase-points"><li><Check /> 브랜드 이미지 1장 등록은 선택사항</li><li><Check /> 공고 제목과 핵심 조건은 같은 규격으로 비교</li><li><Check /> 결제 전 실제 노출 위치와 기간 확인</li></ul>
         <button className="button primary ad-showcase-cta" onClick={() => requestPlan(adPlans[1])}>{canRegisterAds ? '초빙광고 시작하기' : '병원 회원가입 후 시작'} <ArrowRight /></button>
       </div>
       <div className="exposure-rank-card" aria-label="광고 상품별 노출 순서 예시">
@@ -2590,8 +2560,29 @@ function AdvertisePage({ qa }) {
     </section>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '병원 회원가입 후 신청'}</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
-    {plan && <Checkout plan={plan} onClose={() => setPlan(null)} />}
   </>;
+}
+
+function AdvertiseApplyPage({ route, qa }) {
+  const params = new URLSearchParams(route.split("?")[1] || "");
+  const plan = adPlans.find((item) => item.id === params.get("plan")) || adPlans[1];
+  const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  if (!canRegisterAds) {
+    const next = `/advertise/apply?plan=${plan.id}`;
+    return (
+      <section className="ad-apply-page ad-apply-gate">
+        <div className="ad-apply-gate-card">
+          <span><Building2 /></span>
+          <small>HOSPITAL ACCOUNT REQUIRED</small>
+          <h1>병원 회원 로그인 후<br />공고를 등록할 수 있어요</h1>
+          <p>병원 정보와 담당자 연락처를 안전하게 관리하기 위해 병원 회원만 초빙공고를 접수할 수 있습니다.</p>
+          <Link className="button primary full" to={`/signup/hospital?next=${encodeURIComponent(next)}`}>로그인·병원 회원가입 <ArrowRight /></Link>
+          <Link className="ad-apply-gate-back" to="/advertise">광고 상품 다시 보기</Link>
+        </div>
+      </section>
+    );
+  }
+  return <Checkout plan={plan} />;
 }
 
 function MembershipCheckout({ plan, onClose }) {
@@ -2936,6 +2927,7 @@ export function App() {
   else if (path === '/talent') page = <TalentPage qa={qa} />;
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
+  else if (path === '/advertise/apply') page = <AdvertiseApplyPage route={route} qa={qa} />;
   else if (path === '/advertise') page = <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;

@@ -3150,6 +3150,86 @@ html.performance-lite .motion-notice{background:#fff}
 .resume-access-loading>span svg{animation:resume-account-pulse 1.2s ease-in-out infinite}
 @keyframes resume-account-pulse{50%{opacity:.42;transform:scale(.9)}}
 
+/* Full-page recruitment ad application. */
+.ad-apply-page{
+  min-height:calc(100vh - 78px);
+  padding:52px clamp(24px,5vw,80px) 100px;
+  background:
+    radial-gradient(circle at 8% 2%,rgba(18,99,232,.08),transparent 25%),
+    radial-gradient(circle at 92% 18%,rgba(24,169,137,.08),transparent 24%),
+    #f5f8fc;
+}
+.ad-apply-shell{width:min(1540px,100%);margin:0 auto}
+.ad-apply-breadcrumb{display:flex;align-items:center;gap:8px;margin-bottom:18px;color:#7c899b;font-size:14px;font-weight:700}
+.ad-apply-breadcrumb a{color:#43617f}.ad-apply-breadcrumb svg{width:14px}
+.ad-apply-header{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:40px;
+  padding:38px 42px;border:1px solid #dce6f2;border-radius:24px 24px 0 0;background:#fff;
+}
+.ad-apply-header small{font:800 13px 'Manrope';letter-spacing:1.2px;color:var(--blue)}
+.ad-apply-header h1{margin:8px 0 10px;color:#102341;font-size:clamp(34px,3.1vw,52px);letter-spacing:-2.3px}
+.ad-apply-header p{max-width:780px;margin:0;color:#6d7c91;font-size:17px;line-height:1.7}
+.ad-apply-help{min-width:300px;padding:17px 19px;border-radius:15px;background:#eef7f4;color:#168a74;display:flex;align-items:center;gap:12px}
+.ad-apply-help svg{width:25px;flex:0 0 auto}.ad-apply-help span{display:flex;flex-direction:column;font-size:13px;line-height:1.5}.ad-apply-help strong{font-size:15px;color:#126f5e}
+.ad-apply-steps{list-style:none;margin:0;padding:0 42px;height:86px;border:1px solid #dce6f2;border-top:0;background:#fff;display:grid;grid-template-columns:repeat(3,1fr);align-items:center}
+.ad-apply-steps li{position:relative;display:flex;align-items:center;gap:11px;color:#8a96a7;font-size:15px;font-weight:800}
+.ad-apply-steps li:not(:last-child):after{content:"";position:absolute;left:42px;right:22px;bottom:-11px;height:2px;background:#e3e9f1}
+.ad-apply-steps b{width:31px;height:31px;border-radius:50%;background:#e8edf3;color:#7e8b9c;display:grid;place-items:center;font:800 13px 'Manrope'}
+.ad-apply-steps .active{color:var(--blue)}.ad-apply-steps .active b{background:var(--blue);color:#fff}
+.ad-apply-page .checkout-grid{
+  grid-template-columns:minmax(0,1fr) 340px;gap:26px;
+  padding:30px;border:1px solid #dce6f2;border-top:0;border-radius:0 0 24px 24px;background:#edf2f8;
+}
+.ad-apply-page .checkout-form{display:flex;flex-direction:column;gap:20px}
+.ad-form-section{padding:30px 32px;border:1px solid #dfe7f0;border-radius:20px;background:#fff;box-shadow:0 10px 26px rgba(35,64,100,.035)}
+.ad-form-section-head{display:flex;align-items:flex-start;gap:13px;margin-bottom:24px}
+.ad-form-section-head>span{width:38px;height:38px;border-radius:12px;background:#eaf2ff;color:var(--blue);display:grid;place-items:center;font:800 12px 'Manrope';flex:0 0 auto}
+.ad-form-section-head>div{flex:1}.ad-form-section-head h2{margin:0;color:#172b49;font-size:22px;letter-spacing:-.7px}.ad-form-section-head p{margin:5px 0 0;color:#7b899b;font-size:14px;line-height:1.6}
+.ad-form-section-head>em{padding:7px 10px;border-radius:8px;background:#f1f5f9;color:#6d7c90;font-size:12px;font-style:normal;font-weight:800;white-space:nowrap}
+.single-brand-upload{display:grid;grid-template-columns:minmax(320px,1.2fr) minmax(330px,1fr);gap:22px;padding:20px;border:1px solid #d8e4f1;border-radius:17px;background:linear-gradient(135deg,#f3f7fd,#f8fbff 55%,#eef9f6);transition:.2s ease}
+.single-brand-upload.is-dragging{border-color:var(--blue);background:#edf5ff;box-shadow:0 0 0 4px rgba(18,99,232,.1)}
+.single-brand-upload label{min-width:0}.single-brand-upload label>span{font-size:14px;font-weight:800;color:#30425e}.single-brand-upload label>span i{display:block;margin-top:3px;color:#8492a5;font-size:12px;font-style:normal;font-weight:500}
+.single-brand-upload input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.single-brand-upload em{display:block;margin-top:7px;color:#c64555;font-size:13px;font-style:normal}
+.single-brand-upload .banner-preview{min-height:150px}.single-brand-upload .banner-preview img{object-fit:contain;padding:18px;background:#fff}
+.single-brand-upload .banner-preview>div{padding:24px}.single-brand-upload .banner-preview svg{width:28px;color:var(--blue)}
+.single-brand-guide{grid-column:1/-1;display:grid;grid-template-columns:auto repeat(3,1fr);gap:12px;padding-top:4px;color:#637289;font-size:12px;line-height:1.55}
+.single-brand-guide strong{color:#263b59}.single-brand-guide span{display:flex;gap:5px}.single-brand-guide svg{width:14px;color:#16977e;flex:0 0 auto}
+.ad-apply-page .facility-photo-upload{margin:0;background:#f7f9fc}
+.ad-apply-page .institution-fields-head{margin-top:0;padding-top:0;border-top:0}
+.ad-apply-page .form-grid{gap:17px}.ad-apply-page .checkout-form label>span{font-size:14px}
+.ad-apply-page .checkout-form input,.ad-apply-page .checkout-form textarea,.ad-apply-page .checkout-form select{min-height:52px;border-radius:12px;font-size:15px}
+.ad-apply-page .checkout-form textarea{min-height:120px}
+.ad-apply-page .membership-intake{margin-top:20px}
+.ad-apply-page .order-summary{position:sticky;top:96px;height:max-content;padding:29px;border:1px solid #d8e2ee;background:#fff;box-shadow:0 18px 42px rgba(31,61,99,.09)}
+.ad-apply-page .order-summary>small{font-size:13px}.ad-apply-page .order-summary h3{font-size:25px}.ad-apply-page .order-summary>p{font-size:14px}
+.ad-apply-page .order-summary li{font-size:14px}.ad-apply-page .price-row strong{font-size:21px}
+.ad-apply-page .order-summary .button{min-height:58px;font-size:16px}
+.ad-apply-page .secure-note{font-size:12px!important}
+.ad-apply-success{max-width:800px;margin:60px auto;padding:72px 45px;border:1px solid #dce6f2;border-radius:25px;background:#fff;box-shadow:0 24px 60px rgba(35,64,100,.1)}
+.ad-apply-success h2{font-size:32px}.ad-apply-success-actions{display:flex;justify-content:center;gap:10px}
+.ad-apply-gate{display:grid;place-items:center}.ad-apply-gate-card{width:min(590px,100%);padding:52px 50px;border:1px solid #dce6f2;border-radius:26px;background:#fff;text-align:center;box-shadow:0 25px 65px rgba(35,64,100,.11)}
+.ad-apply-gate-card>span{width:72px;height:72px;margin:0 auto 18px;border-radius:22px;background:#eaf2ff;color:var(--blue);display:grid;place-items:center}.ad-apply-gate-card>span svg{width:34px}
+.ad-apply-gate-card small{font:800 12px 'Manrope';letter-spacing:1px;color:var(--blue)}.ad-apply-gate-card h1{margin:9px 0 15px;color:#122746;font-size:35px;line-height:1.25;letter-spacing:-1.5px}
+.ad-apply-gate-card p{margin:0 0 25px;color:#738197;font-size:15px;line-height:1.7}.ad-apply-gate-card .button{min-height:57px}.ad-apply-gate-back{display:inline-block;margin-top:18px;color:#60738d;font-size:14px;font-weight:800}
+
+@media(max-width:1120px){
+  .ad-apply-page .checkout-grid{grid-template-columns:1fr}
+  .ad-apply-page .order-summary{position:static;order:-1}
+  .single-brand-guide{grid-template-columns:1fr 1fr}.single-brand-guide strong{grid-column:1/-1}
+}
+@media(max-width:780px){
+  .ad-apply-page{padding:30px 15px 80px}
+  .ad-apply-header{align-items:flex-start;padding:28px 23px;flex-direction:column}.ad-apply-help{min-width:0;width:100%}
+  .ad-apply-header h1{font-size:34px}.ad-apply-header p{font-size:15px}
+  .ad-apply-steps{height:auto;padding:17px 20px;gap:8px}.ad-apply-steps li{font-size:12px}.ad-apply-steps li:not(:last-child):after{display:none}.ad-apply-steps b{width:27px;height:27px}.ad-apply-steps span{display:none}
+  .ad-apply-page .checkout-grid{padding:14px}.ad-form-section{padding:23px 18px}.ad-form-section-head>em{display:none}
+  .single-brand-upload{grid-template-columns:1fr;padding:14px}.single-brand-guide{grid-template-columns:1fr}.single-brand-guide strong{grid-column:auto}
+  .facility-upload-head{align-items:flex-start;flex-direction:column}.facility-photo-preview{grid-template-columns:1fr 1fr}
+  .ad-apply-success{margin:25px auto;padding:48px 22px}.ad-apply-success-actions{flex-direction:column}
+  .ad-apply-gate-card{padding:42px 24px}.ad-apply-gate-card h1{font-size:29px}
+}
+
 @media(min-width:1081px){
   .resume-hero{
     padding:68px max(40px,calc((100vw - 1440px)/2)) 58px;
