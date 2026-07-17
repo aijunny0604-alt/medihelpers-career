@@ -2871,3 +2871,141 @@ html.performance-lite .motion-notice{background:#fff}
   .resume-photo-button{width:100%;margin-top:0}
   .resume-photo-field>small,.resume-photo-field>p{text-align:left}
 }
+
+/* Premium recruitment list controls aligned with the card grid. */
+.jobs-page .portal-result-row{
+  min-height:82px;
+  margin:28px 0 18px;
+  padding:14px 16px 14px 22px;
+  border:1px solid #dbe6f2;
+  border-radius:18px;
+  background:linear-gradient(110deg,#f8fbff 0%,#fff 58%,#f4f8ff 100%);
+  box-shadow:0 12px 32px rgba(31,68,113,.07);
+}
+.jobs-page .portal-result-row>div:first-child{
+  align-items:center;
+  gap:11px;
+}
+.jobs-page .portal-result-row>div:first-child>small{
+  padding:7px 9px;
+  border-radius:8px;
+  background:#eaf2ff;
+  color:#1263e8;
+  font-size:11px;
+  font-weight:800;
+}
+.jobs-page .portal-result-row>div:first-child>strong{
+  color:#142d50;
+  font-size:20px;
+  letter-spacing:-.5px;
+}
+.jobs-page .portal-result-row>div:first-child>strong em{font-size:31px}
+.jobs-page .portal-result-row .result-actions{
+  padding:5px;
+  border:1px solid #dce6f1;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 6px 16px rgba(31,68,113,.05);
+}
+.jobs-page .portal-result-row .result-actions span{
+  min-height:38px;
+  margin:0 5px 0 0;
+  padding:0 12px;
+  border-right:1px solid #e5ebf2;
+  color:#718095;
+}
+.jobs-page .portal-result-row .result-actions button{
+  min-height:38px;
+  padding-inline:14px;
+  border-radius:9px;
+}
+.jobs-page .portal-result-row .result-actions button.active{
+  background:linear-gradient(115deg,#eaf2ff,#edf7ff);
+  color:#0f61d7;
+  box-shadow:inset 0 0 0 1px #d6e5fa;
+}
+.jobs-page .portal-promoted-section{margin-top:0}
+.jobs-page .portal-promoted-section .promotion-heading{
+  min-height:112px;
+  margin:0 0 16px;
+  padding:22px 24px;
+  border:1px solid #dbe6f3;
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 92% 10%,rgba(42,125,238,.1),transparent 29%),
+    linear-gradient(115deg,#f7faff 0%,#fff 62%,#f2f7ff 100%);
+  box-shadow:0 13px 34px rgba(31,68,113,.07);
+  align-items:center;
+}
+.jobs-page .portal-promoted-section .promotion-heading>div:first-child{
+  position:relative;
+  padding-left:16px;
+}
+.jobs-page .portal-promoted-section .promotion-heading>div:first-child:before{
+  content:"";
+  position:absolute;
+  top:1px;
+  bottom:1px;
+  left:0;
+  width:4px;
+  border-radius:4px;
+  background:linear-gradient(#1263e8,#36a1ef);
+}
+.jobs-page .portal-promoted-section .promotion-heading span{
+  font-size:11px;
+  letter-spacing:1.15px;
+}
+.jobs-page .portal-promoted-section .promotion-heading strong{
+  margin-top:7px;
+  font-size:25px;
+  letter-spacing:-1px;
+}
+.jobs-page .portal-promoted-section .tier-heading-actions{
+  gap:18px;
+}
+.jobs-page .portal-promoted-section .tier-heading-actions>small{
+  max-width:330px;
+  color:#687990;
+  font-size:13px;
+  line-height:1.6;
+}
+.jobs-page .portal-promoted-section .tier-apply-button{
+  min-height:52px;
+  padding-inline:19px;
+  border-radius:12px;
+  font-size:14px;
+  box-shadow:0 12px 25px rgba(18,99,232,.19);
+}
+
+@media(max-width:900px){
+  .jobs-page .portal-result-row{align-items:center}
+  .jobs-page .portal-promoted-section .promotion-heading{align-items:stretch}
+  .jobs-page .portal-promoted-section .tier-heading-actions{align-items:center}
+}
+@media(max-width:620px){
+  .jobs-page .portal-result-row{
+    padding:15px;
+    border-radius:15px;
+  }
+  .jobs-page .portal-result-row>div:first-child{margin-bottom:12px}
+  .jobs-page .portal-result-row .result-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr auto auto;
+  }
+  .jobs-page .portal-result-row .result-actions span{padding-inline:8px}
+  .jobs-page .portal-promoted-section .promotion-heading{
+    min-height:0;
+    padding:19px 17px;
+    border-radius:16px;
+  }
+  .jobs-page .portal-promoted-section .promotion-heading strong{font-size:21px}
+  .jobs-page .portal-promoted-section .tier-heading-actions{
+    margin-top:14px;
+    gap:11px;
+  }
+  .jobs-page .portal-promoted-section .tier-heading-actions>small{
+    max-width:none;
+    font-size:12px;
+  }
+}
