@@ -117,6 +117,8 @@ async function consultationApi(request, env, pathname) {
   try { await ensureConsultationSchema(env); } catch { return json({ error:'상담 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   if (request.method === 'POST' && pathname === '/api/consultations') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    const identity = authenticatedUser(request);
+    if (!identity) return json({ error:'상담 신청은 로그인 후 이용할 수 있습니다.' }, 401);
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 65536) return json({ error:'입력 내용이 너무 큽니다.' }, 413);
     let body;

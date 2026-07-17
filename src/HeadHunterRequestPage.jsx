@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -6,6 +6,7 @@ import {
   CircleCheck,
   FileText,
   Handshake,
+  LogIn,
   ShieldCheck,
   Stethoscope,
   Upload,
@@ -46,6 +47,15 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [access, setAccess] = useState("checking");
+  useEffect(() => {
+    let active = true;
+    fetch("/api/account", { credentials: "same-origin", headers: { accept: "application/json" } })
+      .then((response) => response.json())
+      .then((result) => { if (active) setAccess(result.signedIn ? "allowed" : "blocked"); })
+      .catch(() => { if (active) setAccess("blocked"); });
+    return () => { active = false; };
+  }, []);
   const submit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -71,6 +81,23 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
       setSubmitting(false);
     }
   };
+  if (access !== "allowed") {
+    const returnTo = `/request/${isDoctor ? "job-seeker" : "hiring"}`;
+    return <main className="quick-request-auth-page">
+      <div className="quick-auth-backdrop" aria-hidden="true"><span /><span /><span /></div>
+      <section className="quick-auth-dialog" role="dialog" aria-modal="true" aria-labelledby="consultation-login-title">
+        <div className={`quick-auth-icon ${isDoctor ? "doctor" : "hospital"}`}>{isDoctor ? <Stethoscope /> : <BriefcaseBusiness />}</div>
+        <small>MEMBERS ONLY CONSULTATION</small>
+        <h1 id="consultation-login-title">상담 신청은 로그인 후<br />이용할 수 있어요</h1>
+        <p>{isDoctor ? "이직 조건과 경력 정보" : "병원 채용 조건과 담당자 정보"}를 안전하게 보호하기 위해 로그인한 회원만 상담을 접수할 수 있습니다.</p>
+        {access === "checking" ? <div className="quick-auth-checking">회원 상태를 확인하고 있습니다…</div> : <>
+          <a className="quick-auth-login" href={withBase(`/signin-with-chatgpt?return_to=${withBase(returnTo)}`)}><LogIn /> 로그인하고 상담 계속하기 <ArrowRight /></a>
+          <a className="quick-auth-signup" href={withBase(`/signup/${isDoctor ? "doctor" : "hospital"}?next=${encodeURIComponent(returnTo)}`)}>{isDoctor ? "의사 회원가입" : "병원 회원가입"} 안내 보기</a>
+        </>}
+        <div className="quick-auth-safe"><ShieldCheck /><span><strong>상담 내용은 공개되지 않습니다</strong><small>회원 확인 후 메디헬퍼스 담당 헤드헌터에게만 안전하게 전달됩니다.</small></span></div>
+      </section>
+    </main>;
+  }
   if (done)
     return (
       <main className="quick-request-page">
