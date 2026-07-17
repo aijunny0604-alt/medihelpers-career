@@ -17,9 +17,9 @@ import { withBase } from "./basePath.js";
 const copy = {
   doctor: {
     eyebrow: "FREE JOB-SEEKING REQUEST",
-    title: "의료인 구직희망 접수",
+    title: "의사 선생님 간편 이력서",
     description:
-      "원하는 근무조건을 남기면 메디헬퍼스 헤드헌터가 확인한 뒤 비공개로 연락드립니다.",
+      "필요한 정보와 희망 조건만 남기면 메디헬퍼스 헤드헌터가 빠르게 확인한 뒤 비공개로 연락드립니다.",
     steps: [
       ["상담 접수", "희망 지역·전문과·근무형태 입력"],
       ["맞춤 제안", "조건에 맞는 공개·비공개 공고 안내"],
@@ -28,9 +28,9 @@ const copy = {
   },
   hospital: {
     eyebrow: "FREE HIRING REQUEST",
-    title: "병원 구인희망 접수",
+    title: "의사 초빙 의뢰서",
     description:
-      "필요한 의사 조건을 남기면 메디헬퍼스 헤드헌터가 채용조건을 정리해 연락드립니다.",
+      "병원의 채용 조건을 남기면 담당 헤드헌터가 내용을 정리하고 적합한 의사를 매칭해드립니다.",
     steps: [
       ["초빙 의뢰", "진료과·일정·보수조건 입력"],
       ["후보 추천", "적합성 확인 후 동의된 후보 제안"],
@@ -137,13 +137,19 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
         <header>
           <div>
             <small>MEDIHELPERS CONSULTATION</small>
-            <h2>상담 신청</h2>
+            <h2>{isDoctor ? "의사 선생님 간편 이력서" : "의사 초빙 의뢰서"}</h2>
           </div>
           <p>
-            필요한 사항만 입력해주세요. 담당 헤드헌터가 세부 조건을 함께
-            정리합니다.
+            {isDoctor
+              ? "간단한 정보와 희망 조건을 작성하면 담당 헤드헌터가 빠르게 연락드립니다."
+              : "아래 양식을 작성하면 담당 헤드헌터가 채용조건을 확인하고 최적의 의사를 매칭해드립니다."}
           </p>
         </header>
+        <div className="quick-request-contact-card">
+          <div><span>전화 상담</span><a href="tel:01024355463">010-2435-5463</a></div>
+          <div><span>이메일</span><a href="mailto:hr@medihelpers.co.kr">hr@medihelpers.co.kr</a></div>
+          <small><b>*</b> 표시는 필수 입력 항목입니다.</small>
+        </div>
         <div className="quick-request-grid">
           {isDoctor ? (
             <>
@@ -152,28 +158,44 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
                 <input required name="name" placeholder="성함을 입력해주세요" />
               </label>
               <label>
-                <span>전문과목·직군 *</span>
-                <input
-                  required
-                  name="specialty"
-                  placeholder="예: 소화기내과 전문의, 간호사"
-                />
+                <span>전화번호 *</span>
+                <input required name="phone" type="tel" inputMode="tel" placeholder="010-0000-0000" />
               </label>
               <label>
-                <span>세부분과·주요업무</span>
-                <input
-                  name="subspecialty"
-                  placeholder="예: 내시경, 검진, 병동간호"
-                />
+                <span>전문 분류 *</span>
+                <select required name="professionalType" defaultValue="">
+                  <option value="" disabled>선택해주세요</option>
+                  <option>전문의</option>
+                  <option>일반의</option>
+                </select>
               </label>
               <label>
-                <span>희망 근무지역 *</span>
-                <input required name="region" placeholder="예: 부산·경남" />
+                <span>전문과목·주요업무 *</span>
+                <input required name="specialty" placeholder="예: 소화기내과, 검진, 외래" />
               </label>
               <label>
-                <span>희망 근무형태 *</span>
-                <select required name="workType">
-                  <option value="">선택</option>
+                <span>성별 <i>선택</i></span>
+                <select name="gender" defaultValue="응답하지 않음">
+                  <option>응답하지 않음</option>
+                  <option>남성</option>
+                  <option>여성</option>
+                </select>
+              </label>
+              <label>
+                <span>생년 <i>선택</i></span>
+                <input name="birthYear" inputMode="numeric" maxLength="4" placeholder="예: 1985" />
+              </label>
+              <label>
+                <span>이메일 <i>선택</i></span>
+                <input name="email" type="email" placeholder="example@email.com" />
+              </label>
+              <label>
+                <span>원하시는 근무지</span>
+                <input name="region" placeholder="예: 서울 강남, 경기 수원" />
+              </label>
+              <label>
+                <span>희망 근무형태</span>
+                <select name="workType" defaultValue="협의 가능">
                   <option>정규직</option>
                   <option>파트타임</option>
                   <option>당직·대진</option>
@@ -183,7 +205,7 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
               </label>
               <label>
                 <span>이직 희망시기</span>
-                <select name="startTiming">
+                <select name="startTiming" defaultValue="상담 후 결정">
                   <option>즉시</option>
                   <option>1개월 내</option>
                   <option>3개월 내</option>
@@ -203,55 +225,68 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
                 />
               </label>
               <label>
-                <span>담당자명 *</span>
-                <input required name="manager" placeholder="채용 담당자 성함" />
+                <span>담당자 성함과 직함 *</span>
+                <input required name="manager" placeholder="예: 홍길동 원장, 김철수 행정팀장" />
+              </label>
+              <label>
+                <span>담당자 전화번호 *</span>
+                <input required name="phone" type="tel" inputMode="tel" placeholder="010-0000-0000" />
+              </label>
+              <label>
+                <span>이메일 <i>선택</i></span>
+                <input name="email" type="email" placeholder="example@email.com" />
+              </label>
+              <label className="wide">
+                <span>병원 주소</span>
+                <input name="address" placeholder="예: 서울 강남구 역삼동 123-45" />
+              </label>
+              <label>
+                <span>초빙 원하는 전공과목 *</span>
+                <input
+                  required
+                  name="specialty"
+                  placeholder="예: 내과, 정형외과, 피부과"
+                />
+              </label>
+              <label>
+                <span>예상 페이(Net)</span>
+                <input
+                  name="salary"
+                  placeholder="예: 월 1,500만원 · 협의"
+                />
+              </label>
+              <label>
+                <span>희망 연령대 <i>선택</i></span>
+                <input name="preferredAge" placeholder="예: 무관, 30~45세" />
+              </label>
+              <label>
+                <span>희망 성별 <i>선택</i></span>
+                <select name="preferredGender" defaultValue="무관">
+                  <option>무관</option><option>남성</option><option>여성</option>
+                </select>
+              </label>
+              <fieldset className="quick-option-group">
+                <legend>세부전공(Fellow)</legend>
+                <div className="quick-choice-row">
+                  {["무관", "유", "무"].map((item) => <label key={item}><input type="radio" name="fellowship" value={item} defaultChecked={item === "무관"} /><span>{item}</span></label>)}
+                </div>
+              </fieldset>
+              <fieldset className="quick-option-group">
+                <legend>관련 경력</legend>
+                <div className="quick-choice-row">
+                  {["무관", "유", "무"].map((item) => <label key={item}><input type="radio" name="experienceRequired" value={item} defaultChecked={item === "무관"} /><span>{item}</span></label>)}
+                </div>
+              </fieldset>
+              <label>
+                <span>근무형태·시간</span>
+                <input name="schedule" placeholder="예: 평일 08:30~18:30 · 토 격주" />
               </label>
               <label>
                 <span>병상·일평균 환자</span>
                 <input name="scale" placeholder="예: 30병상 · 외래 40명" />
               </label>
-              <label>
-                <span>초빙과목 *</span>
-                <input
-                  required
-                  name="specialty"
-                  placeholder="예: 소화기내과 전문의"
-                />
-              </label>
-              <label>
-                <span>제안 보수</span>
-                <input
-                  name="salary"
-                  placeholder="예: NET 월 2,000만원 · 협의"
-                />
-              </label>
-              <label>
-                <span>근무형태·시간</span>
-                <input
-                  name="schedule"
-                  placeholder="예: 평일 08:30~18:30 · 토 격주"
-                />
-              </label>
             </>
           )}
-          <label>
-            <span>휴대전화 *</span>
-            <input
-              required
-              name="phone"
-              type="tel"
-              placeholder="010-0000-0000"
-            />
-          </label>
-          <label>
-            <span>이메일 *</span>
-            <input
-              required
-              name="email"
-              type="email"
-              placeholder="contact@example.com"
-            />
-          </label>
         <div className="wide quick-contact-time">
           <span>연락 희망시간</span>
           <div className="quick-choice-row">
@@ -292,26 +327,26 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
           </div>
         )}
         <label className="quick-message">
-          <span>상담을 원하는 내용</span>
+          <span>{isDoctor ? "헤드헌터에게 전하실 말씀" : "기타 전하실 말씀"}</span>
           <textarea
             name="message"
             rows="6"
             placeholder={
               isDoctor
-                ? "희망 보수, 피하고 싶은 조건, 궁금한 점을 자유롭게 적어주세요."
-                : "채용 배경, 필요 경력, 근무조건과 꼭 확인할 사항을 적어주세요."
+                ? "근무조건, 희망 페이, 이직 시 중요하게 보는 사항을 자유롭게 작성해주세요."
+                : "근무조건, 진료범위, 휴무·당직, 숙소 지원 등 희망사항을 자유롭게 작성해주세요."
             }
           />
         </label>
         <label className="quick-consent">
           <input required name="privacy" type="checkbox" value="agreed" />
           <span>
-            상담과 채용 매칭을 위한 개인정보 수집·이용에 동의합니다. 입력 정보는
-            메디헬퍼스 헤드헌터 상담 목적으로만 사용합니다.
+            <strong>개인정보 수집·이용에 동의합니다. *</strong>
+            입력 정보는 헤드헌팅 상담과 채용 매칭 목적으로만 사용하며, 상담 종료 또는 목적 달성 후 지체 없이 파기합니다.
           </span>
         </label>
         <button className="quick-submit" type="submit">
-          무료 상담 신청 <ArrowRight />
+          {isDoctor ? "간편 이력서 제출하기" : "의사 초빙 의뢰하기"} <ArrowRight />
         </button>
         <p className="quick-security">
           <ShieldCheck />{" "}
