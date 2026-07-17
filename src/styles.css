@@ -2097,6 +2097,18 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .talent-portal-list .talent-card dd{min-width:0;text-align:left;font-size:14px;line-height:1.55;overflow-wrap:anywhere;word-break:keep-all}
 @media(max-width:520px){.talent-portal-list .talent-card dl>div,.talent-portal-list .talent-card dl>div:nth-child(2){grid-template-columns:88px minmax(0,1fr);gap:12px}.talent-portal-list .talent-card dt,.talent-portal-list .talent-card dd{font-size:13px}}
 
+/* Keep the two audience choices compact enough to scan together with the next section. */
+@media(min-width:781px){
+  .dual-path.section{padding-top:58px;padding-bottom:58px}
+  .dual-path .path-card{min-height:0;padding:38px 42px}
+  .dual-path .path-icon{width:48px;height:48px;border-radius:14px}
+  .dual-path .path-card>small{margin-top:18px}
+  .dual-path .path-card h2{margin:6px 0 11px;font-size:clamp(29px,2vw,34px);line-height:1.32}
+  .dual-path .path-card p{margin:0;font-size:15px;line-height:1.7}
+  .dual-path .path-card ul{margin:18px 0 22px;gap:8px 18px;font-size:14px}
+  .dual-path .path-card .button{min-height:50px}
+}
+
 /* Adaptive performance mode: automatically removes expensive rendering on constrained devices. */
 html.performance-lite{scroll-behavior:auto!important}
 html.performance-lite *,html.performance-lite *:before,html.performance-lite *:after{
