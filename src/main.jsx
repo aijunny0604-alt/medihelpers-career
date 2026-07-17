@@ -1738,9 +1738,8 @@ function HeadhuntingPage({ route }) {
         <div className="consult-copy">
           <span className="section-kicker">1:1 DOCTOR HEADHUNTING</span>
           <h2>
-            공고보다 먼저,
-            <br />
-            의사의 상황을 듣습니다
+            <span>공고보다 먼저,</span>
+            <span>의사의 상황을 듣습니다</span>
           </h2>
           <p>
             같은 진료과라도 원하는 진료 방식과 삶의 조건은 다릅니다.
