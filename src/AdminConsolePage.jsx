@@ -25,6 +25,13 @@ const groups = [
   ] },
 ];
 
+const demoCategorySeed = {
+  doctor_specialty: ['내과','외과','정형외과','신경외과','소아청소년과','산부인과','가정의학과','영상의학과','마취통증의학과','정신건강의학과','피부과','성형외과','안과','이비인후과','비뇨의학과','재활의학과','응급의학과','신경과','진단검사의학과','병리과','심장혈관흉부외과','직업환경의학과','핵의학과','예방의학과'],
+  region: ['서울','경기','인천','부산','대구','대전','광주','울산','세종','강원','충북','충남','전북','전남','경북','경남','제주'],
+  medical_role: ['간호사','간호조무사','방사선사','임상병리사','물리치료사','작업치료사','치과위생사','약사','응급구조사','보건의료정보관리사','안경사','병원행정'],
+};
+const demoCategories = Object.entries(demoCategorySeed).flatMap(([groupKey, names]) => names.map((name, index) => ({ id:`${groupKey}-${index + 1}`, groupKey, name, slug:`${groupKey}-${index + 1}`, sortOrder:(index + 1) * 10, enabled:true })));
+
 const demoData = {
   metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: 24, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0 },
   settings: {
@@ -42,12 +49,7 @@ const demoData = {
     paidCareerService: false,
     adRegistration: true,
   },
-  categories: [
-    { id: 'c1', groupKey: 'doctor_specialty', name: '내과', slug: 'internal-medicine', sortOrder: 10, enabled: true },
-    { id: 'c2', groupKey: 'doctor_specialty', name: '정형외과', slug: 'orthopedics', sortOrder: 20, enabled: true },
-    { id: 'c3', groupKey: 'region', name: '서울', slug: 'seoul', sortOrder: 10, enabled: true },
-    { id: 'c4', groupKey: 'medical_role', name: '간호사', slug: 'nurse', sortOrder: 10, enabled: false },
-  ],
+  categories: demoCategories,
   contents: [
     { id:'p1', contentType:'doctor_job', title:'정형외과 전문의 집중 초빙', subtitle:'해운대바른척추병원', status:'published', visibility:'doctor', updatedAt:'2026-07-17 15:30', payload:{ primary:'부산 해운대구', secondary:'월 1,500만원~', description:'주 4.5일 · 토요일 격주 근무' } },
     { id:'p2', contentType:'medical_job', title:'MRI·CT 방사선사 채용', subtitle:'수원 중앙영상의학센터', status:'published', visibility:'public', updatedAt:'2026-07-17 14:10', payload:{ primary:'경기 수원', secondary:'연 4,500만원~', description:'경력 3년 이상' } },
@@ -267,7 +269,7 @@ function Categories({ data, setData, mutate, qa }) {
   };
   return <section className="admin-panel">
     <header><div><small>CATEGORY MANAGEMENT</small><h2>검색과 등록 양식의 기준 정보</h2><p>분류를 수정하면 공고·이력서·검색 필터에 일관되게 반영됩니다.</p></div></header>
-    <div className="admin-category-tabs">{Object.entries(categoryLabels).map(([key, label]) => <button className={key === groupKey ? 'active' : ''} key={key} onClick={() => setGroupKey(key)}>{label}</button>)}</div>
+    <div className="admin-category-tabs">{Object.entries(categoryLabels).map(([key, label]) => <button className={key === groupKey ? 'active' : ''} key={key} onClick={() => setGroupKey(key)}><span>{label}</span><b>{data.categories.filter((item) => item.groupKey === key).length}</b></button>)}</div>
     <div className="admin-category-add"><input value={name} onChange={(event) => setName(event.target.value)} placeholder={`${categoryLabels[groupKey]} 이름`} onKeyDown={(event) => event.key === 'Enter' && create()} /><button onClick={create}><Plus />추가</button></div>
     <div className="admin-category-table">
       <div className="head"><span>순서</span><span>이름</span><span>식별값</span><span>공개</span><span>관리</span></div>

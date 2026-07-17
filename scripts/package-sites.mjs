@@ -370,11 +370,30 @@ async function writeAdminAudit(env, admin, action, subject, payload) {
 }
 async function seedAdminConsole(env) {
   const categories = [
-    ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','정형외과','orthopedics',20],
-    ['doctor_specialty','소아청소년과','pediatrics',30], ['doctor_specialty','가정의학과','family-medicine',40],
-    ['region','서울','seoul',10], ['region','경기','gyeonggi',20], ['region','부산','busan',30],
+    ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','외과','general-surgery',20],
+    ['doctor_specialty','정형외과','orthopedics',30], ['doctor_specialty','신경외과','neurosurgery',40],
+    ['doctor_specialty','소아청소년과','pediatrics',50], ['doctor_specialty','산부인과','obstetrics-gynecology',60],
+    ['doctor_specialty','가정의학과','family-medicine',70], ['doctor_specialty','영상의학과','radiology',80],
+    ['doctor_specialty','마취통증의학과','anesthesiology',90], ['doctor_specialty','정신건강의학과','psychiatry',100],
+    ['doctor_specialty','피부과','dermatology',110], ['doctor_specialty','성형외과','plastic-surgery',120],
+    ['doctor_specialty','안과','ophthalmology',130], ['doctor_specialty','이비인후과','otolaryngology',140],
+    ['doctor_specialty','비뇨의학과','urology',150], ['doctor_specialty','재활의학과','rehabilitation-medicine',160],
+    ['doctor_specialty','응급의학과','emergency-medicine',170], ['doctor_specialty','신경과','neurology',180],
+    ['doctor_specialty','진단검사의학과','laboratory-medicine',190], ['doctor_specialty','병리과','pathology',200],
+    ['doctor_specialty','심장혈관흉부외과','cardiothoracic-surgery',210], ['doctor_specialty','직업환경의학과','occupational-medicine',220],
+    ['doctor_specialty','핵의학과','nuclear-medicine',230], ['doctor_specialty','예방의학과','preventive-medicine',240],
+    ['region','서울','seoul',10], ['region','경기','gyeonggi',20], ['region','인천','incheon',30],
+    ['region','부산','busan',40], ['region','대구','daegu',50], ['region','대전','daejeon',60],
+    ['region','광주','gwangju',70], ['region','울산','ulsan',80], ['region','세종','sejong',90],
+    ['region','강원','gangwon',100], ['region','충북','chungbuk',110], ['region','충남','chungnam',120],
+    ['region','전북','jeonbuk',130], ['region','전남','jeonnam',140], ['region','경북','gyeongbuk',150],
+    ['region','경남','gyeongnam',160], ['region','제주','jeju',170],
     ['medical_role','간호사','nurse',10], ['medical_role','간호조무사','nursing-assistant',20],
-    ['medical_role','방사선사','radiologic-technologist',30]
+    ['medical_role','방사선사','radiologic-technologist',30], ['medical_role','임상병리사','clinical-laboratory-technologist',40],
+    ['medical_role','물리치료사','physical-therapist',50], ['medical_role','작업치료사','occupational-therapist',60],
+    ['medical_role','치과위생사','dental-hygienist',70], ['medical_role','약사','pharmacist',80],
+    ['medical_role','응급구조사','emergency-medical-technician',90], ['medical_role','보건의료정보관리사','health-information-manager',100],
+    ['medical_role','안경사','optician',110], ['medical_role','병원행정','hospital-administration',120]
   ];
   const settings = {
     siteName:'메디헬퍼스', supportPhone:'051-342-5463', supportEmail:'hr@medihelpers.co.kr',
@@ -389,6 +408,15 @@ async function seedAdminConsole(env) {
   Object.entries(settings).forEach(([key,value]) => statements.push(env.DB.prepare('INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES (?, ?)').bind(key, value)));
   Object.entries(features).forEach(([key,[enabled,description]]) => statements.push(env.DB.prepare('INSERT OR IGNORE INTO feature_flags (flag_key, enabled, description) VALUES (?, ?, ?)').bind(key, enabled, description)));
   await env.DB.batch(statements);
+}
+async function publicCategoriesApi(request, env) {
+  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  await ensureAdminConsoleSchema(env);
+  await seedAdminConsole(env);
+  const result = await env.DB.prepare('SELECT group_key AS groupKey, name, slug, sort_order AS sortOrder FROM admin_categories WHERE enabled = 1 ORDER BY group_key, sort_order, name').all();
+  const groups = { doctor_specialty:[], region:[], medical_role:[] };
+  for (const row of result.results || []) if (groups[row.groupKey]) groups[row.groupKey].push({ name:row.name, slug:row.slug, sortOrder:row.sortOrder });
+  return json({ categories:groups }, 200, { 'cache-control':'public, max-age=60' });
 }
 async function adminConsoleApi(request, env) {
   const admin = adminIdentity(request, env);
@@ -551,6 +579,7 @@ async function adminConsoleApi(request, env) {
 }
 async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
+  if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);
