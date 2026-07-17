@@ -2662,8 +2662,8 @@ export function App() {
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/resume') page = qa.active && qa.info.capabilities.doctor ? <ResumePage /> : <ResumeAccessGate />;
-  else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" />;
-  else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" />;
+  else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" qa={qa} />;
+  else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" qa={qa} />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;

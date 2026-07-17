@@ -40,22 +40,33 @@ const copy = {
   },
 };
 
-export default function HeadHunterRequestPage({ mode = "doctor" }) {
+export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
   const isDoctor = mode === "doctor";
   const content = copy[mode];
+  const qaAllowed = Boolean(
+    qa?.active &&
+      (qa.info.capabilities.admin ||
+        (isDoctor
+          ? qa.info.capabilities.doctor
+          : qa.info.capabilities.hospital)),
+  );
   const [done, setDone] = useState("");
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [access, setAccess] = useState("checking");
+  const [access, setAccess] = useState(qaAllowed ? "allowed" : "checking");
   useEffect(() => {
+    if (qaAllowed) {
+      setAccess("allowed");
+      return undefined;
+    }
     let active = true;
     fetch("/api/account", { credentials: "same-origin", headers: { accept: "application/json" } })
       .then((response) => response.json())
       .then((result) => { if (active) setAccess(result.signedIn ? "allowed" : "blocked"); })
       .catch(() => { if (active) setAccess("blocked"); });
     return () => { active = false; };
-  }, []);
+  }, [qaAllowed]);
   const submit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -65,6 +76,25 @@ export default function HeadHunterRequestPage({ mode = "doctor" }) {
     form.delete("privacy");
     const payload = { attachmentName: file?.name || "", ...Object.fromEntries(form.entries()) };
     try {
+      if (qaAllowed) {
+        const previewId = `QA-${isDoctor ? "D" : "H"}-${String(Date.now()).slice(-6)}`;
+        appendStoredRecord(
+          isDoctor
+            ? "medihelpers_jobseeker_requests"
+            : "medihelpers_hiring_requests",
+          {
+            id: previewId,
+            createdAt: new Date().toISOString(),
+            status: "preview",
+            preview: true,
+            ...payload,
+          },
+          20,
+        );
+        setDone(previewId);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
       const response = await fetch("/api/consultations", {
         method: "POST",
         headers: { "content-type": "application/json" },
