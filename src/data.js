@@ -128,7 +128,13 @@ export const talent = [
   { code: 'MH-D-2214', name: '이○○', identityConsent: false, dept: '소아청소년과', career: '전문의 6년', region: '전국', preference: '외래 중심 / 주 5일', available: '즉시', verified: true },
   { code: 'MH-D-1765', name: '최○○', identityConsent: false, dept: '영상의학과', career: '전문의 10년', region: '서울', preference: '판독 중심 / 당직 없음', available: '2개월 내', verified: true },
   { code: 'MH-D-2301', name: '정○○', identityConsent: false, dept: '가정의학과', career: '전문의 4년', region: '경기·인천', preference: '검진 / 주 4일', available: '즉시', verified: true },
-  { code: 'MH-D-1899', name: '한○○', identityConsent: false, dept: '마취통증의학과', career: '전문의 9년', region: '충청권', preference: '통증클리닉 / 원장', available: '협의', verified: true }
+  { code: 'MH-D-1899', name: '한○○', identityConsent: false, dept: '마취통증의학과', career: '전문의 9년', region: '충청권', preference: '통증클리닉 / 원장', available: '협의', verified: true },
+  { code: 'MH-D-2356', name: '윤○○', identityConsent: false, dept: '피부과', career: '전문의 7년', region: '서울·경기', preference: '비급여 진료 / 주 4일', available: '1개월 내', verified: true },
+  { code: 'MH-D-2147', name: '조○○', identityConsent: false, dept: '신경외과', career: '전문의 11년', region: '대구·경북', preference: '척추센터 / 외래 중심', available: '협의', verified: true },
+  { code: 'MH-D-2421', name: '오○○', identityConsent: false, dept: '정신건강의학과', career: '전문의 5년', region: '서울', preference: '예약제 / 당직 없음', available: '2개월 내', verified: true },
+  { code: 'MH-D-2073', name: '신○○', identityConsent: false, dept: '산부인과', career: '전문의 8년', region: '부산·울산', preference: '여성검진 / 주 4.5일', available: '즉시', verified: true },
+  { code: 'MH-D-2288', name: '임○○', identityConsent: false, dept: '재활의학과', career: '전문의 6년', region: '경기·충청', preference: '재활병원 / 당직 협의', available: '1개월 내', verified: true },
+  { code: 'MH-D-1934', name: '서○○', identityConsent: false, dept: '응급의학과', career: '전문의 13년', region: '전국', preference: '교대근무 / 일정 협의', available: '협의', verified: true }
 ];
 
 export const adPlans = [

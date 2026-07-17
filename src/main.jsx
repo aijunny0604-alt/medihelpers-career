@@ -1764,27 +1764,6 @@ function TalentPage({ qa }) {
           </Link>
         </div>
       </section>
-      <section className="section soft">
-        <div className="feature-grid">
-          <div>
-            <UserRoundSearch />
-            <h3>조건 기반 후보 탐색</h3>
-            <p>
-              진료과뿐 아니라 지역, 근무형태, 입사 가능 시점까지 확인합니다.
-            </p>
-          </div>
-          <div>
-            <FileCheck2 />
-            <h3>경력·자격 사전 확인</h3>
-            <p>후보자가 제공한 경력과 자격 정보를 소개 전에 점검합니다.</p>
-          </div>
-          <div>
-            <ShieldCheck />
-            <h3>동의 기반 정보 공개</h3>
-            <p>양측의 의사를 확인한 뒤 필요한 범위의 정보만 전달합니다.</p>
-          </div>
-        </div>
-      </section>
       <ConversionBanner
         title="찾는 인재가 따로 있으신가요?"
         description="채용 조건을 남기면 공개되지 않은 인재풀까지 확인해드립니다."
