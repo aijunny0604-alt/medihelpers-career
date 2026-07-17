@@ -13,6 +13,7 @@ import { adPlans, jobs, membershipPlans, navItems, talent } from './data.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
 import AccountPage from './AccountPage.jsx';
 import ResumePage from './ResumePage.jsx';
+import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
 import HeroSelect from './CustomSelect.jsx';
 import QaPreviewPage from './QaPreviewPage.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
@@ -509,8 +510,8 @@ function JobCard({
           {job.location}
         </span>
         <span>
-          <Clock3 size={15} />
-          {job.schedule}
+          <CalendarDays size={15} />
+          ~ {job.deadline || "마감일 협의"}
         </span>
       </div>
       <div className="job-bottom">
@@ -552,34 +553,268 @@ function JobCard({
 }
 function JobDetail({ job, saved, onSave, onClose, qa }) {
   const isAd = Boolean(job.adTier);
-  const restricted = isAd || job.badge === '비공개';
-  const qaUnlocked = restricted && qa?.active && qa.info.capabilities.privateDetails;
+  const restricted = isAd || job.badge === "비공개";
+  const qaUnlocked =
+    restricted && qa?.active && qa.info.capabilities.privateDetails;
   const locked = restricted && !qaUnlocked;
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   const hospitalPhotos = job.hospitalPhotos || [];
   const institutionFacts = [
-    ['기관명', job.institutionName || job.hospital],
-    ['주소', job.fullAddress || job.location],
-    ['홈페이지', job.website],
-    ['진료과목', job.specialties || job.focus],
-    ['대표자 및 사업자 번호', [job.representative, job.businessNumber].filter(Boolean).join(' · ')],
-    ['근무 의사 수', job.doctorCount],
-    ['수술 및 외래건수(일)', job.dailyVolume],
-    ['개원연도', job.established],
-    ['재직인원', job.staffCount],
-    ['의료설비', job.equipment],
-    ['병상 및 입원 환자', job.beds]
+    ["기관명", job.institutionName || job.hospital],
+    ["주소", job.fullAddress || job.location],
+    ["홈페이지", job.website],
+    ["진료과목", job.specialties || job.focus],
+    [
+      "대표자 및 사업자 번호",
+      [job.representative, job.businessNumber].filter(Boolean).join(" · "),
+    ],
+    ["근무 의사 수", job.doctorCount],
+    ["수술 및 외래건수(일)", job.dailyVolume],
+    ["개원연도", job.established],
+    ["재직인원", job.staffCount],
+    ["의료설비", job.equipment],
+    ["병상 및 입원 환자", job.beds],
   ].filter(([, value]) => value);
-  return <Modal onClose={onClose} wide variant="job-detail" accent={job.color} label={`${job.hospital} 채용공고 상세 정보`}>
-    <div className="detail-heading" style={{ '--job-color': job.color }}><div className="detail-brand"><HospitalLogo job={job} prominent /><div><div className="detail-brand-label"><span className="tag" style={{ color: job.color, background: `${job.color}12` }}>{job.badge}</span>{isAd && <span>AD · 병원 브랜드 채용관</span>}{qaUnlocked && <span className="qa-unlocked-badge"><ShieldCheck /> QA 잠금 해제</span>}</div><strong>{job.hospital}</strong><small><BadgeCheck /> 등록된 기관 정보</small></div></div><h2>{job.title}</h2><div className="meta large"><span><MapPin size={17} />{job.location}</span><span><Clock3 size={17} />{job.schedule}</span><span><CalendarDays size={17} />{job.updated} 업데이트</span></div></div>
-    <div className="detail-grid">
-      <div className="detail-content"><section className="hospital-profile"><div className="detail-section-title"><span><Building2 /></span><div><small>HOSPITAL PROFILE</small><h3>병원 정보</h3></div></div><p>{job.summary}</p><div className="institution-profile-layout"><div className="hospital-photo-gallery">{hospitalPhotos.length > 0 ? hospitalPhotos.slice(0, 6).map((photo, index) => <button type="button" key={photo} className={index === 0 ? 'primary-photo' : ''} onClick={() => window.open(photo, '_blank', 'noopener,noreferrer')} aria-label={`${job.hospital} 병원 사진 ${index + 1} 크게 보기`}><img src={photo} alt={`${job.hospital} 시설 ${index + 1}`} loading="lazy" /></button>) : <div className="photo-gallery-empty"><Building2 /><span>등록된 병원 사진이 없습니다</span></div>}</div><dl className="institution-facts">{institutionFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{label === '홈페이지' ? <a href={value} target="_blank" rel="noreferrer">{value}</a> : value}</dd></div>)}</dl></div></section><section className="location-panel"><div className="location-icon"><MapPin /></div><div><small>근무지 위치</small><strong>{job.location}</strong><p>{job.access}</p></div><a href={mapUrl} target="_blank" rel="noreferrer" aria-label={`${job.hospital} 지도에서 위치 보기`}>지도에서 보기 <ArrowRight /></a></section><section><div className="detail-section-title compact"><span><BriefcaseBusiness /></span><div><small>POSITION DETAILS</small><h3>포지션과 근무조건</h3></div></div><p>{job.summary}</p><div className="benefit-list">{job.benefits.map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>
-      <aside className={restricted ? `premium-aside ${qaUnlocked ? 'qa-unlocked' : ''}` : ''}>
-        {locked ? <><span>예상 보수</span><div className="locked-value"><div className="free-preview"><small>무료 미리보기 완료</small><strong>지역 · 진료과 · 근무형태 확인</strong></div><div className="locked-list"><span><LockKeyhole /> 상세 급여와 인센티브</span><span><LockKeyhole /> 정확한 근무시간·당직</span><span><LockKeyhole /> 채용 담당자와 협의조건</span></div><Link className="button primary full" to={`/membership?type=doctor&job=${job.id}`} onClick={() => trackConversion('job_unlock_cta', { jobId: job.id, offer: 'single' })}>이 공고만 2,900원에 열람</Link><small className="value-hint">5건 이상 비교한다면 월 패스가 더 저렴해요.</small></div></> : <><span>{qaUnlocked ? 'QA 공개 상세조건' : '예상 보수'}</span><strong>{job.pay}</strong>{qaUnlocked && <div className="qa-unlocked-list"><span><Check /> 인센티브 별도 협의</span><span><Check /> 당직·근무시간 확인 가능</span><span><Check /> 담당 헤드헌터 연결 가능</span></div>}<small>경력과 진료 범위에 따라 조율합니다.</small><Link className="button primary full" to={`/headhunting?job=${job.id}`}>{qaUnlocked ? '헤드헌터와 조건 확인' : '비공개 상담 신청'}</Link></>}
-        <button className="button outline full" onClick={onSave}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심공고 저장됨' : '관심공고 저장'}</button>
-      </aside>
-    </div>
-  </Modal>;
+  return (
+    <Modal
+      onClose={onClose}
+      wide
+      variant="job-detail"
+      accent={job.color}
+      label={`${job.hospital} 채용공고 상세 정보`}
+    >
+      <div className="detail-heading" style={{ "--job-color": job.color }}>
+        <div className="detail-brand">
+          <HospitalLogo job={job} prominent />
+          <div>
+            <div className="detail-brand-label">
+              <span
+                className="tag"
+                style={{ color: job.color, background: `${job.color}12` }}
+              >
+                {job.badge}
+              </span>
+              {isAd && <span>AD · 병원 브랜드 채용관</span>}
+              {qaUnlocked && (
+                <span className="qa-unlocked-badge">
+                  <ShieldCheck /> QA 잠금 해제
+                </span>
+              )}
+            </div>
+            <strong>{job.hospital}</strong>
+            <small>
+              <BadgeCheck /> 등록된 기관 정보
+            </small>
+          </div>
+        </div>
+        <h2>{job.title}</h2>
+        <div className="meta large">
+          <span>
+            <MapPin size={17} />
+            {job.location}
+          </span>
+          <span>
+            <Clock3 size={17} />
+            {job.schedule}
+          </span>
+          <span>
+            <CalendarDays size={17} />
+            {job.deadline} 마감
+          </span>
+        </div>
+      </div>
+      <div className="detail-grid">
+        <div className="detail-content">
+          <section className="job-recruitment-overview">
+            <div className="detail-section-title">
+              <span><FileCheck2 /></span>
+              <div><small>RECRUITMENT OVERVIEW</small><h3>모집개요</h3></div>
+            </div>
+            <dl>
+              <div><dt>초빙과목</dt><dd>{job.dept}</dd></div>
+              <div><dt>초빙유형</dt><dd>{job.type}</dd></div>
+              <div><dt>구인사유</dt><dd>{job.recruitmentReason || "진료 인력 충원"}</dd></div>
+              <div><dt>급여수준</dt><dd>{job.pay}</dd></div>
+              <div><dt>근무시간</dt><dd>{job.workHours || job.schedule}</dd></div>
+              <div><dt>휴무</dt><dd>{job.daysOff || "협의"}</dd></div>
+            </dl>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span><Link to={`/request/job-seeker?job=${job.id}`}>무료 구직상담 신청 <ArrowRight /></Link></div>
+          </section>
+          <section className="hospital-profile">
+            <div className="detail-section-title">
+              <span>
+                <Building2 />
+              </span>
+              <div>
+                <small>HOSPITAL PROFILE</small>
+                <h3>병원 정보</h3>
+              </div>
+            </div>
+            <p>{job.summary}</p>
+            <div className="institution-profile-layout">
+              <div className="hospital-photo-gallery">
+                {hospitalPhotos.length > 0 ? (
+                  hospitalPhotos.slice(0, 6).map((photo, index) => (
+                    <button
+                      type="button"
+                      key={photo}
+                      className={index === 0 ? "primary-photo" : ""}
+                      onClick={() =>
+                        window.open(photo, "_blank", "noopener,noreferrer")
+                      }
+                      aria-label={`${job.hospital} 병원 사진 ${index + 1} 크게 보기`}
+                    >
+                      <img
+                        src={photo}
+                        alt={`${job.hospital} 시설 ${index + 1}`}
+                        loading="lazy"
+                      />
+                    </button>
+                  ))
+                ) : (
+                  <div className="photo-gallery-empty">
+                    <Building2 />
+                    <span>등록된 병원 사진이 없습니다</span>
+                  </div>
+                )}
+              </div>
+              <dl className="institution-facts">
+                {institutionFacts.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>
+                      {label === "홈페이지" ? (
+                        <a href={value} target="_blank" rel="noreferrer">
+                          {value}
+                        </a>
+                      ) : (
+                        value
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </section>
+          <section className="location-panel">
+            <div className="location-icon">
+              <MapPin />
+            </div>
+            <div>
+              <small>근무지 위치</small>
+              <strong>{job.location}</strong>
+              <p>{job.access}</p>
+            </div>
+            <a
+              href={mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${job.hospital} 지도에서 위치 보기`}
+            >
+              지도에서 보기 <ArrowRight />
+            </a>
+          </section>
+          <section>
+            <div className="detail-section-title compact">
+              <span>
+                <BriefcaseBusiness />
+              </span>
+              <div>
+                <small>POSITION DETAILS</small>
+                <h3>포지션과 근무조건</h3>
+              </div>
+            </div>
+            <p>{job.summary}</p>
+            <div className="job-detail-copy">
+              <div><h4>근무조건</h4><p>급여조건은 {job.pay}이며, 근무시간은 {job.workHours || job.schedule}입니다. {job.daysOff || "휴무일은 상담을 통해 조율합니다."}</p></div>
+              <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 헤드헌터가 병원과 확인해 안내합니다.</p></div>
+              <div><h4>복리후생·협의사항</h4><p>{job.benefits.join(" · ")} 조건을 제공하며 경력과 담당 진료범위에 따라 세부 내용을 조율합니다.</p></div>
+            </div>
+            <div className="benefit-list">
+              {job.benefits.map((item) => (
+                <span key={item}>
+                  <Check size={15} />
+                  {item}
+                </span>
+              ))}
+            </div>
+          </section>
+        </div>
+        <aside
+          className={
+            restricted ? `premium-aside ${qaUnlocked ? "qa-unlocked" : ""}` : ""
+          }
+        >
+          {locked ? (
+            <>
+              <span>예상 보수</span>
+              <div className="locked-value">
+                <div className="free-preview">
+                  <small>무료 미리보기 완료</small>
+                  <strong>지역 · 진료과 · 근무형태 확인</strong>
+                </div>
+                <div className="locked-list">
+                  <span>
+                    <LockKeyhole /> 상세 급여와 인센티브
+                  </span>
+                  <span>
+                    <LockKeyhole /> 정확한 근무시간·당직
+                  </span>
+                  <span>
+                    <LockKeyhole /> 채용 담당자와 협의조건
+                  </span>
+                </div>
+                <Link
+                  className="button primary full"
+                  to={`/membership?type=doctor&job=${job.id}`}
+                  onClick={() =>
+                    trackConversion("job_unlock_cta", {
+                      jobId: job.id,
+                      offer: "single",
+                    })
+                  }
+                >
+                  이 공고만 2,900원에 열람
+                </Link>
+                <small className="value-hint">
+                  5건 이상 비교한다면 월 패스가 더 저렴해요.
+                </small>
+              </div>
+            </>
+          ) : (
+            <>
+              <span>{qaUnlocked ? "QA 공개 상세조건" : "예상 보수"}</span>
+              <strong>{job.pay}</strong>
+              {qaUnlocked && (
+                <div className="qa-unlocked-list">
+                  <span>
+                    <Check /> 인센티브 별도 협의
+                  </span>
+                  <span>
+                    <Check /> 당직·근무시간 확인 가능
+                  </span>
+                  <span>
+                    <Check /> 담당 헤드헌터 연결 가능
+                  </span>
+                </div>
+              )}
+              <small>경력과 진료 범위에 따라 조율합니다.</small>
+              <Link
+                className="button primary full"
+                to={`/headhunting?job=${job.id}`}
+              >
+                {qaUnlocked ? "헤드헌터와 조건 확인" : "비공개 상담 신청"}
+              </Link>
+            </>
+          )}
+          <button className="button outline full" onClick={onSave}>
+            <Heart size={17} fill={saved ? "currentColor" : "none"} />{" "}
+            {saved ? "관심공고 저장됨" : "관심공고 저장"}
+          </button>
+        </aside>
+      </div>
+    </Modal>
+  );
 }
 
 function ConsultationForm({ initialRole = 'doctor', initialContext = '', initialProfession = '', initialTopic = '' }) {
@@ -615,11 +850,11 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '', initial
 
 function QuickAccess() {
   return <section className="home-role-actions" aria-label="의사와 병원 빠른 메뉴">
-    <Link className="role-action doctor-action" to="/headhunting">
-      <span className="role-action-icon"><MessageCircle /></span><div><small>의사 · 무료</small><strong>원하는 조건을 말하고 비공개 제안 받기</strong><p>이력서 공개 없이 의사 전담 헤드헌터와 1:1 상담</p></div><span className="role-arrow">이직 상담 <ArrowRight /></span>
+    <Link className="role-action doctor-action" to="/request/job-seeker">
+      <span className="role-action-icon"><MessageCircle /></span><div><small>의료인 · 무료</small><strong>구직희망 조건 간편 등록</strong><p>희망 지역·근무형태를 남기면 헤드헌터가 연락드립니다.</p></div><span className="role-arrow">무료 접수 <ArrowRight /></span>
     </Link>
-    <Link className="role-action hospital-action" to="/advertise">
-      <span className="role-action-icon"><Building2 /></span><div><small>병원 · 의사 채용</small><strong>의사 초빙공고 등록하기</strong><p>공고 검수와 의사 후보 상담까지 함께 지원</p></div><span className="role-arrow">59,000원부터 <ArrowRight /></span>
+    <Link className="role-action hospital-action" to="/request/hiring">
+      <span className="role-action-icon"><Building2 /></span><div><small>병원 · 무료</small><strong>구인희망 조건 간편 등록</strong><p>초빙과목·보수·일정을 남기면 헤드헌터가 연락드립니다.</p></div><span className="role-arrow">무료 접수 <ArrowRight /></span>
     </Link>
   </section>;
 }
@@ -1329,7 +1564,7 @@ function HeadhuntingPage({ route }) {
             </span>
           </>
         }
-      />
+      ><div className="headhunting-quick-actions"><Link className="button light" to="/request/job-seeker"><Stethoscope /> 의료인 구직희망 무료 접수</Link><Link className="button glass" to="/request/hiring"><Building2 /> 병원 구인희망 무료 접수</Link></div></PageHero>
       <section className="section consultation-layout">
         <div className="consult-copy">
           <span className="section-kicker">1:1 DOCTOR HEADHUNTING</span>
@@ -2217,6 +2452,8 @@ export function App() {
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/resume') page = <ResumePage />;
+  else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" />;
+  else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
