@@ -1434,11 +1434,21 @@ function TalentPage() {
         <div className="notice-bar talent-privacy-notice">
           <ShieldCheck />
           <div>
-            <strong>안전한 익명 의사정보</strong>
+            <strong>병원회원에게 공개되는 범위를 먼저 확인하세요</strong>
             <p>
-              목록에서는 비교에 필요한 조건만 공개합니다. 근무기관 이력과 개인
-              식별정보는 후보자의 동의와 병원 확인 절차 이후에 전달합니다.
+              인재 검색과 익명 프로필 확인은 무료입니다. 개인 식별정보는
+              멤버십 결제로 열리지 않으며 반드시 헤드헌터 확인 절차를 거칩니다.
             </p>
+            <div className="talent-access-split" aria-label="인재정보 공개 범위">
+              <span>
+                <b><CircleCheck /> 무료 기본 공개</b>
+                전문과목 · 경력 · 희망 지역 · 근무조건 · 입사 시점
+              </span>
+              <span>
+                <b><LockKeyhole /> 상담·후보 동의 후 공개</b>
+                근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 메모
+              </span>
+            </div>
           </div>
         </div>
         <div className="result-row portal-result-row">
@@ -1481,7 +1491,9 @@ function TalentPage() {
                     {person.dept} · {person.career}
                   </h3>
                 </div>
-                <BadgeCheck />
+                <span className="talent-public-chip">
+                  <BadgeCheck /> 기본 공개
+                </span>
                 <button
                   className={`talent-save ${saved.includes(person.code) ? "saved" : ""}`}
                   onClick={() => toggleSaved(person.code)}
@@ -1508,7 +1520,7 @@ function TalentPage() {
               </dl>
               <div className="talent-lock-preview">
                 <span>
-                  <LockKeyhole /> 동의 후 공개되는 상세정보
+                  <LockKeyhole /> 헤드헌터 상담·후보 동의 후 공개
                 </span>
                 <p>
                   근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모
@@ -1679,7 +1691,7 @@ function TalentDetailModal({ person, onClose }) {
         <section className="talent-detail-private">
           <span className="talent-private-icon"><LockKeyhole /></span>
           <div>
-            <small>후보자 동의 후 헤드헌터가 확인해드려요</small>
+            <small>멤버십 자동 열람이 아닌 상담·동의 기반 정보입니다</small>
             <h3>근무기관 이력 · 세부 진료 경험 · 이직 사유 · 인터뷰 메모</h3>
             <p>병원의 채용 조건을 먼저 확인한 뒤 후보자에게 소개 의사를 묻고, 동의된 범위에서만 정보를 전달합니다.</p>
           </div>

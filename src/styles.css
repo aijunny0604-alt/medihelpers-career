@@ -2691,3 +2691,64 @@ html.performance-lite .motion-notice{background:#fff}
   }
   .talent-portal-list .talent-lock-preview p{white-space:normal}
 }
+
+/* Clearly separate free anonymous data from consent-gated candidate details. */
+.talent-privacy-notice{
+  align-items:flex-start;
+}
+.talent-privacy-notice>div{min-width:0;width:100%}
+.talent-access-split{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.talent-access-split>span{
+  min-height:70px;
+  padding:13px 16px;
+  border:1px solid #cde5de;
+  border-radius:12px;
+  background:#fff;
+  color:#657a75;
+  font-size:13px;
+  line-height:1.55;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:5px;
+}
+.talent-access-split>span:last-child{
+  border-color:#e6dcc2;
+  background:#fffcf5;
+  color:#796e56;
+}
+.talent-access-split b{
+  color:#11866f;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.talent-access-split>span:last-child b{color:#927025}
+.talent-access-split svg{width:16px;height:16px}
+.talent-public-chip{
+  margin-left:auto;
+  padding:7px 9px;
+  border-radius:9px;
+  background:#eaf8f4;
+  color:#0e8e74;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.talent-public-chip svg{width:16px;height:16px}
+.talent-public-chip+.talent-save{margin-left:7px}
+
+@media(max-width:680px){
+  .talent-access-split{grid-template-columns:1fr}
+  .talent-access-split>span{min-height:0}
+  .talent-public-chip{padding:6px 8px;font-size:10px}
+}
