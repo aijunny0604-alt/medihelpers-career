@@ -361,11 +361,15 @@ function JobCard({
   // 채용 목록에서는 장식 배너보다 병원 로고를 우선해 브랜드를 또렷하게 보여준다.
   const brandSource = job.logo || job.cardBanner || job.banner;
   const brandUrl = brandSource ? withBase(brandSource) : "";
-  const brandFit = job.logo
-    ? "mark"
-    : job.cardBanner
+  const brandFit = job.brandFit
+    ? job.brandFit
+    : job.logo
+      ? "mark"
+      : job.cardBanner
       ? "banner"
-      : job.brandFit || (job.banner ? "banner" : "mark");
+      : job.banner
+        ? "banner"
+        : "mark";
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const mood = getHospitalMood(job);
   const restricted = isAd || job.badge === "비공개";
