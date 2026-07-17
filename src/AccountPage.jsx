@@ -91,8 +91,8 @@ function MemberTypeChooser() {
     <h2>회원 유형을 선택해주세요</h2>
     <p>가입 목적과 확인 절차가 다르므로 의사 회원과 병원 회원을 분리해 운영합니다.</p>
     <div className="member-type-grid">
-      <a href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>의사 회원</small><strong>의사 초빙정보를 찾고 있어요</strong><p>공고 탐색 · 비공개 이직 상담 · 지원 관리</p></div><ArrowRight /></a>
-      <a href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 채용 의뢰 · 의사 소개</p></div><ArrowRight /></a>
+      <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>DOCTOR · 의사 회원</small><strong>이직·초빙정보를 찾고 있어요</strong><p>상세조건 무료 열람 · 비공개 이직 상담 · 이력서 관리</p><b>의사 회원으로 시작하기 <ArrowRight /></b></div></a>
+      <a className="hospital-choice" href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>HOSPITAL · 병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 후보 추천 · 채용 진행 관리</p><b>병원 회원으로 시작하기 <ArrowRight /></b></div></a>
     </div>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호는 받지 않고, 정식 오픈 시 휴대폰 본인확인으로 중복 가입을 확인합니다.</div>
   </section>;
