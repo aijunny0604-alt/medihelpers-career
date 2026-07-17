@@ -602,8 +602,10 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   const [photoIndex, setPhotoIndex] = useState(null);
   const isAd = Boolean(job.adTier);
   const restricted = isAd || job.badge === "비공개";
+  const memberUnlocked =
+    qa?.active && qa.info.capabilities.privateDetails;
   const qaUnlocked =
-    restricted && qa?.active && qa.info.capabilities.privateDetails;
+    restricted && memberUnlocked;
   const locked = restricted && !qaUnlocked;
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   const hospitalPhotos = job.hospitalPhotos || [];
@@ -623,6 +625,68 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
     ["의료설비", job.equipment],
     ["병상 및 입원 환자", job.beds],
   ].filter(([, value]) => value);
+  const benefitsText = job.benefits?.join(" · ") || "병원 확인 필요";
+  const doctorDecisionGroups = [
+    {
+      title: "보수·계약",
+      icon: Banknote,
+      rows: [
+        ["공개 급여", job.pay],
+        [
+          "급여 기준",
+          job.pay.includes("협의")
+            ? "경력·진료범위에 따라 협의"
+            : "공고 기준 · Net/세전 여부 최종 확인",
+        ],
+        [
+          "인센티브",
+          job.benefits?.find((item) => item.includes("인센티브")) ||
+            "적용 여부 병원 확인 필요",
+        ],
+        ["퇴직금·계약기간", "별도 지급 및 계약기간 병원 확인 필요"],
+      ],
+    },
+    {
+      title: "실제 근무표",
+      icon: CalendarDays,
+      rows: [
+        ["평일·주말 시간", job.workHours || job.schedule],
+        ["주당 근무", job.schedule],
+        ["휴무·연차", job.daysOff || "병원 확인 필요"],
+        [
+          "당직·온콜",
+          job.benefits?.find((item) => item.includes("당직")) ||
+            (job.summary?.includes("야간 진료 없이")
+              ? "야간 진료 없음"
+              : "횟수·수당 병원 확인 필요"),
+        ],
+      ],
+    },
+    {
+      title: "진료 강도",
+      icon: Stethoscope,
+      rows: [
+        ["주요 진료범위", job.focus],
+        ["일평균 환자·검사", job.dailyVolume || "병원 확인 필요"],
+        ["시술·검사 비중", job.equipment ? `${job.equipment} 활용` : "병원 확인 필요"],
+        [
+          "지원 인력",
+          [job.doctorCount, job.staffCount].filter(Boolean).join(" · ") ||
+            "간호·보조 인력 구성 확인 필요",
+        ],
+      ],
+    },
+    {
+      title: "입사 판단",
+      icon: ShieldCheck,
+      rows: [
+        ["채용 사유", job.recruitmentReason || "진료 인력 충원"],
+        ["복리후생", benefitsText],
+        ["입사 시점", "합격 후 협의"],
+        ["면접 절차", "서류 확인 → 병원 면담 → 조건 조율"],
+      ],
+    },
+  ];
   return (
     <Modal
       onClose={onClose}
@@ -684,11 +748,59 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               <div><dt>초빙과목</dt><dd>{job.dept}</dd></div>
               <div><dt>초빙유형</dt><dd>{job.type}</dd></div>
               <div><dt>구인사유</dt><dd>{job.recruitmentReason || "진료 인력 충원"}</dd></div>
-              <div><dt>급여수준</dt><dd>{job.pay}</dd></div>
-              <div><dt>근무시간</dt><dd>{job.workHours || job.schedule}</dd></div>
-              <div><dt>휴무</dt><dd>{job.daysOff || "협의"}</dd></div>
+              <div><dt>급여수준</dt><dd>{locked ? "멤버십 상세정보" : job.pay}</dd></div>
+              <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
+              <div><dt>휴무</dt><dd>{locked ? "멤버십 상세정보" : job.daysOff || "협의"}</dd></div>
             </dl>
             <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span><Link to={`/request/job-seeker?job=${job.id}`}>무료 구직상담 신청 <ArrowRight /></Link></div>
+          </section>
+          <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
+            <div className="decision-sheet-head">
+              <div className="detail-section-title">
+                <span><Crown /></span>
+                <div><small>DOCTOR MEMBERSHIP DECISION SHEET</small><h3>의사가 결정 전에 꼭 보는 상세조건</h3></div>
+              </div>
+              <span className="decision-sheet-status">
+                {memberUnlocked ? <><BadgeCheck /> 멤버십 열람 중</> : <><LockKeyhole /> 멤버십 상세정보</>}
+              </span>
+            </div>
+            <p className="decision-sheet-intro">
+              상담을 신청하기 전에 보수 구조, 실제 근무표, 진료 강도와 입사 판단 정보를 먼저 비교합니다.
+            </p>
+            <div className="decision-sheet-grid">
+              {doctorDecisionGroups.map(({ title, icon: Icon, rows }) => (
+                <article key={title}>
+                  <header><span><Icon /></span><strong>{title}</strong></header>
+                  <dl>
+                    {rows.map(([label, value]) => (
+                      <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="멤버십 가입 후 공개">멤버십 가입 후 공개</span>}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </article>
+              ))}
+            </div>
+            {memberUnlocked ? (
+              <div className="headhunter-verified-note">
+                <span><BadgeCheck /></span>
+                <div>
+                  <small>HEADHUNTER CHECK NOTE</small>
+                  <strong>공고 등록정보와 공개 조건을 기준으로 정리했습니다</strong>
+                  <p>{job.summary} 환자 수·당직 수당처럼 ‘확인 필요’로 표시된 항목은 지원 전 담당자가 병원에 다시 확인합니다.</p>
+                </div>
+                <Link to={`/headhunting?job=${job.id}`}>조건 확인·협상 요청 <ArrowRight /></Link>
+              </div>
+            ) : (
+              <div className="decision-sheet-gate">
+                <div>
+                  <strong>상담 전에 16개 판단 항목을 먼저 확인하세요</strong>
+                  <span>정확한 시간·당직·환자량·지원 인력·채용 사유까지 한 화면에서 열립니다.</span>
+                </div>
+                <Link className="button primary" to={`/membership?type=doctor&job=${job.id}`}>이 공고 상세조건 열기 <ArrowRight /></Link>
+              </div>
+            )}
           </section>
           <section className="hospital-profile">
             <div className="detail-section-title">
@@ -810,6 +922,15 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                   </span>
                   <span>
                     <LockKeyhole /> 채용 담당자와 협의조건
+                  </span>
+                  <span>
+                    <LockKeyhole /> 환자량·시술·검사 범위
+                  </span>
+                  <span>
+                    <LockKeyhole /> 간호·보조 인력 구성
+                  </span>
+                  <span>
+                    <LockKeyhole /> 채용 사유·면접 절차
                   </span>
                 </div>
                 <Link
@@ -2311,6 +2432,29 @@ function Checkout({ plan, onClose }) {
                   placeholder="예: 정형외과 전문의, 검진센터 진료원장"
                 />
               </label>
+              <details className="membership-intake" open>
+                <summary>
+                  <span><Crown /></span>
+                  <div><strong>의사 멤버십 상세조건</strong><small>작성한 항목은 의사 회원의 ‘결정 조건표’에 정리됩니다</small></div>
+                  <em>모두 선택사항</em>
+                </summary>
+                <div className="form-grid">
+                  <label><span>급여 기준</span><input name="salaryBasis" placeholder="예: Net 월 1,500만원 · 퇴직금 별도" /></label>
+                  <label><span>인센티브 구조</span><input name="incentive" placeholder="예: 내시경 건별 또는 매출 구간별" /></label>
+                  <label><span>평일·토요일 실제 시간</span><input name="exactHours" placeholder="예: 평일 08:30~17:30 · 토 격주 13시" /></label>
+                  <label><span>당직·온콜</span><input name="onCall" placeholder="예: 당직 없음 · 온콜 월 1회" /></label>
+                  <label><span>일평균 환자·검사량</span><input name="patientLoad" placeholder="예: 외래 35명 · 내시경 8건" /></label>
+                  <label><span>시술·검사 범위</span><input name="procedureScope" placeholder="예: 위·대장내시경, 초음파 선택" /></label>
+                  <label><span>간호·보조 인력</span><input name="supportTeam" placeholder="예: 전담 간호사 2명 · PA 없음" /></label>
+                  <label><span>휴무·연차</span><input name="leavePolicy" placeholder="예: 연차 15일 · 공휴일 휴무" /></label>
+                  <label><span>입사 가능 시점</span><input name="startTiming" placeholder="예: 1개월 내 · 협의 가능" /></label>
+                  <label><span>면접 절차</span><input name="interviewProcess" placeholder="예: 원장 면담 1회 → 조건 조율" /></label>
+                </div>
+                <label className="wide-field">
+                  <span>채용 담당자 확인 메모</span>
+                  <textarea name="verifiedNote" rows="3" placeholder="예: 토요일 근무는 월 2회까지 조정 가능하며, 경력에 따라 급여 상향 협의 가능합니다." />
+                </label>
+              </details>
               <label className="wide-field">
                 <span>
                   병원·초빙 소개 <i>선택</i>
@@ -2502,7 +2646,7 @@ function MembershipPage({ route, qa }) {
         tone="membership"
         eyebrow="EARLY ACCESS PRICE"
         title="필요한 핵심정보만, 2,900원부터"
-        description="기본 검색과 상담은 무료로 시작하고, 실제 결정에 필요한 검증 정보만 건별 열람권 또는 초기 멤버십 가격으로 이용합니다."
+        description="기본 공고 탐색은 무료로 시작하고, 지원 결정을 위한 급여 구조·실제 근무표·진료 강도·병원 확인 메모를 건별 또는 월 패스로 열람합니다."
       />
       {qaMemberActive && (
         <section className="qa-membership-active">
@@ -2513,8 +2657,8 @@ function MembershipPage({ route, qa }) {
             <small>QA SUBSCRIPTION ACTIVE</small>
             <strong>의사 월 패스 이용 중</strong>
             <p>
-              상세 급여·근무시간·당직·협의조건이 열린 상태입니다. 다음 가상
-              결제일 2026.08.16
+              급여 구조·실제 근무표·환자량·지원 인력·채용 사유가 열린
+              상태입니다. 다음 가상 결제일 2026.08.16
             </p>
           </div>
           <Link to="/qa-preview">
@@ -2539,7 +2683,7 @@ function MembershipPage({ route, qa }) {
               </h3>
               <p>
                 {type === "doctor"
-                  ? "상세 급여·당직·협의조건을 한 번에 확인합니다."
+                  ? "급여 구조·실제 근무표·환자량·지원 인력 등 16개 상세조건을 한 번에 확인합니다."
                   : "의사 동의 확인부터 첫 인터뷰 연결까지 지원합니다."}
               </p>
             </div>
@@ -2554,13 +2698,29 @@ function MembershipPage({ route, qa }) {
             </button>
           </div>
         )}
+        <section className="membership-detail-catalog" aria-labelledby="membership-detail-title">
+          <div className="membership-detail-heading">
+            <span><Crown /></span>
+            <div><small>WHAT YOU ACTUALLY UNLOCK</small><h2 id="membership-detail-title">상담 연결이 아니라, 결정에 필요한 정보가 열립니다</h2><p>병원에 다시 전화하기 전에 의사가 가장 많이 확인하는 항목을 네 묶음으로 정리했습니다.</p></div>
+          </div>
+          <div className="membership-detail-grid">
+            {[
+              [Banknote, "보수·계약", "Net·세전 기준, 인센티브, 퇴직금, 계약기간"],
+              [CalendarDays, "실제 근무표", "평일·토요일 시간, 주당 근무일, 휴무, 당직·온콜"],
+              [Stethoscope, "진료 강도", "환자 수, 검사·시술 비중, 의료장비, 간호·보조 인력"],
+              [BadgeCheck, "입사 판단", "채용 사유, 의료진 구성, 입사 시점, 면접 절차, 확인 메모"],
+            ].map(([Icon, title, copy]) => (
+              <article key={title}><span><Icon /></span><strong>{title}</strong><p>{copy}</p><small><Check /> 공고 상세표에서 즉시 확인</small></article>
+            ))}
+          </div>
+        </section>
         <div className="access-explain">
           <div>
             <span className="access-number">FREE</span>
             <h3>무료로 충분히 비교</h3>
             <p>
               {type === "doctor"
-                ? "진료과, 지역, 기본 근무형태와 공개 공고"
+                ? "진료과, 지역, 기본 근무형태, 모집기간과 공개 요약"
                 : "진료과, 경력 연차, 희망 지역과 입사 가능 시점"}
             </p>
           </div>
@@ -2570,7 +2730,7 @@ function MembershipPage({ route, qa }) {
             <h3>결정할 때만 결제</h3>
             <p>
               {type === "doctor"
-                ? "상세 급여, 정확한 근무시간, 비공개 병원 및 포지션"
+                ? "16개 상세조건표, 병원 확인 메모, 저장·비교와 맞춤 알림"
                 : "메디헬퍼스 헤드헌터의 후보 상담"}
             </p>
           </div>

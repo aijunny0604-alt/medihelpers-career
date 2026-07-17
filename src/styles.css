@@ -3330,3 +3330,279 @@ html.performance-lite .motion-notice{background:#fff}
   .ad-showcase-compact .ad-exposure-copy>p{font-size:14px}
   .ad-showcase-cta{width:100%}
 }
+
+/* Doctor membership now unlocks a concrete decision sheet, not only a consultation CTA. */
+.doctor-decision-sheet{
+  position:relative;
+  padding:28px!important;
+  border:1px solid #d8e4f2!important;
+  border-radius:22px;
+  background:linear-gradient(145deg,#f7fbff,#fff 55%,#f1faf7);
+  overflow:hidden;
+}
+.doctor-decision-sheet:before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:4px;
+  background:linear-gradient(90deg,#1263e8,#20a685);
+}
+.decision-sheet-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+}
+.decision-sheet-head .detail-section-title{margin-bottom:0!important}
+.decision-sheet-status{
+  min-height:38px;
+  padding:0 13px;
+  border:1px solid #ccdaec;
+  border-radius:999px;
+  background:#fff;
+  color:#51647d;
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.decision-sheet-status svg{width:16px}
+.doctor-decision-sheet.is-unlocked .decision-sheet-status{
+  border-color:#adddce;
+  background:#edf9f5;
+  color:#0e8a6d;
+}
+.decision-sheet-intro{
+  margin:14px 0 20px!important;
+  color:#68798f!important;
+  font-size:14px!important;
+}
+.decision-sheet-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.decision-sheet-grid article{
+  padding:19px;
+  border:1px solid #dfe7f0;
+  border-radius:15px;
+  background:rgba(255,255,255,.88);
+}
+.decision-sheet-grid article>header{
+  margin-bottom:12px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.decision-sheet-grid article>header>span{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  background:#eaf3ff;
+  color:#1263e8;
+  display:grid;
+  place-items:center;
+}
+.decision-sheet-grid article:nth-child(2n)>header>span{
+  background:#eaf8f4;
+  color:#159579;
+}
+.decision-sheet-grid article>header svg{width:17px}
+.decision-sheet-grid article>header strong{color:#1c3454;font-size:15px}
+.decision-sheet-grid dl{margin:0}
+.decision-sheet-grid dl>div{
+  min-height:45px;
+  padding:9px 0;
+  border-top:1px solid #edf1f5;
+  display:grid;
+  grid-template-columns:112px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+}
+.decision-sheet-grid dt{color:#8491a3;font-size:12px}
+.decision-sheet-grid dd{
+  margin:0;
+  color:#223853;
+  font-size:13px;
+  font-weight:750;
+  line-height:1.55;
+  word-break:keep-all;
+}
+.masked-detail{
+  width:100%;
+  height:17px;
+  border-radius:6px;
+  background:linear-gradient(90deg,#e8edf4,#f5f7fa 55%,#e8edf4);
+  color:transparent;
+  display:block;
+  overflow:hidden;
+  user-select:none;
+}
+.decision-sheet-gate{
+  margin-top:17px;
+  padding:18px 19px;
+  border:1px solid #cddcf0;
+  border-radius:15px;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  box-shadow:0 10px 25px rgba(28,66,112,.07);
+}
+.decision-sheet-gate>div{display:flex;min-width:0;flex-direction:column}
+.decision-sheet-gate strong{color:#173252;font-size:15px}
+.decision-sheet-gate span{margin-top:4px;color:#76859a;font-size:12px;line-height:1.55}
+.decision-sheet-gate .button{min-height:48px;flex:0 0 auto}
+.headhunter-verified-note{
+  margin-top:17px;
+  padding:18px 19px;
+  border:1px solid #bfe1d7;
+  border-radius:15px;
+  background:#f2faf7;
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr) auto;
+  align-items:center;
+  gap:13px;
+}
+.headhunter-verified-note>span{
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  background:#fff;
+  color:#139777;
+  display:grid;
+  place-items:center;
+}
+.headhunter-verified-note>span svg{width:21px}
+.headhunter-verified-note>div{display:flex;min-width:0;flex-direction:column}
+.headhunter-verified-note small{color:#14896f;font-size:9px;font-weight:850;letter-spacing:.8px}
+.headhunter-verified-note strong{margin-top:3px;color:#23483f;font-size:14px}
+.headhunter-verified-note p{margin:4px 0 0!important;color:#627a72!important;font-size:12px!important;line-height:1.6!important}
+.headhunter-verified-note>a{
+  min-height:43px;
+  padding:0 13px;
+  border-radius:11px;
+  background:#159579;
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.headhunter-verified-note>a svg{width:15px}
+
+.membership-detail-catalog{
+  max-width:1300px;
+  margin:0 auto 34px;
+  padding:34px;
+  border:1px solid #d8e4f1;
+  border-radius:25px;
+  background:linear-gradient(135deg,#10294d,#155fbf);
+  color:#fff;
+  box-shadow:0 20px 52px rgba(22,64,119,.15);
+}
+.membership-detail-heading{display:flex;align-items:flex-start;gap:15px}
+.membership-detail-heading>span{
+  width:48px;
+  height:48px;
+  border-radius:14px;
+  background:rgba(255,255,255,.12);
+  color:#8fd4ff;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+}
+.membership-detail-heading>span svg{width:23px}
+.membership-detail-heading small{color:#8fd4ff;font:800 10px 'Manrope';letter-spacing:1px}
+.membership-detail-heading h2{margin:5px 0 6px;font-size:27px;letter-spacing:-1px}
+.membership-detail-heading p{margin:0;color:#bed1e8;font-size:14px}
+.membership-detail-grid{
+  margin-top:25px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:11px;
+}
+.membership-detail-grid article{
+  min-height:180px;
+  padding:20px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;
+  background:rgba(255,255,255,.07);
+}
+.membership-detail-grid article>span{
+  width:39px;
+  height:39px;
+  border-radius:11px;
+  background:rgba(143,212,255,.12);
+  color:#8fd4ff;
+  display:grid;
+  place-items:center;
+}
+.membership-detail-grid article>span svg{width:20px}
+.membership-detail-grid article>strong{display:block;margin-top:17px;font-size:16px}
+.membership-detail-grid article>p{min-height:48px;margin:7px 0 12px;color:#bed0e5;font-size:12px;line-height:1.6}
+.membership-detail-grid article>small{color:#8be0c8;font-size:10px;font-weight:750;display:flex;align-items:center;gap:5px}
+.membership-detail-grid article>small svg{width:13px}
+
+.membership-intake{
+  margin:22px 0;
+  padding:0 18px 18px;
+  border:1px solid #d6e3f2;
+  border-radius:15px;
+  background:linear-gradient(145deg,#f4f8ff,#fff);
+}
+.membership-intake summary{
+  min-height:74px;
+  cursor:pointer;
+  list-style:none;
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr) auto;
+  align-items:center;
+  gap:11px;
+}
+.membership-intake summary::-webkit-details-marker{display:none}
+.membership-intake summary>span{
+  width:40px;
+  height:40px;
+  border-radius:11px;
+  background:#e7f1ff;
+  color:#1263e8;
+  display:grid;
+  place-items:center;
+}
+.membership-intake summary>span svg{width:20px}
+.membership-intake summary>div{display:flex;flex-direction:column}
+.membership-intake summary strong{font-size:14px;color:#203653}
+.membership-intake summary small{margin-top:3px;color:#718198;font-size:11px}
+.membership-intake summary em{color:#72829a;font-size:11px;font-style:normal;font-weight:750}
+.membership-intake>.wide-field{margin-bottom:0}
+
+@media(max-width:980px){
+  .decision-sheet-grid{grid-template-columns:1fr}
+  .membership-detail-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:680px){
+  .doctor-decision-sheet{padding:21px 16px!important;border-radius:16px}
+  .decision-sheet-head{align-items:flex-start;flex-direction:column}
+  .decision-sheet-grid article{padding:16px}
+  .decision-sheet-grid dl>div{grid-template-columns:98px minmax(0,1fr)}
+  .decision-sheet-gate{align-items:stretch;flex-direction:column}
+  .decision-sheet-gate .button{width:100%}
+  .headhunter-verified-note{grid-template-columns:38px 1fr}
+  .headhunter-verified-note>a{grid-column:1/3;justify-content:center}
+  .membership-detail-catalog{padding:26px 20px;border-radius:19px}
+  .membership-detail-heading h2{font-size:23px}
+  .membership-detail-grid{grid-template-columns:1fr}
+  .membership-detail-grid article{min-height:0}
+  .membership-detail-grid article>p{min-height:0}
+  .membership-intake{padding-inline:14px}
+  .membership-intake summary{grid-template-columns:38px 1fr}
+  .membership-intake summary>em{grid-column:2}
+}

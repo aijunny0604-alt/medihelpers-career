@@ -161,12 +161,12 @@ export const navItems = [
 export const membershipPlans = [
   {
     id: 'doctor-single', audience: 'doctor', name: '공고 1건 열람권', price: 2900, period: '건별',
-    description: '궁금한 프리미엄 공고 하나만 확인합니다.',
-    features: ['상세 급여·근무시간', '비공개 병원 정보', '전담 헤드헌터 질문 1회']
+    description: '지원 판단에 필요한 상세조건 16개를 공고 한 건에서 확인합니다.',
+    features: ['급여 구조·인센티브·퇴직금', '실제 근무표·당직·휴무', '환자량·진료범위·지원 인력', '채용 사유·면접 절차·확인 메모']
   },
   {
     id: 'doctor-pass', audience: 'doctor', name: 'Doctor Pass', price: 12900, period: '월', featured: true,
-    description: '적극적으로 이직을 준비하는 의사를 위한 패스입니다.',
-    features: ['프리미엄 공고 무제한 열람', '비공개 포지션 우선 공개', '급여·근무조건 인사이트', '1:1 커리어 상담']
+    description: '여러 병원의 실제 조건을 비교하며 이직을 준비하는 의사용 패스입니다.',
+    features: ['모든 공고 상세조건 무제한 열람', '비공개 포지션 우선 공개', '조건표 저장·병원 간 비교', '헤드헌터 확인 메모·협상 요청']
   }
 ];
