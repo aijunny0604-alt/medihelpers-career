@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, BriefcaseBusiness, Building2, ChevronRight, Database,
-  Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, Save, Search, Settings,
+  Activity, BriefcaseBusiness, Building2, ChevronRight, CreditCard, Database,
+  Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
   ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';
 
@@ -19,13 +19,14 @@ const groups = [
   ] },
   { title: '회원 · 데이터', items: [
     ['members', '회원 현황', UserRoundCog],
+    ['payments', '결제 · 환불 관리', CreditCard],
     ['database', 'DB 현황', Database],
     ['audit', '변경 이력', Activity],
   ] },
 ];
 
 const demoData = {
-  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: 24, auditLogs: 41 },
+  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: 24, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0 },
   settings: {
     siteName: '메디헬퍼스',
     supportPhone: '051-342-5463',
@@ -53,6 +54,18 @@ const demoData = {
     { id:'p3', contentType:'talent_profile', title:'가정의학과 · 전문의 4년', subtitle:'정○○ · 이름 비공개', status:'published', visibility:'hospital', updatedAt:'2026-07-17 12:40', payload:{ primary:'경기·인천', secondary:'검진 / 주 4일', description:'후보 동의 후 상세정보 공개' } },
     { id:'p4', contentType:'notice', title:'2026년 하반기 의사 채용 상담 안내', subtitle:'운영 공지', status:'draft', visibility:'public', updatedAt:'2026-07-17 10:20', payload:{ primary:'공지사항', secondary:'', description:'초안 작성 중' } },
   ],
+  members: [
+    { id:'m1', role:'doctor', email:'doctor@example.com', fullName:'김현우', status:'active', verificationStatus:'verified', phone:'010-1234-5678', organization:'', jobTitle:'정형외과 전문의', consentCount:3, orderCount:1, lifetimeValue:39000, createdAt:'2026-07-16 09:30', lastLoginAt:'2026-07-17 15:40' },
+    { id:'m2', role:'hospital', email:'hr@samplehospital.co.kr', fullName:'박지은', status:'active', verificationStatus:'pending', phone:'010-9876-5432', organization:'샘플메디컬센터', jobTitle:'채용팀장', consentCount:3, orderCount:2, lifetimeValue:409000, createdAt:'2026-07-15 11:20', lastLoginAt:'2026-07-17 14:15' },
+  ],
+  payments: [
+    { id:'o1', orderNumber:'MH-20260717-A1B2C3D4', accountId:'m2', accountRole:'hospital', productType:'doctor_ad', productName:'집중 채용', totalAmount:299000, supplyAmount:271818, taxAmount:27182, status:'awaiting_payment', paymentMethod:'card', customerName:'박지은', customerEmail:'hr@samplehospital.co.kr', customerPhone:'010-9876-5432', createdAt:'2026-07-17 14:30', adminNote:'' },
+    { id:'o2', orderNumber:'MH-20260716-E5F6G7H8', accountId:'m1', accountRole:'doctor', productType:'membership', productName:'커리어 컨시어지', totalAmount:39000, supplyAmount:35455, taxAmount:3545, status:'paid', paymentMethod:'card', customerName:'김현우', customerEmail:'doctor@example.com', customerPhone:'010-1234-5678', createdAt:'2026-07-16 10:05', paidAt:'2026-07-16 10:08', adminNote:'카드 승인 확인' },
+  ],
+  transactions: [
+    { id:'t1', orderId:'o2', transactionType:'capture', provider:'manual', providerTransactionId:'demo-tx-001', amount:39000, status:'succeeded', processedAt:'2026-07-16 10:08' },
+  ],
+  refunds: [],
   audit: [
     { id: 'a1', subject: '의사 초빙공고', action: '기능 공개 설정', actor: 'admin@medihelpers.co.kr', createdAt: '2026-07-17 14:20' },
     { id: 'a2', subject: '진료과 카테고리', action: '정형외과 순서 변경', actor: 'admin@medihelpers.co.kr', createdAt: '2026-07-17 13:44' },
@@ -187,7 +200,8 @@ export default function AdminConsolePage({ qa = false }) {
           {section === 'categories' && <Categories data={data} setData={setData} mutate={mutate} qa={qa} />}
           {section === 'settings' && <SiteSettings data={data} setData={setData} mutate={mutate} />}
           {section === 'features' && <Features data={data} setData={setData} mutate={mutate} />}
-          {section === 'members' && <Members metrics={data.metrics} />}
+          {section === 'members' && <Members data={data} mutate={mutate} />}
+          {section === 'payments' && <Payments data={data} mutate={mutate} />}
           {section === 'database' && <DatabaseStatus metrics={data.metrics} />}
           {section === 'audit' && <Audit audit={data.audit} />}
         </main>
@@ -199,6 +213,8 @@ export default function AdminConsolePage({ qa = false }) {
 function Dashboard({ data, select }) {
   const cards = [
     ['전체 회원', data.metrics.accounts, UserRoundCog, `의사 ${data.metrics.doctors} · 병원 ${data.metrics.hospitals}`],
+    ['결제 요청', data.metrics.payments || 0, CreditCard, `처리 대기 ${data.metrics.pendingPayments || 0}건`],
+    ['누적 결제', `${(data.metrics.paidRevenue || 0).toLocaleString()}원`, ReceiptText, `환불 주문 ${data.metrics.refundedPayments || 0}건`],
     ['상담 접수', data.metrics.consultations, UsersRound, '신규·처리 대기 포함'],
     ['진행 채용', data.metrics.activeCases, BriefcaseBusiness, `입사 확정 ${data.metrics.hiredCases}건`],
     ['운영 콘텐츠', data.metrics.contents || 0, PencilLine, '공고·인재·게시글'],
@@ -210,6 +226,7 @@ function Dashboard({ data, select }) {
         <header><div><small>QUICK MANAGEMENT</small><h2>빠른 관리</h2></div></header>
         <div className="admin-quick-grid">
           <button onClick={() => select('contents')}><PencilLine /><span><strong>콘텐츠 통합 관리</strong><small>공고·인재·게시글 CRUD</small></span><ChevronRight /></button>
+          <button onClick={() => select('payments')}><CreditCard /><span><strong>결제 · 환불 관리</strong><small>주문·승인·영수증·환불</small></span><ChevronRight /></button>
           <button onClick={() => select('categories')}><FolderKanban /><span><strong>카테고리 관리</strong><small>진료과·지역·직군</small></span><ChevronRight /></button>
           <button onClick={() => select('features')}><SlidersHorizontal /><span><strong>기능 설정</strong><small>서비스 공개 여부</small></span><ChevronRight /></button>
           <button onClick={() => select('crm')}><BriefcaseBusiness /><span><strong>채용 CRM</strong><small>후보·면접·입사</small></span><ChevronRight /></button>
@@ -352,12 +369,124 @@ function Features({ data, setData, mutate }) {
   </section>;
 }
 
-function Members({ metrics }) {
-  return <section className="admin-panel"><header><div><small>MEMBER MANAGEMENT</small><h2>회원 유형별 현황</h2><p>개인정보 원문 대신 운영에 필요한 집계와 인증 상태를 관리합니다.</p></div></header><div className="admin-member-summary"><article><UserRoundCog /><strong>{metrics.doctors}</strong><p>의사 회원</p><small>면허 인증 연동 예정</small></article><article><Building2 /><strong>{metrics.hospitals}</strong><p>병원 회원</p><small>사업자 인증 연동 예정</small></article><article><ShieldCheck /><strong>권한 기반</strong><p>개인정보 열람</p><small>열람·동의 감사 기록</small></article></div></section>;
+function Members({ data, mutate }) {
+  const [query, setQuery] = useState('');
+  const [role, setRole] = useState('all');
+  const members = (data.members || []).filter((member) => {
+    const text = [member.email, member.fullName, member.phone, member.organization, member.jobTitle].join(' ').toLowerCase();
+    return (role === 'all' || member.role === role) && text.includes(query.trim().toLowerCase());
+  });
+  return <>
+    <section className="admin-member-summary">
+      <article><UserRoundCog /><strong>{data.metrics.doctors}</strong><p>의사 회원</p><small>면허 인증 상태와 결제 이력 연결</small></article>
+      <article><Building2 /><strong>{data.metrics.hospitals}</strong><p>병원 회원</p><small>기관·담당자·광고 주문 연결</small></article>
+      <article><CreditCard /><strong>{data.metrics.payments || 0}</strong><p>전체 결제 주문</p><small>회원별 누적 결제액 추적</small></article>
+    </section>
+    <section className="admin-panel admin-member-manager">
+      <header><div><small>MEMBER DATABASE</small><h2>회원가입 회원 정보 DB</h2><p>계정, 연락처, 회원 유형, 인증·활동 상태, 약관 동의와 결제 누계를 한곳에서 확인합니다.</p></div></header>
+      <div className="admin-data-toolbar">
+        <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름·이메일·병원·연락처 검색" /></label>
+        <select value={role} onChange={(event) => setRole(event.target.value)}><option value="all">전체 회원</option><option value="doctor">의사 회원</option><option value="hospital">병원 회원</option></select>
+        <span>검색 결과 <b>{members.length}</b>명</span>
+      </div>
+      <div className="admin-member-table">
+        <div className="head"><span>회원</span><span>유형·기관</span><span>인증</span><span>약관·결제</span><span>가입·접속</span><span>관리</span></div>
+        {members.map((member) => <MemberRow member={member} mutate={mutate} key={member.id} />)}
+        {!members.length && <div className="admin-data-empty">조건에 맞는 회원이 없습니다.</div>}
+      </div>
+    </section>
+  </>;
+}
+
+function MemberRow({ member, mutate }) {
+  const [status, setStatus] = useState(member.status || 'active');
+  const [verificationStatus, setVerificationStatus] = useState(member.verificationStatus || 'unverified');
+  const save = () => mutate('member_update', { id:member.id, status, verificationStatus }, '회원 상태와 인증 정보를 저장했습니다.');
+  return <div className="member-row">
+    <div><strong>{member.fullName || '이름 미등록'}</strong><small>{member.email || '이메일 비공개'}</small><small>{member.phone || '연락처 미등록'}</small></div>
+    <div><span className={`member-role ${member.role}`}>{member.role === 'doctor' ? '의사' : '병원'}</span><strong>{member.organization || member.jobTitle || '-'}</strong><small>{member.jobTitle || '직함 미등록'}</small></div>
+    <div><select value={verificationStatus} onChange={(event) => setVerificationStatus(event.target.value)}><option value="unverified">미인증</option><option value="pending">확인 중</option><option value="verified">인증 완료</option><option value="rejected">인증 반려</option></select><small>계정 {status === 'active' ? '정상' : status === 'suspended' ? '정지' : '탈퇴'}</small></div>
+    <div><strong>동의 {member.consentCount || 0}건</strong><small>주문 {member.orderCount || 0}건</small><b>{Number(member.lifetimeValue || 0).toLocaleString()}원</b></div>
+    <div><small>가입 {String(member.createdAt || '-').slice(0,16)}</small><small>최근 {String(member.lastLoginAt || '-').slice(0,16)}</small></div>
+    <div><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="active">정상</option><option value="suspended">이용 정지</option><option value="withdrawn">탈퇴</option></select><button className="admin-primary" onClick={save}><Save />저장</button></div>
+  </div>;
+}
+
+const paymentStatusLabel = {
+  pending_review:'검수 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패',
+  cancelled:'취소', partially_refunded:'부분 환불', refunded:'전액 환불'
+};
+
+function Payments({ data, mutate }) {
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const filtered = (data.payments || []).filter((payment) => {
+    const text = [payment.orderNumber, payment.productName, payment.customerName, payment.customerEmail, payment.customerPhone].join(' ').toLowerCase();
+    return (statusFilter === 'all' || payment.status === statusFilter) && text.includes(query.trim().toLowerCase());
+  });
+  const [selectedId, setSelectedId] = useState(filtered[0]?.id || data.payments?.[0]?.id || '');
+  const selected = (data.payments || []).find((payment) => payment.id === selectedId) || filtered[0] || null;
+  useEffect(() => { if (!selected && filtered[0]) setSelectedId(filtered[0].id); }, [selected, filtered]);
+  return <section className="admin-panel admin-payment-manager">
+    <header><div><small>PAYMENT LEDGER</small><h2>결제 · 거래 · 환불 통합 원장</h2><p>주문번호를 기준으로 회원, 상품, 공급가·부가세, 승인·실패·취소와 환불 기록을 연결해 보관합니다.</p></div></header>
+    <div className="admin-payment-metrics">
+      <article><span>전체 주문</span><strong>{data.metrics.payments || 0}건</strong></article>
+      <article><span>처리 대기</span><strong>{data.metrics.pendingPayments || 0}건</strong></article>
+      <article><span>결제 완료액</span><strong>{Number(data.metrics.paidRevenue || 0).toLocaleString()}원</strong></article>
+      <article><span>환불 주문</span><strong>{data.metrics.refundedPayments || 0}건</strong></article>
+    </div>
+    <div className="admin-data-toolbar">
+      <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="주문번호·회원·상품 검색" /></label>
+      <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">전체 상태</option>{Object.entries(paymentStatusLabel).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select>
+      <span>검색 결과 <b>{filtered.length}</b>건</span>
+    </div>
+    <div className="admin-payment-layout">
+      <div className="admin-payment-list">
+        {filtered.map((payment) => <button className={payment.id === selected?.id ? 'active' : ''} onClick={() => setSelectedId(payment.id)} key={payment.id}><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status] || payment.status}</span><div><strong>{payment.productName}</strong><small>{payment.orderNumber}</small><small>{payment.customerName} · {payment.customerEmail}</small></div><b>{Number(payment.totalAmount).toLocaleString()}원</b><time>{String(payment.createdAt || '').slice(0,16)}</time></button>)}
+        {!filtered.length && <div className="admin-data-empty">조건에 맞는 결제 주문이 없습니다.</div>}
+      </div>
+      {selected ? <PaymentDetail payment={selected} transactions={data.transactions || []} refunds={data.refunds || []} mutate={mutate} /> : <div className="admin-payment-detail admin-data-empty">확인할 주문을 선택해주세요.</div>}
+    </div>
+  </section>;
+}
+
+function PaymentDetail({ payment, transactions, refunds, mutate }) {
+  const [status, setStatus] = useState(payment.status);
+  const [method, setMethod] = useState(payment.paymentMethod || 'card');
+  const [providerTransactionId, setProviderTransactionId] = useState('');
+  const [adminNote, setAdminNote] = useState(payment.adminNote || '');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  useEffect(() => { setStatus(payment.status); setMethod(payment.paymentMethod || 'card'); setAdminNote(payment.adminNote || ''); setProviderTransactionId(''); setRefundAmount(''); setRefundReason(''); }, [payment.id]);
+  const orderTransactions = transactions.filter((item) => item.orderId === payment.id);
+  const orderRefunds = refunds.filter((item) => item.orderId === payment.id);
+  const save = () => mutate('payment_update', { id:payment.id, status, paymentMethod:method, provider:'manual', providerTransactionId, adminNote }, '결제 상태와 거래 이력을 저장했습니다.');
+  const refund = async () => {
+    const saved = await mutate('refund_create', { orderId:payment.id, amount:Number(refundAmount), reason:refundReason }, '환불 요청을 원장에 기록했습니다.');
+    if (saved) { setRefundAmount(''); setRefundReason(''); }
+  };
+  return <div className="admin-payment-detail">
+    <header><div><small>ORDER DETAIL</small><h3>{payment.orderNumber}</h3></div><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status]}</span></header>
+    <dl>
+      <div><dt>회원</dt><dd>{payment.customerName || '-'}<small>{payment.customerEmail}<br />{payment.customerPhone}</small></dd></div>
+      <div><dt>상품</dt><dd>{payment.productName}<small>{payment.accountRole === 'hospital' ? '병원 회원' : '의사 회원'} · {payment.productType}</small></dd></div>
+      <div><dt>결제금액</dt><dd><b>{Number(payment.totalAmount).toLocaleString()}원</b><small>공급가 {Number(payment.supplyAmount).toLocaleString()}원 · 부가세 {Number(payment.taxAmount).toLocaleString()}원</small></dd></div>
+      <div><dt>처리시각</dt><dd>{String(payment.createdAt || '-').slice(0,16)}<small>결제 {String(payment.paidAt || '-').slice(0,16)}</small></dd></div>
+    </dl>
+    <div className="payment-admin-form">
+      <label><span>주문 상태</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="pending_review">검수 대기</option><option value="awaiting_payment">결제 대기</option><option value="paid">결제 완료</option><option value="failed">결제 실패</option><option value="cancelled">취소</option></select></label>
+      <label><span>결제 수단</span><select value={method} onChange={(event) => setMethod(event.target.value)}><option value="card">카드</option><option value="transfer">계좌이체</option></select></label>
+      <label className="wide"><span>PG·승인 거래번호</span><input value={providerTransactionId} onChange={(event) => setProviderTransactionId(event.target.value)} placeholder="승인번호 또는 PG 거래번호" /></label>
+      <label className="wide"><span>관리 메모</span><textarea value={adminNote} onChange={(event) => setAdminNote(event.target.value)} rows="2" placeholder="검수, 입금 확인, 실패 사유 등" /></label>
+      <button className="admin-primary wide" onClick={save}><Save />결제 상태 저장</button>
+    </div>
+    <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{String(item.processedAt || '').slice(0,16)}</time></div>)}{!orderTransactions.length && <p>아직 승인·실패 거래가 없습니다.</p>}</section>
+    {['paid','partially_refunded'].includes(payment.status) && <section className="payment-refund"><h4><RotateCcw />환불 접수</h4><div><input value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} inputMode="numeric" placeholder="환불 금액" /><input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} placeholder="환불 사유" /><button onClick={refund}>환불 기록</button></div>{orderRefunds.map((item) => <p key={item.id}>{Number(item.amount).toLocaleString()}원 · {item.status} · {item.reason}</p>)}</section>}
+  </div>;
 }
 
 function DatabaseStatus({ metrics }) {
-  const rows = [['accounts', '회원 계정', metrics.accounts], ['consultation_requests', '상담 접수', metrics.consultations], ['recruitment_cases', '채용 CRM', metrics.activeCases + metrics.hiredCases], ['admin_content_records', '공고·인재·게시글', metrics.contents || 0], ['admin_categories', '운영 카테고리', metrics.categories], ['admin_audit_logs', '관리자 변경 이력', metrics.auditLogs]];
+  const rows = [['accounts', '회원 계정', metrics.accounts], ['account_admin_profiles', '회원 인증·운영 정보', metrics.accounts], ['payment_orders', '결제 주문 원장', metrics.payments || 0], ['payment_transactions', '승인·실패 거래', metrics.payments || 0], ['payment_refunds', '환불 원장', metrics.refundedPayments || 0], ['consultation_requests', '상담 접수', metrics.consultations], ['recruitment_cases', '채용 CRM', metrics.activeCases + metrics.hiredCases], ['admin_content_records', '공고·인재·게시글', metrics.contents || 0], ['admin_categories', '운영 카테고리', metrics.categories], ['admin_audit_logs', '관리자 변경 이력', metrics.auditLogs]];
   return <section className="admin-panel"><header><div><small>DATABASE OVERVIEW</small><h2>DB 테이블 현황</h2><p>안전을 위해 임의 SQL 실행 대신 승인된 관리 기능만 제공합니다.</p></div></header><div className="admin-db-table">{rows.map(([table, label, count]) => <div key={table}><Database /><code>{table}</code><strong>{label}</strong><span>{count.toLocaleString()} records</span><em>정상</em></div>)}</div></section>;
 }
 

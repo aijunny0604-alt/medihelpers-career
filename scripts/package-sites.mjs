@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { accountSchemaStatements, adminConsoleSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
+import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
 
 const sourceDir = 'client-build';
 const html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
@@ -43,6 +43,7 @@ const jsPath = ${JSON.stringify(jsPath)};
 const accountSchemaStatements = ${JSON.stringify(accountSchemaStatements)};
 const consultationSchemaStatements = ${JSON.stringify(consultationSchemaStatements)};
 const memberCenterSchemaStatements = ${JSON.stringify(memberCenterSchemaStatements)};
+const commerceSchemaStatements = ${JSON.stringify(commerceSchemaStatements)};
 const recruitmentCrmSchemaStatements = ${JSON.stringify(recruitmentCrmSchemaStatements)};
 const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatements)};
 const termsVersion = 'signup-terms-draft-2026-07-16';
@@ -82,6 +83,10 @@ async function ensureConsultationSchema(env) {
 async function ensureMemberCenterSchema(env) {
   if (!env || !env.DB) throw new Error('MEMBER_CENTER_DB_UNAVAILABLE');
   await env.DB.batch(memberCenterSchemaStatements.map(statement => env.DB.prepare(statement)));
+}
+async function ensureCommerceSchema(env) {
+  if (!env || !env.DB) throw new Error('COMMERCE_DB_UNAVAILABLE');
+  await env.DB.batch(commerceSchemaStatements.map(statement => env.DB.prepare(statement)));
 }
 async function ensureRecruitmentCrmSchema(env) {
   if (!env || !env.DB) throw new Error('RECRUITMENT_CRM_DB_UNAVAILABLE');
@@ -187,15 +192,16 @@ async function accountApi(request, env) {
   if (request.method === 'GET') {
     if (!enabled) return json({ signupEnabled: false, signedIn: Boolean(identity), account: null, identity: identity || {}, isAdmin });
     if (!identity) return json({ signupEnabled: true, signedIn: false, account: null, identity: {}, isAdmin: false });
-    try { await ensureAccountSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+    try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
-    const row = await env.DB.prepare('SELECT role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
+    const row = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
+    if (row) await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, last_login_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(row.id, identity.email, identity.displayName || '').run();
     return json({ signupEnabled: true, signedIn: true, account: row || null, identity, isAdmin });
   }
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
   if (!enabled) return json({ error: '회원가입은 법무 검토 완료 후 열립니다.' }, 503);
   if (!identity) return json({ error: '계정 인증이 필요합니다.' }, 401);
-  try { await ensureAccountSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   if (request.method === 'POST') {
     const length = Number(request.headers.get('content-length') || 0);
@@ -208,6 +214,7 @@ async function accountApi(request, env) {
     const newId = crypto.randomUUID();
     await env.DB.prepare("INSERT INTO accounts (id, user_key, role) VALUES (?, ?, ?) ON CONFLICT(user_key) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP").bind(newId, key, body.role).run();
     const account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
+    await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, last_login_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, identity.email, identity.displayName || '').run();
     const records = [
       ['terms', termsVersion],
       ['age_confirmation', termsVersion],
@@ -218,11 +225,20 @@ async function accountApi(request, env) {
   }
   if (request.method === 'DELETE') {
     const account = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(key).first();
-    if (account) await env.DB.batch([
+    if (!account) return json({ deleted:true });
+    const billing = await env.DB.prepare('SELECT COUNT(*) total FROM payment_orders WHERE account_id=?').bind(account.id).first();
+    if (Number(billing?.total || 0) > 0) {
+      await env.DB.batch([
+        env.DB.prepare("UPDATE account_admin_profiles SET status='withdrawn', email='', full_name='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id),
+        env.DB.prepare("UPDATE member_profiles SET display_name='', phone='', organization='', job_title='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id)
+      ]);
+      return json({ deleted:true, retainedForBilling:true });
+    }
+    await env.DB.batch([
       env.DB.prepare('DELETE FROM consent_records WHERE account_id = ?').bind(account.id),
       env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(account.id)
     ]);
-    return json({ deleted: true });
+    return json({ deleted:true, retainedForBilling:false });
   }
   return json({ error: '지원하지 않는 요청입니다.' }, 405);
 }
@@ -235,16 +251,18 @@ async function memberCenterApi(request, env) {
   const identity = authenticatedUser(request);
   if (!identity) return json({ signedIn:false, account:null, identity:{} }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
-  try { await ensureAccountSchema(env); await ensureConsultationSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  try { await ensureAccountSchema(env); await ensureConsultationSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
-  const account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
+  const account = await env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   if (!account) return json({ signedIn:true, account:null, identity });
+  if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
     const profile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id).first();
     const preferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
     const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
     const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, specialty, status, created_at AS createdAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:consultations.results || [] });
+    const orders = await env.DB.prepare('SELECT order_number AS orderNumber, product_name AS productName, total_amount AS totalAmount, status, payment_method AS paymentMethod, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:consultations.results || [], orders:orders.results || [] });
   }
   if (request.method === 'PATCH') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -259,6 +277,57 @@ async function memberCenterApi(request, env) {
     return json({ saved:true, profile, notifications:{ email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } });
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
+const paymentProductCatalog = {
+  basic:{ type:'doctor_ad', name:'베이직 공고', amount:59000 },
+  featured:{ type:'doctor_ad', name:'추천 공고', amount:149000 },
+  intensive:{ type:'doctor_ad', name:'집중 채용', amount:299000 },
+  'doctor-single':{ type:'membership', name:'커리어 체크', amount:19000 },
+  'doctor-pass':{ type:'membership', name:'커리어 컨시어지', amount:39000 }
+};
+function cleanOrderValue(value, max = 180) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+function createOrderNumber() {
+  const date = new Date().toISOString().slice(0,10).replaceAll('-','');
+  return 'MH-' + date + '-' + crypto.randomUUID().replaceAll('-','').slice(0,8).toUpperCase();
+}
+async function paymentOrderApi(request, env) {
+  const identity = authenticatedUser(request);
+  if (!identity) return json({ error:'로그인한 회원만 결제를 신청할 수 있습니다.' }, 401);
+  if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
+  try { await ensureAccountSchema(env); await ensureCommerceSchema(env); } catch { return json({ error:'결제 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+  const account = await env.DB.prepare("SELECT a.id, a.role, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
+  if (!account) return json({ error:'회원가입을 완료한 뒤 이용해주세요.' }, 403);
+  if (account.status !== 'active') return json({ error:'이용할 수 없는 회원 계정입니다.' }, 403);
+  if (request.method === 'GET') {
+    const result = await env.DB.prepare('SELECT order_number AS orderNumber, product_type AS productType, product_name AS productName, total_amount AS totalAmount, status, payment_method AS paymentMethod, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
+    return json({ orders:result.results || [] });
+  }
+  if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+  let body; try { body = await request.json(); } catch { return json({ error:'주문 내용을 확인해주세요.' }, 400); }
+  const product = paymentProductCatalog[String(body.productId || '')];
+  if (!product) return json({ error:'신청 상품을 확인해주세요.' }, 400);
+  if (product.type === 'doctor_ad' && account.role !== 'hospital') return json({ error:'병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
+  if (product.type === 'membership' && account.role !== 'doctor') return json({ error:'의사 회원만 커리어 상품을 신청할 수 있습니다.' }, 403);
+  const totalAmount = product.amount;
+  const supplyAmount = Math.round(totalAmount / 1.1);
+  const taxAmount = totalAmount - supplyAmount;
+  const id = crypto.randomUUID();
+  const orderNumber = createOrderNumber();
+  const customerName = cleanOrderValue(body.customerName);
+  const customerEmail = cleanOrderValue(body.customerEmail || identity.email);
+  const customerPhone = cleanOrderValue(body.customerPhone);
+  const paymentMethod = ['card','transfer'].includes(body.paymentMethod) ? body.paymentMethod : 'card';
+  const metadata = body.metadata && typeof body.metadata === 'object' ? body.metadata : {};
+  const metadataJson = JSON.stringify(metadata).slice(0,12000);
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, product.type, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
+    env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'pending_review', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
+  ]);
+  return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'pending_review' } }, 201);
 }
 async function recruitmentCrmApi(request, env, pathname) {
   const admin = adminIdentity(request, env);
@@ -329,22 +398,29 @@ async function adminConsoleApi(request, env) {
     await ensureConsultationSchema(env);
     await ensureRecruitmentCrmSchema(env);
     await ensureAdminConsoleSchema(env);
+    await ensureMemberCenterSchema(env);
+    await ensureCommerceSchema(env);
     await seedAdminConsole(env);
   } catch {
     return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }
   if (request.method === 'GET') {
-    const [accounts, consultations, cases, categories, contentCount, auditCount, settingsResult, featuresResult, categoryResult, contentResult, auditResult] = await Promise.all([
+    const [accounts, consultations, cases, categories, contentCount, auditCount, paymentMetrics, settingsResult, featuresResult, categoryResult, contentResult, memberResult, paymentResult, transactionResult, refundResult, auditResult] = await Promise.all([
       env.DB.prepare("SELECT COUNT(*) total, SUM(CASE WHEN role='doctor' THEN 1 ELSE 0 END) doctors, SUM(CASE WHEN role='hospital' THEN 1 ELSE 0 END) hospitals FROM accounts").first(),
       env.DB.prepare('SELECT COUNT(*) total FROM consultation_requests').first(),
       env.DB.prepare("SELECT SUM(CASE WHEN stage NOT IN ('hired','closed') THEN 1 ELSE 0 END) active, SUM(CASE WHEN stage='hired' THEN 1 ELSE 0 END) hired FROM recruitment_cases").first(),
       env.DB.prepare('SELECT COUNT(*) total FROM admin_categories').first(),
       env.DB.prepare('SELECT COUNT(*) total FROM admin_content_records').first(),
       env.DB.prepare('SELECT COUNT(*) total FROM admin_audit_logs').first(),
+      env.DB.prepare("SELECT COUNT(*) total, SUM(CASE WHEN status IN ('pending_review','awaiting_payment') THEN 1 ELSE 0 END) pending, SUM(CASE WHEN status='paid' THEN total_amount ELSE 0 END) paid_revenue, SUM(CASE WHEN status IN ('partially_refunded','refunded') THEN 1 ELSE 0 END) refunded FROM payment_orders").first(),
       env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings').all(),
       env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
       env.DB.prepare('SELECT id, group_key AS groupKey, name, slug, sort_order AS sortOrder, enabled FROM admin_categories ORDER BY group_key, sort_order, name').all(),
       env.DB.prepare('SELECT id, content_type AS contentType, title, subtitle, status, visibility, payload_json AS payloadJson, created_by AS createdBy, updated_by AS updatedBy, published_at AS publishedAt, created_at AS createdAt, updated_at AS updatedAt FROM admin_content_records ORDER BY updated_at DESC LIMIT 500').all(),
+      env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, a.updated_at AS updatedAt, COALESCE(ap.email,'') email, COALESCE(ap.full_name,'') fullName, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus, ap.last_login_at AS lastLoginAt, COALESCE(mp.phone,'') phone, COALESCE(mp.organization,'') organization, COALESCE(mp.job_title,'') jobTitle, (SELECT COUNT(*) FROM consent_records cr WHERE cr.account_id=a.id) consentCount, (SELECT COUNT(*) FROM payment_orders po WHERE po.account_id=a.id) orderCount, COALESCE((SELECT SUM(po.total_amount) FROM payment_orders po WHERE po.account_id=a.id AND po.status='paid'),0) lifetimeValue FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id LEFT JOIN member_profiles mp ON mp.account_id=a.id ORDER BY a.created_at DESC LIMIT 500").all(),
+      env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.account_id AS accountId, po.product_type AS productType, po.product_id AS productId, po.product_name AS productName, po.supply_amount AS supplyAmount, po.tax_amount AS taxAmount, po.total_amount AS totalAmount, po.status, po.payment_method AS paymentMethod, po.customer_name AS customerName, po.customer_email AS customerEmail, po.customer_phone AS customerPhone, po.admin_note AS adminNote, po.paid_at AS paidAt, po.cancelled_at AS cancelledAt, po.created_at AS createdAt, po.updated_at AS updatedAt, a.role accountRole FROM payment_orders po JOIN accounts a ON a.id=po.account_id ORDER BY po.created_at DESC LIMIT 500").all(),
+      env.DB.prepare("SELECT id, order_id AS orderId, transaction_type AS transactionType, provider, provider_transaction_id AS providerTransactionId, amount, status, failure_code AS failureCode, failure_message AS failureMessage, processed_at AS processedAt FROM payment_transactions ORDER BY created_at DESC LIMIT 1000").all(),
+      env.DB.prepare("SELECT id, order_id AS orderId, transaction_id AS transactionId, amount, reason, status, requested_by AS requestedBy, provider_refund_id AS providerRefundId, processed_at AS processedAt, created_at AS createdAt FROM payment_refunds ORDER BY created_at DESC LIMIT 500").all(),
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all()
     ]);
     const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
@@ -354,11 +430,16 @@ async function adminConsoleApi(request, env) {
       metrics: {
         accounts:Number(accounts?.total || 0), doctors:Number(accounts?.doctors || 0), hospitals:Number(accounts?.hospitals || 0),
         consultations:Number(consultations?.total || 0), activeCases:Number(cases?.active || 0), hiredCases:Number(cases?.hired || 0),
-        categories:Number(categories?.total || 0), contents:Number(contentCount?.total || 0), auditLogs:Number(auditCount?.total || 0)
+        categories:Number(categories?.total || 0), contents:Number(contentCount?.total || 0), auditLogs:Number(auditCount?.total || 0),
+        payments:Number(paymentMetrics?.total || 0), pendingPayments:Number(paymentMetrics?.pending || 0), paidRevenue:Number(paymentMetrics?.paid_revenue || 0), refundedPayments:Number(paymentMetrics?.refunded || 0)
       },
       settings, features,
       categories:(categoryResult.results || []).map(row => ({ ...row, enabled:Boolean(row.enabled) })),
       contents:(contentResult.results || []).map(row => ({ ...row, payload:JSON.parse(row.payloadJson || '{}') })),
+      members:memberResult.results || [],
+      payments:paymentResult.results || [],
+      transactions:transactionResult.results || [],
+      refunds:refundResult.results || [],
       audit:auditResult.results || []
     });
   }
@@ -421,6 +502,48 @@ async function adminConsoleApi(request, env) {
     const record = await env.DB.prepare('SELECT title, content_type AS contentType FROM admin_content_records WHERE id = ?').bind(id).first();
     await env.DB.prepare('DELETE FROM admin_content_records WHERE id = ?').bind(id).run();
     await writeAdminAudit(env, admin, 'content_delete', record?.title || id, { id, contentType:record?.contentType || '' });
+  } else if (action === 'member_update') {
+    const id = String(payload.id || '');
+    const status = String(payload.status || '');
+    const verificationStatus = String(payload.verificationStatus || '');
+    const note = String(payload.adminNote || '').trim().slice(0,2000);
+    if (!id || !['active','suspended','withdrawn'].includes(status) || !['unverified','pending','verified','rejected'].includes(verificationStatus)) return json({ error:'회원 상태를 확인해주세요.' }, 400);
+    await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, status, verification_status, admin_note, updated_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET status=excluded.status, verification_status=excluded.verification_status, admin_note=excluded.admin_note, updated_by=excluded.updated_by, updated_at=CURRENT_TIMESTAMP").bind(id, status, verificationStatus, note, admin.email).run();
+    await writeAdminAudit(env, admin, 'member_update', id, { status, verificationStatus });
+  } else if (action === 'payment_update') {
+    const id = String(payload.id || '');
+    const status = String(payload.status || '');
+    const allowedStatuses = ['pending_review','awaiting_payment','paid','failed','cancelled'];
+    if (!id || !allowedStatuses.includes(status)) return json({ error:'결제 상태를 확인해주세요.' }, 400);
+    const order = await env.DB.prepare('SELECT order_number AS orderNumber, status, total_amount AS totalAmount, supply_amount AS supplyAmount, tax_amount AS taxAmount FROM payment_orders WHERE id=?').bind(id).first();
+    if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
+    const method = ['card','transfer'].includes(payload.paymentMethod) ? payload.paymentMethod : '';
+    const provider = cleanOrderValue(payload.provider || 'manual', 60);
+    const providerTransactionId = cleanOrderValue(payload.providerTransactionId, 180);
+    const adminNote = cleanOrderValue(payload.adminNote, 2000);
+    const transactionType = status === 'paid' ? 'capture' : status === 'failed' ? 'failure' : status === 'cancelled' ? 'cancellation' : '';
+    const statements = [
+      env.DB.prepare("UPDATE payment_orders SET status=?, payment_method=CASE WHEN ?='' THEN payment_method ELSE ? END, admin_note=?, paid_at=CASE WHEN ?='paid' THEN COALESCE(paid_at,CURRENT_TIMESTAMP) ELSE paid_at END, cancelled_at=CASE WHEN ?='cancelled' THEN CURRENT_TIMESTAMP ELSE cancelled_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(status, method, method, adminNote, status, status, id),
+      env.DB.prepare('INSERT INTO payment_events (id, order_id, actor_key, event_type, from_status, to_status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, admin.email, 'admin_status_update', order.status, status, JSON.stringify({ provider, providerTransactionId, adminNote }))
+    ];
+    if (transactionType && order.status !== status) statements.push(env.DB.prepare('INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, transactionType, provider, providerTransactionId, Number(order.totalAmount), status === 'failed' ? 'failed' : status === 'cancelled' ? 'cancelled' : 'succeeded'));
+    if (status === 'paid') statements.push(env.DB.prepare("INSERT OR IGNORE INTO payment_receipts (id, order_id, receipt_number, supply_amount, tax_amount, total_amount) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), id, 'R-' + order.orderNumber, Number(order.supplyAmount), Number(order.taxAmount), Number(order.totalAmount)));
+    await env.DB.batch(statements);
+    await writeAdminAudit(env, admin, 'payment_update', order.orderNumber, { from:order.status, to:status, amount:order.totalAmount });
+  } else if (action === 'refund_create') {
+    const orderId = String(payload.orderId || '');
+    const amount = Math.max(0, Math.floor(Number(payload.amount) || 0));
+    const reason = cleanOrderValue(payload.reason, 500);
+    const order = await env.DB.prepare("SELECT order_number AS orderNumber, total_amount AS totalAmount, status FROM payment_orders WHERE id=?").bind(orderId).first();
+    if (!order || !['paid','partially_refunded'].includes(order.status)) return json({ error:'환불 가능한 결제 주문을 확인해주세요.' }, 400);
+    const previous = await env.DB.prepare("SELECT COALESCE(SUM(amount),0) total FROM payment_refunds WHERE order_id=? AND status IN ('requested','processing','succeeded')").bind(orderId).first();
+    if (!amount || amount > Number(order.totalAmount) - Number(previous?.total || 0)) return json({ error:'환불 가능 금액을 확인해주세요.' }, 400);
+    const id = crypto.randomUUID();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO payment_refunds (id, order_id, amount, reason, requested_by) VALUES (?, ?, ?, ?, ?)").bind(id, orderId, amount, reason, admin.email),
+      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_requested', ?)").bind(crypto.randomUUID(), orderId, admin.email, JSON.stringify({ refundId:id, amount, reason }))
+    ]);
+    await writeAdminAudit(env, admin, 'refund_create', order.orderNumber, { refundId:id, amount, reason });
   } else {
     return json({ error:'지원하지 않는 관리 작업입니다.' }, 400);
   }
@@ -430,6 +553,7 @@ async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
+  if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
   if (pathname === '/api/admin-console') return adminConsoleApi(request, env);

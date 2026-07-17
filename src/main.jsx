@@ -2031,6 +2031,8 @@ function HeadhuntingPage({ route }) {
 
 function Checkout({ plan }) {
   const [done, setDone] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [method, setMethod] = useState("card");
   const [facilityType, setFacilityType] = useState("");
   const [facilityError, setFacilityError] = useState("");
@@ -2123,7 +2125,7 @@ function Checkout({ plan }) {
       return current.filter((_, photoIndex) => photoIndex !== index);
     });
   };
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!facilityType) {
       setFacilityError("기관 유형을 선택해주세요.");
@@ -2139,16 +2141,40 @@ function Checkout({ plan }) {
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
       premiumBrandMode: brandFile ? "single-brand-image" : "auto-wordmark",
     };
-    appendStoredRecord("medihelpers_ad_requests", {
-      id: `AD-${Date.now()}`,
-      planId: plan.id,
-      amount: plan.price,
-      paymentMethod: method,
-      status: "payment-link-requested",
-      createdAt: new Date().toISOString(),
-      ...data,
-    });
-    setDone(true);
+    setSubmitError("");
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/payment-orders", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productId: plan.id,
+          paymentMethod: method,
+          customerName: data.manager,
+          customerEmail: data.email,
+          customerPhone: data.phone,
+          metadata: data,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(result.error || "결제 요청을 저장하지 못했습니다.");
+      appendStoredRecord("medihelpers_ad_requests", {
+        id: result.order?.orderNumber || `AD-${Date.now()}`,
+        planId: plan.id,
+        amount: plan.price,
+        paymentMethod: method,
+        status: result.order?.status || "pending_review",
+        createdAt: new Date().toISOString(),
+        ...data,
+      });
+      setDone(true);
+    } catch (error) {
+      setSubmitError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
   return (
     <section className="ad-apply-page" aria-label="의사 초빙공고 등록">
@@ -2488,6 +2514,7 @@ function Checkout({ plan }) {
                   브랜드 이미지는 사용 권한을 확인한 파일만 등록합니다.
                 </span>
               </label>
+              {submitError && <p className="form-error" role="alert">{submitError}</p>}
               </section>
             </div>
             <aside className="order-summary">
@@ -2509,7 +2536,7 @@ function Checkout({ plan }) {
                 <strong>{plan.price.toLocaleString()}원</strong>
               </div>
               <button className="button primary full" type="submit">
-                결제 안내 요청하기 <ArrowRight size={17} />
+                {submitting ? "DB에 안전하게 저장 중…" : "결제 안내 요청하기"} <ArrowRight size={17} />
               </button>
               <p className="secure-note">
                 <ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.
@@ -2576,14 +2603,32 @@ function AdvertiseApplyPage({ route, qa }) {
 
 function MembershipCheckout({ plan, onClose }) {
   const [done, setDone] = useState(false);
-  const submit = (event) => {
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    appendStoredRecord('medihelpers_membership_requests', { id: `MEM-${Date.now()}`, planId: plan.id, amount: plan.price, status: 'payment-link-requested', createdAt: new Date().toISOString(), ...data });
-    trackConversion('checkout_request', { planId: plan.id, amount: plan.price });
-    setDone(true);
+    setSubmitError('');
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/payment-orders', {
+        method:'POST',
+        credentials:'same-origin',
+        headers:{ 'content-type':'application/json' },
+        body:JSON.stringify({ productId:plan.id, paymentMethod:'card', customerName:data.name, customerEmail:data.email, customerPhone:data.phone, metadata:{ terms:data.terms } })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
+      appendStoredRecord('medihelpers_membership_requests', { id:result.order?.orderNumber || `MEM-${Date.now()}`, planId:plan.id, amount:plan.price, status:result.order?.status || 'pending_review', createdAt:new Date().toISOString(), ...data });
+      trackConversion('checkout_request', { planId: plan.id, amount: plan.price });
+      setDone(true);
+    } catch (error) {
+      setSubmitError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
-  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>멤버십 결제 요청이 접수되었습니다</h2><p>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label><button className="button primary full" type="submit">결제 안내 요청하기 <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
+  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>멤버십 결제 요청이 접수되었습니다</h2><p>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? 'DB에 안전하게 저장 중…' : '결제 안내 요청하기'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
 }
 
 function ValueCalculator({ type, onChoose }) {
