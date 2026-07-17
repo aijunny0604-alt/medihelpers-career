@@ -1281,6 +1281,7 @@ function TalentPage() {
   const [availability, setAvailability] = useState("전체 시점");
   const [keyword, setKeyword] = useState("");
   const [talentSort, setTalentSort] = useState("recent");
+  const [selectedTalent, setSelectedTalent] = useState(null);
   const [saved, setSaved] = useState(() =>
     readStoredArray("medihelpers_saved_talent"),
   );
@@ -1503,17 +1504,18 @@ function TalentPage() {
                   근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 확인 메모
                 </p>
               </div>
-              <Link
-                className="button outline full"
-                to={`/headhunting?role=hospital&candidate=${person.code}`}
-                onClick={() =>
-                  trackConversion("talent_consult_cta", {
+              <button
+                type="button"
+                className="button talent-profile-open full"
+                onClick={() => {
+                  setSelectedTalent(person);
+                  trackConversion("talent_profile_open", {
                     candidate: person.code,
-                  })
-                }
+                  });
+                }}
               >
-                이 후보 헤드헌터에게 문의
-              </Link>
+                익명 프로필 자세히 보기 <ArrowRight />
+              </button>
             </article>
           ))}
         </div>
@@ -1573,7 +1575,118 @@ function TalentPage() {
         description="채용 조건을 남기면 공개되지 않은 인재풀까지 확인해드립니다."
         hospital
       />
+      {selectedTalent && (
+        <TalentDetailModal
+          person={selectedTalent}
+          onClose={() => setSelectedTalent(null)}
+        />
+      )}
     </>
+  );
+}
+
+const talentProfileGuide = {
+  내과: {
+    focus: "외래 진료와 건강검진 결과 상담 중심의 포지션을 우선 검토합니다.",
+    strengths: ["만성질환 외래", "검진 결과 상담", "환자 커뮤니케이션"],
+  },
+  정형외과: {
+    focus: "외래 중심 진료와 병원 운영에 참여할 수 있는 원장 포지션을 선호합니다.",
+    strengths: ["정형외과 외래", "환자 설명·상담", "원장 포지션 검토"],
+  },
+  소아청소년과: {
+    focus: "지역 제한 없이 안정적인 외래 진료 환경을 폭넓게 검토합니다.",
+    strengths: ["소아 외래 진료", "보호자 상담", "빠른 입사 가능"],
+  },
+  영상의학과: {
+    focus: "판독 업무 비중이 높고 당직 부담이 적은 근무 환경을 선호합니다.",
+    strengths: ["영상 판독", "협진 커뮤니케이션", "당직 없는 근무 선호"],
+  },
+  가정의학과: {
+    focus: "건강검진과 결과 상담을 중심으로 한 주 4일 근무를 우선 검토합니다.",
+    strengths: ["건강검진", "문진·결과 상담", "주 4일 선호"],
+  },
+  마취통증의학과: {
+    focus: "통증클리닉 진료와 운영에 함께할 수 있는 원장 포지션을 검토합니다.",
+    strengths: ["통증 외래", "시술 상담", "원장 포지션 검토"],
+  },
+};
+
+function TalentDetailModal({ person, onClose }) {
+  const guide = talentProfileGuide[person.dept] || {
+    focus: `${person.preference} 조건을 중심으로 새로운 근무지를 검토합니다.`,
+    strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
+  };
+  return (
+    <Modal
+      wide
+      variant="talent-detail-modal"
+      label={`${person.code} 익명 의사 프로필`}
+      onClose={onClose}
+    >
+      <div className="talent-detail-hero">
+        <span className="talent-detail-avatar"><UserRound /></span>
+        <div>
+          <span className="talent-verified"><BadgeCheck /> 메디헬퍼스 상담 확인</span>
+          <small>{person.code} · 익명 프로필</small>
+          <h2>{person.dept} · {person.career}</h2>
+          <p>개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.</p>
+        </div>
+      </div>
+
+      <div className="talent-detail-body">
+        <section className="talent-detail-summary" aria-label="후보 핵심 조건">
+          <div><span>희망 지역</span><strong>{person.region}</strong></div>
+          <div><span>희망 근무</span><strong>{person.preference}</strong></div>
+          <div><span>입사 가능</span><strong>{person.available}</strong></div>
+        </section>
+
+        <div className="talent-detail-columns">
+          <section className="talent-detail-section">
+            <div className="talent-detail-title">
+              <span><Target /></span>
+              <div><small>MATCHING POINT</small><h3>병원이 먼저 확인할 핵심 포인트</h3></div>
+            </div>
+            <p className="talent-focus-copy">{guide.focus}</p>
+            <div className="talent-strength-list">
+              {guide.strengths.map((strength) => <span key={strength}><Check /> {strength}</span>)}
+            </div>
+          </section>
+
+          <section className="talent-detail-section talent-consult-status">
+            <div className="talent-detail-title">
+              <span><ClipboardCheck /></span>
+              <div><small>CONSULTATION CHECK</small><h3>상담에서 확인한 범위</h3></div>
+            </div>
+            <ul>
+              <li><CircleCheck /> 전문과목과 전문의 경력</li>
+              <li><CircleCheck /> 희망 지역과 근무 형태</li>
+              <li><CircleCheck /> 입사 가능 시점과 조율 의사</li>
+            </ul>
+          </section>
+        </div>
+
+        <section className="talent-detail-private">
+          <span className="talent-private-icon"><LockKeyhole /></span>
+          <div>
+            <small>후보자 동의 후 헤드헌터가 확인해드려요</small>
+            <h3>근무기관 이력 · 세부 진료 경험 · 이직 사유 · 인터뷰 메모</h3>
+            <p>병원의 채용 조건을 먼저 확인한 뒤 후보자에게 소개 의사를 묻고, 동의된 범위에서만 정보를 전달합니다.</p>
+          </div>
+        </section>
+
+        <div className="talent-detail-actions">
+          <button type="button" className="button outline" onClick={onClose}>목록 계속 보기</button>
+          <Link
+            className="button primary"
+            to={`/headhunting?role=hospital&candidate=${person.code}`}
+            onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}
+          >
+            이 후보 연결 요청 <ArrowRight />
+          </Link>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
