@@ -1001,13 +1001,6 @@ function HomePage() {
         </div>
         <div className="hero-assurance"><ShieldCheck /><span><strong>이직 의사는 상담 전까지 비공개</strong> · 초빙정보 탐색은 무료입니다</span></div>
       </div>
-      <div className="concierge-card">
-        <div className="concierge-head"><span><UserRoundSearch /></span><div><small>MEDIHELPERS CONCIERGE</small><strong>1:1 커리어 매칭</strong></div><i>LIVE</i></div>
-        <div className="match-score"><div className="score-ring trust"><strong>3</strong><span>단계</span></div><div><small>메디헬퍼스 검수 기준</small><h3>많은 공고보다<br />확인된 조건을 먼저</h3></div></div>
-        <div className="mini-position"><span className="mini-icon blue"><FileCheck2 /></span><div><small>STEP 01</small><strong>병원·담당자 확인</strong><p>연락 가능한 채용공고인지 확인</p></div><b>확인</b></div>
-        <div className="mini-position"><span className="mini-icon mint"><ClipboardCheck /></span><div><small>STEP 02·03</small><strong>근무조건 확인·상담 연결</strong><p>모호한 조건은 담당자가 직접 확인</p></div><b>연결</b></div>
-        <div className="concierge-foot"><CircleCheck size={16} /> 상담부터 조건 협상까지 함께합니다</div>
-      </div>
     </section>
     <section className="section soft" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">CURATED DOCTOR POSITIONS</span><h2>지금 주목할 의사 초빙</h2><p>진료과와 근무조건, 병원 정보를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(jobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
     <QuickAccess />
