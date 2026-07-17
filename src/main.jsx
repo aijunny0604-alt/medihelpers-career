@@ -758,14 +758,14 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
             <div className="decision-sheet-head">
               <div className="detail-section-title">
                 <span><Crown /></span>
-                <div><small>DOCTOR MEMBERSHIP DECISION SHEET</small><h3>의사가 결정 전에 꼭 보는 상세조건</h3></div>
+                <div><small>MEMBERSHIP JOB DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
                 {memberUnlocked ? <><BadgeCheck /> 멤버십 열람 중</> : <><LockKeyhole /> 멤버십 상세정보</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
-              상담을 신청하기 전에 보수 구조, 실제 근무표, 진료 강도와 입사 판단 정보를 먼저 비교합니다.
+              공개 요약보다 구체적인 보수 구조, 실제 근무표, 진료 범위와 입사 조건을 한 화면에서 확인합니다.
             </p>
             <div className="decision-sheet-grid">
               {doctorDecisionGroups.map(({ title, icon: Icon, rows }) => (
@@ -2701,7 +2701,7 @@ function MembershipPage({ route, qa }) {
         <section className="membership-detail-catalog" aria-labelledby="membership-detail-title">
           <div className="membership-detail-heading">
             <span><Crown /></span>
-            <div><small>WHAT YOU ACTUALLY UNLOCK</small><h2 id="membership-detail-title">상담 연결이 아니라, 결정에 필요한 정보가 열립니다</h2><p>병원에 다시 전화하기 전에 의사가 가장 많이 확인하는 항목을 네 묶음으로 정리했습니다.</p></div>
+            <div><small>WHAT YOU ACTUALLY UNLOCK</small><h2 id="membership-detail-title">상담 연결이 아니라, 결정에 필요한 정보가 열립니다</h2><p>지원 전 확인할 주요 조건을 네 묶음으로 정리했습니다.</p></div>
           </div>
           <div className="membership-detail-grid">
             {[
