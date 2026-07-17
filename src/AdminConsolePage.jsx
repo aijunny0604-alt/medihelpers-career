@@ -292,10 +292,11 @@ function ContentManager({ data, setData, mutate, qa }) {
   const [type, setType] = useState('all');
   const [keyword, setKeyword] = useState('');
   const [editing, setEditing] = useState(null);
+  const [selected, setSelected] = useState(null);
   const contents = data.contents || [];
   const visible = contents.filter((item) => (type === 'all' || item.contentType === type) && (!keyword || `${item.title} ${item.subtitle}`.toLowerCase().includes(keyword.toLowerCase())));
   const openNew = () => setEditing({ ...emptyContent, payload:{ ...emptyContent.payload } });
-  const openEdit = (item) => setEditing({ ...item, payload:{ ...emptyContent.payload, ...(item.payload || {}) } });
+  const openEdit = (item) => { setSelected(null); setEditing({ ...item, payload:{ ...emptyContent.payload, ...(item.payload || {}) } }); };
   const change = (key, value) => setEditing((old) => ({ ...old, [key]:value }));
   const changePayload = (key, value) => setEditing((old) => ({ ...old, payload:{ ...old.payload, [key]:value } }));
   const save = async () => {
@@ -333,10 +334,41 @@ function ContentManager({ data, setData, mutate, qa }) {
     </div>}
     <div className="admin-content-table">
       <div className="head"><span>유형</span><span>제목·기관</span><span>공개 범위</span><span>상태</span><span>최근 수정</span><span>관리</span></div>
-      {visible.map((item) => <div key={item.id}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{item.title}</strong><small>{item.subtitle || '보조 정보 없음'}</small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={() => openEdit(item)}><PencilLine />수정</button><button onClick={() => remove(item)}><Trash2 /></button></div></div>)}
+      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{item.title}</strong><small>{item.subtitle || '보조 정보 없음'}</small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title} 삭제`}><Trash2 /></button></div></div>)}
       {!visible.length && <div className="admin-content-empty"><FileText /><span>조건에 맞는 운영 데이터가 없습니다.</span></div>}
     </div>
+    {selected && <ContentDetail item={selected} onClose={() => setSelected(null)} onEdit={() => openEdit(selected)} />}
   </section>;
+}
+
+function ContentDetail({ item, onClose, onEdit }) {
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    const handleKey = (event) => { if (event.key === 'Escape') onClose(); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKey);
+    return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', handleKey); };
+  }, [onClose]);
+  const payload = Object.entries(item.payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined);
+  const visibility = { public:'전체 공개', doctor:'의사 회원', hospital:'병원 회원', admin:'관리자 전용' }[item.visibility] || item.visibility;
+  const status = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감·종료' }[item.status] || item.status;
+  const payloadLabels = { primary:'지역·주요 분류', secondary:'급여·핵심 조건', description:'상세 설명' };
+  return <div className="admin-content-detail-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <section className="admin-content-detail" role="dialog" aria-modal="true" aria-labelledby="admin-content-detail-title">
+      <header><div><small>CONTENT RECORD DETAIL</small><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><h2 id="admin-content-detail-title">{item.title}</h2><p>{item.subtitle || '보조 정보 없음'}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
+      <div className="admin-content-detail-meta">
+        <div><Eye /><span><small>공개 범위</small><strong>{visibility}</strong></span></div>
+        <div><Activity /><span><small>운영 상태</small><strong>{status}</strong></span></div>
+        <div><UserRoundCog /><span><small>작성자</small><strong>{item.createdBy || '관리자 QA'}</strong></span></div>
+        <div><PencilLine /><span><small>최근 수정자</small><strong>{item.updatedBy || item.createdBy || '관리자 QA'}</strong></span></div>
+      </div>
+      <div className="admin-content-detail-body">
+        <section><h3>등록 내용</h3>{payload.length ? <dl>{payload.map(([key, value]) => <div className={key === 'description' ? 'wide' : ''} key={key}><dt>{payloadLabels[key] || key}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl> : <p className="admin-content-detail-empty">등록된 상세 내용이 없습니다.</p>}</section>
+        <aside><h3>운영 기록</h3><dl><div><dt>데이터 ID</dt><dd>{item.id}</dd></div><div><dt>작성 시각</dt><dd>{String(item.createdAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>최근 수정</dt><dd>{String(item.updatedAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>공개 시작</dt><dd>{String(item.publishedAt || '-').slice(0,16).replace('T',' ')}</dd></div></dl><p><ShieldCheck /> 수정·공개·삭제 작업은 관리자 변경 이력에 기록됩니다.</p></aside>
+      </div>
+      <footer><button className="button outline" onClick={onClose}>닫기</button><button className="admin-primary" onClick={onEdit}><PencilLine />이 내용 수정</button></footer>
+    </section>
+  </div>;
 }
 
 function SiteSettings({ data, setData, mutate }) {
