@@ -386,8 +386,6 @@ function JobCard({
   const restricted = isAd || job.badge === "비공개";
   const qaUnlocked =
     restricted && qa?.active && qa.info.capabilities.privateDetails;
-  const adLabel =
-    job.adTier === "spotlight" ? "집중채용 브랜드관" : "추천 브랜드관";
   const moveCardLight = (event) => {
     if (
       !isAd ||
@@ -467,20 +465,6 @@ function JobCard({
             brandSource ? { "--brand-image": `url(${brandUrl})` } : undefined
           }
         >
-          <span className="ad-stage-label">
-            <Sparkles size={14} /> {adLabel}
-          </span>
-          <span className="ad-stage-value">
-            {job.adTier === "spotlight" ? (
-              <>
-                <Crown /> 최상단 노출
-              </>
-            ) : (
-              <>
-                <BadgeCheck /> 맞춤 추천
-              </>
-            )}
-          </span>
           {hasBrandAsset ? (
             <>
               <span className="brand-media-backdrop" aria-hidden="true" />
