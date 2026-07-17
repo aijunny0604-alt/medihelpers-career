@@ -4037,3 +4037,7 @@ html.performance-lite .motion-notice{background:#fff}
 .admin-category-tabs button{padding:9px 11px 9px 15px;display:inline-flex;align-items:center;gap:8px}
 .admin-category-tabs button b{min-width:25px;height:25px;padding:0 7px;border-radius:999px;background:#e7edf5;color:#52677f;display:grid;place-items:center;font-size:11px}
 .admin-category-tabs button.active b{background:rgba(255,255,255,.2);color:#fff}
+
+.crm-back-button{min-height:42px;margin:0 0 20px;padding:0 15px;border:1px solid rgba(255,255,255,.28);border-radius:11px;background:rgba(255,255,255,.1);color:#fff;display:inline-flex;align-items:center;gap:8px;font-weight:800;cursor:pointer;transition:background .18s ease,border-color .18s ease}
+.crm-back-button:hover{border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.18)}
+.crm-back-button svg{width:18px}

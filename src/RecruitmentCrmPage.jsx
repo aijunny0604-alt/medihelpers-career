@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, CircleAlert, Clock3, FileCheck2, Search, ShieldCheck, UserRoundSearch, UsersRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, CircleAlert, Clock3, FileCheck2, Search, ShieldCheck, UserRoundSearch, UsersRound } from 'lucide-react';
 
 const stages = [
   ['new_request','신규 의뢰'], ['condition_review','조건 확인'], ['candidate_search','후보 탐색'], ['candidate_consent','후보 동의'], ['hospital_submitted','병원 제안'], ['interview','면접 예정'], ['negotiation','조건 협상'], ['hired','입사 확정'], ['closed','종료']
@@ -34,9 +34,10 @@ export default function RecruitmentCrmPage({ qa }) {
     setCases((items) => items.map((item) => item.id === selected.id ? { ...item, stage:next } : item));
     if (!qa?.active) await fetch(`/api/recruitment-crm/${encodeURIComponent(selected.id)}`, { method:'PATCH', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ stage:next, assignedRecruiter:selected.assignedRecruiter || '' }) });
   };
+  const goBack = () => window.location.assign('/admin/console');
   if (status === 'denied') return <section className="crm-access-denied"><ShieldCheck /><h1>관리자 권한이 필요합니다</h1><p>채용 CRM은 메디헬퍼스 관리자만 이용할 수 있습니다.</p><a href="/">홈으로 돌아가기</a></section>;
   return <div className="recruitment-crm">
-    <section className="crm-hero"><div><span><BadgeCheck /> MEDIHELPERS RECRUITMENT CRM</span><h1>상담부터 입사·성공보수까지<br />한 흐름으로 관리합니다</h1><p>병원 의뢰, 후보 동의, 추천, 면접, 조건 협상과 청구 상태가 한 채용 건에 누적됩니다.</p></div><aside><small>현재 진행</small><strong>{cases.filter((item) => !['hired','closed'].includes(item.stage)).length}건</strong><span>입사 확정 {cases.filter((item) => item.stage === 'hired').length}건</span></aside></section>
+    <section className="crm-hero"><div><button type="button" className="crm-back-button" onClick={goBack}><ArrowLeft /> 관리자 페이지로 돌아가기</button><span><BadgeCheck /> MEDIHELPERS RECRUITMENT CRM</span><h1>상담부터 입사·성공보수까지<br />한 흐름으로 관리합니다</h1><p>병원 의뢰, 후보 동의, 추천, 면접, 조건 협상과 청구 상태가 한 채용 건에 누적됩니다.</p></div><aside><small>현재 진행</small><strong>{cases.filter((item) => !['hired','closed'].includes(item.stage)).length}건</strong><span>입사 확정 {cases.filter((item) => item.stage === 'hired').length}건</span></aside></section>
     <section className="crm-stage-strip">{stages.slice(0,8).map(([key,label], index) => <div key={key}><span>{index + 1}</span><strong>{label}</strong><small>{cases.filter((item) => item.stage === key).length}건</small></div>)}</section>
     <section className="crm-workspace">
       <aside className="crm-case-list"><header><div><small>HEADHUNTING CASES</small><h2>채용案件</h2></div><button>+ 새 의뢰</button></header><div className="crm-filter"><button className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}>진행 중</button><button className={filter === 'hired' ? 'active' : ''} onClick={() => setFilter('hired')}>입사 확정</button><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>전체</button></div>{visible.map((item) => <button className={`crm-case ${selected?.id === item.id ? 'active' : ''}`} key={item.id} onClick={() => setSelectedId(item.id)}><span>{stages.find(([key]) => key === item.stage)?.[1]}</span><strong>{item.hospitalName}</strong><small>{item.specialty} · {item.assignedRecruiter || '담당자 미지정'}</small><em>{item.nextAction || '다음 일정 입력'} <ChevronRight /></em></button>)}</aside>
