@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowRight, BriefcaseBusiness, Building2, CalendarDays, Check, FileText, MapPin, Search, ShieldCheck, Stethoscope, UsersRound } from 'lucide-react';
 import { withBase } from './basePath.js';
+import { operationalMedicalJobs } from './siteOperations.js';
 
 const categories = ['전체 직군', '간호사', '간호조무사', '방사선사', '임상병리사', '물리·작업치료사', '치과위생사', '병원 행정직'];
 const sampleJobs = [
@@ -23,10 +24,12 @@ function go(path) {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-export default function MedicalStaffPage() {
+export default function MedicalStaffPage({ operations }) {
+  const liveJobs = useMemo(() => [...operationalMedicalJobs(operations?.contents || []), ...sampleJobs], [operations?.contents]);
+  const liveCategories = useMemo(() => ['전체 직군', ...new Set([...categories.slice(1), ...liveJobs.map((job) => job.role)])], [liveJobs]);
   const [category, setCategory] = useState('전체 직군');
   const [keyword, setKeyword] = useState('');
-  const visible = useMemo(() => sampleJobs.filter((job) => (category === '전체 직군' || job.role === category) && (!keyword || `${job.title} ${job.hospital} ${job.region}`.includes(keyword))), [category, keyword]);
+  const visible = useMemo(() => liveJobs.filter((job) => (category === '전체 직군' || job.role === category) && (!keyword || `${job.title} ${job.hospital} ${job.region}`.includes(keyword))), [liveJobs, category, keyword]);
   return <div className="medical-staff-hub">
     <section className="medical-staff-hero">
       <div><span><UsersRound /> MEDICAL STAFF JOBS</span><h1>의료인 채용은 더 넓게,<br /><em>의사 헤드헌팅은 더 깊게.</em></h1><p>메디헬퍼스의 의사 전문성을 유지하면서 병원 운영에 필요한 의료직군 채용을 별도 허브에서 연결합니다.</p><div className="medical-staff-actions"><button onClick={() => go('/advertise/apply?staff=1')}><Building2 /> 의료인 공고 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서 등록</button></div></div>
@@ -34,7 +37,7 @@ export default function MedicalStaffPage() {
     </section>
     <section className="medical-staff-search" aria-label="의료인 채용정보 검색">
       <div className="medical-staff-search-title"><span><Search /></span><div><small>MEDICAL STAFF SEARCH</small><h2>직군과 지역으로 채용정보를 찾으세요</h2></div></div>
-      <div className="medical-staff-category-row">{categories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
+      <div className="medical-staff-category-row">{liveCategories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
       <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="기관명, 직무, 지역 검색" /></label>
     </section>
     <section className="section medical-staff-results">

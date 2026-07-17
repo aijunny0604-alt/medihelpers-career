@@ -287,7 +287,7 @@ const contentTypeLabels = {
 
 const emptyContent = {
   contentType:'doctor_job', title:'', subtitle:'', status:'draft', visibility:'public',
-  payload:{ primary:'', secondary:'', description:'' },
+  payload:{ primary:'', secondary:'', description:'', department:'', region:'', role:'', employmentType:'', career:'', pay:'', deadline:'', schedule:'' },
 };
 
 function ContentManager({ data, setData, mutate, qa }) {
@@ -330,6 +330,13 @@ function ContentManager({ data, setData, mutate, qa }) {
         <label className="wide"><span>기관명·보조 제목</span><input value={editing.subtitle} onChange={(e) => change('subtitle',e.target.value)} placeholder="병원명, 공개용 후보명, 카테고리" /></label>
         <label><span>지역·주요 분류</span><input value={editing.payload.primary} onChange={(e) => changePayload('primary',e.target.value)} placeholder="예: 부산 해운대구" /></label>
         <label><span>급여·핵심 조건</span><input value={editing.payload.secondary} onChange={(e) => changePayload('secondary',e.target.value)} placeholder="예: 월 1,500만원~" /></label>
+        <label><span>진료과·의료인 직군</span><input value={editing.payload.department || editing.payload.role || ''} onChange={(e) => { changePayload('department',e.target.value); changePayload('role',e.target.value); }} placeholder="예: 정형외과, 간호사" /></label>
+        <label><span>근무 지역</span><input value={editing.payload.region || ''} onChange={(e) => changePayload('region',e.target.value)} placeholder="예: 부산" /></label>
+        <label><span>고용·근무 형태</span><input value={editing.payload.employmentType || ''} onChange={(e) => changePayload('employmentType',e.target.value)} placeholder="예: 정규직, 주 4.5일" /></label>
+        <label><span>경력 조건</span><input value={editing.payload.career || ''} onChange={(e) => changePayload('career',e.target.value)} placeholder="예: 전문의 5년, 경력무관" /></label>
+        <label><span>급여</span><input value={editing.payload.pay || ''} onChange={(e) => changePayload('pay',e.target.value)} placeholder="예: 월 1,500만원~" /></label>
+        <label><span>마감일</span><input value={editing.payload.deadline || ''} onChange={(e) => changePayload('deadline',e.target.value)} placeholder="예: 2026.08.31, 상시채용" /></label>
+        <label className="wide"><span>근무 일정</span><input value={editing.payload.schedule || ''} onChange={(e) => changePayload('schedule',e.target.value)} placeholder="예: 평일 09:00~18:00 · 토요일 격주" /></label>
         <label className="wide"><span>상세 설명</span><textarea value={editing.payload.description} onChange={(e) => changePayload('description',e.target.value)} placeholder="근무조건, 경력, 공개 기준 등 운영에 필요한 내용을 입력하세요." /></label>
       </div>
       <footer><span><ShieldCheck /> 저장 시 관리자와 변경 시각이 자동 기록됩니다.</span><div><button className="button outline" onClick={() => setEditing(null)}>취소</button><button className="admin-primary" disabled={!editing.title.trim()} onClick={save}><Save />{editing.id ? '수정 저장' : '등록하기'}</button></div></footer>

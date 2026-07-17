@@ -418,6 +418,31 @@ async function publicCategoriesApi(request, env) {
   for (const row of result.results || []) if (groups[row.groupKey]) groups[row.groupKey].push({ name:row.name, slug:row.slug, sortOrder:row.sortOrder });
   return json({ categories:groups }, 200, { 'cache-control':'public, max-age=60' });
 }
+async function publicSiteOperationsApi(request, env) {
+  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  await ensureAdminConsoleSchema(env);
+  await seedAdminConsole(env);
+  const allowedVisibility = new Set(['public']);
+  const identity = authenticatedUser(request);
+  if (adminIdentity(request, env)) ['doctor','hospital','admin'].forEach(value => allowedVisibility.add(value));
+  else if (identity && env.ACCOUNT_HASH_SECRET) {
+    try {
+      await ensureAccountSchema(env);
+      const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+      const account = await env.DB.prepare('SELECT role FROM accounts WHERE user_key=?').bind(key).first();
+      if (account?.role) allowedVisibility.add(account.role);
+    } catch {}
+  }
+  const [settingsResult, featuresResult, contentResult] = await Promise.all([
+    env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings').all(),
+    env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
+    env.DB.prepare("SELECT id, content_type AS contentType, title, subtitle, visibility, payload_json AS payloadJson, published_at AS publishedAt, updated_at AS updatedAt FROM admin_content_records WHERE status='published' ORDER BY published_at DESC, updated_at DESC LIMIT 500").all()
+  ]);
+  const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingValue]));
+  const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
+  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload }; });
+  return json({ settings, features, contents });
+}
 async function adminConsoleApi(request, env) {
   const admin = adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
@@ -580,6 +605,7 @@ async function adminConsoleApi(request, env) {
 async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
+  if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);

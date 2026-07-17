@@ -23,6 +23,7 @@ import AccountRecoveryPage from './AccountRecoveryPage.jsx';
 import MedicalStaffPage from './MedicalStaffPage.jsx';
 import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
 import AdminConsolePage from './AdminConsolePage.jsx';
+import { operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import {
@@ -292,7 +293,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
   return createPortal(<div className={`modal-backdrop ${closing ? 'is-closing' : ''}`} onPointerDown={(event) => event.target === event.currentTarget && requestClose()}>{card}</div>, document.body);
 }
 
-function Header({ path, qa }) {
+function Header({ path, qa, operations }) {
   const [open, setOpen] = useState(false);
   const accountLabel = qa.active ? qa.info.shortLabel : '로그인';
   const signedInPreview = qa.active && qa.info.capabilities.signedIn;
@@ -312,11 +313,17 @@ function Header({ path, qa }) {
         <img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" />
       </Link>
       <nav id="primary-navigation" className={open ? 'open' : ''}>
-        {navItems.filter((item) => item.path !== '/resume' || (qa.active && qa.info.capabilities.doctor)).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
+        {navItems.filter((item) => {
+          if (item.path === '/resume' && !(qa.active && qa.info.capabilities.doctor)) return false;
+          if (item.path === '/jobs' && operations.features.doctorRecruitment === false) return false;
+          if (item.path === '/talent' && operations.features.talentSearch === false) return false;
+          if (item.path === '/advertise' && operations.features.adRegistration === false) return false;
+          return true;
+        }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{signedInPreview ? '마이페이지' : qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
       </nav>
       <div className="nav-actions">
-        <a className="text-link" href="tel:0513425463"><Phone size={16} /> 051-342-5463</a>
+        <a className="text-link" href={`tel:${operations.settings.supportPhone.replace(/\D/g,'')}`}><Phone size={16} /> {operations.settings.supportPhone}</a>
         <Link className={`header-account ${qa.active ? `qa-account tone-${qa.info.tone}` : ''}`} to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
         <Link className="button primary compact" to={primaryAction.to}>{primaryAction.label}</Link>
       </div>
@@ -332,13 +339,13 @@ function QaPreviewRibbon({ qa }) {
   </aside>;
 }
 
-function Footer() {
+function Footer({ operations }) {
   return <footer>
     <div className="footer-grid">
       <div className="footer-brand-block">
         <Link className="brand footer-logo" to="/"><img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" /></Link>
         <p>이직도 채용도 결국 사람의 일입니다.<br />메디헬퍼스가 직접 듣고, 꼼꼼히 연결하겠습니다.</p>
-        <div className="footer-contact"><a href="tel:0513425463"><Phone size={15} /> 051-342-5463</a><a href="mailto:hr@medihelpers.co.kr"><Mail size={15} /> hr@medihelpers.co.kr</a></div>
+        <div className="footer-contact"><a href={`tel:${operations.settings.supportPhone.replace(/\D/g,'')}`}><Phone size={15} /> {operations.settings.supportPhone}</a><a href={`mailto:${operations.settings.supportEmail}`}><Mail size={15} /> {operations.settings.supportEmail}</a></div>
       </div>
       <div className="footer-column"><strong>의사</strong><Link to="/jobs">초빙정보</Link><Link to="/resume">이력서 등록</Link><Link to="/headhunting">비공개 이직 상담</Link></div>
       <div className="footer-column"><strong>병원</strong><Link to="/talent">의사 인재정보</Link><Link to="/headhunting">의사 채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
@@ -1134,7 +1141,7 @@ function MediAngelAssistant() {
     </button>
   </aside>;
 }
-function HomePage() {
+function HomePage({ liveJobs = jobs }) {
   const siteCategories = useSiteCategories();
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
@@ -1157,7 +1164,7 @@ function HomePage() {
         <div className="hero-assurance"><ShieldCheck /><span><strong>이직 의사는 상담 전까지 비공개</strong> · 초빙정보 탐색은 무료입니다</span></div>
       </div>
     </section>
-    <section className="section soft" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">CURATED DOCTOR POSITIONS</span><h2>지금 주목할 의사 초빙</h2><p>진료과와 근무조건, 병원 정보를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(jobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
+    <section className="section soft" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">CURATED DOCTOR POSITIONS</span><h2>지금 주목할 의사 초빙</h2><p>진료과와 근무조건, 병원 정보를 확인한 포지션을 먼저 소개합니다.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid">{prioritizeJobs(liveJobs).slice(0, 3).map((job) => <JobCard key={job.id} job={job} saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
     <QuickAccess />
     <MemberTeaser />
     <section className="dual-path section"><div className="path-card doctor"><span className="path-icon"><Stethoscope /></span><small>이직을 고민하는 의사라면</small><h2>내 조건을 먼저 말하고<br />비공개 제안을 받으세요</h2><p>이력서를 공개하지 않아도 의사 전담 헤드헌터가 적합한 병원을 찾아드립니다.</p><ul><li><Check /> 이직 의사 비공개</li><li><Check /> 보수·진료범위 협상</li><li><Check /> 퇴사·입사 일정 조율</li></ul><Link className="button dark" to="/headhunting">의사 이직 상담</Link></div><div className="path-card hospital"><span className="path-icon"><Building2 /></span><small>의사를 채용하는 병원이라면</small><h2>광고와 의사 추천을<br />한 번에 시작하세요</h2><p>초빙공고 등록부터 후보 발굴, 면접 일정까지 필요한 만큼 선택할 수 있습니다.</p><ul><li><Check /> 전문과목별 의사 인재풀</li><li><Check /> 의사 초빙공고 검수</li><li><Check /> 성과형 헤드헌팅</li></ul><Link className="button light" to="/advertise">의사 채용 시작</Link></div></section>
@@ -1342,7 +1349,7 @@ function SmartAdDock({ total, onSelect, canRegister }) {
     <button type="button" className="smart-ad-dock-close" onClick={() => setDismissed(true)} aria-label="공고 등록창 닫기"><X /></button>
   </aside>;
 }
-function JobsPage({ route, qa }) {
+function JobsPage({ route, qa, liveJobs = jobs }) {
   const siteCategories = useSiteCategories();
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [recruitmentType, setRecruitmentType] = useState(params.get('recruitmentType') || '전체 초빙');
@@ -1363,7 +1370,7 @@ function JobsPage({ route, qa }) {
 
   // 진료과 빠른 필터용: 진료과 필터 이전, 지역+키워드만 적용한 결과의 진료과별 개수.
   const specialtyStrip = useMemo(() => {
-    const scoped = jobs.filter((job) => matchesJob(job, { dept: '전체 진료과', region, keyword, recruitmentType, condition }));
+    const scoped = liveJobs.filter((job) => matchesJob(job, { dept: '전체 진료과', region, keyword, recruitmentType, condition }));
     const counts = Object.fromEntries(countByDept(scoped).map((item) => [item.key, item.count]));
     const items = [{ key: '전체 진료과', label: '전체', count: scoped.length }];
     siteCategories.departments.forEach((name) => {
@@ -1371,9 +1378,9 @@ function JobsPage({ route, qa }) {
       if (counts[name]) items.push({ key: name, label: name, count: counts[name] });
     });
     return items;
-  }, [region, keyword, recruitmentType, condition, siteCategories.departments]);
+  }, [liveJobs, region, keyword, recruitmentType, condition, siteCategories.departments]);
 
-  const filtered = useMemo(() => jobs.filter((job) => matchesJob(job, { dept, region, keyword, recruitmentType, condition })), [dept, region, keyword, recruitmentType, condition]);
+  const filtered = useMemo(() => liveJobs.filter((job) => matchesJob(job, { dept, region, keyword, recruitmentType, condition })), [liveJobs, dept, region, keyword, recruitmentType, condition]);
   // 프리미엄: 등급 우선순위 유지 + 등급 내부 진료과·지역 균형.
   const orderedPromoted = useMemo(() => orderPremium(filtered.filter((job) => job.adTier), { seed: premiumSessionSeed }), [filtered, premiumSessionSeed]);
   // 일반: 진료과·지역 라운드로빈 균형.
@@ -1425,13 +1432,13 @@ function JobsPage({ route, qa }) {
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
       <AdQuickLauncher onSelect={requestAdPlan} canRegister={canRegisterAds} />
     </section>
-    <SmartAdDock total={jobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
+    <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
     {adPlan && <Checkout plan={adPlan} onClose={() => setAdPlan(null)} />}
   </>;
 }
 
-function TalentPage({ qa }) {
+function TalentPage({ qa, liveTalent = talent }) {
   const siteCategories = useSiteCategories();
   const [dept, setDept] = useState("전체 진료과");
   const [region, setRegion] = useState("전국");
@@ -1448,7 +1455,7 @@ function TalentPage({ qa }) {
   const [saved, setSaved] = useState(() =>
     readStoredArray("medihelpers_saved_talent"),
   );
-  const talentRegions = siteCategories.regions.length > 1 ? siteCategories.regions : ["전국", ...new Set(talent.flatMap((person) => person.region.split("·")))].filter(Boolean);
+  const talentRegions = siteCategories.regions.length > 1 ? siteCategories.regions : ["전국", ...new Set(liveTalent.flatMap((person) => person.region.split("·")))].filter(Boolean);
   const availableOptions = [
     "전체 시점",
     "즉시",
@@ -1458,7 +1465,7 @@ function TalentPage({ qa }) {
   ];
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase();
-    const filteredTalent = talent.filter((person) => {
+    const filteredTalent = liveTalent.filter((person) => {
       const matchesDept = dept === "전체 진료과" || person.dept === dept;
       const matchesRegion = region === "전국" || person.region.includes(region);
       const matchesAvailable =
@@ -1485,7 +1492,7 @@ function TalentPage({ qa }) {
             Number.parseInt(b.career, 10) - Number.parseInt(a.career, 10),
         )
       : filteredTalent;
-  }, [dept, region, availability, keyword, talentSort]);
+  }, [liveTalent, dept, region, availability, keyword, talentSort]);
   useEffect(() => {
     setTalentVisible(TALENT_PAGE_SIZE);
   }, [dept, region, availability, keyword, talentSort]);
@@ -2919,6 +2926,9 @@ function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', des
 export function App() {
   const route = useRoute();
   const path = route.split('?')[0].replace(/\/$/, '') || '/';
+  const operations = useSiteOperations();
+  const liveJobs = useMemo(() => [...operationalDoctorJobs(operations.contents), ...jobs], [operations.contents]);
+  const liveTalent = useMemo(() => [...operationalTalent(operations.contents), ...talent], [operations.contents]);
   const [qaState, setQaState] = useState(() => normalizeQaState(readStoredString(QA_PREVIEW_STORAGE_KEY)));
   useSmoothPageScroll();
   useScrollMotion(route);
@@ -2945,19 +2955,19 @@ export function App() {
     : { to: '/signup/hospital?next=/advertise', label: '병원 가입' };
 
   let page;
-  if (path === '/') page = <HomePage />;
-  else if (path === '/jobs') page = <JobsPage route={route} qa={qa} />;
+  if (path === '/') page = <HomePage liveJobs={liveJobs} />;
+  else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
-    const job = jobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
+    const job = liveJobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
     page = job ? <JobDetailRoute job={job} qa={qa} /> : <NotFoundPage />;
   }
   else if (path === '/professions') page = <Redirect to="/headhunting" />;
-  else if (path === '/talent') page = <TalentPage qa={qa} />;
-  else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={jobs} talent={talent} onNavigate={navigate} />;
+  else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <TalentPage qa={qa} liveTalent={liveTalent} />;
+  else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
-  else if (path === '/medical-staff') page = <MedicalStaffPage />;
-  else if (path === '/advertise/apply') page = <AdvertiseApplyPage route={route} qa={qa} />;
-  else if (path === '/advertise') page = <AdvertisePage qa={qa} />;
+  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <MedicalStaffPage operations={operations} />;
+  else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} />;
+  else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
@@ -2967,7 +2977,7 @@ export function App() {
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
-  else if (path === '/resume') page = <ResumeRoute qa={qa} />;
+  else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <ResumeRoute qa={qa} />;
   else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" qa={qa} />;
   else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" qa={qa} />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
@@ -2976,5 +2986,5 @@ export function App() {
   if (path === '/admin' || path.startsWith('/admin/')) {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
-  return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer /><MediAngelAssistant /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
+  return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><MotionNotice /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
 }
