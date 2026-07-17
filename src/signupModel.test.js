@@ -19,7 +19,7 @@ test('rejects unknown roles and missing legal confirmations', () => {
 });
 
 test('renders stable public role labels', () => {
-  assert.equal(accountRoleLabel('doctor'), '의사');
+  assert.equal(accountRoleLabel('doctor'), '일반 회원');
   assert.equal(accountRoleLabel('hospital'), '병원·의료기관');
   assert.equal(accountRoleLabel('unknown'), '회원');
 });

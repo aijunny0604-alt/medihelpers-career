@@ -31,7 +31,7 @@ export const QA_STATE_OPTIONS = Object.freeze([
   {
     id: 'doctor',
     label: '의사 일반 회원',
-    shortLabel: '의사 회원',
+    shortLabel: '일반 회원',
     description: '의사 인증 상태에서 멤버십 상세조건 잠금과 상담 기능을 점검합니다.',
     tone: 'doctor',
     capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: false, privateDetails: false },

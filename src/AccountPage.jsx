@@ -29,10 +29,10 @@ const initialForm = (role = '') => ({
 
 const roleContent = {
   doctor: {
-    label: '의사 회원',
-    eyebrow: 'DOCTOR MEMBER',
-    title: '의사 회원가입',
-    description: '의사 초빙정보 탐색과 비공개 이직 상담을 위한 계정입니다.',
+    label: '일반 회원',
+    eyebrow: 'INDIVIDUAL MEMBER',
+    title: '일반 회원가입',
+    description: '의사·의료인 채용정보 탐색과 비공개 이직 상담을 위한 개인 계정입니다.',
     afterTitle: '면허·자격 확인은 나중에',
     afterCopy: '비공개 공고 열람이나 소개 진행 시점에 면허·자격 확인을 별도로 안내합니다. 가입 단계에서는 전문과·면허번호를 받지 않습니다.',
     benefits: [
@@ -123,9 +123,9 @@ function MemberTypeChooser() {
     <span className="signup-card-icon"><UserRound /></span>
     <small>CHOOSE YOUR ACCOUNT</small>
     <h2>회원 유형을 선택해주세요</h2>
-    <p>가입 목적과 확인 절차가 다르므로 의사 회원과 병원 회원을 분리해 운영합니다.</p>
+    <p>개인 구직자와 병원 채용 담당자는 이용 목적과 확인 절차가 달라 계정을 구분해 운영합니다.</p>
     <div className="member-type-grid">
-      <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>DOCTOR · 의사 회원</small><strong>이직·초빙정보를 찾고 있어요</strong><p>상세조건 무료 열람 · 비공개 이직 상담 · 이력서 관리</p><b>의사 회원으로 시작하기 <ArrowRight /></b></div></a>
+      <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>INDIVIDUAL · 일반 회원</small><strong>채용정보를 찾고 있어요</strong><p>의사·의료인 채용정보 · 비공개 상담 · 이력서 관리</p><b>일반 회원으로 시작하기 <ArrowRight /></b></div></a>
       <a className="hospital-choice" href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>HOSPITAL · 병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 후보 추천 · 채용 진행 관리</p><b>병원 회원으로 시작하기 <ArrowRight /></b></div></a>
     </div>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호는 받지 않고, 정식 오픈 시 휴대폰 본인확인으로 중복 가입을 확인합니다.</div>
@@ -215,15 +215,16 @@ function AgreementItem({ id, checked, onChange, title, children, confirmation = 
 
 function TermsCopy() {
   return <>
-    <h4>메디헬퍼스 서비스 이용약관 주요 내용</h4>
+    <h4>서비스 이용약관 핵심 안내</h4>
     <dl>
-      <div><dt>이용 목적</dt><dd>의사·의료인 채용정보, 인재정보, 비공개 이직상담, 병원 채용의뢰 및 관련 관리 서비스를 제공합니다.</dd></div>
-      <div><dt>계정과 인증</dt><dd>계정은 가입자 본인 또는 등록된 병원 담당자만 사용할 수 있으며, 의사·병원 인증 권한은 운영 확인 후 부여됩니다.</dd></div>
+      <div><dt>서비스 범위</dt><dd>의사·의료인 채용정보, 인재정보, 비공개 이직상담, 병원 채용의뢰 및 관련 관리 서비스를 제공합니다.</dd></div>
+      <div><dt>계정과 인증</dt><dd>계정은 가입자 본인 또는 등록된 병원 담당자만 사용할 수 있습니다. 의료인 자격·병원 인증이 필요한 기능은 별도 확인 후 이용 권한을 부여합니다.</dd></div>
       <div><dt>이용자 의무</dt><dd>허위 공고, 타인의 정보 도용, 무단 연락처 수집·판매, 후보자 동의 없는 개인정보 전달을 금지합니다.</dd></div>
-      <div><dt>유료 서비스</dt><dd>공고·열람·채용 상품의 금액, 제공기간, 환불조건은 결제 전에 별도로 안내하고 동의를 받습니다.</dd></div>
+      <div><dt>유료 서비스</dt><dd>공고·열람·채용 상품의 금액, 제공기간, 청약철회·환불조건은 결제 전에 별도로 안내하고 확인을 받습니다.</dd></div>
       <div><dt>서비스 제한</dt><dd>약관 위반, 허위 기관·자격 정보, 개인정보 침해가 확인되면 게시물 또는 계정 이용을 제한할 수 있습니다.</dd></div>
+      <div><dt>고지와 변경</dt><dd>약관의 시행일과 변경사항은 사이트에서 확인할 수 있도록 게시하며, 이용자에게 불리한 중요 변경은 관련 법령과 약관에서 정한 절차에 따라 알립니다.</dd></div>
     </dl>
-    <p className="signup-legal-notice">정식 운영 약관은 사업자 정보, 유료서비스 및 분쟁처리 기준을 법무 검토한 뒤 시행일과 함께 게시합니다.</p>
+    <p className="signup-legal-notice"><b>운영 전 확인용 요약입니다.</b> 정식 약관에는 사업자 정보, 책임 제한, 계약 해지, 청약철회·환불, 분쟁처리, 시행일을 포함하고 「약관의 규제에 관한 법률」 및 「전자상거래 등에서의 소비자보호에 관한 법률」 기준으로 최종 검토해 전문을 게시합니다.</p>
   </>;
 }
 
@@ -231,12 +232,13 @@ function PrivacyCopy({ memberType }) {
   return <>
     <h4>개인정보 수집·이용 안내</h4>
     <dl>
-      <div><dt>수집 목적</dt><dd>회원 식별, 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의와 결제내역 관리</dd></div>
-      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 기록{memberType === 'hospital' ? ', 담당자 직책, 병원명, 기관 유형, 대표자명, 대표전화, 주소' : ', 의료 직군, 전문 분야, 활동 지역'}</dd></div>
-      <div><dt>보유 기간</dt><dd>회원 탈퇴 시까지 보관하며, 결제·계약 등 관계 법령상 보존 의무가 있는 기록은 해당 기간 동안 분리 보관합니다.</dd></div>
+      <div><dt>수집 목적</dt><dd>회원 식별과 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의 처리, 결제·계약 내역 관리</dd></div>
+      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 담당자 직책, 병원명, 기관 유형, 대표자명, 대표전화, 주소' : ', 의료 직군, 전문 분야, 활동 지역'}</dd></div>
+      <div><dt>보유 기간</dt><dd>회원 탈퇴 또는 수집 목적 달성 시 지체 없이 파기합니다. 다만 계약·결제, 소비자 불만 또는 분쟁처리처럼 관계 법령상 보존 의무가 있는 기록은 법정 기간 동안 다른 정보와 분리하여 보관합니다.</dd></div>
       <div><dt>동의 거부</dt><dd>동의를 거부할 수 있으나 필수정보 수집에 동의하지 않으면 회원가입과 계정 기반 서비스를 이용할 수 없습니다.</dd></div>
+      <div><dt>선택 정보</dt><dd>출생연도와 성별은 선택 항목이며 입력하지 않아도 가입할 수 있습니다. 광고성 정보 수신 동의도 가입 필수 동의와 분리해 별도로 받습니다.</dd></div>
     </dl>
-    <p className="signup-legal-notice">주민등록번호, 면허·자격 서류, 사업자등록증 원본과 마케팅 수신 동의는 가입 단계에서 받지 않습니다. 출생연도와 성별은 선택정보이며 입력하지 않아도 가입할 수 있습니다.</p>
+    <p className="signup-legal-notice"><b>「개인정보 보호법」상 동의 고지 항목을 기준으로 구성한 운영 전 초안입니다.</b> 주민등록번호, 면허·자격 서류와 사업자등록증 원본은 가입 단계에서 받지 않습니다. 정식 운영 전 처리위탁·제3자 제공·국외이전 여부, 파기 방법, 정보주체 권리, 개인정보 보호책임자와 고충처리 연락처를 실제 운영 흐름에 맞춰 개인정보처리방침 전문으로 확정해야 합니다.</p>
   </>;
 }
 
@@ -426,7 +428,7 @@ function SignupApplicationForm({ memberType }) {
 
       <button className="button primary full" type="submit">가입 양식 확인하기 <ArrowRight /></button>
       <p className="signup-nostore-line"><ShieldCheck /> 입력값은 이 화면에서만 임시로 쓰이고 저장되지 않습니다. 확인 후 즉시 비워집니다.</p>
-      <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의사 회원'}으로 작성</a>
+      <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '일반 회원'}으로 작성</a>
     </form>
   </section>;
 }
@@ -444,7 +446,7 @@ function SignedOutCard({ memberType }) {
     </a>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>아이디·로그인 정보를 잊으셨나요?</a>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 휴대폰 본인확인 결과로 가입자를 확인합니다.</div>
-    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의사 회원'}으로 가입</a>
+    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '일반 회원'}으로 가입</a>
   </section>;
 }
 
@@ -560,7 +562,7 @@ export default function AccountPage({ memberType = '' }) {
   else if (!state.signedIn) content = <SignedOutCard memberType={memberType} />;
   else content = <SignupForm identity={state.identity} memberType={memberType} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
   return <div className="signup-page">
-    <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의사 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
+    <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '일반 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
     <div className="signup-shell">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}<SignupPrinciples memberType={memberType} previewMode={previewMode} /></div>
   </div>;
 }

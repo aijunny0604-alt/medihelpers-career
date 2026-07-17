@@ -2420,7 +2420,7 @@ function Checkout({ plan }) {
               <details className="membership-intake" open>
                 <summary>
                   <span><Crown /></span>
-                  <div><strong>의사 멤버십 상세조건</strong><small>작성한 항목은 의사 회원의 ‘결정 조건표’에 정리됩니다</small></div>
+                  <div><strong>의사 멤버십 상세조건</strong><small>작성한 항목은 일반 회원 중 의사 직군의 ‘결정 조건표’에 정리됩니다</small></div>
                   <em>모두 선택사항</em>
                 </summary>
                 <div className="form-grid">
@@ -2800,7 +2800,7 @@ function NotFoundPage() {
 }
 
 function ResumeAccessGate({ signedIn = false }) {
-  return <section className="resume-access-gate"><span><LockKeyhole /></span><small>DOCTOR MEMBERS ONLY</small><h1>{signedIn ? '의사 회원 전용 화면입니다' : '이력서 등록은 의사 회원만 이용할 수 있습니다'}</h1><p>{signedIn ? '현재 로그인한 회원 유형으로는 이력서를 등록할 수 없습니다. 의사 회원 계정으로 다시 로그인해주세요.' : '민감한 경력과 구직 정보를 안전하게 관리하기 위해 의사 회원 확인 후 등록 화면을 열어드립니다.'}</p><div><Link className="button primary" to="/signup/doctor?next=/resume"><UserRound /> 의사 회원 로그인·가입</Link><Link className="button outline" to="/jobs">채용공고 먼저 보기</Link></div><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
+  return <section className="resume-access-gate"><span><LockKeyhole /></span><small>MEDICAL PROFESSIONALS ONLY</small><h1>{signedIn ? '일반 회원 중 의료인 직군 전용 화면입니다' : '이력서 등록은 일반 회원 로그인 후 이용할 수 있습니다'}</h1><p>{signedIn ? '현재 로그인한 병원 회원 계정으로는 이력서를 등록할 수 없습니다. 일반 회원 계정으로 다시 로그인해주세요.' : '민감한 경력과 구직 정보를 안전하게 관리하기 위해 일반 회원 확인 후 등록 화면을 열어드립니다.'}</p><div><Link className="button primary" to="/signup/doctor?next=/resume"><UserRound /> 일반 회원 로그인·가입</Link><Link className="button outline" to="/jobs">채용공고 먼저 보기</Link></div><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
 }
 
 function ResumeRoute({ qa }) {
@@ -2840,7 +2840,7 @@ function ResumeRoute({ qa }) {
   }, [qaDoctor]);
 
   if (accountState.loading) {
-    return <section className="resume-access-gate resume-access-loading"><span><ShieldCheck /></span><small>SECURE ACCOUNT CHECK</small><h1>의사 회원 정보를 확인하고 있습니다</h1><p>안전한 이력서 등록 화면을 준비하고 있습니다.</p></section>;
+    return <section className="resume-access-gate resume-access-loading"><span><ShieldCheck /></span><small>SECURE ACCOUNT CHECK</small><h1>일반 회원 정보를 확인하고 있습니다</h1><p>안전한 이력서 등록 화면을 준비하고 있습니다.</p></section>;
   }
   return accountState.allowed ? <ResumePage /> : <ResumeAccessGate signedIn={accountState.signedIn} />;
 }

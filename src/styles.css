@@ -1459,6 +1459,39 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .signup-age-confirm{margin:12px 0 2px!important;padding:17px 19px;border:1px solid #dce5ef;border-radius:15px;background:#fff;display:flex!important;align-items:center!important;gap:11px!important;cursor:pointer}
 @media(max-width:520px){.signup-agreement-heading{grid-template-columns:1fr}.signup-agreement-heading details,.signup-agreement-heading details[open]{grid-column:1}.signup-agreement-heading summary{text-align:left}.signup-legal-copy{padding:15px}.signup-legal-copy dl>div{grid-template-columns:1fr;gap:4px}}
 
+/* Signup scale and readability — keep the account choice prominent on wide displays. */
+@media(min-width:1101px){
+  .signup-hero{padding:clamp(82px,7vh,108px) 32px clamp(48px,5vh,68px)}
+  .signup-hero h1{font-size:clamp(58px,4.1vw,76px)}
+  .signup-hero p{max-width:980px;font-size:clamp(20px,1.35vw,24px)}
+  .signup-shell{width:min(calc(100% - clamp(64px,7vw,128px)),1600px);grid-template-columns:minmax(0,1fr) minmax(360px,410px);gap:clamp(30px,2.5vw,44px)}
+  .signup-card{padding:clamp(58px,4.4vw,76px)}
+  .member-type-card>h2{font-size:clamp(40px,3vw,52px)}
+  .member-type-card>p{font-size:clamp(18px,1.3vw,22px)}
+  .member-type-grid{gap:clamp(20px,1.8vw,30px)}
+  .member-type-grid>a{min-height:280px;padding:clamp(28px,2.2vw,38px);grid-template-columns:72px minmax(0,1fr);gap:22px}
+  .member-type-grid>a>span{width:72px;height:72px;border-radius:21px}
+  .member-type-grid small{font-size:13px}
+  .member-type-grid strong{font-size:clamp(21px,1.45vw,25px)}
+  .member-type-grid p{min-height:50px;font-size:15px}
+  .member-type-grid b{min-height:54px;padding-inline:20px;font-size:15px}
+  .signup-principles{padding:36px}
+  .signup-principles h3{font-size:22px}
+  .signup-principles li{font-size:16px}
+  .signup-agreement-item{padding:22px 24px}
+  .signup-agreement-heading>label strong,.signup-age-confirm strong{font-size:16px}
+  .signup-agreement-heading details{font-size:14px!important}
+  .signup-legal-copy{max-height:360px;padding:26px}
+  .signup-legal-copy h4{font-size:18px}
+  .signup-legal-copy dl>div{grid-template-columns:122px minmax(0,1fr);padding:14px 0;gap:20px}
+  .signup-legal-copy dt,.signup-legal-copy dd{font-size:14px}
+  .signup-legal-notice{font-size:13px!important}
+}
+@media(min-width:1700px){
+  .signup-shell{grid-template-columns:minmax(0,1fr) 420px}
+  .member-type-grid>a{min-height:300px}
+}
+
 /* Enlarged primary hero search panel — reads as the primary action, balanced with the concierge card.
    Placed last so it wins over the earlier min-width:781px "Roomier" block without !important. */
 .hero-search-badge{flex:0 0 auto;margin-left:auto;align-self:center;padding:6px 11px;border-radius:999px;background:linear-gradient(120deg,#eaf2ff,#e6f7f1);border:1px solid #cfe0f6;color:#1257c8;font:800 11px Manrope,sans-serif;font-style:normal;letter-spacing:.3px;white-space:nowrap}

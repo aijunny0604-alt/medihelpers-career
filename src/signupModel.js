@@ -1,6 +1,6 @@
 export const ACCOUNT_ROLES = Object.freeze(['doctor', 'hospital']);
-export const TERMS_VERSION = 'signup-terms-draft-2026-07-16';
-export const PRIVACY_NOTICE_VERSION = 'privacy-notice-draft-2026-07-16';
+export const TERMS_VERSION = 'signup-terms-draft-2026-07-17';
+export const PRIVACY_NOTICE_VERSION = 'privacy-notice-draft-2026-07-17';
 
 export function validateSignup(input = {}) {
   const errors = {};
@@ -12,7 +12,7 @@ export function validateSignup(input = {}) {
 }
 
 export function accountRoleLabel(role) {
-  if (role === 'doctor') return '의사';
+  if (role === 'doctor') return '일반 회원';
   if (role === 'hospital') return '병원·의료기관';
   return '회원';
 }
