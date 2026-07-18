@@ -650,7 +650,7 @@ function Payments({ data, mutate }) {
     </div>
     <div className="admin-payment-layout">
       <div className="admin-payment-list">
-        {filtered.map((payment) => <button className={payment.id === selected?.id ? 'active' : ''} onClick={() => setSelectedId(payment.id)} key={payment.id}><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status] || payment.status}</span><div><strong>{payment.productName}</strong><small>{payment.orderNumber}</small><small>{payment.customerName} · {payment.customerEmail}</small></div><b>{Number(payment.totalAmount).toLocaleString()}원</b><time>{String(payment.createdAt || '').slice(0,16)}</time></button>)}
+        {filtered.map((payment) => <button className={payment.id === selected?.id ? 'active' : ''} onClick={() => setSelectedId(payment.id)} key={payment.id}><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status] || payment.status}</span><div><strong>{payment.productName}</strong><small>{payment.orderNumber}</small><small>{payment.customerName} · {payment.customerEmail}</small>{payment.exposure && <small className="payment-exposure">노출 {payment.exposure.start} ~ {payment.exposure.end}</small>}</div><b>{Number(payment.totalAmount).toLocaleString()}원</b><time>{String(payment.createdAt || '').slice(0,16)}</time></button>)}
         {!filtered.length && <div className="admin-data-empty">조건에 맞는 결제 주문이 없습니다.</div>}
       </div>
       {selected ? <PaymentDetail payment={selected} transactions={data.transactions || []} refunds={data.refunds || []} mutate={mutate} /> : <div className="admin-payment-detail admin-data-empty">확인할 주문을 선택해주세요.</div>}

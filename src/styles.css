@@ -4615,3 +4615,6 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .resume-visibility-tag.v-proposal{background:#eef3ff;color:#2f66d8}
 .resume-visibility-tag.v-private{background:#f3f5f8;color:#6b7889}
 @media(max-width:760px){.admin-resume-head{display:none}.admin-resume-row{grid-template-columns:1fr 1fr;gap:6px 12px;padding:14px 0}.admin-resume-row>div{grid-column:1/3}}
+
+/* 관리자 결제 목록 노출기간 표시 */
+.payment-exposure{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:6px;background:#eef6ef;color:#1c8a4e;font-size:10px;font-weight:700}

@@ -124,7 +124,18 @@ export default function MemberCenterPage({ route, qa }) {
     };
   });
   const activities = qa.active ? demo.activity : serverData.activity.map((item) => [String(item.occurredAt || '').slice(0, 10), item.title, item.detail]);
-  const ads = qa.active ? demo.ads : [];
+  // 병원 '내 공고'(이용현황) = 광고 상품 결제 주문. 결제 완료 건은 노출기간(exposure)을 함께 표시.
+  const ads = qa.active ? demo.ads : serverData.orders
+    .filter((item) => item.productType === 'doctor_ad' || item.productType === 'medical_staff_ad')
+    .map((item) => ({
+      id: item.orderNumber,
+      title: item.productName,
+      plan: `${item.productName} · ${Number(item.totalAmount || 0).toLocaleString('ko-KR')}원`,
+      status: ({ paid: '노출 중', pending_review: '검수 대기', awaiting_payment: '결제 대기', failed: '결제 실패', cancelled: '취소', refunded: '환불' })[item.status] || item.status,
+      period: item.exposure ? `${item.exposure.start} ~ ${item.exposure.end}` : (item.status === 'paid' ? '기간 산정 중' : '결제 후 시작'),
+      views: '-',
+      inquiries: '-'
+    }));
   const payments = qa.active ? demo.payments : serverData.orders.map((item) => ({ id:item.orderNumber, item:item.productName, amount:`${Number(item.totalAmount || 0).toLocaleString('ko-KR')}원`, date:String(item.paidAt || item.createdAt || '').slice(0, 10), status:({ paid:'결제 완료', pending:'결제 대기', canceled:'취소', refunded:'환불' })[item.status] || item.status }));
   const paidTotal = serverData.orders.filter((item) => item.status === 'paid').reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
   const hasMembership = serverData.orders.some((item) => item.status === 'paid' && /멤버십|커리어/.test(item.productName || ''));
