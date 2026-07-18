@@ -18,6 +18,18 @@ npm run build
 - 사이트 운영 카테고리 변환
 - 병원 카드 색상·로고 대체 규칙
 
+## 로컬 가상 API 목 (개발용)
+
+OpenAI Sites 서버(`scripts/package-sites.mjs`)는 로컬에 없어 `npm run dev`에선 `/api/*`가 404다. 그래서 결제·열람권·이력서 저장 등 서버 흐름을 로컬에서 확인할 수 없다. 이를 위해 **개발 모드 전용 가상 목**(`src/devApiMock.js`)을 둔다.
+
+- `npm run dev`(vite)에서만 자동 설치(`import.meta.env.DEV` 가드). **배포 빌드에는 포함되지 않는다**(빌드 후 `client-build/`에 `devApiMock` 문자열 없음으로 확인).
+- 동작: `window.fetch`를 감싸 `/api/*`만 가로채 localStorage로 흉내낸다.
+  - `POST /api/payment-orders` → 주문 생성 / `POST /api/payment-approve` → 가상 승인 + 열람권(talentId) 부여
+  - `GET /api/talent-detail/:id` → 부여된 열람권이 있으면 상세 공개, 없으면 잠금
+  - `POST /api/resumes` → 이력서 저장 / `GET /api/account` → 병원 목 계정
+- 목 초기화: 브라우저 콘솔에서 `localStorage.removeItem('devmock_talent_unlocks')` 등으로 재설정.
+- 주의: 목은 **화면 흐름 확인용**이며 실제 서버 검증이 아니다. 실동작은 배포 후 Sites에서 확인한다.
+
 ## 배포 전 수동 시나리오
 
 - 홈과 채용정보의 동일 공고가 같은 카드·상세 페이지로 연결
