@@ -19,8 +19,8 @@ const CATALOG = {
   intensive: { type: 'doctor_ad', name: '집중 채용', amount: 299000 },
   'doctor-single': { type: 'membership', name: '커리어 체크', amount: 19000 },
   'doctor-pass': { type: 'membership', name: '커리어 컨시어지', amount: 39000 },
-  'talent-unlock-single': { type: 'talent_search', name: '인재 열람권 (1명)', amount: 33000, unlockDays: 90 },
-  'talent-unlock-pack': { type: 'talent_search', name: '인재 열람권 (5명 팩)', amount: 132000, unlockDays: 90, unlockCount: 5 },
+  'talent-unlock-single': { type: 'talent_search', name: '인재 열람권 (1명)', amount: 5000, unlockDays: 30 },
+  'talent-unlock-pack': { type: 'talent_search', name: '인재 열람권 (5명 팩)', amount: 20000, unlockDays: 30, unlockCount: 5 },
 };
 
 // 목 상세: 실제 이력서가 없어도 열람권만 있으면 그럴듯한 상세를 돌려준다(화면 확인용).
@@ -94,7 +94,14 @@ async function handle(method, path, bodyText) {
   // 그 외 GET은 빈 기본값으로 응답해 콘솔 404를 줄인다.
   if (method === 'GET') {
     if (path === '/api/saved-jobs') return jsonRes({ saved: [] });
-    if (path === '/api/member-center') return jsonRes({ profile: {}, orders: [] });
+    if (path === '/api/member-center') {
+      // 저장된 주문을 서버(member-center)와 같은 형태로 내려 결제 이력에 열람권이 뜨게 한다.
+      const orders = Object.values(read(LS.orders, {})).map((o) => {
+        const p = CATALOG[o.productId] || {};
+        return { orderNumber: o.orderNumber, productType: p.type || '', productName: p.name || o.productId, totalAmount: o.amount, status: o.status, paymentMethod: 'card', paidAt: o.createdAt, createdAt: o.createdAt, exposure: null };
+      }).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      return jsonRes({ signedIn: true, account: { role: 'hospital' }, orders });
+    }
     if (path === '/api/talent-access-audit') return jsonRes({ viewers: [], alerts: [], recent: [] });
     return jsonRes({ mock: true });
   }

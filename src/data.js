@@ -186,13 +186,13 @@ export const membershipPlans = [
 // 인재 이력서 열람권(병원 결제 → 후보 연락처·이력서 상세 공개). 서버 카탈로그와 id·금액 일치.
 export const talentUnlockPlans = [
   {
-    id: 'talent-unlock-single', audience: 'hospital', name: '인재 열람권 (1명)', price: 33000, period: '90일', unlockCount: 1,
-    description: '구직 공개에 동의한 인재 1명의 연락처와 이력서 상세를 90일간 열람합니다.',
+    id: 'talent-unlock-single', audience: 'hospital', name: '인재 열람권 (1명)', price: 5000, period: '30일', unlockCount: 1,
+    description: '구직 공개에 동의한 인재 1명의 연락처와 이력서 상세를 30일간 열람합니다.',
     features: ['후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '결제 즉시 열람 권한 부여', '열람 기록 안전 보관']
   },
   {
-    id: 'talent-unlock-pack', audience: 'hospital', name: '인재 열람권 (5명 팩)', price: 132000, period: '90일', unlockCount: 5, featured: true,
-    description: '여러 후보를 검토할 때 더 경제적인 5명 열람권입니다(1명당 26,400원).',
-    features: ['인재 5명 열람 (건당 20% 절약)', '후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '90일 내 자유롭게 사용']
+    id: 'talent-unlock-pack', audience: 'hospital', name: '인재 열람권 (5명 팩)', price: 20000, period: '30일', unlockCount: 5, featured: true,
+    description: '여러 후보를 검토할 때 더 경제적인 5명 열람권입니다(1명당 4,000원).',
+    features: ['인재 5명 열람 (건당 20% 절약)', '후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '30일 내 자유롭게 사용']
   }
 ];

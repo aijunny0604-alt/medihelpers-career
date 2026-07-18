@@ -457,8 +457,8 @@ const paymentProductCatalog = {
   'doctor-single':{ type:'membership', name:'커리어 체크', amount:19000 },
   'doctor-pass':{ type:'membership', name:'커리어 컨시어지', amount:39000, exposureDays:30 },
   // 병원용 인재 이력서 열람권. 결제 시 talent_unlocks에 권한 기록 → 연락처·상세 공개.
-  'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:33000, unlockDays:90 },
-  'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (5명 팩)', amount:132000, unlockDays:90, unlockCount:5 }
+  'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:5000, unlockDays:30 },
+  'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (5명 팩)', amount:20000, unlockDays:30, unlockCount:5 }
 };
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
