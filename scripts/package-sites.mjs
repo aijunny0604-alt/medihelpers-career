@@ -669,35 +669,8 @@ async function publicSiteOperationsApi(request, env) {
     return filtered;
   };
   const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload) }; });
-  // 이력서 → 인재정보 자동 노출: 공개 동의(visibility='public')한 이력서를 익명 인재로 변환해 함께 내려준다.
-  // 실명·연락처·이메일은 절대 포함하지 않는다(익명 필드만). 상세·연락처는 열람권 결제 후 별도 API로.
-  try {
-    const resumeRows = await env.DB.prepare("SELECT id, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson, updated_at AS updatedAt FROM resumes WHERE visibility='public' ORDER BY updated_at DESC LIMIT 200").all();
-    for (const r of (resumeRows.results || [])) {
-      const detail = parseJsonObject(r.detailJson) || {};
-      const career = detail.experienceYears ? String(detail.experienceYears) : (detail.career || '');
-      contents.push({
-        id: 'resume-' + r.id,
-        contentType: 'talent_profile',
-        title: '',
-        subtitle: '',
-        visibility: 'public',
-        updatedAt: r.updatedAt,
-        payload: {
-          // 익명: 이름·연락처 없음. 열람권 결제 시 서버가 별도로 실명·연락처 제공.
-          code: 'MH-' + String(r.id).slice(-6).toUpperCase(),
-          name: '', // 클라이언트가 maskTalentName으로 처리 (실명 미포함)
-          dept: r.specialty || r.profession || '',
-          career: career ? (career.includes('년') ? career : career + '년') : '경력 확인 필요',
-          region: r.desiredRegions || '',
-          preference: detail.workTypes ? (Array.isArray(detail.workTypes) ? detail.workTypes.join('·') : String(detail.workTypes)) : '',
-          available: detail.available || '협의',
-          identityConsent: false, // 실명 공개는 열람권+후보동의 필요
-          fromResume: true,
-        },
-      });
-    }
-  } catch {}
+  // 이력서는 인재정보에 자동 노출하지 않는다. 아빠(관리자)가 검토·큐레이션한 인재만 노출.
+  // (등록된 이력서는 관리자 콘솔 '이력서 관리'에서 확인 후 수동으로 인재 프로필로 등록)
   return json({ settings, features, contents });
 }
 async function adminConsoleApi(request, env) {
