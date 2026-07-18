@@ -34,7 +34,19 @@ export function operationalDoctorJobs(contents = []) {
 export function operationalTalent(contents = []) {
   return contents.filter((item) => item.contentType === 'talent_profile').map((item, index) => {
     const p = item.payload || {};
-    return { code:`관리-${String(index + 1).padStart(3,'0')}`, fullName:item.title, dept:p.department || item.subtitle || '전문의', career:p.career || p.secondary || '경력 협의', region:p.region || p.primary || '전국', preference:p.preference || p.description || '조건 협의', available:p.available || '협의' };
+    // 이력서 자동 노출 인재(fromResume)는 payload의 익명 필드를 그대로 사용. 실명은 없음.
+    return {
+      code: p.code || `관리-${String(index + 1).padStart(3, '0')}`,
+      name: p.name || '',
+      fullName: item.title || p.name || '',
+      identityConsent: Boolean(p.identityConsent),
+      dept: p.dept || p.department || item.subtitle || '전문의',
+      career: p.career || p.secondary || '경력 협의',
+      region: p.region || p.primary || '전국',
+      preference: p.preference || p.description || '조건 협의',
+      available: p.available || '협의',
+      verified: p.fromResume ? true : Boolean(p.verified),
+    };
   });
 }
 
