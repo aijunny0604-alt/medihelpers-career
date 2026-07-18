@@ -392,7 +392,81 @@ async function paymentOrderApi(request, env) {
     env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, product.type, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'pending_review', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
   ]);
-  return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'pending_review' } }, 201);
+  // 이니시스 웹표준결제 파라미터(키 설정 시). 결제창은 이 값으로 호출한다.
+  const inicis = await buildInicisPaymentParams(env, { orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone });
+  return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'pending_review' }, inicis }, 201);
+}
+async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+// 이니시스 웹표준결제 요청 파라미터·서명 생성. MID/signKey 미설정 시 configured:false.
+async function buildInicisPaymentParams(env, order) {
+  if (!env.INICIS_MID || !env.INICIS_SIGN_KEY) return { configured:false };
+  const mid = env.INICIS_MID;
+  const timestamp = String(Date.now());
+  const amount = String(order.amount);
+  const oid = order.orderNumber;
+  // 이니시스 규격: signature=SHA256(oid=..&price=..&timestamp=..), mKey=SHA256(signKey)
+  const signature = await sha256Hex('oid=' + oid + '&price=' + amount + '&timestamp=' + timestamp);
+  const mKey = await sha256Hex(env.INICIS_SIGN_KEY);
+  return {
+    configured:true, mid, oid, price:amount, timestamp, signature, mKey,
+    goodname:order.productName, buyername:order.buyerName, buyeremail:order.buyerEmail || '', buyertel:order.buyerTel || '',
+    returnUrl:(env.SITE_ORIGIN || '') + '/api/payment-approve', closeUrl:(env.SITE_ORIGIN || '') + '/',
+    gopaymethod:'Card', currency:'WON', version:'1.0', mobile:false
+  };
+}
+// 이니시스 결제창 리턴 → 서버가 최종 승인요청·금액검증 후 주문을 paid 처리한다.
+async function paymentApproveApi(request, env) {
+  if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  if (!env.INICIS_MID || !env.INICIS_SIGN_KEY) return json({ error:'결제 연동이 아직 설정되지 않았습니다.' }, 503);
+  try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 저장소를 사용할 수 없습니다.' }, 503); }
+  let body; try { body = await request.json(); } catch {
+    // 이니시스는 form-urlencoded로 리턴하므로 폼도 파싱.
+    try { const form = await request.formData(); body = Object.fromEntries(form.entries()); } catch { return json({ error:'결제 결과를 확인할 수 없습니다.' }, 400); }
+  }
+  const resultCode = String(body.resultCode || body.P_STATUS || '');
+  const authToken = String(body.authToken || '');
+  const authUrl = String(body.authUrl || '');
+  const oid = String(body.orderNumber || body.oid || body.P_OID || '');
+  if (!oid) return json({ error:'주문번호가 없습니다.' }, 400);
+  const order = await env.DB.prepare('SELECT id, total_amount AS totalAmount, status FROM payment_orders WHERE order_number = ?').bind(oid).first();
+  if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
+  // 결제창 인증 실패
+  if (resultCode && resultCode !== '0000') {
+    await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+    return json({ approved:false, status:'failed', message:String(body.resultMsg || '결제가 취소되었거나 실패했습니다.') });
+  }
+  // 실제 승인요청: authUrl로 authToken을 전송해 최종 승인. 승인 금액이 주문 금액과 다르면 거절.
+  let approval = null;
+  if (authToken && authUrl) {
+    const timestamp = String(Date.now());
+    const signature = await sha256Hex('authToken=' + authToken + '&timestamp=' + timestamp);
+    const verification = await sha256Hex('authToken=' + authToken + '&signKey=' + env.INICIS_SIGN_KEY + '&timestamp=' + timestamp);
+    try {
+      const res = await fetch(authUrl, { method:'POST', headers:{ 'content-type':'application/x-www-form-urlencoded' },
+        body:new URLSearchParams({ mid:env.INICIS_MID, authToken, timestamp, signature, verification, charset:'UTF-8', format:'JSON' }) });
+      approval = await res.json();
+    } catch { return json({ error:'승인 서버 통신에 실패했습니다.' }, 502); }
+    const approvedAmount = Number(approval?.TotPrice || approval?.price || 0);
+    if (String(approval?.resultCode) !== '0000') {
+      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+      return json({ approved:false, status:'failed', message:String(approval?.resultMsg || '승인 실패') });
+    }
+    if (approvedAmount !== Number(order.totalAmount)) {
+      // 금액 위변조 방지: 승인금액≠주문금액이면 실패 처리.
+      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+      return json({ approved:false, status:'failed', message:'결제 금액이 일치하지 않습니다.' }, 400);
+    }
+  }
+  const tid = String(approval?.tid || body.tid || '');
+  await env.DB.batch([
+    env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id),
+    env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'approve', 'inicis', ?, ?, 'success', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
+    env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'inicis', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid }))
+  ]);
+  return json({ approved:true, status:'paid', orderNumber:oid, tid });
 }
 async function recruitmentCrmApi(request, env, pathname) {
   const admin = adminIdentity(request, env);
@@ -706,6 +780,7 @@ async function responseFor(request, env) {
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);
   if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);
+  if (pathname === '/api/payment-approve') return paymentApproveApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
   if (pathname === '/api/admin-console') return adminConsoleApi(request, env);
