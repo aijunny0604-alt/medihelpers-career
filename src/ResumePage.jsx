@@ -110,7 +110,9 @@ export default function ResumePage() {
   const toggleWorkType = (value) => update('workTypes', form.workTypes.includes(value) ? form.workTypes.filter((item) => item !== value) : [...form.workTypes, value]);
   const updateCareer = (index, key, value) => setCareers((current) => current.map((career, careerIndex) => careerIndex === index ? { ...career, [key]: value } : career));
   const completion = useMemo(() => {
-    const required = [form.title, form.profession, form.name, form.phone, form.email, form.licenseName, form.desiredRegions, form.workTypes.length, form.introduction];
+    // 사용자가 직접 채우는 핵심 항목만으로 완성도를 계산한다.
+    // (profession·licenseName·workTypes는 기본값이 있어 제외 — 아무것도 안 써도 33%로 보이던 문제 방지)
+    const required = [form.title, form.name, form.phone, form.email, form.licenseNumber, form.specialty, form.desiredRegions, form.introduction];
     return Math.round((required.filter(Boolean).length / required.length) * 100);
   }, [form]);
 
