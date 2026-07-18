@@ -127,7 +127,7 @@ export default function MedicalStaffPage({ operations, medicalTalent = [] }) {
     </section>
     {medicalTalent.length > 0 && <section className="section medical-staff-talent">
       <div className="section-head"><div><span className="section-kicker">MEDICAL STAFF SEEKING</span><h2>구직 중인 의료인</h2><p>이력서를 등록한 간호·보건·의료기사·약무 인재입니다. 연락처·상세는 열람권으로 확인합니다.</p></div></div>
-      <div className="medical-talent-grid">{medicalTalent.map((person) => <button type="button" key={person.code} className="medical-talent-card" onClick={() => go('/talent')}>
+      <div className="medical-talent-grid">{medicalTalent.map((person) => <button type="button" key={person.code} className="medical-talent-card" onClick={() => go(`/talent-unlock?product=talent-unlock-single&talent=${encodeURIComponent(person.code)}`)}>
         <span className="mt-avatar"><UsersRound /></span>
         <div className="mt-body"><small>{person.profession || person.dept || '의료인'}</small><strong>{person.dept} · {person.career}</strong><span className="mt-meta">{person.region} · {person.preference || '조건 협의'}</span></div>
         <em className="mt-lock"><Check /> 열람권으로 연락처 확인</em>

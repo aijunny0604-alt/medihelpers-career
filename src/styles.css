@@ -4664,3 +4664,31 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .medical-talent-card .mt-lock svg{width:14px}
 @media(max-width:1000px){.medical-talent-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.medical-talent-grid{grid-template-columns:1fr}}
+
+/* 인재 열람권 결제 화면 */
+.talent-unlock-checkout-section{display:flex;justify-content:center}
+.talent-unlock-checkout{width:100%;max-width:560px;background:#fff;border:1px solid #d9e4ef;border-radius:20px;padding:32px;box-shadow:0 18px 44px rgba(26,59,99,.08)}
+.talent-unlock-checkout>small{color:#149e7f;font-size:12px;font-weight:800;letter-spacing:.08em}
+.talent-unlock-checkout h2{margin:6px 0 4px;font-size:23px;color:#16233a;letter-spacing:-.02em}
+.talent-unlock-checkout>p{color:#5a6a80;font-size:14.5px;line-height:1.6}
+.talent-unlock-features{list-style:none;margin:16px 0;padding:0;display:grid;gap:9px}
+.talent-unlock-features li{display:flex;align-items:center;gap:8px;color:#33445c;font-size:14px}
+.talent-unlock-features li svg{width:16px;color:#0f9f7d;flex-shrink:0}
+.talent-unlock-price{display:flex;align-items:baseline;gap:8px;padding:14px 0;border-top:1px solid #eef2f7;border-bottom:1px solid #eef2f7;margin-bottom:14px}
+.talent-unlock-price strong{font-size:28px;color:#16233a}
+.talent-unlock-price span{color:#69768b;font-size:13.5px}
+.talent-unlock-target{background:#eef6f2;color:#0f8f6f;padding:8px 12px;border-radius:9px;font-size:13px;margin-bottom:16px}
+.talent-unlock-target strong{font-weight:800}
+.talent-unlock-checkout form{display:grid;gap:14px}
+.talent-unlock-checkout label{display:grid;gap:6px}
+.talent-unlock-checkout label span{font-size:13px;font-weight:700;color:#33445c}
+.talent-unlock-checkout input{padding:12px 14px;border:1px solid #cfdae7;border-radius:10px;font-size:14.5px}
+.talent-unlock-checkout input:focus{outline:none;border-color:#149e7f;box-shadow:0 0 0 3px rgba(20,158,127,.12)}
+.talent-unlock-checkout .consent{grid-template-columns:auto 1fr;align-items:start;gap:9px}
+.talent-unlock-checkout .consent input{margin-top:3px}
+.talent-unlock-checkout .consent span{font-size:12.5px;font-weight:500;color:#69768b;line-height:1.5}
+.talent-unlock-checkout .secure-note{margin-top:14px;display:flex;align-items:center;gap:6px;color:#5a6a80;font-size:12.5px}
+.talent-unlock-checkout .secure-note svg{width:15px;color:#0f9f7d}
+.talent-unlock-success{max-width:560px;margin:0 auto;text-align:center}
+.talent-unlock-success-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+@media(max-width:600px){.talent-unlock-checkout{padding:22px}}

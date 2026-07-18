@@ -7,7 +7,7 @@ import {
   ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
-import { adPlans, jobs, membershipPlans, navItems, talent } from './data.js';
+import { adPlans, jobs, membershipPlans, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
 import MatchingReportPage from './MatchingReportPage.jsx';
 import AccountPage from './AccountPage.jsx';
@@ -1936,7 +1936,7 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           {unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
           ) : (
-            <Link className="button primary" to={`/advertise?product=talent-unlock-single&talent=${person.code}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
+            <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${person.code}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
           )}
         </div>
       </div>
@@ -2604,6 +2604,58 @@ function Checkout({ plan }) {
   );
 }
 
+function TalentUnlockCheckout({ plan, talentId }) {
+  const [done, setDone] = useState(false);
+  const [paidInfo, setPaidInfo] = useState(null);
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const accountProfile = useAccountProfile();
+  const submit = async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+    setSubmitError('');
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/payment-orders', {
+        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
+        body:JSON.stringify({ productId:plan.id, paymentMethod:'card', customerName:data.name, customerEmail:data.email, customerPhone:data.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
+      const orderNumber = result.order?.orderNumber;
+      const approve = await fetch('/api/payment-approve', {
+        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
+        body:JSON.stringify({ orderNumber, resultCode:'0000' })
+      });
+      const approveResult = await approve.json().catch(() => ({}));
+      trackConversion('talent_unlock_paid', { planId: plan.id, amount: plan.price, talentId, paid: approveResult.approved });
+      setPaidInfo(approveResult);
+      setDone(true);
+    } catch (error) {
+      setSubmitError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  if (done) {
+    return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '이제 인재 상세에서 연락처와 이력서를 열람할 수 있습니다.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions"><Link className="button primary" to="/medical-staff">인재 목록으로 <ArrowRight /></Link><Link className="button outline" to="/talent">의사 인재정보</Link></div></div></section>;
+  }
+  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}{plan.unlockCount > 1 ? ` · ${plan.unlockCount}명` : ''}</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '결제 처리 중…' : `${plan.price.toLocaleString()}원 결제하기`} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 결제 즉시 해당 인재 연락처·이력서 상세가 열립니다.</p></div></section>;
+}
+
+function TalentUnlockPage({ route, qa }) {
+  const params = new URLSearchParams(route.split('?')[1] || '');
+  const plan = talentUnlockPlans.find((item) => item.id === params.get('product')) || talentUnlockPlans[0];
+  const talentId = params.get('talent') || '';
+  const canUnlock = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  return <>
+    <PageHero tone="membership" eyebrow="TALENT RESUME UNLOCK" title="인재 이력서 열람권" description="구직 공개에 동의한 의사·의료인 후보의 연락처와 이력서 상세를 병원 회원이 열람합니다." />
+    {canUnlock
+      ? <TalentUnlockCheckout plan={plan} talentId={talentId} />
+      : <section className="section"><div className="ad-apply-gate-card"><span><Building2 /></span><small>HOSPITAL ACCOUNT REQUIRED</small><h1>병원 회원 로그인 후<br />열람권을 구매할 수 있어요</h1><p>후보 개인정보 보호를 위해 병원 회원만 인재 이력서 열람권을 결제할 수 있습니다.</p><Link className="button primary full" to={`/signup/hospital?next=${encodeURIComponent(route)}`}>로그인·병원 회원가입 <ArrowRight /></Link><Link className="ad-apply-gate-back" to="/medical-staff">인재 목록 다시 보기</Link></div></section>}
+  </>;
+}
+
 function AdvertisePage({ qa }) {
   const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
   const requestPlan = (nextPlan) => {
@@ -3001,6 +3053,7 @@ export function App() {
   else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} />;
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
+  else if (path === '/talent-unlock') page = <TalentUnlockPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
   else if (path === '/admin/recruitment-crm') page = <RecruitmentCrmPage qa={qa} />;

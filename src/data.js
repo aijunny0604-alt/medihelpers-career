@@ -135,7 +135,10 @@ export const talent = [
   { code: 'MH-D-2421', name: '오○○', identityConsent: false, dept: '정신건강의학과', career: '전문의 5년', region: '서울', preference: '예약제 / 당직 없음', available: '2개월 내', verified: true },
   { code: 'MH-D-2073', name: '신○○', identityConsent: false, dept: '산부인과', career: '전문의 8년', region: '부산·울산', preference: '여성검진 / 주 4.5일', available: '즉시', verified: true },
   { code: 'MH-D-2288', name: '임○○', identityConsent: false, dept: '재활의학과', career: '전문의 6년', region: '경기·충청', preference: '재활병원 / 당직 협의', available: '1개월 내', verified: true },
-  { code: 'MH-D-1934', name: '서○○', identityConsent: false, dept: '응급의학과', career: '전문의 13년', region: '전국', preference: '교대근무 / 일정 협의', available: '협의', verified: true }
+  { code: 'MH-D-1934', name: '서○○', identityConsent: false, dept: '응급의학과', career: '전문의 13년', region: '전국', preference: '교대근무 / 일정 협의', available: '협의', verified: true },
+  { code: 'MH-N-3021', name: '강○○', identityConsent: false, staffType: 'medical', profession: '간호사', dept: '병동 간호', career: '경력 6년', region: '서울·경기', preference: '상급종합 / 3교대 협의', available: '1개월 내', verified: true },
+  { code: 'MH-R-3088', name: '문○○', identityConsent: false, staffType: 'medical', profession: '방사선사', dept: '영상의학', career: '경력 4년', region: '부산·경남', preference: 'CT·MRI / 주 5일', available: '즉시', verified: true },
+  { code: 'MH-P-3142', name: '양○○', identityConsent: false, staffType: 'medical', profession: '물리치료사', dept: '재활치료', career: '경력 8년', region: '경기·인천', preference: '재활병원 / 당직 없음', available: '협의', verified: true }
 ];
 
 export const adPlans = [
@@ -176,5 +179,19 @@ export const membershipPlans = [
     id: 'doctor-pass', audience: 'doctor', name: '커리어 컨시어지', price: 39000, period: '월', featured: true,
     description: '정보 열람료가 아니라 이직 준비에 드는 시간과 판단을 줄이는 선택 서비스입니다.',
     features: ['맞춤 포지션 즉시 알림', '우선 상담 일정 예약', '조건 비교·연봉 분석 리포트', '분기별 커리어 점검']
+  }
+];
+
+// 인재 이력서 열람권(병원 결제 → 후보 연락처·이력서 상세 공개). 서버 카탈로그와 id·금액 일치.
+export const talentUnlockPlans = [
+  {
+    id: 'talent-unlock-single', audience: 'hospital', name: '인재 열람권 (1명)', price: 33000, period: '90일', unlockCount: 1,
+    description: '구직 공개에 동의한 인재 1명의 연락처와 이력서 상세를 90일간 열람합니다.',
+    features: ['후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '결제 즉시 열람 권한 부여', '열람 기록 안전 보관']
+  },
+  {
+    id: 'talent-unlock-pack', audience: 'hospital', name: '인재 열람권 (5명 팩)', price: 132000, period: '90일', unlockCount: 5, featured: true,
+    description: '여러 후보를 검토할 때 더 경제적인 5명 열람권입니다(1명당 26,400원).',
+    features: ['인재 5명 열람 (건당 20% 절약)', '후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '90일 내 자유롭게 사용']
   }
 ];
