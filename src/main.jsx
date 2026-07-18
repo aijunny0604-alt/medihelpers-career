@@ -1475,8 +1475,15 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   </>;
 }
 
-function TalentPage({ qa, liveTalent = talent }) {
+function TalentPage({ qa, liveTalent = talent, medicalTalent = [] }) {
   const siteCategories = useSiteCategories();
+  // 의사·의료인을 한 화면에서 필터 탭으로 전환한다. 목적(인재 탐색)이 같아 같은 위치에 노출.
+  const [staffFilter, setStaffFilter] = useState("all");
+  const sourceTalent = useMemo(() => {
+    if (staffFilter === "doctor") return liveTalent;
+    if (staffFilter === "medical") return medicalTalent;
+    return [...liveTalent, ...medicalTalent];
+  }, [staffFilter, liveTalent, medicalTalent]);
   const [dept, setDept] = useState("전체 진료과");
   const [region, setRegion] = useState("전국");
   const [availability, setAvailability] = useState("전체 시점");
@@ -1492,7 +1499,7 @@ function TalentPage({ qa, liveTalent = talent }) {
   const [saved, setSaved] = useState(() =>
     readStoredArray("medihelpers_saved_talent"),
   );
-  const talentRegions = siteCategories.regions.length > 1 ? siteCategories.regions : ["전국", ...new Set(liveTalent.flatMap((person) => person.region.split("·")))].filter(Boolean);
+  const talentRegions = siteCategories.regions.length > 1 ? siteCategories.regions : ["전국", ...new Set(sourceTalent.flatMap((person) => person.region.split("·")))].filter(Boolean);
   const availableOptions = [
     "전체 시점",
     "즉시",
@@ -1502,7 +1509,7 @@ function TalentPage({ qa, liveTalent = talent }) {
   ];
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase();
-    const filteredTalent = liveTalent.filter((person) => {
+    const filteredTalent = sourceTalent.filter((person) => {
       const matchesDept = dept === "전체 진료과" || person.dept === dept;
       const matchesRegion = region === "전국" || person.region.includes(region);
       const matchesAvailable =
@@ -1529,10 +1536,10 @@ function TalentPage({ qa, liveTalent = talent }) {
             Number.parseInt(b.career, 10) - Number.parseInt(a.career, 10),
         )
       : filteredTalent;
-  }, [liveTalent, dept, region, availability, keyword, talentSort]);
+  }, [sourceTalent, dept, region, availability, keyword, talentSort]);
   useEffect(() => {
     setTalentVisible(TALENT_PAGE_SIZE);
-  }, [dept, region, availability, keyword, talentSort]);
+  }, [dept, region, availability, keyword, talentSort, staffFilter]);
   const visibleTalent = visible.slice(0, talentVisible);
   const talentRemaining = Math.max(0, visible.length - visibleTalent.length);
   const canViewIdentity = qa?.active
@@ -1614,6 +1621,13 @@ function TalentPage({ qa, liveTalent = talent }) {
             >
               조건 초기화
             </button>
+          </div>
+          <div className="talent-staff-tabs" role="tablist" aria-label="직군 필터">
+            {[["all", "전체", liveTalent.length + medicalTalent.length], ["doctor", "의사", liveTalent.length], ["medical", "간호·의료인", medicalTalent.length]].map(([value, label, count]) => (
+              <button key={value} type="button" role="tab" aria-selected={staffFilter === value} className={staffFilter === value ? "active" : ""} onClick={() => { setStaffFilter(value); setDept("전체 진료과"); }}>
+                {label} <span>{count}</span>
+              </button>
+            ))}
           </div>
           <div className="talent-filter-grid">
             <label>
@@ -3063,7 +3077,7 @@ export function App() {
     page = job ? <JobDetailRoute job={job} qa={qa} /> : <NotFoundPage />;
   }
   else if (path === '/professions') page = <Redirect to="/headhunting" />;
-  else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} liveTalent={liveTalent} /></AuthGate>;
+  else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} liveTalent={liveTalent} medicalTalent={medicalTalent} /></AuthGate>;
   else if (path === '/matching-report') page = <AuthGate auth={auth} title="매칭 리포트는 회원 전용입니다" description="찜한 병원·후보를 비교하는 매칭 리포트는 로그인 후 이용할 수 있습니다."><MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} /></AuthGate>;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} /></AuthGate>;
