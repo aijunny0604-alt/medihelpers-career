@@ -7,7 +7,31 @@ import {
 import { withBase } from './basePath.js';
 import { operationalMedicalJobs } from './siteOperations.js';
 
-const categories = ['전체 직군', '간호사', '간호조무사', '방사선사', '임상병리사', '물리·작업치료사', '치과위생사', '병원 행정직'];
+const categories = ['전체 직군', '간호직', '보건관련직', '의료기사직', '약무직', '의사직', '제약·기타직'];
+
+// 세부 직종(공고 role)을 참고 대분류 카테고리로 매핑한다. 치과 직군은 취급하지 않아 제외한다.
+const roleGroupMap = {
+  '간호사': '간호직',
+  '간호조무사': '간호직',
+  '방사선사': '의료기사직',
+  '임상병리사': '의료기사직',
+  '물리·작업치료사': '의료기사직',
+  '물리치료사': '의료기사직',
+  '작업치료사': '의료기사직',
+  '병원 행정직': '보건관련직',
+  '원무행정': '보건관련직',
+  '약사': '약무직',
+  '약무직': '약무직',
+  '의사': '의사직',
+  '제약': '제약·기타직',
+};
+
+// 매핑에 없는 직종은 '제약·기타직'으로 모은다(치과위생사 등 미취급 직군 제외 후).
+function roleGroup(role = '') {
+  if (roleGroupMap[role]) return roleGroupMap[role];
+  if (categories.includes(role)) return role;
+  return '제약·기타직';
+}
 
 export const sampleJobs = [
   { id:'ms-01', role:'간호사', title:'외래·검진센터 간호사', hospital:'서울 온누리검진센터', region:'서울 강남', type:'정규직', career:'경력 2년↑', pay:'연 4,200만원~', deadline:'D-5', summary:'건강검진과 외래 진료가 원활하게 진행되도록 환자 안내부터 검사 전후 간호까지 함께합니다.', workHours:'평일 08:00~17:00 · 토요일 격주 오전', daysOff:'일요일·공휴일 휴무', responsibilities:['외래 환자 문진 및 진료 보조','건강검진 수검자 안내와 검사 전후 간호','의약품·비품 및 감염관리'], requirements:['간호사 면허 소지자','임상 경력 2년 이상','검진센터 또는 외래 경력자 우대'], benefits:['중식 제공','연차·경조휴가','직원 건강검진 지원'] },
@@ -58,11 +82,15 @@ export function getMedicalStaffJobs(operations) {
 }
 
 export default function MedicalStaffPage({ operations }) {
-  const liveJobs = useMemo(() => getMedicalStaffJobs(operations), [operations?.contents]);
-  const liveCategories = useMemo(() => ['전체 직군', ...new Set([...categories.slice(1), ...liveJobs.map((job) => job.role)])], [liveJobs]);
+  // 치과 관련 직군(치과위생사 등)은 취급하지 않으므로 목록에서 제외한다.
+  const liveJobs = useMemo(
+    () => getMedicalStaffJobs(operations).filter((job) => !/치과/.test(job.role || '')),
+    [operations?.contents]
+  );
+  const liveCategories = categories;
   const [category, setCategory] = useState('전체 직군');
   const [keyword, setKeyword] = useState('');
-  const visible = useMemo(() => liveJobs.filter((job) => (category === '전체 직군' || job.role === category) && (!keyword || `${job.title} ${job.hospital} ${job.region}`.includes(keyword))), [liveJobs, category, keyword]);
+  const visible = useMemo(() => liveJobs.filter((job) => (category === '전체 직군' || roleGroup(job.role) === category) && (!keyword || `${job.title} ${job.hospital} ${job.region}`.includes(keyword))), [liveJobs, category, keyword]);
   const openJob = (job) => go(`/medical-staff/jobs/${encodeURIComponent(job.id)}`);
 
   return <div className="medical-staff-hub">
