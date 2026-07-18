@@ -214,7 +214,12 @@ async function accountApi(request, env) {
     const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const row = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
     if (row) await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, last_login_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(row.id, identity.email, identity.displayName || '').run();
-    return json({ signupEnabled: true, signedIn: true, account: row || null, identity, isAdmin });
+    // 폼 자동 채움용 프로필(이름·연락처·소속). 상담·결제·공고 신청 화면에서 재입력을 줄인다.
+    let profile = null;
+    if (row) {
+      try { profile = await env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id = ?').bind(row.id).first(); } catch { profile = null; }
+    }
+    return json({ signupEnabled: true, signedIn: true, account: row || null, identity, isAdmin, profile: profile || null, email: identity.email });
   }
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
   if (!enabled) return json({ error: '회원가입은 법무 검토 완료 후 열립니다.' }, 503);

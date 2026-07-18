@@ -34,6 +34,7 @@ import {
   writeStoredValue
 } from './browserStorage.js';
 import { appBase, withBase } from './basePath.js';
+import { useAccountProfile } from './useAccountProfile.js';
 import { balancedOrder, countByDept } from './jobExposure.js';
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
@@ -1088,6 +1089,17 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '', initial
   const [submitError, setSubmitError] = useState('');
   const professionName = initialProfession === 'doctor' ? '의사' : '';
   const [data, setData] = useState({ topic: initialTopic || (initialContext ? '특정 공고 문의' : ''), department: professionName, region: '', workType: '', message: '', name: '', phone: '', contactMethod: '전화', contactTime: '상관없음' });
+  const accountProfile = useAccountProfile();
+  // 로그인 회원이면 이름·연락처를 회원정보로 자동 채운다(사용자가 아직 입력하지 않은 값만).
+  useEffect(() => {
+    if (!accountProfile.loaded) return;
+    const preName = accountProfile.role === 'hospital' ? (accountProfile.organization || accountProfile.name) : accountProfile.name;
+    setData((current) => ({
+      ...current,
+      name: current.name || preName || '',
+      phone: current.phone || accountProfile.phone || '',
+    }));
+  }, [accountProfile.loaded]);
   const topics = role === 'doctor' ? ['이직 가능성 확인', '비공개 포지션', '급여·근무조건 상담', '특정 공고 문의'] : ['채용공고 등록', '의사 추천', '급여·채용조건 설계', '긴급 채용'];
   const workTypes = role === 'doctor' ? ['주 4일', '주 4.5일', '주 5일', '협의 가능'] : ['정규직', '파트타임', '당직·대진', '협의 가능'];
   const update = (key, value) => setData((current) => ({ ...current, [key]: value }));
@@ -2606,6 +2618,7 @@ function MembershipCheckout({ plan, onClose }) {
   const [paidInfo, setPaidInfo] = useState(null);
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const accountProfile = useAccountProfile();
   const submit = async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -2640,7 +2653,7 @@ function MembershipCheckout({ plan, onClose }) {
       setSubmitting(false);
     }
   };
-  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '결제가 완료되었습니다' : '멤버십 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '결제 내역은 마이페이지에서 확인할 수 있습니다.'}</> : <>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</>}</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? 'DB에 안전하게 저장 중…' : '결제 안내 요청하기'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
+  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '결제가 완료되었습니다' : '멤버십 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '결제 내역은 마이페이지에서 확인할 수 있습니다.'}</> : <>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</>}</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" defaultValue={plan.audience === 'hospital' ? (accountProfile.organization || accountProfile.name) : accountProfile.name} /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? 'DB에 안전하게 저장 중…' : '결제 안내 요청하기'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
 }
 
 function ValueCalculator({ type, onChoose }) {
@@ -2967,7 +2980,7 @@ export function App() {
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
-  else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <ResumeRoute qa={qa} />;
+  else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} title="이력서 등록은 회원 전용입니다" description="이력서에는 개인정보가 포함되어 로그인 후 안전하게 작성할 수 있습니다. 로그인하거나 회원가입 후 이용해 주세요."><ResumeRoute qa={qa} /></AuthGate>;
   else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" qa={qa} />;
   else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" qa={qa} />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;

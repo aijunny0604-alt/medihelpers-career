@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { appendStoredRecord } from "./browserStorage.js";
 import { withBase } from "./basePath.js";
+import { useAccountProfile } from "./useAccountProfile.js";
 
 const copy = {
   doctor: {
@@ -54,6 +55,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const accountProfile = useAccountProfile();
   const [access, setAccess] = useState(qaAllowed ? "allowed" : "checking");
   useEffect(() => {
     if (qaAllowed) {
@@ -198,6 +200,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
         ))}
       </section>
       <form
+        key={accountProfile.loaded ? "profile-ready" : "profile-loading"}
         className={`quick-request-form intake-request-form ${isDoctor ? "doctor-intake-form" : "hospital-intake-form"}`}
         onSubmit={submit}
       >
@@ -222,11 +225,11 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
             <>
               <label>
                 <span>이름 *</span>
-                <input required name="name" placeholder="성함을 입력해주세요" />
+                <input required name="name" placeholder="성함을 입력해주세요" defaultValue={accountProfile.name} />
               </label>
               <label>
                 <span>전화번호 *</span>
-                <input required name="phone" type="tel" inputMode="tel" placeholder="010-0000-0000" />
+                <input required name="phone" type="tel" inputMode="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} />
               </label>
               <label>
                 <span>전문 분류 *</span>
@@ -289,6 +292,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
                   required
                   name="hospital"
                   placeholder="기관명을 입력해주세요"
+                  defaultValue={accountProfile.organization}
                 />
               </label>
               <label>
@@ -297,7 +301,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
               </label>
               <label>
                 <span>담당자 전화번호 *</span>
-                <input required name="phone" type="tel" inputMode="tel" placeholder="010-0000-0000" />
+                <input required name="phone" type="tel" inputMode="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} />
               </label>
               <label>
                 <span>이메일 <i>선택</i></span>
