@@ -86,6 +86,7 @@ const groups = [
   ] },
   { title: '회원 · 데이터', items: [
     ['members', '회원 현황', UserRoundCog],
+    ['resumes', '이력서 관리', FileText],
     ['payments', '결제 · 환불 관리', CreditCard],
     ['database', 'DB 현황', Database],
     ['audit', '변경 이력', Activity],
@@ -275,6 +276,7 @@ export default function AdminConsolePage({ qa = false }) {
           {section === 'settings' && <SiteSettings data={data} setData={setData} mutate={mutate} />}
           {section === 'features' && <Features data={data} setData={setData} mutate={mutate} />}
           {section === 'members' && <Members data={data} mutate={mutate} />}
+          {section === 'resumes' && <Resumes data={data} />}
           {section === 'payments' && <Payments data={data} mutate={mutate} />}
           {section === 'database' && <DatabaseStatus metrics={data.metrics} />}
           {section === 'audit' && <Audit audit={data.audit} />}
@@ -698,4 +700,23 @@ function DatabaseStatus({ metrics }) {
 
 function Audit({ audit = [] }) {
   return <section className="admin-panel"><header><div><small>AUDIT LOG</small><h2>관리자 변경 이력</h2><p>카테고리, 기능, 사이트 설정 변경을 추적합니다.</p></div></header><div className="admin-audit-list">{audit.map((item) => <article key={item.id}><span><Activity /></span><div><strong>{item.subject}</strong><p>{item.action}</p></div><small>{item.actor}</small><time>{item.createdAt}</time></article>)}</div></section>;
+}
+
+const resumeVisibilityLabel = { public: '채용기관 공개', proposal: '제안 시 공개', private: '비공개 보관' };
+function Resumes({ data }) {
+  const resumes = data.resumes || [];
+  return <section className="admin-panel"><header><div><small>MEMBER RESUMES</small><h2>등록된 이력서</h2><p>회원이 등록한 의료인 이력서입니다. 연락처는 헤드헌팅 상담·매칭에만 사용하세요.</p></div><span className="admin-count">{resumes.length}건</span></header>
+    {resumes.length === 0
+      ? <div className="admin-empty"><FileText /><p>아직 등록된 이력서가 없습니다.</p></div>
+      : <div className="admin-table-panel"><div className="admin-table-head admin-resume-head"><span>이력서</span><span>연락처</span><span>희망 지역</span><span>완성도</span><span>공개범위</span><span>등록일</span></div>
+        {resumes.map((item) => <article key={item.id} className="admin-resume-row">
+          <div><strong>{item.title || '제목 미입력'}</strong><small>{item.name || '이름 미입력'} · {item.profession || '직군 미정'}{item.specialty ? ` · ${item.specialty}` : ''}</small></div>
+          <span>{item.phone || '-'}</span>
+          <span>{item.desiredRegions || '-'}</span>
+          <b>{Number(item.completion) || 0}%</b>
+          <em className={`resume-visibility-tag v-${item.visibility}`}>{resumeVisibilityLabel[item.visibility] || item.visibility}</em>
+          <time>{(item.updatedAt || item.createdAt || '').slice(0, 10)}</time>
+        </article>)}
+      </div>}
+  </section>;
 }

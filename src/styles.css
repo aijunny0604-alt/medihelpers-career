@@ -4597,3 +4597,15 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .auth-gate-spinner{width:34px;height:34px;margin:0 auto 16px;display:block;border-radius:50%;border:3px solid #e3ebf5;border-top-color:var(--blue);animation:auth-gate-spin .7s linear infinite}
 @keyframes auth-gate-spin{to{transform:rotate(360deg)}}
 html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s}
+
+/* 관리자 이력서 관리 탭 */
+.admin-resume-head,.admin-resume-row{display:grid;grid-template-columns:minmax(0,2fr) 130px minmax(0,1.1fr) 70px 108px 92px;gap:14px;align-items:center}
+.admin-resume-row{padding:15px 0;border-top:1px solid #eef2f7;font-size:13px;color:#3a4a63}
+.admin-resume-row>div>strong{display:block;font-size:14px;color:#182c49}
+.admin-resume-row>div>small{color:#7f8da1;font-size:11px}
+.admin-resume-row b{font-weight:800;color:var(--blue)}
+.resume-visibility-tag{padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700;text-align:center;white-space:nowrap}
+.resume-visibility-tag.v-public{background:#eaf7ef;color:#1c8a4e}
+.resume-visibility-tag.v-proposal{background:#eef3ff;color:#2f66d8}
+.resume-visibility-tag.v-private{background:#f3f5f8;color:#6b7889}
+@media(max-width:760px){.admin-resume-head{display:none}.admin-resume-row{grid-template-columns:1fr 1fr;gap:6px 12px;padding:14px 0}.admin-resume-row>div{grid-column:1/3}}

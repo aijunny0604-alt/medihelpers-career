@@ -523,7 +523,7 @@ async function adminConsoleApi(request, env) {
     return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }
   if (request.method === 'GET') {
-    const [accounts, consultations, cases, categories, contentCount, auditCount, paymentMetrics, settingsResult, featuresResult, categoryResult, contentResult, memberResult, paymentResult, transactionResult, refundResult, auditResult, consultationResult, caseResult] = await Promise.all([
+    const [accounts, consultations, cases, categories, contentCount, auditCount, paymentMetrics, settingsResult, featuresResult, categoryResult, contentResult, memberResult, paymentResult, transactionResult, refundResult, auditResult, consultationResult, caseResult, resumeResult] = await Promise.all([
       env.DB.prepare("SELECT COUNT(*) total, SUM(CASE WHEN role='doctor' THEN 1 ELSE 0 END) doctors, SUM(CASE WHEN role='hospital' THEN 1 ELSE 0 END) hospitals FROM accounts").first(),
       env.DB.prepare('SELECT COUNT(*) total FROM consultation_requests').first(),
       env.DB.prepare("SELECT SUM(CASE WHEN stage NOT IN ('hired','closed') THEN 1 ELSE 0 END) active, SUM(CASE WHEN stage='hired' THEN 1 ELSE 0 END) hired FROM recruitment_cases").first(),
@@ -541,7 +541,8 @@ async function adminConsoleApi(request, env) {
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_id AS transactionId, amount, reason, status, requested_by AS requestedBy, provider_refund_id AS providerRefundId, processed_at AS processedAt, created_at AS createdAt FROM payment_refunds ORDER BY created_at DESC LIMIT 500").all(),
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all(),
       env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests ORDER BY created_at DESC LIMIT 300').all(),
-      env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all()
+      env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all(),
+      env.DB.prepare("SELECT r.id, r.title, r.profession, r.specialty, r.name, r.phone, r.email, r.desired_regions AS desiredRegions, r.completion, r.visibility, r.status, r.created_at AS createdAt, r.updated_at AS updatedAt, a.role accountRole FROM resumes r JOIN accounts a ON a.id=r.account_id ORDER BY r.updated_at DESC LIMIT 300").all().catch(() => ({ results: [] }))
     ]);
     const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
     const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
@@ -567,7 +568,8 @@ async function adminConsoleApi(request, env) {
         const { payloadJson, ...record } = row;
         return { ...record, payload };
       }),
-      cases:caseResult.results || []
+      cases:caseResult.results || [],
+      resumes:resumeResult.results || []
     });
   }
   if (request.method !== 'PATCH') return json({ error:'지원하지 않는 요청입니다.' }, 405);
