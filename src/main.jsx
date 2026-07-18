@@ -1160,7 +1160,7 @@ function Redirect({ to }) {
   }, [to]);
   return null;
 }
-const STANDARD_STEP = 9;
+const STANDARD_STEP = 12;
 const PREMIUM_ROTATION_MS = 7000;
 
 function getRecruitmentType(job) {
