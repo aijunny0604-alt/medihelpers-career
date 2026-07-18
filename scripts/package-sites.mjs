@@ -728,10 +728,13 @@ async function publicSiteOperationsApi(request, env) {
     for (const r of (resumeRows.results || [])) {
       const detail = parseJsonObject(r.detailJson) || {};
       const career = detail.experienceYears ? String(detail.experienceYears) : (detail.career || '');
+      // 직군으로 의사/의료인 구분: 의사는 인재정보(/talent), 의료인은 의료인 채용 페이지에 노출.
+      const isDoctor = /의사|전문의|의사직/.test(String(r.profession || ''));
       contents.push({
         id: 'resume-' + r.id, contentType: 'talent_profile', title: '', subtitle: '', visibility: 'public', updatedAt: r.updatedAt,
         payload: {
           code: 'MH-' + String(r.id).slice(-6).toUpperCase(), name: '',
+          profession: r.profession || '', staffType: isDoctor ? 'doctor' : 'medical',
           dept: r.specialty || r.profession || '',
           career: career ? (career.includes('년') ? career : career + '년') : '경력 확인 필요',
           region: r.desiredRegions || '',

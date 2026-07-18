@@ -2953,7 +2953,10 @@ export function App() {
   const path = route.split('?')[0].replace(/\/$/, '') || '/';
   const operations = useSiteOperations();
   const liveJobs = useMemo(() => [...operationalDoctorJobs(operations.contents), ...jobs], [operations.contents]);
-  const liveTalent = useMemo(() => [...operationalTalent(operations.contents), ...talent], [operations.contents]);
+  const allTalent = useMemo(() => [...operationalTalent(operations.contents), ...talent], [operations.contents]);
+  // 인재정보(/talent)는 의사만, 의료인 채용은 의료인만. 정적 talent는 의사로 간주.
+  const liveTalent = useMemo(() => allTalent.filter((p) => (p.staffType || 'doctor') === 'doctor'), [allTalent]);
+  const medicalTalent = useMemo(() => allTalent.filter((p) => p.staffType === 'medical'), [allTalent]);
   const [qaState, setQaState] = useState(() => normalizeQaState(readStoredString(QA_PREVIEW_STORAGE_KEY)));
   useAdaptivePerformance();
   useScrollMotion(route);
@@ -2991,7 +2994,7 @@ export function App() {
   else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} liveTalent={liveTalent} /></AuthGate>;
   else if (path === '/matching-report') page = <AuthGate auth={auth} title="매칭 리포트는 회원 전용입니다" description="찜한 병원·후보를 비교하는 매칭 리포트는 로그인 후 이용할 수 있습니다."><MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} /></AuthGate>;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
-  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} /></AuthGate>;
+  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} /></AuthGate>;
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
     : <MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} />;

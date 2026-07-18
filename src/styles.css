@@ -4648,3 +4648,19 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .talent-contact-grid dd{margin:0;color:#173d33;font-size:15px;font-weight:600}
 .talent-contact-grid a{color:#0f8f6f;font-weight:700}
 @media(max-width:560px){.talent-contact-grid{grid-template-columns:1fr}}
+
+/* 의료인 채용 — 구직 인재 목록 */
+.medical-staff-talent{padding-top:20px}
+.medical-talent-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.medical-talent-card{text-align:left;display:grid;grid-template-columns:48px minmax(0,1fr);gap:14px;align-items:center;padding:18px;border:1px solid #d9e4ef;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(26,59,99,.05);transition:.18s;cursor:pointer}
+.medical-talent-card:hover{border-color:#9ec9bb;box-shadow:0 14px 32px rgba(20,120,95,.1);transform:translateY(-2px)}
+.medical-talent-card .mt-avatar{width:48px;height:48px;border-radius:14px;background:#e8f6f1;color:#149e7f;display:grid;place-items:center}
+.medical-talent-card .mt-avatar svg{width:23px}
+.medical-talent-card .mt-body{min-width:0;display:flex;flex-direction:column;gap:2px}
+.medical-talent-card .mt-body small{color:#149e7f;font-size:12px;font-weight:800}
+.medical-talent-card .mt-body strong{color:#16233a;font-size:15px;letter-spacing:-.02em}
+.medical-talent-card .mt-meta{color:#69768b;font-size:12.5px}
+.medical-talent-card .mt-lock{grid-column:1/-1;display:inline-flex;align-items:center;gap:5px;margin-top:2px;padding:5px 10px;border-radius:8px;background:#eef6f2;color:#0f8f6f;font-size:11.5px;font-weight:700;font-style:normal;justify-self:start}
+.medical-talent-card .mt-lock svg{width:14px}
+@media(max-width:1000px){.medical-talent-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.medical-talent-grid{grid-template-columns:1fr}}
