@@ -1485,10 +1485,10 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   .member-type-grid small{font-size:13px}
   .member-type-grid strong{font-size:clamp(21px,1.45vw,25px)}
   .member-type-grid p{min-height:50px;font-size:15px}
-  .member-type-grid b{min-height:60px;padding-inline:22px;font-size:16.5px;border-radius:14px;box-shadow:0 10px 24px rgba(18,99,232,.16);letter-spacing:-.01em}
-  .member-type-grid .doctor-choice b{box-shadow:0 10px 24px rgba(18,99,232,.2)}
-  .member-type-grid .hospital-choice b{box-shadow:0 10px 24px rgba(7,140,114,.2)}
-  .member-type-grid b svg{width:19px}
+  .member-type-grid b{min-height:66px;padding-inline:26px;font-size:18px;border-radius:15px;box-shadow:0 10px 24px rgba(18,99,232,.16);letter-spacing:-.01em}
+  .member-type-grid .doctor-choice b{box-shadow:0 12px 26px rgba(18,99,232,.24)}
+  .member-type-grid .hospital-choice b{box-shadow:0 12px 26px rgba(7,140,114,.24)}
+  .member-type-grid b svg{width:22px}
   .signup-principles{padding:36px}
   .signup-principles h3{font-size:22px}
   .signup-principles li{font-size:16px}
