@@ -301,10 +301,12 @@ function Header({ path, qa, operations }) {
           if (item.path === '/advertise' && operations.features.adRegistration === false) return false;
           return true;
         }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
+        <Link to="/qa-preview" onClick={() => setOpen(false)} className={`mobile-preview-link ${path === '/qa-preview' ? 'active' : ''}`}><ShieldCheck size={16} /> 권한 화면 미리보기</Link>
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{signedInPreview ? '마이페이지' : qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
       </nav>
       <div className="nav-actions">
         <a className="text-link" href={`tel:${operations.settings.supportPhone.replace(/\D/g,'')}`}><Phone size={16} /> {operations.settings.supportPhone}</a>
+        <Link className={`header-preview ${path === '/qa-preview' ? 'active' : ''}`} to="/qa-preview" aria-label="관리자·병원·일반회원·멤버십 권한 화면 미리보기"><ShieldCheck size={16} /> 화면 미리보기</Link>
         <Link className={`header-account ${qa.active ? `qa-account tone-${qa.info.tone}` : ''}`} to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
         <Link className="button primary compact" to={primaryAction.to}>{primaryAction.label}</Link>
       </div>
