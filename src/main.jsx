@@ -609,7 +609,9 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
     return () => { active = false; };
   }, [qa?.active, qa?.state]);
   const isAd = Boolean(job.adTier);
-  const restricted = isAd || job.badge === "비공개";
+  // 병원이 비용을 낸 광고 공고는 널리 알리는 것이 목적이므로 급여·조건을 공개한다.
+  // 비공개 헤드헌팅 포지션(badge === "비공개")만 상담 후 공개 대상으로 잠근다.
+  const restricted = job.badge === "비공개";
   const memberUnlocked = Boolean(
     qa?.active &&
       (qa.info.capabilities.membership || qa.info.capabilities.admin),
