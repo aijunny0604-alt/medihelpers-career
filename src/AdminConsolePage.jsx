@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, BriefcaseBusiness, Building2, ChevronRight, CreditCard, Database,
   Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
-  ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
+  ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';
 import { jobs, talent } from './data.js';
 import { sampleJobs as medicalStaffJobs } from './MedicalStaffPage.jsx';
@@ -88,6 +88,7 @@ const groups = [
     ['members', '회원 현황', UserRoundCog],
     ['resumes', '이력서 관리', FileText],
     ['payments', '결제 · 환불 관리', CreditCard],
+    ['talentAudit', '인재 열람 감사', ShieldAlert],
     ['database', 'DB 현황', Database],
     ['audit', '변경 이력', Activity],
   ] },
@@ -278,6 +279,7 @@ export default function AdminConsolePage({ qa = false }) {
           {section === 'members' && <Members data={data} mutate={mutate} />}
           {section === 'resumes' && <Resumes data={data} />}
           {section === 'payments' && <Payments data={data} mutate={mutate} />}
+          {section === 'talentAudit' && <TalentAccessAudit active={section === 'talentAudit'} />}
           {section === 'database' && <DatabaseStatus metrics={data.metrics} />}
           {section === 'audit' && <Audit audit={data.audit} />}
         </main>
@@ -700,6 +702,41 @@ function DatabaseStatus({ metrics }) {
 
 function Audit({ audit = [] }) {
   return <section className="admin-panel"><header><div><small>AUDIT LOG</small><h2>관리자 변경 이력</h2><p>카테고리, 기능, 사이트 설정 변경을 추적합니다.</p></div></header><div className="admin-audit-list">{audit.map((item) => <article key={item.id}><span><Activity /></span><div><strong>{item.subject}</strong><p>{item.action}</p></div><small>{item.actor}</small><time>{item.createdAt}</time></article>)}</div></section>;
+}
+
+// 인재 이력서 열람 감사: 병원별 열람량과 이상 열람(한도 초과·단시간 폭주) 경고를 보여준다.
+const alertActionLabel = { talent_unlock_blocked: '열람 한도 초과 차단', talent_unlock_burst: '단시간 대량 열람 경고' };
+function TalentAccessAudit({ active }) {
+  const [state, setState] = useState({ loading: true, error: '', viewers: [], alerts: [], recent: [] });
+  useEffect(() => {
+    if (!active) return;
+    let live = true;
+    setState((s) => ({ ...s, loading: true, error: '' }));
+    fetch('/api/talent-access-audit', { credentials: 'same-origin', headers: { accept: 'application/json' } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('audit'))))
+      .then((r) => live && setState({ loading: false, error: '', viewers: r.viewers || [], alerts: r.alerts || [], recent: r.recent || [] }))
+      .catch(() => live && setState({ loading: false, error: '열람 감사 데이터를 불러오지 못했습니다. 배포 환경에서만 조회됩니다.', viewers: [], alerts: [], recent: [] }));
+    return () => { live = false; };
+  }, [active]);
+  const fmt = (t) => String(t || '').slice(0, 16).replace('T', ' ');
+  return <section className="admin-panel"><header><div><small>TALENT ACCESS AUDIT</small><h2>인재 열람 감사</h2><p>병원별 이력서 열람량과 이상 열람(대량 수집)을 추적해 정보 유출을 방어합니다.</p></div></header>
+    {state.loading ? <div className="admin-empty"><ShieldAlert /><p>불러오는 중…</p></div> : <>
+      {state.error && <div className="admin-empty"><ShieldAlert /><p>{state.error}</p></div>}
+      <div className="talent-audit-block">
+        <h3><ShieldAlert /> 이상 열람 경고 (최근 7일)</h3>
+        {state.alerts.length === 0
+          ? <p className="talent-audit-none">경고가 없습니다. 정상 범위 내 열람입니다.</p>
+          : <div className="talent-audit-alerts">{state.alerts.map((a, i) => <article key={i} className={`talent-audit-alert ${a.action}`}><strong>{alertActionLabel[a.action] || a.action}</strong><span>{a.viewer}</span><em>대상 {a.subject}</em><time>{fmt(a.at)}</time></article>)}</div>}
+      </div>
+      <div className="talent-audit-block">
+        <h3>병원별 열람량 (최근 24시간)</h3>
+        {state.viewers.length === 0
+          ? <p className="talent-audit-none">최근 24시간 열람 기록이 없습니다.</p>
+          : <div className="admin-table-panel"><div className="admin-table-head talent-audit-head"><span>병원 계정</span><span>열람 후보 수</span><span>총 열람</span><span>최근 열람</span></div>
+            {state.viewers.map((v, i) => <article key={i} className={`talent-audit-row${v.candidates >= 20 ? ' hot' : ''}`}><div><strong>{v.viewer}</strong></div><span>{v.candidates}명</span><span>{v.views}회</span><time>{fmt(v.lastAt)}</time></article>)}</div>}
+      </div>
+    </>}
+  </section>;
 }
 
 const resumeVisibilityLabel = { public: '채용기관 공개', proposal: '제안 시 공개', private: '비공개 보관' };

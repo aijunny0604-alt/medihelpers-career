@@ -409,16 +409,45 @@ async function talentDetailApi(request, env, pathname) {
     hasUnlock = Boolean(row);
   }
   if (!hasUnlock) return json({ unlocked:false, detail:null });
+  // === 정보 유출 방어: 병원 계정의 열람 빈도를 검사한다(관리자는 예외). ===
+  // 하루 상한(기본 30명)과 10분 폭주 임계(기본 15건)를 넘으면 차단하거나 경고를 남긴다.
+  const DAILY_LIMIT = Number(env.TALENT_VIEW_DAILY_LIMIT || 30);
+  const BURST_WINDOW_MIN = 10;
+  const BURST_LIMIT = Number(env.TALENT_VIEW_BURST_LIMIT || 15);
+  let dailyCount = 0;
+  if (!isAdmin && account) {
+    try {
+      const dayAgo = new Date(Date.now() - 86400000).toISOString();
+      const burstAgo = new Date(Date.now() - BURST_WINDOW_MIN * 60000).toISOString();
+      // 오늘 이 병원이 조회한 서로 다른 후보 수(같은 후보 반복은 1로 계산).
+      const dailyRow = await env.DB.prepare("SELECT COUNT(DISTINCT subject_ref) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND created_at >= ?").bind(identity.email, dayAgo).first();
+      dailyCount = Number(dailyRow?.n || 0);
+      const burstRow = await env.DB.prepare("SELECT COUNT(*) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND created_at >= ?").bind(identity.email, burstAgo).first();
+      const burstCount = Number(burstRow?.n || 0);
+      // 하루 상한 초과: 차단하고 경고 로그.
+      const alreadySeen = await env.DB.prepare("SELECT 1 FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND subject_ref = ? LIMIT 1").bind(identity.email, talentId).first();
+      if (!alreadySeen && dailyCount >= DAILY_LIMIT) {
+        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_blocked', ?, ?)").bind(crypto.randomUUID(), identity.email, talentId, JSON.stringify({ reason:'daily_limit', dailyCount, limit:DAILY_LIMIT })).run(); } catch {}
+        return json({ unlocked:true, detail:null, limited:true, message:'금일 열람 한도를 초과했습니다. 대량 정보 수집 방지를 위해 잠시 후 다시 이용해 주세요.' }, 429);
+      }
+      // 단시간 폭주: 차단하진 않되 경고 로그를 남겨 관리자가 탐지.
+      if (burstCount + 1 >= BURST_LIMIT) {
+        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_burst', ?, ?)").bind(crypto.randomUUID(), identity.email, talentId, JSON.stringify({ burstCount:burstCount + 1, windowMin:BURST_WINDOW_MIN })).run(); } catch {}
+      }
+    } catch {}
+  }
   // 열람권 보유 → 이력서 상세 제공. talentId가 resume-<id> 형태면 resumes에서 조회.
   const resumeId = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
   if (resumeId) {
     const r = await env.DB.prepare('SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ?').bind(resumeId).first();
     if (r) {
-      try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
+      try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
       const { detailJson, ...rest } = r;
       return json({ unlocked:true, detail:{ ...rest, detail:parseJsonObject(detailJson) } });
     }
   }
+  // 실제 이력서가 없더라도(정적 샘플 등) 열람 사실은 기록해 빈도 집계에 반영.
+  try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
   return json({ unlocked:true, detail:null });
 }
 const paymentProductCatalog = {
@@ -620,6 +649,26 @@ async function recruitmentCrmApi(request, env, pathname) {
     return json({ updated:true });
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
+// 관리자용: 인재 이력서 열람 감사. 병원별 열람량과 차단·폭주 경고를 확인해 정보 빼가기를 탐지.
+async function talentAccessAuditApi(request, env) {
+  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  const admin = adminIdentity(request, env);
+  if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 401);
+  try { await ensureRecruitmentCrmSchema(env); } catch { return json({ admin, viewers:[], alerts:[], recent:[] }); }
+  const dayAgo = new Date(Date.now() - 86400000).toISOString();
+  // 병원(actor)별 최근 24시간 열람 통계.
+  const viewers = await env.DB.prepare("SELECT actor_key AS viewer, COUNT(DISTINCT subject_ref) AS candidates, COUNT(*) AS views, MAX(created_at) AS lastAt FROM access_audit_logs WHERE action = 'talent_unlock_view' AND created_at >= ? GROUP BY actor_key ORDER BY candidates DESC LIMIT 100").bind(dayAgo).all();
+  // 차단·폭주 경고(최근 7일).
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const alerts = await env.DB.prepare("SELECT actor_key AS viewer, action, subject_ref AS subject, metadata_json AS metaJson, created_at AS at FROM access_audit_logs WHERE action IN ('talent_unlock_blocked','talent_unlock_burst') AND created_at >= ? ORDER BY created_at DESC LIMIT 100").bind(weekAgo).all();
+  const recent = await env.DB.prepare("SELECT actor_key AS viewer, subject_ref AS subject, created_at AS at FROM access_audit_logs WHERE action = 'talent_unlock_view' ORDER BY created_at DESC LIMIT 50").all();
+  return json({
+    admin,
+    viewers: viewers.results || [],
+    alerts: (alerts.results || []).map(a => { const { metaJson, ...rest } = a; return { ...rest, meta: parseJsonObject(metaJson) }; }),
+    recent: recent.results || []
+  });
 }
 const adminSettingKeys = ['siteName','supportPhone','supportEmail','announcement','maintenanceMode'];
 const adminFeatureKeys = ['doctorRecruitment','talentSearch','resumeRegistration','medicalStaffHub','paidCareerService','adRegistration'];
@@ -951,6 +1000,7 @@ async function responseFor(request, env) {
   if (pathname === '/api/payment-approve') return paymentApproveApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
+  if (pathname === '/api/talent-access-audit') return talentAccessAuditApi(request, env);
   if (pathname === '/api/admin-console') return adminConsoleApi(request, env);
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });

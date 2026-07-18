@@ -1847,13 +1847,14 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
     strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
   };
   // 열람권 보유 시 서버가 연락처·상세를 내려준다. 없으면 unlocked:false.
-  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, detail: null });
+  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, detail: null, limited: false, message: "" });
   useEffect(() => {
     let active = true;
     fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("detail"))))
-      .then((r) => { if (active) setUnlock({ loading: false, unlocked: Boolean(r.unlocked), detail: r.detail || null }); })
-      .catch(() => active && setUnlock({ loading: false, unlocked: false, detail: null }));
+      // 429(열람 한도 초과)는 응답 본문(limited/message)을 읽어 사용자에게 안내한다.
+      .then((r) => r.json().catch(() => ({})).then((body) => ({ ok: r.ok, status: r.status, body })))
+      .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
+      .catch(() => active && setUnlock({ loading: false, unlocked: false, detail: null, limited: false, message: "" }));
     return () => { active = false; };
   }, [person.code]);
   const d = unlock.detail || {};
@@ -1921,12 +1922,18 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
             </dl>
           </section>
         ) : (
-          <section className="talent-detail-private">
+          <section className={`talent-detail-private${unlock.limited ? ' talent-detail-limited' : ''}`}>
             <span className="talent-private-icon"><LockKeyhole /></span>
             <div>
-              <small>이력서 열람권으로 열람할 수 있습니다</small>
-              <h3>성명 · 연락처 · 이메일 · 근무기관 이력 · 자기소개</h3>
-              <p>후보자 동의 범위에서, 열람권을 결제한 병원 회원에게만 연락처와 이력서 상세가 공개됩니다.</p>
+              {unlock.limited ? <>
+                <small>금일 열람 한도 초과</small>
+                <h3>대량 정보 수집 방지를 위해 잠시 제한되었습니다</h3>
+                <p>{unlock.message || '금일 열람 한도를 초과했습니다. 잠시 후 다시 이용해 주세요.'} 추가 열람이 필요하면 담당자에게 문의해 주세요.</p>
+              </> : <>
+                <small>이력서 열람권으로 열람할 수 있습니다</small>
+                <h3>성명 · 연락처 · 이메일 · 근무기관 이력 · 자기소개</h3>
+                <p>후보자 동의 범위에서, 열람권을 결제한 병원 회원에게만 연락처와 이력서 상세가 공개됩니다.</p>
+              </>}
             </div>
           </section>
         )}
@@ -1935,6 +1942,8 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           <button type="button" className="button outline" onClick={onClose}>목록 계속 보기</button>
           {unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
+          ) : unlock.limited ? (
+            <a className="button primary" href="tel:0513425463"><Phone /> 담당자 문의</a>
           ) : (
             <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${person.code}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
           )}
