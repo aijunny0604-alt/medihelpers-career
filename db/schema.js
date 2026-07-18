@@ -93,7 +93,17 @@ export const memberCenterSchemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (account_id, job_id, kind),
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
-  )`
+  )`,
+  `CREATE TABLE IF NOT EXISTS talent_unlocks (
+    id TEXT PRIMARY KEY,
+    hospital_account_id TEXT NOT NULL,
+    talent_id TEXT NOT NULL,
+    order_id TEXT NOT NULL DEFAULT '',
+    unlocked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TEXT,
+    FOREIGN KEY (hospital_account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS talent_unlocks_idx ON talent_unlocks(hospital_account_id, talent_id)`
 ];
 
 export const commerceSchemaStatements = [

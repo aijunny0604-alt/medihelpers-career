@@ -669,8 +669,27 @@ async function publicSiteOperationsApi(request, env) {
     return filtered;
   };
   const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload) }; });
-  // 이력서는 인재정보에 자동 노출하지 않는다. 아빠(관리자)가 검토·큐레이션한 인재만 노출.
-  // (등록된 이력서는 관리자 콘솔 '이력서 관리'에서 확인 후 수동으로 인재 프로필로 등록)
+  // 구직 등록 = 이력서 등록 시 의사가 '인재정보에 구직 공개(visibility=public)'를 직접 선택한 경우에만
+  // 인재정보에 익명으로 노출한다(본인 선택, 자동 아님). 실명·연락처·이메일은 절대 미포함.
+  // 연락처·이력서 상세는 병원의 열람권 결제 후 별도 API로만 제공한다.
+  try {
+    const resumeRows = await env.DB.prepare("SELECT id, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson, updated_at AS updatedAt FROM resumes WHERE visibility='public' ORDER BY updated_at DESC LIMIT 200").all();
+    for (const r of (resumeRows.results || [])) {
+      const detail = parseJsonObject(r.detailJson) || {};
+      const career = detail.experienceYears ? String(detail.experienceYears) : (detail.career || '');
+      contents.push({
+        id: 'resume-' + r.id, contentType: 'talent_profile', title: '', subtitle: '', visibility: 'public', updatedAt: r.updatedAt,
+        payload: {
+          code: 'MH-' + String(r.id).slice(-6).toUpperCase(), name: '',
+          dept: r.specialty || r.profession || '',
+          career: career ? (career.includes('년') ? career : career + '년') : '경력 확인 필요',
+          region: r.desiredRegions || '',
+          preference: detail.workTypes ? (Array.isArray(detail.workTypes) ? detail.workTypes.join('·') : String(detail.workTypes)) : '',
+          available: detail.available || '협의', identityConsent: false, fromResume: true,
+        },
+      });
+    }
+  } catch {}
   return json({ settings, features, contents });
 }
 async function adminConsoleApi(request, env) {
