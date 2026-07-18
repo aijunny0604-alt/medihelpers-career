@@ -174,7 +174,8 @@ function navigate(path) {
     window.dispatchEvent(new PopStateEvent('popstate'));
     const navigation = new CustomEvent('medihelpers:navigate', { cancelable: true });
     window.dispatchEvent(navigation);
-    if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+    // 페이지 이동 시에는 즉시 최상단으로. smooth로 스르륵 올라가면 어지러움을 유발한다.
+    if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: 'auto' });
   };
   const currentPage = document.querySelector('.route-stage');
   if (reducedMotion || !currentPage) return commitNavigation();
