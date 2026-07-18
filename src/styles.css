@@ -4637,3 +4637,14 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 /* 관리자 결제 목록 노출기간 표시 */
 .payment-exposure{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:6px;background:#eef6ef;color:#1c8a4e;font-size:10px;font-weight:700}
+
+/* 인재 열람권 — 열람 완료 시 연락처·상세 표시 */
+.talent-detail-unlocked{margin-top:18px;padding:20px 22px;border-radius:16px;border:1px solid #bfe4d8;background:linear-gradient(135deg,#f2fbf8,#eafaf4)}
+.talent-detail-unlocked .talent-detail-title span{background:#daf3ea;color:#159e7f}
+.talent-contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;margin:14px 0 0}
+.talent-contact-grid>div{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-top:1px solid #d5ece3}
+.talent-contact-grid>div.wide{grid-column:1/-1}
+.talent-contact-grid dt{color:#5f8778;font-size:12px;font-weight:700}
+.talent-contact-grid dd{margin:0;color:#173d33;font-size:15px;font-weight:600}
+.talent-contact-grid a{color:#0f8f6f;font-weight:700}
+@media(max-width:560px){.talent-contact-grid{grid-template-columns:1fr}}

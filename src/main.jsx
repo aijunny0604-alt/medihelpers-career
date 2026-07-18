@@ -1846,6 +1846,17 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
     focus: `${person.preference} 조건을 중심으로 새로운 근무지를 검토합니다.`,
     strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
   };
+  // 열람권 보유 시 서버가 연락처·상세를 내려준다. 없으면 unlocked:false.
+  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, detail: null });
+  useEffect(() => {
+    let active = true;
+    fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("detail"))))
+      .then((r) => { if (active) setUnlock({ loading: false, unlocked: Boolean(r.unlocked), detail: r.detail || null }); })
+      .catch(() => active && setUnlock({ loading: false, unlocked: false, detail: null }));
+    return () => { active = false; };
+  }, [person.code]);
+  const d = unlock.detail || {};
   return (
     <Modal
       wide
@@ -1895,24 +1906,38 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           </section>
         </div>
 
-        <section className="talent-detail-private">
-          <span className="talent-private-icon"><LockKeyhole /></span>
-          <div>
-            <small>멤버십 자동 열람이 아닌 상담·동의 기반 정보입니다</small>
-            <h3>근무기관 이력 · 세부 진료 경험 · 이직 사유 · 인터뷰 메모</h3>
-            <p>병원의 채용 조건을 먼저 확인한 뒤 후보자에게 소개 의사를 묻고, 동의된 범위에서만 정보를 전달합니다.</p>
-          </div>
-        </section>
+        {unlock.unlocked ? (
+          <section className="talent-detail-unlocked">
+            <div className="talent-detail-title">
+              <span><BadgeCheck /></span>
+              <div><small>UNLOCKED · 열람권 확인</small><h3>연락처·이력서 상세</h3></div>
+            </div>
+            <dl className="talent-contact-grid">
+              {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
+              {d.phone && <div><dt>연락처</dt><dd><a href={`tel:${String(d.phone).replace(/\D/g, '')}`}>{d.phone}</a></dd></div>}
+              {d.email && <div><dt>이메일</dt><dd><a href={`mailto:${d.email}`}>{d.email}</a></dd></div>}
+              {d.specialty && <div><dt>전문분야</dt><dd>{d.specialty}</dd></div>}
+              {d.detail?.introduction && <div className="wide"><dt>자기소개</dt><dd>{d.detail.introduction}</dd></div>}
+            </dl>
+          </section>
+        ) : (
+          <section className="talent-detail-private">
+            <span className="talent-private-icon"><LockKeyhole /></span>
+            <div>
+              <small>이력서 열람권으로 열람할 수 있습니다</small>
+              <h3>성명 · 연락처 · 이메일 · 근무기관 이력 · 자기소개</h3>
+              <p>후보자 동의 범위에서, 열람권을 결제한 병원 회원에게만 연락처와 이력서 상세가 공개됩니다.</p>
+            </div>
+          </section>
+        )}
 
         <div className="talent-detail-actions">
           <button type="button" className="button outline" onClick={onClose}>목록 계속 보기</button>
-          <Link
-            className="button primary"
-            to={`/headhunting?role=hospital&candidate=${person.code}`}
-            onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}
-          >
-            이 후보 연결 요청 <ArrowRight />
-          </Link>
+          {unlock.unlocked ? (
+            <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
+          ) : (
+            <Link className="button primary" to={`/advertise?product=talent-unlock-single&talent=${person.code}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
+          )}
         </div>
       </div>
     </Modal>
