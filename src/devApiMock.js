@@ -86,9 +86,12 @@ async function handle(method, path, bodyText) {
     return jsonRes({ resumes: Object.values(read(LS.resumes, {})) });
   }
 
-  // 목 계정(병원 회원으로 가정) — 화면 흐름 확인용
-  if (path === '/api/account' && method === 'GET') {
-    return jsonRes({ account: { role: 'hospital', name: '목 병원', email: 'hospital@example.com', organization: '목 병원 (로컬)' }, isAdmin: false });
+  // 목 계정(병원 회원으로 가정) — 화면 흐름 확인용. 서버 /api/account 계약과 동일한 형태로 반환.
+  if (path === '/api/account') {
+    const identity = { email: 'hospital@example.com', displayName: '목 병원 담당자' };
+    const account = { role: 'hospital', createdAt: '2026-01-01T00:00:00.000Z' };
+    const profile = { displayName: '목 병원 담당자', phone: '010-1111-2222', organization: '목 병원 (로컬)', jobTitle: '채용담당' };
+    return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin: false, profile, email: identity.email });
   }
 
   // 그 외 GET은 빈 기본값으로 응답해 콘솔 404를 줄인다.

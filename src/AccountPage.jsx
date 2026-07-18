@@ -466,7 +466,7 @@ function SignedOutCard({ memberType }) {
 // 실제 가입 경로(signupEnabled=true, 인증 완료)에서만 사용합니다.
 // 백엔드 /api/account 계약은 회원 유형과 필수 동의만 받으므로, 프론트엔드 신청서의
 // 비밀번호 초안 등은 전송하지 않습니다. 라이브 계정 모델을 그대로 유지합니다.
-function SignupForm({ identity, memberType, onComplete }) {
+function SignupForm({ identity = {}, memberType, onComplete }) {
   const content = roleContent[memberType];
   const RoleIcon = content.icon;
   const [form, setForm] = useState(() => initialForm(memberType));
@@ -514,7 +514,7 @@ function SignupForm({ identity, memberType, onComplete }) {
   </section>;
 }
 
-function AccountCard({ account, identity, onDeleted }) {
+function AccountCard({ account, identity = {}, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
   const remove = async () => {
     if (!window.confirm('메디헬퍼스 계정을 삭제할까요? 자격 확인 자료가 없는 현재 계정 정보는 즉시 삭제됩니다.')) return;
