@@ -790,15 +790,26 @@ async function adminConsoleApi(request, env) {
     const status = String(payload.status || '');
     const allowedStatuses = ['pending_review','awaiting_payment','paid','failed','cancelled'];
     if (!id || !allowedStatuses.includes(status)) return json({ error:'결제 상태를 확인해주세요.' }, 400);
-    const order = await env.DB.prepare('SELECT order_number AS orderNumber, status, total_amount AS totalAmount, supply_amount AS supplyAmount, tax_amount AS taxAmount FROM payment_orders WHERE id=?').bind(id).first();
+    const order = await env.DB.prepare('SELECT order_number AS orderNumber, status, total_amount AS totalAmount, supply_amount AS supplyAmount, tax_amount AS taxAmount, product_id AS productId, metadata_json AS metadataJson FROM payment_orders WHERE id=?').bind(id).first();
     if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
+    // 결제 완료 시 노출기간 부여, 취소/실패 시 노출 회수(metadata exposure 제거).
+    const exposureMeta = (() => {
+      const meta = { ...(parseJsonObject(order.metadataJson) || {}) };
+      if (status === 'paid') {
+        const product = paymentProductCatalog[String(order.productId || '')];
+        if (product?.exposureDays) { const start = new Date(); const end = new Date(start.getTime() + product.exposureDays * 86400000); meta.exposure = { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10), days: product.exposureDays }; }
+      } else if (status === 'cancelled' || status === 'failed') {
+        delete meta.exposure;
+      }
+      return JSON.stringify(meta).slice(0, 12000);
+    })();
     const method = ['card','transfer'].includes(payload.paymentMethod) ? payload.paymentMethod : '';
     const provider = cleanOrderValue(payload.provider || 'manual', 60);
     const providerTransactionId = cleanOrderValue(payload.providerTransactionId, 180);
     const adminNote = cleanOrderValue(payload.adminNote, 2000);
     const transactionType = status === 'paid' ? 'capture' : status === 'failed' ? 'failure' : status === 'cancelled' ? 'cancellation' : '';
     const statements = [
-      env.DB.prepare("UPDATE payment_orders SET status=?, payment_method=CASE WHEN ?='' THEN payment_method ELSE ? END, admin_note=?, paid_at=CASE WHEN ?='paid' THEN COALESCE(paid_at,CURRENT_TIMESTAMP) ELSE paid_at END, cancelled_at=CASE WHEN ?='cancelled' THEN CURRENT_TIMESTAMP ELSE cancelled_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(status, method, method, adminNote, status, status, id),
+      env.DB.prepare("UPDATE payment_orders SET status=?, payment_method=CASE WHEN ?='' THEN payment_method ELSE ? END, admin_note=?, metadata_json=?, paid_at=CASE WHEN ?='paid' THEN COALESCE(paid_at,CURRENT_TIMESTAMP) ELSE paid_at END, cancelled_at=CASE WHEN ?='cancelled' THEN CURRENT_TIMESTAMP ELSE cancelled_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(status, method, method, adminNote, exposureMeta, status, status, id),
       env.DB.prepare('INSERT INTO payment_events (id, order_id, actor_key, event_type, from_status, to_status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, admin.email, 'admin_status_update', order.status, status, JSON.stringify({ provider, providerTransactionId, adminNote }))
     ];
     if (transactionType && order.status !== status) statements.push(env.DB.prepare('INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, transactionType, provider, providerTransactionId, Number(order.totalAmount), status === 'failed' ? 'failed' : status === 'cancelled' ? 'cancelled' : 'succeeded'));
@@ -809,16 +820,27 @@ async function adminConsoleApi(request, env) {
     const orderId = String(payload.orderId || '');
     const amount = Math.max(0, Math.floor(Number(payload.amount) || 0));
     const reason = cleanOrderValue(payload.reason, 500);
-    const order = await env.DB.prepare("SELECT order_number AS orderNumber, total_amount AS totalAmount, status FROM payment_orders WHERE id=?").bind(orderId).first();
+    const order = await env.DB.prepare("SELECT order_number AS orderNumber, total_amount AS totalAmount, status, metadata_json AS metadataJson FROM payment_orders WHERE id=?").bind(orderId).first();
     if (!order || !['paid','partially_refunded'].includes(order.status)) return json({ error:'환불 가능한 결제 주문을 확인해주세요.' }, 400);
     const previous = await env.DB.prepare("SELECT COALESCE(SUM(amount),0) total FROM payment_refunds WHERE order_id=? AND status IN ('requested','processing','succeeded')").bind(orderId).first();
     if (!amount || amount > Number(order.totalAmount) - Number(previous?.total || 0)) return json({ error:'환불 가능 금액을 확인해주세요.' }, 400);
     const id = crypto.randomUUID();
-    await env.DB.batch([
+    const totalRefunded = Number(previous?.total || 0) + amount;
+    const fullyRefunded = totalRefunded >= Number(order.totalAmount);
+    const statements = [
       env.DB.prepare("INSERT INTO payment_refunds (id, order_id, amount, reason, requested_by) VALUES (?, ?, ?, ?, ?)").bind(id, orderId, amount, reason, admin.email),
       env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_requested', ?)").bind(crypto.randomUUID(), orderId, admin.email, JSON.stringify({ refundId:id, amount, reason }))
-    ]);
-    await writeAdminAudit(env, admin, 'refund_create', order.orderNumber, { refundId:id, amount, reason });
+    ];
+    // 전액 환불이면 주문을 환불 상태로 전이하고 광고 노출기간을 회수한다.
+    if (fullyRefunded) {
+      const meta = { ...(parseJsonObject(order.metadataJson) || {}) };
+      delete meta.exposure;
+      statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), orderId));
+    } else {
+      statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(orderId));
+    }
+    await env.DB.batch(statements);
+    await writeAdminAudit(env, admin, 'refund_create', order.orderNumber, { refundId:id, amount, reason, fullyRefunded });
   } else {
     return json({ error:'지원하지 않는 관리 작업입니다.' }, 400);
   }
