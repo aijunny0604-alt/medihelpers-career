@@ -418,9 +418,12 @@ async function buildInicisPaymentParams(env, order) {
   };
 }
 // 이니시스 결제창 리턴 → 서버가 최종 승인요청·금액검증 후 주문을 paid 처리한다.
+// INICIS 키 미설정 시: 결제 흐름을 시뮬레이션하는 테스트(가상) 모드로 동작한다.
+// (DB 저장·paid 처리·거래기록은 실제로 작동. 실제 카드 청구만 없음.)
 async function paymentApproveApi(request, env) {
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
-  if (!env.INICIS_MID || !env.INICIS_SIGN_KEY) return json({ error:'결제 연동이 아직 설정되지 않았습니다.' }, 503);
+  const testMode = !env.INICIS_MID || !env.INICIS_SIGN_KEY;
+  if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 저장소를 사용할 수 없습니다.' }, 503); }
   let body; try { body = await request.json(); } catch {
     // 이니시스는 form-urlencoded로 리턴하므로 폼도 파싱.
@@ -433,6 +436,16 @@ async function paymentApproveApi(request, env) {
   if (!oid) return json({ error:'주문번호가 없습니다.' }, 400);
   const order = await env.DB.prepare('SELECT id, total_amount AS totalAmount, status FROM payment_orders WHERE order_number = ?').bind(oid).first();
   if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
+  // === 테스트(가상) 결제 모드: 실제 이니시스 없이 승인 성공 처리 ===
+  if (testMode) {
+    const tid = 'TEST-' + Date.now().toString(36).toUpperCase();
+    await env.DB.batch([
+      env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id),
+      env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'approve', 'test', ?, ?, 'success', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
+      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'test', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid, testMode:true }))
+    ]);
+    return json({ approved:true, status:'paid', orderNumber:oid, tid, testMode:true, message:'테스트 결제가 완료되었습니다(실제 청구 없음).' });
+  }
   // 결제창 인증 실패
   if (resultCode && resultCode !== '0000') {
     await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();

@@ -2599,6 +2599,7 @@ function AdvertiseApplyPage({ route, qa }) {
 
 function MembershipCheckout({ plan, onClose }) {
   const [done, setDone] = useState(false);
+  const [paidInfo, setPaidInfo] = useState(null);
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submit = async (event) => {
@@ -2615,8 +2616,19 @@ function MembershipCheckout({ plan, onClose }) {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
-      appendStoredRecord('medihelpers_membership_requests', { id:result.order?.orderNumber || `MEM-${Date.now()}`, planId:plan.id, amount:plan.price, status:result.order?.status || 'pending_review', createdAt:new Date().toISOString(), ...data });
-      trackConversion('checkout_request', { planId: plan.id, amount: plan.price });
+      const orderNumber = result.order?.orderNumber;
+      // 결제 승인: 이니시스 키가 설정돼 있으면 실제 결제창, 없으면 서버가 테스트(가상) 승인 처리.
+      if (result.inicis?.configured) {
+        // TODO(실키 준비 시): 이니시스 표준결제창(stdpay) 로드·submit. 지금은 승인 엔드포인트로 진행.
+      }
+      const approve = await fetch('/api/payment-approve', {
+        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
+        body:JSON.stringify({ orderNumber, resultCode:'0000' })
+      });
+      const approveResult = await approve.json().catch(() => ({}));
+      appendStoredRecord('medihelpers_membership_requests', { id:orderNumber || `MEM-${Date.now()}`, planId:plan.id, amount:plan.price, status:approveResult.status || result.order?.status || 'pending_review', createdAt:new Date().toISOString(), ...data });
+      trackConversion('checkout_request', { planId: plan.id, amount: plan.price, paid:approveResult.approved });
+      setPaidInfo(approveResult);
       setDone(true);
     } catch (error) {
       setSubmitError(error.message);
@@ -2624,7 +2636,7 @@ function MembershipCheckout({ plan, onClose }) {
       setSubmitting(false);
     }
   };
-  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>멤버십 결제 요청이 접수되었습니다</h2><p>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? 'DB에 안전하게 저장 중…' : '결제 안내 요청하기'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
+  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '결제가 완료되었습니다' : '멤버십 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '결제 내역은 마이페이지에서 확인할 수 있습니다.'}</> : <>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</>}</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" /></label><label><span>이메일 *</span><input required name="email" type="email" /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? 'DB에 안전하게 저장 중…' : '결제 안내 요청하기'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
 }
 
 function ValueCalculator({ type, onChoose }) {
