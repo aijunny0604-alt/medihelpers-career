@@ -3355,37 +3355,37 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .resume-security strong{font-size:15px}
   .resume-security small{font-size:12px}
   .resume-layout{
-    max-width:1440px;
+    max-width:1600px;
     margin-top:40px;
-    padding:0 30px;
-    grid-template-columns:220px minmax(0,1fr) 290px;
-    gap:24px;
+    padding:0 36px;
+    grid-template-columns:250px minmax(0,1fr) 330px;
+    gap:28px;
   }
   .resume-step-nav,.resume-editor,.resume-preview{border-radius:21px}
-  .resume-progress{padding:24px 22px}
-  .resume-progress>div{font-size:13px}
-  .resume-progress strong{font-size:21px}
-  .resume-step-nav>button{padding:16px 19px;gap:12px}
-  .resume-step-nav>button>span{width:36px;height:36px}
-  .resume-step-nav>button>span svg{width:18px}
-  .resume-step-nav>button small{font-size:9px}
-  .resume-step-nav>button strong{font-size:14px}
-  .resume-help{margin:15px;padding:16px}
-  .resume-help strong{font-size:12px}
-  .resume-help small{font-size:10px}
-  .resume-editor{padding:40px 42px}
-  .resume-panel-head{margin-bottom:30px}
-  .resume-panel-head>small,.resume-panel-head>div>small{font-size:11px}
-  .resume-panel-head h2{margin-top:7px;font-size:32px;letter-spacing:-1.4px}
-  .resume-panel-head p{font-size:15px;line-height:1.6}
-  .resume-form-grid{gap:20px}
-  .resume-form-grid label,.resume-intro{gap:9px}
-  .resume-form-grid label>span,.resume-intro>span,.resume-form-grid legend{font-size:14px}
+  .resume-progress{padding:26px 24px}
+  .resume-progress>div{font-size:14px}
+  .resume-progress strong{font-size:24px}
+  .resume-step-nav>button{padding:18px 21px;gap:13px}
+  .resume-step-nav>button>span{width:40px;height:40px}
+  .resume-step-nav>button>span svg{width:20px}
+  .resume-step-nav>button small{font-size:10px}
+  .resume-step-nav>button strong{font-size:16px}
+  .resume-help{margin:15px;padding:17px}
+  .resume-help strong{font-size:13px}
+  .resume-help small{font-size:11px}
+  .resume-editor{padding:44px 48px}
+  .resume-panel-head{margin-bottom:32px}
+  .resume-panel-head>small,.resume-panel-head>div>small{font-size:12px}
+  .resume-panel-head h2{margin-top:8px;font-size:38px;letter-spacing:-1.5px}
+  .resume-panel-head p{font-size:17px;line-height:1.6}
+  .resume-form-grid{gap:22px}
+  .resume-form-grid label,.resume-intro{gap:10px}
+  .resume-form-grid label>span,.resume-intro>span,.resume-form-grid legend{font-size:16px}
   .resume-form-grid input,.resume-form-grid select,.resume-form-grid textarea,.resume-intro textarea{
-    min-height:54px;
-    padding:14px 16px;
-    border-radius:12px;
-    font-size:16px;
+    min-height:60px;
+    padding:16px 18px;
+    border-radius:13px;
+    font-size:18px;
   }
   .resume-safe-note{padding:15px 17px;font-size:13px}
   .resume-basic-profile{grid-template-columns:195px minmax(0,1fr);gap:28px}
@@ -3409,15 +3409,15 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .resume-consent{padding:17px;font-size:12px}
   .resume-step-actions{margin-top:34px;padding-top:24px}
   .resume-step-actions .button{min-width:142px;min-height:52px;font-size:14px}
-  .resume-preview{padding:27px}
-  .resume-preview>small{font-size:10px}
-  .resume-preview-avatar{width:88px;height:88px}
-  .resume-preview h3{font-size:21px}
-  .resume-preview-role{font-size:12px}
-  .resume-preview dt{font-size:11px}
-  .resume-preview dd{font-size:13px}
-  .resume-preview-privacy strong{font-size:11px}
-  .resume-preview-privacy small{font-size:10px}
+  .resume-preview{padding:30px}
+  .resume-preview>small{font-size:11px}
+  .resume-preview-avatar{width:96px;height:96px}
+  .resume-preview h3{font-size:24px}
+  .resume-preview-role{font-size:13px}
+  .resume-preview dt{font-size:12px}
+  .resume-preview dd{font-size:15px}
+  .resume-preview-privacy strong{font-size:12px}
+  .resume-preview-privacy small{font-size:11px}
 }
 
 /* Brand assets are optional: without a real upload, show the hospital name only. */
