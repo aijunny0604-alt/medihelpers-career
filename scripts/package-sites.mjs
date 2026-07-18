@@ -344,6 +344,33 @@ async function resumeApi(request, env) {
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
+// 관심공고(찜) 저장/조회. 로그인 회원의 서버 저장. 비로그인은 클라이언트 localStorage 사용.
+async function savedJobsApi(request, env) {
+  const identity = authenticatedUser(request);
+  if (!identity) return json({ signedIn:false, saved:[] }, 200);
+  if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ signedIn:false, saved:[] });
+  try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ signedIn:false, saved:[] }); }
+  const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+  const account = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(key).first();
+  if (!account) return json({ signedIn:true, saved:[] });
+  const kind = new URL(request.url).searchParams.get('kind') === 'talent' ? 'talent' : 'job';
+  if (request.method === 'GET') {
+    const rows = await env.DB.prepare('SELECT job_id AS jobId FROM saved_jobs WHERE account_id = ? AND kind = ? ORDER BY created_at DESC').bind(account.id, kind).all();
+    return json({ signedIn:true, saved:(rows.results || []).map(r => r.jobId) });
+  }
+  if (request.method === 'POST') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    const jobId = String(body.jobId || '').slice(0, 120);
+    const k = body.kind === 'talent' ? 'talent' : 'job';
+    if (!jobId) return json({ error:'대상이 없습니다.' }, 400);
+    const existing = await env.DB.prepare('SELECT job_id FROM saved_jobs WHERE account_id = ? AND job_id = ? AND kind = ?').bind(account.id, jobId, k).first();
+    if (existing) { await env.DB.prepare('DELETE FROM saved_jobs WHERE account_id = ? AND job_id = ? AND kind = ?').bind(account.id, jobId, k).run(); return json({ saved:false, jobId }); }
+    await env.DB.prepare('INSERT INTO saved_jobs (account_id, job_id, kind) VALUES (?, ?, ?)').bind(account.id, jobId, k).run();
+    return json({ saved:true, jobId });
+  }
+  return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
 const paymentProductCatalog = {
   basic:{ type:'doctor_ad', name:'베이직 공고', amount:59000, exposureDays:30 },
   featured:{ type:'doctor_ad', name:'추천 공고', amount:149000, exposureDays:30 },
@@ -804,6 +831,7 @@ async function responseFor(request, env) {
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);
+  if (pathname === '/api/saved-jobs') return savedJobsApi(request, env);
   if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);
   if (pathname === '/api/payment-approve') return paymentApproveApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);

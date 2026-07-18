@@ -74,3 +74,17 @@ export function writeStoredString(key, value) {
 
   return serialized;
 }
+
+// 관심공고 토글을 서버에 반영(로그인 시). 실패해도 localStorage로 동작하므로 조용히 넘어간다.
+export function syncSavedToServer(jobId, kind = 'job') {
+  try {
+    fetch('/api/saved-jobs', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jobId, kind }),
+    }).catch(() => {});
+  } catch {
+    // 서버 미가용(로컬 개발 등)에서는 무시.
+  }
+}

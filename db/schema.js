@@ -85,7 +85,15 @@ export const memberCenterSchemaStatements = [
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
   )`,
-  `CREATE INDEX IF NOT EXISTS resumes_account_idx ON resumes(account_id, updated_at DESC)`
+  `CREATE INDEX IF NOT EXISTS resumes_account_idx ON resumes(account_id, updated_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS saved_jobs (
+    account_id TEXT NOT NULL,
+    job_id TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'job' CHECK (kind IN ('job','talent')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, job_id, kind),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  )`
 ];
 
 export const commerceSchemaStatements = [

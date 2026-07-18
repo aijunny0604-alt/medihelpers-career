@@ -29,6 +29,7 @@ import {
   appendStoredRecord,
   readStoredArray,
   readStoredString,
+  syncSavedToServer,
   writeStoredString,
   writeStoredValue
 } from './browserStorage.js';
@@ -1073,6 +1074,7 @@ function JobDetailRoute({ job, qa }) {
     const current = readStoredArray('medihelpers_saved_jobs');
     const next = current.includes(job.id) ? current.filter((id) => id !== job.id) : [...current, job.id];
     writeStoredValue('medihelpers_saved_jobs', next);
+    syncSavedToServer(job.id, 'job');
     setSaved(next.includes(job.id));
   };
   return <JobDetail job={job} qa={qa} page saved={saved} onSave={toggleSaved} onClose={() => navigate('/jobs')} />;
@@ -1417,6 +1419,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const toggleSaved = (id) => setSaved((current) => {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
     writeStoredValue('medihelpers_saved_jobs', next);
+    syncSavedToServer(id, 'job');
     return next;
   });
   const resetFilters = () => {
@@ -1560,6 +1563,7 @@ function TalentPage({ qa, liveTalent = talent }) {
         ? current.filter((item) => item !== code)
         : [...current, code];
       writeStoredValue("medihelpers_saved_talent", next);
+      syncSavedToServer(code, 'talent');
       return next;
     });
   return (
