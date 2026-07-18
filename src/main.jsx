@@ -305,7 +305,6 @@ function Header({ path, qa, operations }) {
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{signedInPreview ? '마이페이지' : qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
       </nav>
       <div className="nav-actions">
-        <a className="text-link" href={`tel:${operations.settings.supportPhone.replace(/\D/g,'')}`}><Phone size={16} /> {operations.settings.supportPhone}</a>
         <Link className={`header-preview ${path === '/qa-preview' ? 'active' : ''}`} to="/qa-preview" aria-label="관리자·병원·일반회원·멤버십 권한 화면 미리보기"><ShieldCheck size={16} /> 화면 미리보기</Link>
         <Link className={`header-account ${qa.active ? `qa-account tone-${qa.info.tone}` : ''}`} to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
         <Link className="button primary compact" to={primaryAction.to}>{primaryAction.label}</Link>
@@ -494,11 +493,7 @@ function JobCard({
             </>
           ) : (
             <div className="hospital-wordmark">
-              <small>MEDICAL CAREER PARTNER</small>
               <strong>{job.hospital}</strong>
-              <span>
-                <i /> 병원 브랜드 채용관
-              </span>
             </div>
           )}
         </div>
@@ -1585,26 +1580,6 @@ function TalentPage({ qa, liveTalent = talent }) {
                 />
               </div>
             </label>
-          </div>
-        </div>
-        <div className="notice-bar talent-privacy-notice">
-          <ShieldCheck />
-          <div>
-            <strong>병원회원에게 공개되는 범위를 먼저 확인하세요</strong>
-            <p>
-              인재 검색과 익명 프로필 확인은 무료입니다. 개인 식별정보는
-              멤버십 결제로 열리지 않으며 반드시 헤드헌터 확인 절차를 거칩니다.
-            </p>
-            <div className="talent-access-split" aria-label="인재정보 공개 범위">
-              <span>
-                <b><CircleCheck /> 무료 기본 공개</b>
-                전문과목 · 경력 · 희망 지역 · 근무조건 · 입사 시점
-              </span>
-              <span>
-                <b><LockKeyhole /> 상담·후보 동의 후 공개</b>
-                근무기관 이력 · 세부 술기 · 이직 사유 · 컨설턴트 메모
-              </span>
-            </div>
           </div>
         </div>
         <div className="result-row portal-result-row">

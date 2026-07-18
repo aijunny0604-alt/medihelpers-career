@@ -68,9 +68,10 @@ export const jobs = [
     location: '부산 해운대구', region: '부산', type: '정규직', dept: '정형외과', pay: '월 1,500만원~',
     badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#1769d4', logoText: '해바', schedule: '주 4.5일', updated: '가상 예시', deadline: '2026.08.30', recruitmentReason: '척추센터 확장', workHours: '평일 08:30~18:00 · 토 격주', daysOff: '일요일·공휴일 휴무',
     facilityType: '병원', focus: '척추·관절 외래 진료', scale: '전문병원 예시', access: '해운대 생활권·주차 지원',
-    fullAddress: '부산광역시 해운대구 센텀중앙로 00 (가상 주소)', website: 'https://example.com/hospital', specialties: '정형외과·신경외과·마취통증의학과',
-    representative: '홍길동', businessNumber: '000-00-00000', established: '2015년', doctorCount: '상근 4명 · 비상근 1명',
-    dailyVolume: '수술 2건 · 외래 40건', staffCount: '30명', equipment: 'MRI·CT·C-arm', beds: '30병상 · 평균 입원 22명',
+    // ⚠️ 병원 식별정보(사업자번호·대표명·전체주소·설비 등)는 정적 데이터에 넣지 않는다.
+    // 이 값들은 인증·권한 검증이 붙은 서버 상세 API(GET /api/jobs/:id)를 통해서만 내려야 한다.
+    // 상세 화면은 값이 없으면 "병원 확인 필요"로 안전하게 표시된다. 자세한 내용은 docs/SECURITY_DATA_EXPOSURE_PLAN.md 참고.
+    specialties: '정형외과·신경외과·마취통증의학과',
     hospitalPhotos: [
       'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=82',
       'https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&w=900&q=82',
@@ -158,10 +159,10 @@ export const adPlans = [
 export const navItems = [
   { path: '/jobs', label: '채용정보' },
   { path: '/talent', label: '인재정보' },
-  { path: '/matching-report', label: '매칭 리포트' },
   { path: '/resume', label: '이력서 등록' },
   { path: '/headhunting', label: '맞춤 헤드헌팅' },
   { path: '/medical-staff', label: '의료인 채용' },
+  { path: '/matching-report', label: '매칭 리포트' },
   { path: '/advertise', label: '광고센터' }
 ];
 
