@@ -678,10 +678,11 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   // 병원이 비용을 낸 광고 공고는 널리 알리는 것이 목적이므로 급여·조건을 공개한다.
   // 비공개 헤드헌팅 포지션(badge === "비공개")만 상담 후 공개 대상으로 잠근다.
   const restricted = job.badge === "비공개";
-  const memberUnlocked = Boolean(
-    qa?.active &&
-      (qa.info.capabilities.membership || qa.info.capabilities.admin),
-  );
+  // 메디게이트 방식: 로그인한 의사 회원이면 급여·상세조건 열람(멤버십 결제 불필요).
+  // 비회원은 잠금(가입 유도). QA 프리뷰는 doctor/membership/admin 권한으로 판정.
+  const memberUnlocked = qa?.active
+    ? Boolean(qa.info.capabilities.doctor || qa.info.capabilities.membership || qa.info.capabilities.admin)
+    : verifiedDoctor;
   const membershipTarget = verifiedDoctor
     ? `/membership?type=doctor&job=${job.id}`
     : `/signup/doctor?next=/membership?type=doctor&job=${job.id}`;
@@ -842,7 +843,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                 <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {memberUnlocked ? <><BadgeCheck /> 멤버십 상세정보 열람 중</> : <><LockKeyhole /> 멤버십 구독 후 열람</>}
+                {memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : <><LockKeyhole /> 로그인 후 열람</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
@@ -856,7 +857,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                     {rows.map(([label, value]) => (
                       <div key={label}>
                         <dt>{label}</dt>
-                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="멤버십 구독 후 공개">멤버십 구독 후 공개</span>}</dd>
+                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="로그인 후 공개">로그인 후 공개</span>}</dd>
                       </div>
                     ))}
                   </dl>
@@ -865,10 +866,10 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               {!memberUnlocked && (
                 <div className="decision-sheet-lock-overlay">
                   <span><LockKeyhole /></span>
-                  <small>DOCTOR MEMBERSHIP</small>
-                  <strong>멤버십 구독 후 상세조건 열람</strong>
-                  <p>보수·실제 근무표·진료 강도·입사 판단 정보가 모두 공개됩니다.</p>
-                  <Link className="button primary" to={membershipTarget}>멤버십 구독하고 상세보기 <ArrowRight /></Link>
+                  <small>MEMBERS ONLY</small>
+                  <strong>로그인 후 상세조건 열람</strong>
+                  <p>보수·실제 근무표·진료 강도·입사 판단 정보가 의사 회원에게 모두 공개됩니다.</p>
+                  <Link className="button primary" to={`/signup/doctor?next=${encodeURIComponent(`/jobs/${job.id}`)}`}>로그인 · 회원가입 <ArrowRight /></Link>
                 </div>
               )}
             </div>
