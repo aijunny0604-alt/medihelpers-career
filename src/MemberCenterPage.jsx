@@ -140,8 +140,9 @@ export default function MemberCenterPage({ route, qa }) {
   const paidTotal = serverData.orders.filter((item) => item.status === 'paid').reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
   const hasMembership = serverData.orders.some((item) => item.status === 'paid' && /멤버십|커리어/.test(item.productName || ''));
   const resumeCompletion = serverData.resume ? `${Number(serverData.resume.completion) || 0}%` : '미등록';
+  const activeAds = ads.filter((item) => item.status === '노출 중').length;
   const metrics = qa.active ? demo.metrics : role === 'hospital'
-    ? [['진행 중 공고', '0건', '등록 공고'], ['새 문의', `${inquiries.filter((item) => item.status === '답변 대기').length}건`, '확인 필요'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역'], ['추천 후보', '0명', '동의 후 연결']]
+    ? [['진행 중 공고', `${activeAds}건`, '노출 중 공고'], ['새 문의', `${inquiries.filter((item) => item.status === '답변 대기').length}건`, '확인 필요'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역'], ['추천 후보', '0명', '동의 후 연결']]
     : [['이력서 완성도', resumeCompletion, serverData.resume ? '등록 완료' : '등록 후 표시'], ['상담 진행', `${inquiries.length}건`, '전체 상담'], ['멤버십', hasMembership ? '이용 중' : '미이용', '이용권 확인'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역']];
   const nav = useMemo(() => role === 'hospital' ? [
     ['overview', '홈', Building2], ['ads', '내 공고', BriefcaseBusiness], ['inquiries', '문의·후보', MessageCircle], ['payments', '결제·사용이력', Receipt], ['profile', '회원정보', Settings]
