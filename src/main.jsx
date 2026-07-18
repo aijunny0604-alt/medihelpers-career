@@ -207,6 +207,65 @@ function trackConversion(event, detail = {}) {
   }, 100);
 }
 
+// 로그인 여부를 서버(/api/account)로 확인하는 공용 훅. QA 프리뷰 모드는 미리보기 권한을 그대로 사용한다.
+function useAuthGate(qa) {
+  const [state, setState] = useState({ status: 'loading', role: '', isAdmin: false, isHospital: false });
+  useEffect(() => {
+    if (qa?.active) {
+      const caps = qa.info.capabilities;
+      setState({
+        status: caps.signedIn ? 'member' : 'guest',
+        role: caps.hospital ? 'hospital' : caps.doctor ? 'doctor' : '',
+        isAdmin: Boolean(caps.admin),
+        isHospital: Boolean(caps.hospital),
+      });
+      return undefined;
+    }
+    let active = true;
+    fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('account lookup failed'))))
+      .then((result) => {
+        if (!active) return;
+        const signedIn = Boolean(result.signedIn || result.account);
+        const role = result.account?.role || '';
+        setState({
+          status: signedIn ? 'member' : 'guest',
+          role,
+          isAdmin: Boolean(result.isAdmin),
+          isHospital: role === 'hospital' || Boolean(result.isAdmin),
+        });
+      })
+      .catch(() => active && setState({ status: 'guest', role: '', isAdmin: false, isHospital: false }));
+    return () => { active = false; };
+  }, [qa?.active, qa?.state]);
+  return state;
+}
+
+// 비로그인/권한 부족 시 로그인·가입 유도 화면을 보여주는 게이트. 조건 충족 시 children 렌더.
+function AuthGate({ auth, need = 'member', title, description, children }) {
+  if (auth.status === 'loading') {
+    return <section className="auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>로그인 상태를 확인하고 있습니다…</p></div></section>;
+  }
+  const ok = need === 'hospital' ? (auth.isHospital || auth.isAdmin) : auth.status === 'member';
+  if (ok) return children;
+  const hospitalNeed = need === 'hospital';
+  return <section className="auth-gate">
+    <div className="auth-gate-card">
+      <span className="auth-gate-icon"><LockKeyhole /></span>
+      <small>{hospitalNeed ? 'HOSPITAL MEMBERS ONLY' : 'MEMBERS ONLY'}</small>
+      <h2>{title || (hospitalNeed ? '병원 회원 전용 화면입니다' : '회원 전용 화면입니다')}</h2>
+      <p>{description || (hospitalNeed
+        ? '의료진 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요.'
+        : '로그인 후 이용할 수 있는 화면입니다. 로그인하거나 회원가입 후 다시 시도해 주세요.')}</p>
+      <div className="auth-gate-actions">
+        <Link className="button primary" to={`/signup?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인 · 회원가입</Link>
+        {hospitalNeed && <Link className="button outline" to={`/signup/hospital?next=${encodeURIComponent(getRoute())}`}><Building2 size={16} /> 병원 회원가입</Link>}
+      </div>
+      <span className="auth-gate-note"><ShieldCheck size={14} /> 경쟁 업체의 무단 열람을 막기 위해 회원 인증 후 공개합니다.</span>
+    </div>
+  </section>;
+}
+
 function Link({ to, className = '', children, onClick, ...anchorProps }) {
   return <a {...anchorProps} href={withBase(to)} className={className} onClick={(event) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -2857,6 +2916,7 @@ export function App() {
   const qaActive = path === '/qa-preview' || Boolean(qaState);
   const qaInfo = getQaStateInfo(qaState);
   const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
+  const auth = useAuthGate(qa);
   const mobileAction = qa.active && qa.info.capabilities.signedIn
     ? { to: '/mypage', label: qa.info.capabilities.admin ? '관리 콘솔' : '마이페이지' }
     : { to: '/signup/hospital?next=/advertise', label: '병원 가입' };
@@ -2869,10 +2929,10 @@ export function App() {
     page = job ? <JobDetailRoute job={job} qa={qa} /> : <NotFoundPage />;
   }
   else if (path === '/professions') page = <Redirect to="/headhunting" />;
-  else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <TalentPage qa={qa} liveTalent={liveTalent} />;
-  else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} />;
+  else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} liveTalent={liveTalent} /></AuthGate>;
+  else if (path === '/matching-report') page = <AuthGate auth={auth} title="매칭 리포트는 회원 전용입니다" description="찜한 병원·후보를 비교하는 매칭 리포트는 로그인 후 이용할 수 있습니다."><MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} /></AuthGate>;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
-  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <MedicalStaffPage operations={operations} />;
+  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} /></AuthGate>;
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
     : <MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} />;
