@@ -1475,7 +1475,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   </>;
 }
 
-function TalentPage({ qa, liveTalent = talent, medicalTalent = [] }) {
+function TalentPage({ qa, route = '', liveTalent = talent, medicalTalent = [] }) {
   const siteCategories = useSiteCategories();
   // 의사·의료인을 한 화면에서 필터 탭으로 전환한다. 목적(인재 탐색)이 같아 같은 위치에 노출.
   const [staffFilter, setStaffFilter] = useState("all");
@@ -1491,6 +1491,17 @@ function TalentPage({ qa, liveTalent = talent, medicalTalent = [] }) {
   const [talentSort, setTalentSort] = useState("recent");
   const [talentVisible, setTalentVisible] = useState(TALENT_PAGE_SIZE);
   const [selectedTalent, setSelectedTalent] = useState(null);
+  // 열람권 결제 완료 후 /talent?open=코드 로 진입하면 그 인재 상세를 바로 연다(목록으로 안 돌아가게).
+  const openCode = useMemo(() => new URLSearchParams(route.split('?')[1] || '').get('open') || '', [route]);
+  useEffect(() => {
+    if (!openCode) return;
+    const found = sourceTalent.find((p) => p.code === openCode);
+    if (found) {
+      // 다른 탭에 가려 안 보이지 않도록 전체 탭으로 전환한 뒤 상세를 연다.
+      setStaffFilter('all');
+      setSelectedTalent(found);
+    }
+  }, [openCode, sourceTalent]);
   const qaIdentityAccess = Boolean(
     qa?.active &&
       canRevealTalentIdentity(qa.info.capabilities, true),
@@ -2672,7 +2683,9 @@ function TalentUnlockCheckout({ plan, talentId }) {
     }
   };
   if (done) {
-    return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '이제 인재 상세에서 연락처와 이력서를 열람할 수 있습니다.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions"><Link className="button primary" to="/medical-staff">인재 목록으로 <ArrowRight /></Link><Link className="button outline" to="/talent">의사 인재정보</Link></div></div></section>;
+    // 결제 완료 → 방금 결제한 그 인재의 이력서 상세를 바로 연다(목록으로 되돌아가지 않게 open 파라미터).
+    const openHref = talentId ? `/talent?open=${encodeURIComponent(talentId)}` : '/talent';
+    return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '방금 결제한 인재의 이력서를 바로 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 인재 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/talent">인재정보로 <ArrowRight /></Link>}<Link className="button outline" to="/talent">인재 목록</Link></div></div></section>;
   }
   return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}{plan.unlockCount > 1 ? ` · ${plan.unlockCount}명` : ''}</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '결제 처리 중…' : `${plan.price.toLocaleString()}원 결제하기`} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 결제 즉시 해당 인재 연락처·이력서 상세가 열립니다.</p></div></section>;
 }
@@ -3077,7 +3090,7 @@ export function App() {
     page = job ? <JobDetailRoute job={job} qa={qa} /> : <NotFoundPage />;
   }
   else if (path === '/professions') page = <Redirect to="/headhunting" />;
-  else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} liveTalent={liveTalent} medicalTalent={medicalTalent} /></AuthGate>;
+  else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} route={route} liveTalent={liveTalent} medicalTalent={medicalTalent} /></AuthGate>;
   else if (path === '/matching-report') page = <AuthGate auth={auth} title="매칭 리포트는 회원 전용입니다" description="찜한 병원·후보를 비교하는 매칭 리포트는 로그인 후 이용할 수 있습니다."><MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} /></AuthGate>;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} /></AuthGate>;
