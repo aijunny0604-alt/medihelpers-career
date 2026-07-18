@@ -4715,3 +4715,6 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .talent-detail-limited{border-color:#e7b4b4;background:#fdf1f1}
 .talent-detail-limited .talent-private-icon{color:#b91c1c}
 @media(max-width:700px){.talent-audit-alert,.admin-table-head.talent-audit-head,.talent-audit-row{grid-template-columns:1fr 1fr}}
+
+/* 인재 카드 샘플(예시) 배지 */
+.talent-sample-chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;background:#fff3e0;color:#c2740c;font-size:11px;font-weight:800;letter-spacing:.02em;border:1px solid #f2d19a}

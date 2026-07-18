@@ -1708,6 +1708,7 @@ function TalentPage({ qa, liveTalent = talent }) {
                 <span className="talent-public-chip">
                   <BadgeCheck /> {canViewIdentity && person.identityConsent ? "실명 확인" : "이름 비공개"}
                 </span>
+                {person.sample && <span className="talent-sample-chip">샘플</span>}
                 <button
                   className={`talent-save ${saved.includes(person.code) ? "saved" : ""}`}
                   onClick={() => toggleSaved(person.code)}
@@ -1815,6 +1816,10 @@ function TalentPage({ qa, liveTalent = talent }) {
 }
 
 const talentProfileGuide = {
+  소화기내과: {
+    focus: "내시경 진료 비중이 높은 검진센터·병원급 소화기 클리닉을 우선 검토합니다.",
+    strengths: ["위·대장 내시경", "용종절제술(EMR)", "복부 초음파", "검진 결과 상담"],
+  },
   내과: {
     focus: "외래 진료와 건강검진 결과 상담 중심의 포지션을 우선 검토합니다.",
     strengths: ["만성질환 외래", "검진 결과 상담", "환자 커뮤니케이션"],
@@ -1868,10 +1873,10 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
       <div className="talent-detail-hero">
         <span className="talent-detail-avatar"><UserRound /></span>
         <div>
-          <span className="talent-verified"><BadgeCheck /> 메디헬퍼스 상담 확인</span>
+          <span className="talent-verified"><BadgeCheck /> {person.sample ? '샘플 프로필 (예시)' : '메디헬퍼스 상담 확인'}</span>
           <small>{talentDisplayName(person, canViewIdentity)} · {canViewIdentity ? "실명 확인" : "이름 비공개"}</small>
           <h2>{person.dept} · {person.career}</h2>
-          <p>개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.</p>
+          <p>{person.sample ? '화면 구성을 보여주는 예시 프로필입니다. 실제 후보가 아니며 열람권 결제 대상이 아닙니다.' : '개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.'}</p>
         </div>
       </div>
 
@@ -1925,7 +1930,11 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           <section className={`talent-detail-private${unlock.limited ? ' talent-detail-limited' : ''}`}>
             <span className="talent-private-icon"><LockKeyhole /></span>
             <div>
-              {unlock.limited ? <>
+              {person.sample ? <>
+                <small>예시(샘플) 프로필입니다</small>
+                <h3>실제 후보 등록 시 이 자리에 열람권 구매가 표시됩니다</h3>
+                <p>이 카드는 화면 구성을 보여주는 예시입니다. 의사·의료인이 이력서를 등록하고 구직 공개를 선택하면 실제 후보가 이렇게 노출됩니다.</p>
+              </> : unlock.limited ? <>
                 <small>금일 열람 한도 초과</small>
                 <h3>대량 정보 수집 방지를 위해 잠시 제한되었습니다</h3>
                 <p>{unlock.message || '금일 열람 한도를 초과했습니다. 잠시 후 다시 이용해 주세요.'} 추가 열람이 필요하면 담당자에게 문의해 주세요.</p>
@@ -1940,7 +1949,9 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
 
         <div className="talent-detail-actions">
           <button type="button" className="button outline" onClick={onClose}>목록 계속 보기</button>
-          {unlock.unlocked ? (
+          {person.sample ? (
+            <Link className="button primary" to="/resume" onClick={onClose}>내 이력서 등록하기 <ArrowRight /></Link>
+          ) : unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
           ) : unlock.limited ? (
             <a className="button primary" href="tel:0513425463"><Phone /> 담당자 문의</a>
