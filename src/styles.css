@@ -4386,3 +4386,95 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .signup-shell.signup-shell-centered .signup-consent-block{margin-top:32px}
 .signup-shell.signup-shell-centered .button.full{min-height:66px;margin-top:28px;font-size:18px}
 @media(max-width:780px){.signup-shell.signup-shell-centered{width:min(calc(100% - 28px),680px)}.signup-shell.signup-shell-centered .signup-application{padding:30px 20px}}
+
+/* Medical staff list-to-detail flow */
+.medical-staff-job-list article{cursor:pointer}
+.medical-staff-job-list article:focus-visible{position:relative;z-index:1;outline:3px solid rgba(18,99,232,.35);outline-offset:-3px}
+.medical-staff-row-action{height:48px;border:1px solid #c6d8eb;border-radius:12px;background:#fff;color:#1263e8;font-weight:850;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease}
+.medical-staff-row-action svg{width:16px}
+.medical-staff-job-list article:hover .medical-staff-row-action{background:#1263e8;color:#fff;border-color:#1263e8;box-shadow:0 10px 24px rgba(18,99,232,.18)}
+.medical-staff-detail-page{min-height:100vh;padding:118px 24px 110px;background:linear-gradient(180deg,#f2f7ff 0,#f7fafc 390px,#fff 390px);color:#102746}
+.medical-staff-detail-shell{width:min(1320px,100%);margin:0 auto}
+.medical-staff-back{display:inline-flex;align-items:center;gap:8px;margin-bottom:18px;padding:10px 0;border:0;background:transparent;color:#5b6f88;font-size:14px;font-weight:800}
+.medical-staff-back svg{width:17px}
+.medical-staff-detail-hero{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:34px;align-items:center;padding:clamp(32px,4vw,58px);border:1px solid #d7e3f1;border-radius:28px;background:#fff;box-shadow:0 24px 70px rgba(28,67,111,.1)}
+.medical-staff-detail-role{display:inline-flex;padding:9px 13px;border-radius:10px;background:#e8f8f4;color:#07886f;font-size:13px;font-weight:900}
+.medical-staff-detail-hero p{margin:20px 0 7px;color:#5c718b;font-weight:800}
+.medical-staff-detail-hero h1{margin:0;font-size:clamp(34px,4vw,54px);letter-spacing:-.055em;line-height:1.15}
+.medical-staff-detail-meta{display:flex;gap:20px;flex-wrap:wrap;margin-top:26px;color:#71839a}
+.medical-staff-detail-meta span{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:700}
+.medical-staff-detail-meta svg{width:17px;color:#1263e8}
+.medical-staff-detail-hero>aside{padding:25px;border:1px solid #d9e5f0;border-radius:20px;background:#f7faff}
+.medical-staff-detail-hero>aside small{color:#7b8ba0;font-weight:800}
+.medical-staff-detail-hero>aside strong{display:block;margin:8px 0 12px;font-size:25px;color:#1263e8}
+.medical-staff-detail-hero>aside span{color:#395673;font-weight:800}
+.medical-staff-detail-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:26px;align-items:start;margin-top:28px}
+.medical-staff-detail-layout>main{display:grid;gap:20px}
+.medical-staff-detail-intro,.medical-staff-detail-card,.medical-staff-apply-panel{border:1px solid #dae4ef;border-radius:22px;background:#fff}
+.medical-staff-detail-intro{padding:34px}
+.medical-staff-detail-intro small{color:#1263e8;font-size:12px;font-weight:900;letter-spacing:.1em}
+.medical-staff-detail-intro h2{margin:8px 0 13px;font-size:27px}
+.medical-staff-detail-intro p{margin:0;color:#536981;font-size:16px;line-height:1.85}
+.medical-staff-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.medical-staff-detail-card{padding:30px}
+.medical-staff-detail-card>header{display:flex;align-items:center;gap:12px;padding-bottom:18px;border-bottom:1px solid #e5ebf2}
+.medical-staff-detail-card>header svg{width:38px;height:38px;padding:9px;border-radius:11px;background:#eaf2ff;color:#1263e8}
+.medical-staff-detail-card:nth-child(even)>header svg{background:#e9f8f4;color:#07947a}
+.medical-staff-detail-card h2{margin:0;font-size:21px}
+.medical-staff-detail-card ul{display:grid;gap:13px;margin:20px 0 0;padding:0;list-style:none}
+.medical-staff-detail-card li{display:flex;gap:9px;color:#465e78;line-height:1.55}
+.medical-staff-detail-card li svg{width:18px;flex:0 0 auto;color:#0a9a7f}
+.medical-staff-work-conditions dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:7px 0 0}
+.medical-staff-work-conditions dl>div{padding:17px 8px;border-bottom:1px solid #e6ecf3}
+.medical-staff-work-conditions dt{color:#8493a6;font-size:12px;font-weight:800}
+.medical-staff-work-conditions dd{margin:6px 0 0;color:#234363;font-size:15px;font-weight:850}
+.medical-staff-process{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0;padding:0;list-style:none}
+.medical-staff-process li{display:block;padding:15px;border-radius:13px;background:#f5f8fc}
+.medical-staff-process li span{display:block;margin-bottom:7px;color:#1263e8;font-size:11px;font-weight:900}
+.medical-staff-process li strong{font-size:13px}
+.medical-staff-documents{padding:19px;border-radius:14px;background:#f4faf8}
+.medical-staff-documents>strong{color:#087e69}
+.medical-staff-documents p{margin:6px 0;color:#294962;font-weight:800}
+.medical-staff-documents small{display:block;color:#74869a;line-height:1.55}
+.medical-staff-apply-panel{position:sticky;top:104px;padding:30px;box-shadow:0 20px 50px rgba(29,68,111,.09)}
+.medical-staff-apply-panel>small{color:#0a9078;font-weight:900}
+.medical-staff-apply-panel h2{margin:9px 0 12px;font-size:27px;line-height:1.3}
+.medical-staff-apply-panel>p{margin:0 0 22px;color:#62758d;line-height:1.7}
+.medical-staff-apply-panel>button{width:100%;min-height:56px;border-radius:13px;font-size:15px;font-weight:900}
+.medical-staff-apply-panel>button.primary{border:0;background:#1263e8;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 13px 30px rgba(18,99,232,.2)}
+.medical-staff-apply-panel>button.primary svg{width:18px}
+.medical-staff-apply-panel>button.secondary{margin-top:10px;border:1px solid #cbd9e8;background:#fff;color:#1b3c61}
+.medical-staff-apply-panel>div{display:flex;gap:10px;margin-top:22px;padding:16px;border-radius:13px;background:#f5f8fc;color:#51677f}
+.medical-staff-apply-panel>div>svg{width:19px;flex:0 0 auto;color:#0a927a}
+.medical-staff-apply-panel>div strong,.medical-staff-apply-panel>div small{display:block}
+.medical-staff-apply-panel>div small{margin-top:5px;line-height:1.55}
+.medical-staff-detail-missing{width:min(680px,100%);margin:80px auto;padding:60px 30px;border:1px solid #d9e4ef;border-radius:24px;background:#fff;text-align:center}
+.medical-staff-detail-missing>svg{width:48px;height:48px;color:#1263e8}
+.medical-staff-detail-missing h1{margin:18px 0 8px;font-size:34px}
+.medical-staff-detail-missing p{color:#6c7f96}
+.medical-staff-detail-missing button{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:14px 20px;border:0;border-radius:12px;background:#1263e8;color:#fff;font-weight:850}
+.medical-staff-mobile-cta{display:none}
+@media(max-width:1100px){
+  .medical-staff-row-action{grid-column:3/5}
+  .medical-staff-detail-layout{grid-template-columns:1fr}
+  .medical-staff-apply-panel{position:static}
+}
+@media(max-width:760px){
+  .medical-staff-row-action{grid-column:auto}
+  .medical-staff-detail-page{padding:88px 14px 112px;background:linear-gradient(180deg,#f2f7ff 0,#f7fafc 300px,#fff 300px)}
+  .medical-staff-detail-hero{grid-template-columns:1fr;padding:26px 22px;border-radius:21px}
+  .medical-staff-detail-hero>aside{padding:19px}
+  .medical-staff-detail-meta{gap:11px;margin-top:20px}
+  .medical-staff-detail-layout{margin-top:16px}
+  .medical-staff-detail-grid{grid-template-columns:1fr}
+  .medical-staff-detail-intro,.medical-staff-detail-card{padding:24px 20px}
+  .medical-staff-work-conditions dl{grid-template-columns:1fr}
+  .medical-staff-process{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .medical-staff-apply-panel{padding:25px 20px;margin-bottom:8px}
+  .medical-staff-mobile-cta{position:fixed;z-index:40;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px max(12px,env(safe-area-inset-bottom));border-top:1px solid #d5e0ec;background:rgba(255,255,255,.96);box-shadow:0 -12px 35px rgba(22,54,91,.12);backdrop-filter:blur(14px)}
+  .medical-staff-mobile-cta small,.medical-staff-mobile-cta strong{display:block}
+  .medical-staff-mobile-cta small{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#718299}
+  .medical-staff-mobile-cta strong{margin-top:2px;color:#173b63}
+  .medical-staff-mobile-cta button{min-height:48px;padding:0 17px;border:0;border-radius:12px;background:#1263e8;color:#fff;font-weight:900;display:flex;align-items:center;gap:7px}
+  .medical-staff-mobile-cta button svg{width:17px}
+}

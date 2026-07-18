@@ -41,6 +41,29 @@ export function operationalTalent(contents = []) {
 export function operationalMedicalJobs(contents = []) {
   return contents.filter((item) => item.contentType === 'medical_job').map((item) => {
     const p = item.payload || {};
-    return { id:`admin-${item.id}`, role:p.role || p.department || '의료인', title:item.title, hospital:item.subtitle || '메디헬퍼스 등록기관', region:p.region || p.primary || '전국', type:p.employmentType || '정규직', career:p.career || '경력무관', pay:p.pay || p.secondary || '협의', deadline:p.deadline || '상시채용' };
+    const asList = (value, fallback) => Array.isArray(value)
+      ? value.filter(Boolean)
+      : String(value || '').split(/\r?\n|,\s*/).map((item) => item.trim()).filter(Boolean).length
+        ? String(value || '').split(/\r?\n|,\s*/).map((item) => item.trim()).filter(Boolean)
+        : fallback;
+    return {
+      id:`admin-${item.id}`,
+      role:p.role || p.department || '의료인',
+      title:item.title,
+      hospital:item.subtitle || '메디헬퍼스 등록기관',
+      region:p.region || p.primary || '전국',
+      type:p.employmentType || '정규직',
+      career:p.career || '경력무관',
+      pay:p.pay || p.secondary || '협의',
+      deadline:p.deadline || '상시채용',
+      summary:p.summary || p.description,
+      workHours:p.workHours || p.schedule,
+      daysOff:p.daysOff,
+      responsibilities:asList(p.responsibilities || p.duties, undefined),
+      requirements:asList(p.requirements || p.qualifications, undefined),
+      benefits:asList(p.benefits, undefined),
+      process:asList(p.process, undefined),
+      documents:asList(p.documents, undefined),
+    };
   });
 }

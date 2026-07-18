@@ -18,7 +18,7 @@ import QaPreviewPage from './QaPreviewPage.jsx';
 import ConsultationAdminPage from './ConsultationAdminPage.jsx';
 import MemberCenterPage from './MemberCenterPage.jsx';
 import AccountRecoveryPage from './AccountRecoveryPage.jsx';
-import MedicalStaffPage from './MedicalStaffPage.jsx';
+import MedicalStaffPage, { MedicalStaffDetailPage } from './MedicalStaffPage.jsx';
 import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
 import AdminConsolePage from './AdminConsolePage.jsx';
 import { PrivacyPolicyPage, TermsPage } from './LegalPages.jsx';
@@ -2895,6 +2895,9 @@ export function App() {
   else if (path === '/matching-report') page = <MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} />;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <MedicalStaffPage operations={operations} />;
+  else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
+    ? <NotFoundPage />
+    : <MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} />;
   else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} />;
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
