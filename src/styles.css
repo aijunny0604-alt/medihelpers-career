@@ -4008,11 +4008,15 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .consultation-focus .consult-progress{padding:20px 42px}
 .consultation-focus .guided-body,.consultation-focus .consult-step{padding-left:42px;padding-right:42px}
 .consultation-focus .consult-step{padding-bottom:42px}
-.consultation-focus .role-tabs{margin-bottom:28px;padding:5px;border-radius:15px}
-.consultation-focus .role-tabs button{min-height:62px;font-size:17px}
+.consultation-focus .role-tabs{margin-bottom:28px;padding:6px;border-radius:16px;background:#eef3fa;gap:6px}
+.consultation-focus .role-tabs button{min-height:64px;font-size:17px;font-weight:750;border-radius:12px;color:#5a6a80;transition:.2s cubic-bezier(.4,0,.2,1)}
+.consultation-focus .role-tabs button svg{width:21px}
+.consultation-focus .role-tabs button:hover:not(.active){background:rgba(255,255,255,.6);color:#2f4a6d}
+.consultation-focus .role-tabs button.active{background:linear-gradient(135deg,#1263e8,#3f86f0);color:#fff;box-shadow:0 8px 20px rgba(18,99,232,.28)}
+.consultation-focus .role-tabs button.active svg{color:#fff}
 .consultation-focus .step-question h4{font-size:25px;margin:8px 0 20px}
 .consultation-focus .choice-grid{gap:12px}
-.consultation-focus .choice-grid button{min-height:60px;padding-inline:18px;font-size:16px;border-radius:14px}
+.consultation-focus .choice-grid button{min-height:64px;padding-inline:20px;font-size:16px;border-radius:14px}
 .consultation-focus .consult-step>.button.full{min-height:60px;margin-top:18px;font-size:17px;border-radius:14px}
 @media(max-width:780px){
   .consultation-focus{padding:48px 16px 70px;gap:28px;background:linear-gradient(180deg,#f8fbff,#fff)}
