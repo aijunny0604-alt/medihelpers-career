@@ -388,12 +388,48 @@ async function savedJobsApi(request, env) {
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
+// 인재 상세 열람: 병원이 열람권을 보유한 인재에게만 연락처·이력서 상세를 서버가 제공한다.
+// (열람권 없으면 익명·기본정보만 → 결제 유도) 실명·연락처는 클라 마스킹이 아니라 서버가 조건부로만 내려준다.
+async function talentDetailApi(request, env, pathname) {
+  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  const talentId = decodeURIComponent(pathname.slice('/api/talent-detail/'.length));
+  if (!talentId) return json({ error:'대상이 없습니다.' }, 400);
+  const identity = authenticatedUser(request);
+  if (!identity || !env.ACCOUNT_HASH_SECRET) return json({ unlocked:false, detail:null });
+  try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ unlocked:false, detail:null }); }
+  const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+  const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
+  const isAdmin = adminIdentity(request, env);
+  // 병원·관리자만 열람 가능. 병원은 열람권(유효기간 내) 보유 시에만.
+  if (!account && !isAdmin) return json({ unlocked:false, detail:null });
+  let hasUnlock = Boolean(isAdmin);
+  if (!hasUnlock && account?.role === 'hospital') {
+    const now = new Date().toISOString();
+    const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? AND (expires_at IS NULL OR expires_at > ?) LIMIT 1").bind(account.id, talentId, now).first();
+    hasUnlock = Boolean(row);
+  }
+  if (!hasUnlock) return json({ unlocked:false, detail:null });
+  // 열람권 보유 → 이력서 상세 제공. talentId가 resume-<id> 형태면 resumes에서 조회.
+  const resumeId = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
+  if (resumeId) {
+    const r = await env.DB.prepare('SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ?').bind(resumeId).first();
+    if (r) {
+      try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
+      const { detailJson, ...rest } = r;
+      return json({ unlocked:true, detail:{ ...rest, detail:parseJsonObject(detailJson) } });
+    }
+  }
+  return json({ unlocked:true, detail:null });
+}
 const paymentProductCatalog = {
   basic:{ type:'doctor_ad', name:'베이직 공고', amount:59000, exposureDays:30 },
   featured:{ type:'doctor_ad', name:'추천 공고', amount:149000, exposureDays:30 },
   intensive:{ type:'doctor_ad', name:'집중 채용', amount:299000, exposureDays:45 },
   'doctor-single':{ type:'membership', name:'커리어 체크', amount:19000 },
-  'doctor-pass':{ type:'membership', name:'커리어 컨시어지', amount:39000, exposureDays:30 }
+  'doctor-pass':{ type:'membership', name:'커리어 컨시어지', amount:39000, exposureDays:30 },
+  // 병원용 인재 이력서 열람권. 결제 시 talent_unlocks에 권한 기록 → 연락처·상세 공개.
+  'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:33000, unlockDays:90 },
+  'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (5명 팩)', amount:132000, unlockDays:90, unlockCount:5 }
 };
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -479,7 +515,7 @@ async function paymentApproveApi(request, env) {
   const authUrl = String(body.authUrl || '');
   const oid = String(body.orderNumber || body.oid || body.P_OID || '');
   if (!oid) return json({ error:'주문번호가 없습니다.' }, 400);
-  const order = await env.DB.prepare('SELECT id, total_amount AS totalAmount, status, product_id AS productId, product_type AS productType, metadata_json AS metadataJson FROM payment_orders WHERE order_number = ?').bind(oid).first();
+  const order = await env.DB.prepare('SELECT id, account_id AS accountId, total_amount AS totalAmount, status, product_id AS productId, product_type AS productType, metadata_json AS metadataJson FROM payment_orders WHERE order_number = ?').bind(oid).first();
   if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
   // 결제 완료 시 광고 상품이면 노출기간(시작~종료)을 metadata에 기록해 마이페이지·관리자에서 표시.
   const buildExposureMeta = (base) => {
@@ -492,6 +528,19 @@ async function paymentApproveApi(request, env) {
     }
     return JSON.stringify(meta).slice(0, 12000);
   };
+  // 인재 열람권 상품이면 결제 병원에 열람 권한을 기록한다(주문 metadata의 talentId 대상).
+  const recordTalentUnlock = async () => {
+    const product = paymentProductCatalog[String(order.productId || '')];
+    if (product?.type !== 'talent_search') return;
+    const meta = parseJsonObject(order.metadataJson) || {};
+    const talentId = String(meta.talentId || '');
+    if (!talentId) return;
+    try { await ensureMemberCenterSchema(env); } catch { return; }
+    const expires = product.unlockDays ? new Date(Date.now() + product.unlockDays * 86400000).toISOString() : null;
+    try {
+      await env.DB.prepare("INSERT INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), order.accountId, talentId, order.id, expires).run();
+    } catch {}
+  };
   // === 테스트(가상) 결제 모드: 실제 이니시스 없이 승인 성공 처리 ===
   if (testMode) {
     const tid = 'TEST-' + Date.now().toString(36).toUpperCase();
@@ -500,6 +549,7 @@ async function paymentApproveApi(request, env) {
       env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'approve', 'test', ?, ?, 'success', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
       env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'test', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid, testMode:true }))
     ]);
+    await recordTalentUnlock();
     return json({ approved:true, status:'paid', orderNumber:oid, tid, testMode:true, message:'테스트 결제가 완료되었습니다(실제 청구 없음).' });
   }
   // 결제창 인증 실패
@@ -535,6 +585,7 @@ async function paymentApproveApi(request, env) {
     env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'approve', 'inicis', ?, ?, 'success', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'inicis', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid }))
   ]);
+  await recordTalentUnlock();
   return json({ approved:true, status:'paid', orderNumber:oid, tid });
 }
 async function recruitmentCrmApi(request, env, pathname) {
@@ -892,6 +943,7 @@ async function responseFor(request, env) {
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);
   if (pathname === '/api/saved-jobs') return savedJobsApi(request, env);
+  if (pathname.startsWith('/api/talent-detail/')) return talentDetailApi(request, env, pathname);
   if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);
   if (pathname === '/api/payment-approve') return paymentApproveApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);

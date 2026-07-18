@@ -125,7 +125,7 @@ export const commerceSchemaStatements = [
     id TEXT PRIMARY KEY,
     order_number TEXT NOT NULL UNIQUE,
     account_id TEXT NOT NULL,
-    product_type TEXT NOT NULL CHECK (product_type IN ('doctor_ad','membership','medical_staff_ad','headhunting')),
+    product_type TEXT NOT NULL CHECK (product_type IN ('doctor_ad','membership','medical_staff_ad','headhunting','talent_search')),
     product_id TEXT NOT NULL,
     product_name TEXT NOT NULL,
     currency TEXT NOT NULL DEFAULT 'KRW',
