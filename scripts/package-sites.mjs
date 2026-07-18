@@ -510,7 +510,22 @@ async function publicSiteOperationsApi(request, env) {
   ]);
   const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingValue]));
   const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
-  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload }; });
+  // 급여·상세 열람 권한: 의사 회원(role=doctor)·병원·관리자는 열람. 비로그인은 제한.
+  const canViewSensitive = allowedVisibility.has('doctor') || allowedVisibility.has('hospital') || allowedVisibility.has('admin');
+  // 유출방어: 비인증자에게는 공고 payload의 급여·상세근무·병원 식별정보를 서버에서 제거한다.
+  // 단 병원이 비용을 낸 광고 공고(adTier)는 널리 알리는 것이 목적이므로 급여를 공개한다.
+  const sensitiveFields = ['pay','workHours','daysOff','fullAddress','businessNumber','representative','doctorCount','dailyVolume','staffCount','equipment','beds','website'];
+  const stripSensitive = (contentType, payload) => {
+    if (canViewSensitive) return payload;
+    if (contentType !== 'doctor_job' && contentType !== 'medical_job') return payload;
+    const isAd = Boolean(payload.adTier);
+    const isPrivate = payload.badge === '비공개';
+    if (isAd && !isPrivate) return payload; // 유료 광고 공고는 공개
+    const filtered = { ...payload, locked: true };
+    for (const field of sensitiveFields) if (field in filtered) delete filtered[field];
+    return filtered;
+  };
+  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload) }; });
   return json({ settings, features, contents });
 }
 async function adminConsoleApi(request, env) {
