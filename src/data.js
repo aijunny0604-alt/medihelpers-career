@@ -158,6 +158,7 @@ export const adPlans = [
 export const navItems = [
   { path: '/jobs', label: '채용정보' },
   { path: '/talent', label: '인재정보' },
+  { path: '/matching-report', label: '매칭 리포트' },
   { path: '/resume', label: '이력서 등록' },
   { path: '/headhunting', label: '맞춤 헤드헌팅' },
   { path: '/medical-staff', label: '의료인 채용' },
