@@ -114,21 +114,43 @@ export default function ResumePage() {
     return Math.round((required.filter(Boolean).length / required.length) * 100);
   }, [form]);
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!form.consent) return;
-    appendStoredRecord('medihelpers_resumes', {
+    const snapshot = {
       id: `RES-${Date.now()}`,
       createdAt: new Date().toISOString(),
       status: 'draft-review',
       ...form,
       careers,
       profilePhotoName: profilePhoto?.name || '',
-      resumeFileName: resumeFile?.name || '',
       certificateFileNames: certificateFiles.map((file) => file.name)
-    });
+    };
+    // 서버(D1)에 저장해 아빠(관리자)가 열람할 수 있게 한다. 서버 미가용 시 localStorage로 폴백.
+    try {
+      const response = await fetch(withBase('/api/resumes'), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          profession: form.profession,
+          specialty: form.specialty,
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          desiredRegions: form.desiredRegions,
+          completion,
+          visibility: form.visibility,
+          detail: { ...form, careers }
+        })
+      });
+      if (!response.ok) throw new Error('server save failed');
+    } catch {
+      appendStoredRecord('medihelpers_resumes', snapshot);
+    }
     setCompleted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   if (completed) return <main className="resume-page"><section className="resume-complete"><span><CircleCheck /></span><small>MEDICAL RESUME REGISTERED</small><h1>의료인 이력서가 등록되었습니다</h1><p>공개 범위는 <strong>{form.visibility === 'public' ? '채용기관 공개' : form.visibility === 'proposal' ? '제안 요청 시 공개' : '비공개 보관'}</strong>로 설정했습니다.<br />면허·자격 서류는 담당자가 확인하기 전까지 외부에 공개되지 않습니다.</p><div><a className="button primary" href={withBase('/jobs')}>맞춤 채용정보 보기 <ArrowRight /></a><button className="button outline" onClick={() => setCompleted(false)}>이력서 수정</button></div></section></main>;

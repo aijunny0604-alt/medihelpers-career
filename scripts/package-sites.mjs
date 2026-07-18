@@ -296,6 +296,48 @@ async function memberCenterApi(request, env) {
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
+// 이력서 저장/조회 API. 로그인한 일반(의사·의료인) 회원 본인 이력서만 다룬다.
+async function resumeApi(request, env) {
+  const identity = authenticatedUser(request);
+  if (!identity) return json({ error:'이력서는 로그인 후 등록할 수 있습니다.' }, 401);
+  if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
+  try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'이력서 저장소를 사용할 수 없습니다.' }, 503); }
+  const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+  const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
+  if (!account) return json({ signedIn:true, resume:null });
+  if (account.role !== 'doctor') return json({ error:'이력서는 일반(의사·의료인) 회원만 등록할 수 있습니다.' }, 403);
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare('SELECT id, title, profession, specialty, name, phone, email, desired_regions AS desiredRegions, completion, visibility, status, detail_json AS detailJson, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
+    if (!row) return json({ signedIn:true, resume:null });
+    const { detailJson, ...rest } = row;
+    return json({ signedIn:true, resume:{ ...rest, detail:parseJsonObject(detailJson) } });
+  }
+  if (request.method === 'POST') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    const length = Number(request.headers.get('content-length') || 0);
+    if (length > 131072) return json({ error:'이력서 내용이 너무 큽니다.' }, 413);
+    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0, max);
+    const title = s(body.title); const name = s(body.name); const phone = s(body.phone, 40);
+    if (!title || !name || !phone) return json({ error:'이력서 제목·성함·연락처는 필수입니다.' }, 400);
+    const visibility = ['public','proposal','private'].includes(body.visibility) ? body.visibility : 'private';
+    const completion = Math.max(0, Math.min(100, Number(body.completion) || 0));
+    // 구조화 핵심 필드 외 나머지(경력·학력·소개 등)는 detail JSON으로 저장.
+    const detail = body.detail && typeof body.detail === 'object' ? body.detail : {};
+    const existing = await env.DB.prepare('SELECT id FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
+    const id = existing?.id || ('RES-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase());
+    const fields = [id, account.id, title, s(body.profession), s(body.specialty), name, phone, s(body.email), s(body.desiredRegions), completion, visibility, 'draft-review', JSON.stringify(detail).slice(0, 120000)];
+    if (existing) {
+      await env.DB.prepare('UPDATE resumes SET title=?, profession=?, specialty=?, name=?, phone=?, email=?, desired_regions=?, completion=?, visibility=?, detail_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+        .bind(title, s(body.profession), s(body.specialty), name, phone, s(body.email), s(body.desiredRegions), completion, visibility, JSON.stringify(detail).slice(0,120000), id).run();
+    } else {
+      await env.DB.prepare('INSERT INTO resumes (id, account_id, title, profession, specialty, name, phone, email, desired_regions, completion, visibility, status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(...fields).run();
+    }
+    try { await env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'resume_update', existing ? '이력서를 수정했습니다.' : '이력서를 등록했습니다.', title).run(); } catch {}
+    return json({ saved:true, id, completion, visibility }, existing ? 200 : 201);
+  }
+  return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
 const paymentProductCatalog = {
   basic:{ type:'doctor_ad', name:'베이직 공고', amount:59000 },
   featured:{ type:'doctor_ad', name:'추천 공고', amount:149000 },
@@ -640,6 +682,7 @@ async function responseFor(request, env) {
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
+  if (pathname === '/api/resumes') return resumeApi(request, env);
   if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);

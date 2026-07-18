@@ -66,7 +66,26 @@ export const memberCenterSchemaStatements = [
     occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
   )`,
-  `CREATE INDEX IF NOT EXISTS member_activity_account_idx ON member_activity(account_id, occurred_at DESC)`
+  `CREATE INDEX IF NOT EXISTS member_activity_account_idx ON member_activity(account_id, occurred_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS resumes (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    profession TEXT NOT NULL DEFAULT '',
+    specialty TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    desired_regions TEXT NOT NULL DEFAULT '',
+    completion INTEGER NOT NULL DEFAULT 0,
+    visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('public','proposal','private')),
+    status TEXT NOT NULL DEFAULT 'draft-review',
+    detail_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS resumes_account_idx ON resumes(account_id, updated_at DESC)`
 ];
 
 export const commerceSchemaStatements = [
