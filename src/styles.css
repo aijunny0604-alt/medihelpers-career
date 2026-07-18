@@ -4281,6 +4281,84 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
     0 0 0 3px rgba(216,180,90,.12)!important;
 }
 
+/* Featured recruitment keeps the same brand-first system as spotlight,
+   with a quieter treatment that preserves the product hierarchy. */
+.unified-job-grid .job-card.premium-ad.ad-featured{
+  border-color:color-mix(in srgb,var(--mood-primary,var(--job-color,#6759d7)) 38%,#dbe4ef)!important;
+  border-top-width:5px!important;
+  background:
+    radial-gradient(circle at 92% 4%,color-mix(in srgb,var(--mood-primary,var(--job-color,#6759d7)) 10%,transparent),transparent 31%),
+    linear-gradient(180deg,color-mix(in srgb,var(--mood-soft,#f3f1ff) 58%,#fff) 0,#fff 46%)!important;
+  box-shadow:0 13px 34px rgba(38,60,96,.085)!important;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured .ad-brand-stage{
+  position:relative;
+  border:1px solid color-mix(in srgb,var(--mood-primary,var(--job-color,#6759d7)) 25%,#dfe7f0)!important;
+  border-radius:14px!important;
+  background:
+    radial-gradient(circle at 88% 9%,color-mix(in srgb,var(--mood-primary,var(--job-color,#6759d7)) 12%,transparent),transparent 37%),
+    linear-gradient(135deg,color-mix(in srgb,var(--mood-soft,#f3f1ff) 72%,#fff),#fff 76%)!important;
+  box-shadow:0 10px 24px rgba(43,67,102,.07)!important;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured.has-brand-wordmark .hospital-wordmark{
+  min-height:94px!important;
+  padding:18px 20px!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  border-left:4px solid var(--mood-primary,var(--job-color,#6759d7))!important;
+  border-radius:4px!important;
+  background:rgba(255,255,255,.66)!important;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured.has-brand-wordmark .hospital-wordmark small{
+  display:block!important;
+  margin-bottom:7px;
+  color:var(--mood-primary,var(--job-color,#6759d7))!important;
+  font:800 10px 'Manrope',sans-serif!important;
+  letter-spacing:1.15px;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured.has-brand-wordmark .hospital-wordmark strong{
+  width:100%;
+  color:#172b49!important;
+  font-size:clamp(22px,1.55vw,27px)!important;
+  line-height:1.22!important;
+  letter-spacing:-1px!important;
+  text-align:left!important;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured.has-brand-wordmark .hospital-wordmark span{
+  display:flex!important;
+  align-items:center;
+  gap:7px;
+  margin-top:8px;
+  color:#7d8b9e;
+  font-size:10px;
+  font-weight:700;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured.has-brand-wordmark .hospital-wordmark span i{
+  width:22px;
+  height:3px;
+  border-radius:999px;
+  background:var(--mood-primary,var(--job-color,#6759d7));
+}
+.unified-job-grid .job-card.premium-ad.ad-featured.has-brand-logo .ad-brand-stage{
+  justify-content:center!important;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured.has-brand-logo .hospital-logo.prominent.has-image{
+  width:112px!important;
+  height:96px!important;
+  min-width:112px!important;
+  min-height:96px!important;
+  flex-basis:112px!important;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured .card-action{
+  color:var(--mood-primary,var(--job-color,#6759d7))!important;
+  font-weight:850;
+}
+.unified-job-grid .job-card.premium-ad.ad-featured:hover{
+  border-color:color-mix(in srgb,var(--mood-primary,var(--job-color,#6759d7)) 64%,#b8c8dc)!important;
+  box-shadow:0 20px 46px rgba(32,57,94,.13)!important;
+}
+
 @media(max-width:560px){
   .unified-job-grid .job-card.job-card-compact{min-height:346px}
   .unified-job-grid .listing-brand-stage,
@@ -4297,6 +4375,20 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .unified-job-grid .premium-ad.has-brand-banner .hospital-logo.prominent.logo-fit-banner{
     height:92px!important;
     min-height:92px!important;
+  }
+  .unified-job-grid .job-card.premium-ad.ad-featured.has-brand-logo .hospital-logo.prominent.has-image{
+    width:96px!important;
+    height:84px!important;
+    min-width:96px!important;
+    min-height:84px!important;
+    flex-basis:96px!important;
+  }
+  .unified-job-grid .job-card.premium-ad.ad-featured.has-brand-wordmark .hospital-wordmark{
+    min-height:84px!important;
+    padding:14px 16px!important;
+  }
+  .unified-job-grid .job-card.premium-ad.ad-featured.has-brand-wordmark .hospital-wordmark strong{
+    font-size:21px!important;
   }
 }
 
