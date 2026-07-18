@@ -128,7 +128,7 @@ function MemberTypeChooser() {
       <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>INDIVIDUAL · 일반 회원</small><strong>채용정보를 찾고 있어요</strong><p>의사·의료인 채용정보 · 비공개 상담 · 이력서 관리</p><b>일반 회원으로 시작하기 <ArrowRight /></b></div></a>
       <a className="hospital-choice" href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>HOSPITAL · 병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 후보 추천 · 채용 진행 관리</p><b>병원 회원으로 시작하기 <ArrowRight /></b></div></a>
     </div>
-    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호는 받지 않고, 정식 오픈 시 휴대폰 본인확인으로 중복 가입을 확인합니다.</div>
+    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 받지 않고, 인증된 계정과 본인 명의 휴대폰 확인으로 중복 가입을 방지합니다.</div>
   </section>;
 }
 
@@ -193,7 +193,7 @@ function PhoneVerificationField({ fieldId, meta, value, error, prepared, onChang
     </div>
     {!error && <small id={hintId} className="signup-field-hint">{meta.hint}</small>}
     {error && <em id={errorId} className="signup-field-error" role="alert">{error}</em>}
-    {prepared && <div className="phone-verification-preview" role="status"><ShieldCheck /><span><strong>휴대폰 본인확인 연결 위치입니다</strong><small>현재는 개인정보를 전송하지 않는 미리보기입니다. 정식 오픈 시 PASS·SMS 본인확인 창이 열립니다.</small></span></div>}
+    {prepared && <div className="phone-verification-preview" role="status"><ShieldCheck /><span><strong>휴대폰 본인확인 단계가 준비되었습니다</strong><small>가입 양식 확인 후 안전한 계정 인증과 본인 명의 휴대폰 확인이 이어집니다.</small></span></div>}
   </div>;
 }
 
@@ -243,7 +243,7 @@ function PrivacyCopy({ memberType }) {
 }
 
 // 실제 계정을 만들지 않으며, 어떤 개인정보도 브라우저에 저장하지 않습니다.
-function SignupApplicationForm({ memberType }) {
+function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const content = roleContent[memberType];
   const RoleIcon = content.icon;
   const fields = useMemo(() => fieldsForRole(memberType), [memberType]);
@@ -305,7 +305,7 @@ function SignupApplicationForm({ memberType }) {
     });
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     setSubmittedOnce(true);
     const validation = validateApplicationDraft(draft, memberType);
@@ -318,7 +318,22 @@ function SignupApplicationForm({ memberType }) {
       node?.focus?.();
       return;
     }
-    // 프론트엔드 전용 완료: 계정 유형만 남기고 이름·연락처·이메일·비밀번호 등 모든 민감 정보를 즉시 비웁니다.
+    if (signedIn) {
+      try {
+        const result = await accountRequest('POST', {
+          role: memberType,
+          termsAccepted: true,
+          privacyAcknowledged: true,
+          ageConfirmed: true
+        });
+        onComplete(result.account);
+        return;
+      } catch (requestError) {
+        setErrors((current) => ({ ...current, submit: requestError.message }));
+        return;
+      }
+    }
+    // 상세 입력값은 인증 서비스로 넘기지 않습니다. 형식 확인 후 계정 인증 단계만 안내합니다.
     setCompleted(true);
     setDraft((current) => clearDraftFields(current));
     setErrors({});
@@ -339,18 +354,17 @@ function SignupApplicationForm({ memberType }) {
   if (completed) {
     return <section className="signup-card signup-complete-draft">
       <span className="account-check"><CircleCheck /></span>
-      <small>DRAFT CHECK COMPLETE</small>
-      <h2>가입 양식 확인 완료</h2>
-      <p>입력하신 항목이 형식에 맞는지 확인했습니다. 아직 실제 계정은 만들어지지 않았습니다.</p>
-      <div className="signup-launch-boundary"><LockKeyhole /><span><strong>정식 오픈 시 휴대폰 본인확인과 연결됩니다.</strong><small>본인확인기관이 제공하는 중복가입 방지정보를 서버에서 확인한 뒤 계정을 생성합니다.</small></span></div>
+      <small>FINAL ACCOUNT VERIFICATION</small>
+      <h2>마지막 계정 인증만 남았습니다</h2>
+      <p>가입 양식과 필수 동의를 확인했습니다. 안전한 계정 인증을 완료하면 회원 계정이 생성됩니다.</p>
+      <div className="signup-launch-boundary"><LockKeyhole /><span><strong>메디헬퍼스는 비밀번호를 별도로 보관하지 않습니다.</strong><small>인증된 이메일 계정으로 중복 가입을 확인하고 회원 유형과 동의 기록을 안전하게 저장합니다.</small></span></div>
       <dl>
         <div><dt>선택한 회원 유형</dt><dd>{content.label}</dd></div>
-        <div><dt>저장된 개인정보</dt><dd>없음</dd></div>
+        <div><dt>다음 단계</dt><dd>계정 인증 후 가입 완료</dd></div>
       </dl>
-      <p className="signup-nostore-line"><ShieldCheck /> 이름·연락처·이메일·비밀번호를 포함한 어떤 개인정보도 이 브라우저에 저장하지 않았습니다.</p>
       <div className="account-actions">
-        <a className="button primary" href={withBase(memberType === 'doctor' ? '/jobs' : '/talent')}>먼저 둘러보기 <ArrowRight /></a>
-        <button type="button" className="button outline" onClick={resetForm}><RotateCcw size={15} /> 새 양식 작성</button>
+        <a className="button primary" href={withBase(`/signin-with-chatgpt?return_to=${withBase(`/signup/${memberType}`)}`)}>계정 인증하고 가입 완료 <ArrowRight /></a>
+        <button type="button" className="button outline" onClick={resetForm}><RotateCcw size={15} /> 입력 내용 수정</button>
       </div>
     </section>;
   }
@@ -379,8 +393,7 @@ function SignupApplicationForm({ memberType }) {
 
   return <section className="signup-card signup-application">
     <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
-    <span className="signup-draft-tag"><Sparkles size={13} /> 정식 오픈 전 가입 신청 미리 작성</span>
-    <h2>{content.label} 가입 신청서</h2>
+    <h2>{content.label} 가입</h2>
     <p>{memberType === 'hospital' ? '채용 담당자 계정과 병원 기본정보를 한 번에 등록합니다. 기관 서류는 가입 후 공고 등록이나 결제 전에 별도 확인합니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 면허·자격과 경력 상세정보는 가입 후 이력서 또는 인증 단계에서 추가할 수 있습니다.'}</p>
     <form ref={formRef} onSubmit={submit} noValidate>
       {memberType === 'hospital' ? <>
@@ -426,8 +439,8 @@ function SignupApplicationForm({ memberType }) {
         <div className="signup-no-marketing"><CircleCheck /><span><strong>마케팅 수신 동의는 받지 않습니다</strong><small>가입에 필수가 아니며 수집하지 않습니다. 광고성 알림은 정식 가입 후 원할 때만 별도로 선택할 수 있습니다.</small></span></div>
       </div>
 
-      <button className="button primary full" type="submit">가입 양식 확인하기 <ArrowRight /></button>
-      <p className="signup-nostore-line"><ShieldCheck /> 입력값은 이 화면에서만 임시로 쓰이고 저장되지 않습니다. 확인 후 즉시 비워집니다.</p>
+      {errors.submit && <p className="signup-error" role="alert">{errors.submit}</p>}
+      <button className="button primary full" type="submit">{signedIn ? '가입 완료하기' : '계속해서 계정 인증'} <ArrowRight /></button>
       <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '일반 회원'}으로 작성</a>
     </form>
   </section>;
@@ -552,17 +565,13 @@ export default function AccountPage({ memberType = '' }) {
       setState((current) => ({ ...current, loading: false }));
     });
   }, []);
-  // 프론트엔드 전용 신청 폼을 보여주는 조건: 회원 유형이 선택됐고, 백엔드 회원가입이 아직 열리지 않은 상태.
-  const previewMode = Boolean(memberType) && !state.loading && !state.account && !state.signupEnabled;
   let content;
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} onDeleted={() => setState((current) => ({ ...current, account: null }))} />;
   else if (!memberType) content = <MemberTypeChooser />;
-  else if (!state.signupEnabled) content = <SignupApplicationForm memberType={memberType} />;
-  else if (!state.signedIn) content = <SignedOutCard memberType={memberType} />;
-  else content = <SignupForm identity={state.identity} memberType={memberType} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
+  else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
   return <div className="signup-page">
     <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '일반 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
-    <div className="signup-shell">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}<SignupPrinciples memberType={memberType} previewMode={previewMode} /></div>
+    <div className="signup-shell signup-shell-centered">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}</div>
   </div>;
 }

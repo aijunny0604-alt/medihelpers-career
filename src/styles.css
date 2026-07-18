@@ -4372,3 +4372,17 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .signup-legal-notice a{color:#1263e8;font-weight:900;text-decoration:underline;text-underline-offset:2px}
 @media(max-width:900px){.legal-page{margin-top:66px;padding-top:45px}.legal-layout{grid-template-columns:1fr}.legal-operator{position:static}.legal-document{padding:34px 28px}.legal-table>div,.legal-table.compact>div{grid-template-columns:1fr;gap:5px}.legal-contact-list>div{grid-template-columns:1fr;gap:5px}}
 @media(max-width:540px){.legal-page{padding-inline:15px}.legal-hero{margin-bottom:30px}.legal-hero h1{font-size:36px}.legal-hero>p{font-size:15px}.legal-document{padding:28px 20px;border-radius:19px}.legal-section h2{font-size:19px}.legal-section p,.legal-section li{font-size:14px}.legal-operator{border-radius:19px}}
+
+/* 회원가입은 안내 사이드바 없이 양식 자체가 화면의 중심이 되도록 구성합니다. */
+.signup-shell.signup-shell-centered{width:min(calc(100% - clamp(40px,7vw,128px)),1400px);display:block}
+.signup-shell.signup-shell-centered>.signup-card{width:100%;margin-inline:auto}
+.signup-shell.signup-shell-centered .signup-application{padding:clamp(42px,4vw,72px)}
+.signup-shell.signup-shell-centered .signup-application>h2{margin-top:28px;font-size:clamp(34px,3vw,50px)}
+.signup-shell.signup-shell-centered .signup-application>p{max-width:1040px;font-size:clamp(16px,1.25vw,20px);line-height:1.8}
+.signup-shell.signup-shell-centered .signup-form-section{padding:clamp(26px,2.6vw,40px)}
+.signup-shell.signup-shell-centered .signup-form-section h3{font-size:clamp(22px,1.7vw,28px)}
+.signup-shell.signup-shell-centered .signup-field label{font-size:15px}
+.signup-shell.signup-shell-centered .signup-field input,.signup-shell.signup-shell-centered .signup-field select{min-height:58px;font-size:16px}
+.signup-shell.signup-shell-centered .signup-consent-block{margin-top:32px}
+.signup-shell.signup-shell-centered .button.full{min-height:66px;margin-top:28px;font-size:18px}
+@media(max-width:780px){.signup-shell.signup-shell-centered{width:min(calc(100% - 28px),680px)}.signup-shell.signup-shell-centered .signup-application{padding:30px 20px}}
