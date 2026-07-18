@@ -241,7 +241,8 @@ function useAuthGate(qa) {
   return state;
 }
 
-// 비로그인/권한 부족 시 로그인·가입 유도 화면을 보여주는 게이트. 조건 충족 시 children 렌더.
+// 비로그인/권한 부족 시 콘텐츠를 블러 처리하고 그 위에 로그인 유도 카드를 띄우는 게이트.
+// 통째로 차단하지 않고 뒤 콘텐츠를 흐리게 보여줘 "무엇이 있는지" 맛보기 → 가입 동기를 살린다.
 function AuthGate({ auth, need = 'member', title, description, children }) {
   if (auth.status === 'loading') {
     return <section className="auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>로그인 상태를 확인하고 있습니다…</p></div></section>;
@@ -249,21 +250,24 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
   const ok = need === 'hospital' ? (auth.isHospital || auth.isAdmin) : auth.status === 'member';
   if (ok) return children;
   const hospitalNeed = need === 'hospital';
-  return <section className="auth-gate">
-    <div className="auth-gate-card">
-      <span className="auth-gate-icon"><LockKeyhole /></span>
-      <small>{hospitalNeed ? 'HOSPITAL MEMBERS ONLY' : 'MEMBERS ONLY'}</small>
-      <h2>{title || (hospitalNeed ? '병원 회원 전용 화면입니다' : '회원 전용 화면입니다')}</h2>
-      <p>{description || (hospitalNeed
-        ? '의료진 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요.'
-        : '로그인 후 이용할 수 있는 화면입니다. 로그인하거나 회원가입 후 다시 시도해 주세요.')}</p>
-      <div className="auth-gate-actions">
-        <Link className="button primary" to={`/signup?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인 · 회원가입</Link>
-        {hospitalNeed && <Link className="button outline" to={`/signup/hospital?next=${encodeURIComponent(getRoute())}`}><Building2 size={16} /> 병원 회원가입</Link>}
+  return <div className="auth-gate-wrap">
+    <div className="auth-gate-blurred" aria-hidden="true">{children}</div>
+    <div className="auth-gate-overlay">
+      <div className="auth-gate-card">
+        <span className="auth-gate-icon"><LockKeyhole /></span>
+        <small>{hospitalNeed ? 'HOSPITAL MEMBERS ONLY' : 'MEMBERS ONLY'}</small>
+        <h2>{title || (hospitalNeed ? '병원 회원 전용입니다' : '회원 전용입니다')}</h2>
+        <p>{description || (hospitalNeed
+          ? '의료진 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요.'
+          : '로그인 후 이용할 수 있는 화면입니다. 로그인하거나 회원가입 후 다시 시도해 주세요.')}</p>
+        <div className="auth-gate-actions">
+          <Link className="button primary" to={`/signup?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인 · 회원가입</Link>
+          {hospitalNeed && <Link className="button outline" to={`/signup/hospital?next=${encodeURIComponent(getRoute())}`}><Building2 size={16} /> 병원 회원가입</Link>}
+        </div>
+        <span className="auth-gate-note"><ShieldCheck size={14} /> 경쟁 업체의 무단 열람을 막기 위해 회원 인증 후 공개합니다.</span>
       </div>
-      <span className="auth-gate-note"><ShieldCheck size={14} /> 경쟁 업체의 무단 열람을 막기 위해 회원 인증 후 공개합니다.</span>
     </div>
-  </section>;
+  </div>;
 }
 
 function Link({ to, className = '', children, onClick, ...anchorProps }) {
