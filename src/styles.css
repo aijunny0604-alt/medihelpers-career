@@ -4727,3 +4727,12 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .talent-staff-tabs button.active{background:#149e7f;border-color:#149e7f;color:#fff}
 .talent-staff-tabs button.active span{background:rgba(255,255,255,.24);color:#fff}
 @media(max-width:520px){.talent-staff-tabs button{padding:8px 13px;font-size:12.5px}}
+
+/* 의료인 채용 → 인재정보 유도 배너 (구직 인재는 인재정보 탭으로 일원화) */
+.medical-staff-seeking-cta{padding-top:8px}
+.medical-seeking-banner{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:24px 28px;border-radius:18px;background:linear-gradient(120deg,#eef6f2,#e6f0fb);border:1px solid #d5e6dd}
+.medical-seeking-banner .section-kicker{color:#149e7f}
+.medical-seeking-banner h2{margin:4px 0 6px;font-size:20px;color:#16233a;letter-spacing:-.02em}
+.medical-seeking-banner p{color:#5a6a80;font-size:14px;line-height:1.6;max-width:620px}
+.medical-seeking-banner .button{flex-shrink:0}
+@media(max-width:640px){.medical-seeking-banner{padding:20px}.medical-seeking-banner .button{width:100%;justify-content:center}}
