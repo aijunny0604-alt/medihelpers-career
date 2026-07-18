@@ -1585,7 +1585,7 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 }
 
 .phone-verification-field { grid-column:1 / -1; }
-.signup-phone-row { display:grid; grid-template-columns:minmax(0,1fr) 150px; gap:10px; }
+.signup-phone-row { display:grid; grid-template-columns:minmax(0,340px) 132px; gap:10px; align-items:stretch; }
 .signup-phone-row button {
   min-height:58px;
   padding:0 16px;

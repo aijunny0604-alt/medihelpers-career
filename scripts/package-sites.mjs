@@ -285,8 +285,20 @@ async function memberCenterApi(request, env) {
     if (account.role === 'doctor') {
       try { resume = await env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first(); } catch { resume = null; }
     }
+    // 병원 회원의 추천 후보: 내 이메일의 상담 → CRM 케이스 → 후보. 실명·연락처는 제외(익명 표시).
+    let recommendedCandidates = [];
+    if (account.role === 'hospital') {
+      try {
+        const rows = await env.DB.prepare(
+          "SELECT s.candidate_public_id AS code, s.consent_status AS consentStatus, s.submission_status AS submissionStatus, c.specialty, c.position_title AS positionTitle, c.stage, s.updated_at AS updatedAt " +
+          "FROM candidate_submissions s JOIN recruitment_cases c ON c.id = s.case_id JOIN consultation_requests cr ON cr.id = c.consultation_id " +
+          "WHERE lower(cr.email) = ? ORDER BY s.updated_at DESC LIMIT 50"
+        ).bind(identity.email.toLowerCase()).all();
+        recommendedCandidates = rows.results || [];
+      } catch { recommendedCandidates = []; }
+    }
     const orderList = (orders.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure: meta.exposure || null }; });
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null });
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
   }
   if (request.method === 'PATCH') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
