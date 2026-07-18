@@ -53,6 +53,24 @@
 - 웹표준 결제 **signKey**(또는 INIAPI Key/IV) — ⚠️ 서버 환경변수로만 보관, 절대 프론트/깃 커밋 금지
 - 허용 결제수단, 결제 도메인(리턴 URL) 등록 정보
 
+## 설정할 환경변수 (호스팅 시크릿, 2026-07-18 코드 반영)
+
+승인 API 골격 구현 완료(`package-sites.mjs` buildInicisPaymentParams·paymentApproveApi). 아래 키만 넣으면 작동:
+
+| 변수 | 값 |
+|---|---|
+| `INICIS_MID` | 이니시스 상점 아이디 |
+| `INICIS_SIGN_KEY` | 웹표준 결제 사인키(signKey) |
+| `SITE_ORIGIN` | 사이트 origin (예: https://medihelpers.co.kr) — returnUrl/closeUrl 조립용 |
+
+미설정 시: 주문 생성 응답 `inicis.configured=false`, `/api/payment-approve`는 503. 즉 결제창이 안 뜨고 기존 "결제 요청 접수"까지만.
+
+## 남은 구현 (키 준비 후)
+
+- **클라이언트 결제창 호출**: MembershipCheckout/광고신청에서 주문 생성 응답의 `inicis` 파라미터로 이니시스 표준결제창 스크립트(stdpay) 로드·submit. (키 없으면 테스트 불가라 보류)
+- **웹훅/노티 수신**: 이니시스 결제결과 통보 멱등 저장(`payment_webhook_events`).
+- 테스트 MID → 실거래 MID 전환.
+
 ## 보안·규정 체크 (BILLING.md 필수 규칙 연계)
 
 - 주문 금액/조건은 생성 시점 스냅샷으로 고정, 승인 금액 불일치 시 거절
