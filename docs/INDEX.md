@@ -14,7 +14,13 @@
 - `DB.md`: 핵심 데이터 모델
 - `AUTH.md`: 회원과 권한
 - `LEGAL_PRIVACY_SIGNUP.md`: 회원가입 동의 문구, 개인정보·소셜 로그인 법무/보안 기준
-- `BILLING.md`: 광고 상품과 결제
+- `BILLING.md`: 광고 상품·결제·인재 열람권 수익모델
+- `TALENT_UNLOCK_PLAN.md`: 인재 이력서 열람권(병원 결제→연락처 공개) 설계
+- `RESUME_PIPELINE_PLAN.md`: 의사·의료인 이력서 등록→구직 노출(opt-in) 파이프라인
+- `HEADHUNTING_BOARD_PLAN.md`: 구인·구직 게시 및 매칭 흐름
+- `BILLING_INICIS_PLAN.md`: 이니시스 실결제 연동 계획(가상결제→실승인 전환)
+- `SECURITY_DATA_EXPOSURE_PLAN.md`: 급여·병원·개인정보 유출 방어(서버측 필터링)
+- `NOTIFICATION_SETUP.md`: 알림 발송 설정
 - `API.md`: 외부 연동 및 API 원칙
 - `DEPLOY.md`: 배포 운영
 - `TEST.md`: 검증 기준
