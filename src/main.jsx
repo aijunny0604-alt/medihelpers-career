@@ -2165,13 +2165,20 @@ function HeadhuntPostModal({ post, onClose }) {
 function HeadhuntBoard({ operations }) {
   const posts = useMemo(() => buildHeadhuntPosts(operations), [operations?.contents]);
   const [filter, setFilter] = useState('all');
+  const [region, setRegion] = useState('전체');
+  const [dept, setDept] = useState('전체');
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState(null);
+  const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(posts.map((p) => p.region).filter(Boolean)))], [posts]);
+  const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(posts.map((p) => p.dept).filter(Boolean)))], [posts]);
   const visible = posts.filter((p) =>
     (filter === 'all' || (filter === 'doctor' ? p.kind === '의사' : p.kind === '의료인')) &&
+    (region === '전체' || p.region === region) &&
+    (dept === '전체' || p.dept === dept) &&
     (!keyword || `${p.title} ${p.hospital} ${p.region} ${p.dept}`.includes(keyword))
   );
   const total = visible.length;
+  const hasFilter = region !== '전체' || dept !== '전체' || keyword;
 
   return (
     <section className="section headhunt-board-section">
@@ -2184,46 +2191,69 @@ function HeadhuntBoard({ operations }) {
       </div>
 
       <div className="headhunt-board">
-        <div className="headhunt-board-toolbar">
+        {/* 검색 도크 — 지역·진료과·키워드 */}
+        <div className="hb-search-dock">
+          <label className="hb-search-main">
+            <Search size={20} />
+            <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="지역, 진료과, 병원명으로 초빙 공고 검색" />
+          </label>
+          <div className="hb-search-filters">
+            <label><span>지역</span><select value={region} onChange={(e) => setRegion(e.target.value)}>{regionOptions.map((r) => <option key={r} value={r}>{r}</option>)}</select></label>
+            <label><span>진료과·직군</span><select value={dept} onChange={(e) => setDept(e.target.value)}>{deptOptions.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
+            {hasFilter && <button type="button" className="hb-reset" onClick={() => { setRegion('전체'); setDept('전체'); setKeyword(''); }}>초기화</button>}
+          </div>
+        </div>
+
+        <div className="hb-list-bar">
           <div className="headhunt-board-tabs">
             {[['all', '전체'], ['doctor', '의사 초빙'], ['medical', '의료인 초빙']].map(([key, label]) => (
               <button key={key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label}</button>
             ))}
           </div>
-          <label className="headhunt-board-search"><Search size={16} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="지역·진료과·병원 검색" /></label>
+          <span className="hb-count">초빙 공고 <b>{total}</b>건</span>
         </div>
 
         {total > 0 ? (
-          <div className="headhunt-board-table" role="table">
-            <div className="headhunt-board-head" role="row" aria-hidden="true">
-              <span>번호</span><span>제목</span><span>작성자</span><span>조회</span><span>등록일</span>
-            </div>
+          <ol className="hb-cards">
             {visible.map((post, index) => (
-              <div
-                className="headhunt-board-row"
-                role="button"
-                tabIndex={0}
-                key={post.id}
-                onClick={() => setSelected(post)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(post); } }}
-              >
-                <span className="hb-no">{total - index}</span>
-                <span className="hb-title">
-                  {post.region && <em>[{post.region}]</em>} {post.title}
-                  <b className={`hb-kind ${post.kind === '의료인' ? 'medical' : 'doctor'}`}>{post.kind}</b>
-                </span>
-                <span className="hb-author">{post.author}</span>
-                <span className="hb-views">{post.views}</span>
-                <time className="hb-date">{post.date || '-'}</time>
-              </div>
+              <li key={post.id}>
+                <article
+                  className="hb-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelected(post)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(post); } }}
+                >
+                  <div className="hb-card-top">
+                    <span className={`hb-card-kind ${post.kind === '의료인' ? 'medical' : 'doctor'}`}>{post.kind} 초빙</span>
+                    {post.region && <span className="hb-card-region"><MapPin size={13} /> {post.region}</span>}
+                    <span className="hb-card-no">No.{total - index}</span>
+                  </div>
+                  <h3>{post.title}</h3>
+                  <p className="hb-card-org"><Building2 size={14} /> {post.hospital || '메디헬퍼스 등록 기관'}</p>
+                  <div className="hb-card-tags">
+                    {post.dept && <span>{post.dept}</span>}
+                    {post.pay && <span className="pay">{post.pay}</span>}
+                    {post.timing && <span>{post.timing}</span>}
+                  </div>
+                  <footer className="hb-card-meta">
+                    <span>{post.author}</span>
+                    <span><Eye size={12} /> {post.views.toLocaleString()}</span>
+                    <time>{post.date || '-'}</time>
+                    <em className="hb-card-more">자세히 보기 <ArrowRight size={14} /></em>
+                  </footer>
+                </article>
+              </li>
             ))}
-          </div>
+          </ol>
         ) : (
           <div className="headhunt-board-empty">
             <FileText />
-            <strong>등록된 초빙 공고가 없습니다</strong>
-            <p>새 초빙 공고가 곧 올라올 예정입니다. 급하시면 전화로 먼저 상담하세요.</p>
-            <a className="button primary" href="tel:0513425463"><Phone /> 051-342-5463</a>
+            <strong>{hasFilter ? '조건에 맞는 초빙 공고가 없습니다' : '등록된 초빙 공고가 없습니다'}</strong>
+            <p>{hasFilter ? '검색어나 조건을 바꿔보세요.' : '새 초빙 공고가 곧 올라올 예정입니다. 급하시면 전화로 먼저 상담하세요.'}</p>
+            {hasFilter
+              ? <button type="button" className="button primary" onClick={() => { setRegion('전체'); setDept('전체'); setKeyword(''); }}>검색 초기화</button>
+              : <a className="button primary" href="tel:01024355463"><Phone /> 010-2435-5463</a>}
           </div>
         )}
       </div>
