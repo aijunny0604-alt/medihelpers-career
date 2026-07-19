@@ -480,6 +480,14 @@ function ContentManager({ data, setData, mutate, qa }) {
     const saved = await mutate(isUpdate ? 'content_update' : 'content_create', record, isUpdate ? '콘텐츠를 수정했습니다.' : '새 콘텐츠를 등록했습니다.');
     if (qa || saved) setEditing(null);
   };
+  // 병원이 등록한 검수 대기(draft) 공고 승인(published)/반려(hidden).
+  const resolveJob = async (item, nextStatus, msg) => {
+    const record = { ...item, id:item.id, contentType:item.contentType, title:item.title, subtitle:item.subtitle || '', status:nextStatus, visibility:item.visibility || 'public', payload:item.payload || {}, pinned:Number(item.sortOrder||0)>=100 };
+    if (qa) setData((old) => ({ ...old, contents:(old.contents || []).map((c) => c.id === item.id ? { ...c, status:nextStatus } : c) }));
+    await mutate('content_update', record, msg);
+  };
+  const approveJob = (item) => resolveJob(item, 'published', '공고를 승인·게시했습니다.');
+  const rejectJob = (item) => resolveJob(item, 'hidden', '공고를 반려(숨김)했습니다.');
   const remove = async (item) => {
     if (item.source === 'catalog') return;
     if (!window.confirm(`‘${item.title}’ 항목을 삭제할까요? 삭제 후에는 목록에서 복구할 수 없습니다.`)) return;
@@ -516,7 +524,7 @@ function ContentManager({ data, setData, mutate, qa }) {
     </div>}
     <div className="admin-content-table">
       <div className="head"><span>유형</span><span>제목·기관</span><span>공개 범위</span><span>상태</span><span>최근 수정</span><span>관리</span></div>
-      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{Number(item.sortOrder || 0) >= 100 && <span className="content-pin-badge">📌 상단고정</span>}{item.title}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button>{item.source !== 'catalog' && <><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title} 삭제`}><Trash2 /></button></>}</div></div>)}
+      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{Number(item.sortOrder || 0) >= 100 && <span className="content-pin-badge">📌 상단고정</span>}{item.title}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{item.status === 'draft' && item.payload?.fromHospital ? '🔎 검수 대기' : {draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions">{item.status === 'draft' && item.payload?.fromHospital && <><button className="content-approve" onClick={(event) => { event.stopPropagation(); approveJob(item); }}><Check />승인</button><button className="content-reject" onClick={(event) => { event.stopPropagation(); rejectJob(item); }}>반려</button></>}<button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button>{item.source !== 'catalog' && <><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title} 삭제`}><Trash2 /></button></>}</div></div>)}
       {!visible.length && <div className="admin-content-empty"><FileText /><span>조건에 맞는 운영 데이터가 없습니다.</span></div>}
     </div>
     {selected && <ContentDetail item={selected} onClose={() => setSelected(null)} onEdit={() => openEdit(selected)} />}

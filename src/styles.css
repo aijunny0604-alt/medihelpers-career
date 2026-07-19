@@ -4905,3 +4905,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .job-post-form input:focus,.job-post-form textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(18,99,232,.08)}
 .job-post-note{display:flex;align-items:center;gap:7px;font-size:12px;color:#8a95a6;margin:4px 0 0}.job-post-note svg{width:15px;flex-shrink:0}
 @media(max-width:640px){.job-post-form,.job-post-typetabs{grid-template-columns:1fr}}
+
+/* 관리자 콘텐츠 목록 — 병원 공고 검수 승인/반려 버튼 */
+.content-status.draft{background:#fef3d6;color:#a5731a}
+.content-actions .content-approve{background:#e6f5f0;color:#128a6e;border-color:#bce6da;font-weight:700}
+.content-actions .content-reject{background:#fdf1f1;color:#c0392b;border-color:#eecccc;font-weight:700}
