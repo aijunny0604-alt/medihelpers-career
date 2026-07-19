@@ -12,7 +12,7 @@ export function validateSignup(input = {}) {
 }
 
 export function accountRoleLabel(role) {
-  if (role === 'doctor') return '일반 회원';
+  if (role === 'doctor') return '의료인 회원';
   if (role === 'hospital') return '병원·의료기관';
   return '회원';
 }

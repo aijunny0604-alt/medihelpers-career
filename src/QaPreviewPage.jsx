@@ -5,7 +5,7 @@ import { withBase } from './basePath.js';
 
 const quickRoutes = [
   { path: '/jobs', label: '채용정보·상세조건', description: '공고 잠금과 상세 모달 확인', icon: Eye },
-  { path: '/matching-report', label: '매칭 리포트', description: '찜 목록과 비교 권한 확인', icon: ClipboardCheck },
+  { path: '/medical-staff', label: '의료인 구인구직', description: '의료인 구직 글·열람권 확인', icon: ClipboardCheck },
   { path: '/advertise', label: '광고센터', description: '병원 등록·결제 진입 확인', icon: Building2 },
   { path: '/membership', label: '멤버십', description: '구독 중·결제 CTA 확인', icon: Crown }
 ];

@@ -7,6 +7,9 @@ const LS = {
   orders: 'devmock_orders',
   unlocks: 'devmock_talent_unlocks',
   resumes: 'devmock_resumes',
+  authAccounts: 'devmock_auth_accounts', // { [email]: { role, password } }
+  authSession: 'devmock_auth_session', // { email, role } | null
+  adminContents: 'devmock_admin_contents', // 관리자가 올린 공고·콘텐츠 (로컬에서도 실제 저장·노출)
 };
 const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k) || '') ?? fallback; } catch { return fallback; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -34,6 +37,60 @@ function mockDetailFor(talentId) {
 
 async function handle(method, path, bodyText) {
   const body = (() => { try { return JSON.parse(bodyText || '{}'); } catch { return {}; } })();
+
+  // 자체 로그인 목 — 서버 authApi(/api/auth/*) 계약과 동일한 형태로 반환.
+  // 로컬에서 의사/병원 회원가입·로그인·로그아웃과 role 구분 흐름을 검증하기 위한 것.
+  if (path === '/api/auth/logout' && method === 'POST') {
+    write(LS.authSession, null);
+    return jsonRes({ signedOut: true });
+  }
+
+  // 관리자 공고·콘텐츠 CRUD — 로컬에서도 실제 저장되어 목록·사이트에 노출되도록 localStorage에 반영.
+  if (path === '/api/admin-console' && method === 'PATCH') {
+    const { action, payload = {} } = body;
+    const seed = [
+      { id: 'c1', contentType: 'doctor_job', title: '소화기내과 전문의 추천채용', subtitle: '김해좋은내과병원', status: 'published', visibility: 'public', sortOrder: 100, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-18 10:00' },
+      { id: 'c2', contentType: 'medical_job', title: '병동 간호사 모집', subtitle: '서울○○병원', status: 'published', visibility: 'public', sortOrder: 0, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-17 09:00' },
+    ];
+    const list = read(LS.adminContents, seed);
+    const stamp = '2026-07-20 00:00';
+    if (action === 'content_create') {
+      const id = 'c-' + Math.random().toString(36).slice(2, 9);
+      list.unshift({ ...payload, id, createdBy: 'admin', updatedBy: 'admin', updatedAt: stamp });
+      write(LS.adminContents, list);
+      return jsonRes({ ok: true, id });
+    }
+    if (action === 'content_update') {
+      write(LS.adminContents, list.map((c) => c.id === payload.id ? { ...c, ...payload, updatedBy: 'admin', updatedAt: stamp } : c));
+      return jsonRes({ ok: true });
+    }
+    if (action === 'content_delete') {
+      write(LS.adminContents, list.filter((c) => c.id !== payload.id));
+      return jsonRes({ ok: true });
+    }
+    return jsonRes({ ok: true });
+  }
+  if ((path === '/api/auth/login' || path === '/api/auth/register') && method === 'POST') {
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
+    if (!email || !/^(?=.*[a-zA-Z])(?=.*\d).{8,}$/.test(password)) {
+      return jsonRes({ error: '이메일과 영문·숫자를 포함한 8자 이상의 비밀번호를 확인해주세요.' }, 400);
+    }
+    const accounts = read(LS.authAccounts, {});
+    if (path === '/api/auth/register') {
+      if (accounts[email]) return jsonRes({ error: '이미 가입된 이메일입니다.' }, 409);
+      const role = body.role === 'hospital' ? 'hospital' : 'doctor';
+      accounts[email] = { role, password };
+      write(LS.authAccounts, accounts);
+      write(LS.authSession, { email, role });
+      return jsonRes({ signedIn: true, account: { role }, identity: { email } });
+    }
+    // login
+    const acct = accounts[email];
+    if (!acct || acct.password !== password) return jsonRes({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, 401);
+    write(LS.authSession, { email, role: acct.role });
+    return jsonRes({ signedIn: true, account: { role: acct.role }, identity: { email } });
+  }
 
   // 결제 주문 생성
   if (path === '/api/payment-orders' && method === 'POST') {
@@ -91,12 +148,25 @@ async function handle(method, path, bodyText) {
     return jsonRes({ resumes: Object.values(read(LS.resumes, {})) });
   }
 
-  // 목 계정(병원 회원으로 가정) — 화면 흐름 확인용. 서버 /api/account 계약과 동일한 형태로 반환.
+  // 목 계정 — 서버 /api/account 계약과 동일한 형태로 반환.
+  // 자체 로그인 목 세션(devmock_auth_session) 기준. 세션이 없으면 미로그인(로그인 폼 노출) 상태로 응답한다.
+  // ※ 화면 흐름(병원 회원 결제·열람권 등)을 매번 로그인 없이 보고 싶으면 localStorage에
+  //    devmock_auth_session = {"email":"hospital@example.com","role":"hospital"} 를 넣어두면 된다.
   if (path === '/api/account') {
-    const identity = { email: 'hospital@example.com', displayName: '목 병원 담당자' };
-    const account = { role: 'hospital', createdAt: '2026-01-01T00:00:00.000Z' };
-    const profile = { displayName: '목 병원 담당자', phone: '010-1111-2222', organization: '목 병원 (로컬)', jobTitle: '채용담당' };
-    return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin: false, profile, email: identity.email });
+    const raw = localStorage.getItem(LS.authSession);
+    const session = raw && raw !== 'null' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
+    if (!session || !session.role) {
+      return jsonRes({ signupEnabled: true, signedIn: false });
+    }
+    const role = session.role === 'doctor' ? 'doctor' : 'hospital';
+    const email = session.email || (role === 'hospital' ? 'hospital@example.com' : 'doctor@example.com');
+    const isHospital = role === 'hospital';
+    const identity = { email, displayName: isHospital ? '목 병원 담당자' : '목 의사 회원' };
+    const account = { role, createdAt: '2026-01-01T00:00:00.000Z' };
+    const profile = isHospital
+      ? { displayName: '목 병원 담당자', phone: '010-1111-2222', organization: '목 병원 (로컬)', jobTitle: '채용담당' }
+      : { displayName: '목 의사 회원', phone: '010-3333-4444', specialty: '내과' };
+    return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin: false, profile, email });
   }
 
   // 마이페이지 환불(청약철회) 요청 목: 주문 상태를 refund_requested로 표시.
@@ -125,9 +195,20 @@ async function handle(method, path, bodyText) {
       return jsonRes({ signedIn: true, account: { role: 'hospital' }, orders });
     }
     if (path === '/api/talent-access-audit') return jsonRes({ viewers: [], alerts: [], recent: [] });
+    if (path === '/api/site-operations') {
+      // 공개 사이트가 읽는 운영 데이터. 관리자가 올린 '공개' 공고를 contents로 노출해
+      // 로컬에서도 /jobs·/medical-staff 목록에 실제로 뜨게 한다(배포 서버 동작과 동일).
+      const adminContents = read(LS.adminContents, []);
+      const publicContents = adminContents.filter((c) => c.status === 'published' && (c.visibility || 'public') === 'public');
+      return jsonRes({
+        settings: { siteName: '메디헬퍼스', supportPhone: '051-342-5463', supportEmail: 'hr@medihelpers.co.kr', announcement: '' },
+        features: { doctorRecruitment: true, talentSearch: true, resumeRegistration: true, medicalStaffHub: true, paidCareerService: false, adRegistration: true },
+        contents: publicContents,
+      });
+    }
     if (path === '/api/admin-console') {
       // 관리자 콘솔 대시보드/콘텐츠 관리 화면 확인용 목 데이터.
-      const contents = read('devmock_admin_contents', [
+      const contents = read(LS.adminContents, [
         { id: 'c1', contentType: 'doctor_job', title: '소화기내과 전문의 추천채용', subtitle: '김해좋은내과병원', status: 'published', visibility: 'public', sortOrder: 100, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-18 10:00' },
         { id: 'c2', contentType: 'medical_job', title: '병동 간호사 모집', subtitle: '서울○○병원', status: 'published', visibility: 'public', sortOrder: 0, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-17 09:00' },
       ]);
@@ -143,6 +224,13 @@ async function handle(method, path, bodyText) {
 
 export function installDevApiMock() {
   if (typeof window === 'undefined' || !window.fetch) return;
+  // 첫 방문(세션 키 자체가 없음)에는 병원 회원으로 자동 로그인해 기존 화면 흐름을 바로 볼 수 있게 시드한다.
+  // 로그아웃하면 'null'이 저장되어(키는 존재) 로그인 폼이 노출되고, 이 시드는 다시 덮어쓰지 않는다.
+  try {
+    if (localStorage.getItem(LS.authSession) === null) {
+      write(LS.authSession, { email: 'hospital@example.com', role: 'hospital' });
+    }
+  } catch {}
   const realFetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : (input && input.url) || '';

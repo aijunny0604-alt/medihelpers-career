@@ -29,9 +29,9 @@ const initialForm = (role = '') => ({
 
 const roleContent = {
   doctor: {
-    label: '일반 회원',
+    label: '의료인 회원',
     eyebrow: 'INDIVIDUAL MEMBER',
-    title: '일반 회원가입',
+    title: '의료인 회원가입',
     description: '의사·의료인 채용정보 탐색과 비공개 이직 상담을 위한 개인 계정입니다.',
     afterTitle: '면허·자격 확인은 나중에',
     afterCopy: '비공개 공고 열람이나 소개 진행 시점에 면허·자격 확인을 별도로 안내합니다. 가입 단계에서는 전문과·면허번호를 받지 않습니다.',
@@ -62,7 +62,7 @@ const roleContent = {
 // autocomplete / inputMode / label 은 접근성과 입력 편의를 위해 필드별로 지정합니다.
 const FIELD_META = {
   name: { label: '담당자 성명', type: 'text', autoComplete: 'name', placeholder: '예: 홍길동' },
-  phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, hint: '주민등록번호 대신 본인 명의 휴대폰으로 확인합니다.' },
+  phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, hint: '상담·채용 연락에만 사용하며, 별도의 휴대폰 인증 절차는 없습니다.' },
   email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.' },
   password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8자 이상', hint: '영문과 숫자를 포함해 8자 이상으로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
@@ -137,11 +137,11 @@ function MemberTypeChooser() {
     <h2>회원 유형을 선택해주세요</h2>
     <p>개인 구직자와 병원 채용 담당자는 이용 목적과 확인 절차가 달라 계정을 구분해 운영합니다.</p>
     <div className="member-type-grid">
-      <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>INDIVIDUAL · 일반 회원</small><strong>채용정보를 찾고 있어요</strong><p>의사·의료인 채용정보 · 비공개 상담 · 이력서 관리</p><b>일반 회원으로 시작하기 <ArrowRight /></b></div></a>
+      <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>INDIVIDUAL · 의료인 회원</small><strong>채용정보를 찾고 있어요</strong><p>의사·의료인 채용정보 · 비공개 상담 · 이력서 관리</p><b>의료인 회원으로 시작하기 <ArrowRight /></b></div></a>
       <a className="hospital-choice" href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>HOSPITAL · 병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 후보 추천 · 채용 진행 관리</p><b>병원 회원으로 시작하기 <ArrowRight /></b></div></a>
     </div>
     <div className="signup-existing-account">이미 메디헬퍼스 계정이 있으신가요? <a href={withBase('/login')}>이메일로 로그인</a></div>
-    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 받지 않고, 인증된 계정과 본인 명의 휴대폰 확인으로 중복 가입을 방지합니다.</div>
+    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 받지 않고, 이메일 계정으로 중복 가입을 방지합니다.</div>
   </section>;
 }
 
@@ -182,33 +182,6 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
 
 // 정식 오픈 전(백엔드 signupEnabled=false)에서 동작하는 프론트엔드 전용 회원가입 신청 폼입니다.
 
-function PhoneVerificationField({ fieldId, meta, value, error, prepared, onChange, onBlur, onRequest }) {
-  const errorId = `${fieldId}-error`;
-  const hintId = `${fieldId}-hint`;
-  const describedBy = [hintId, error ? errorId : null].filter(Boolean).join(' ');
-  return <div className={`signup-field phone-verification-field ${error ? 'has-error' : ''}`}>
-    <label htmlFor={fieldId}>{meta.label}<b>*</b></label>
-    <div className="signup-phone-row">
-      <input
-        id={fieldId}
-        name={fieldId}
-        type="tel"
-        autoComplete="tel"
-        inputMode="numeric"
-        placeholder={meta.placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onBlur={onBlur}
-        aria-invalid={error ? 'true' : undefined}
-        aria-describedby={describedBy}
-      />
-      <button type="button" onClick={onRequest}>휴대폰 인증</button>
-    </div>
-    {!error && <small id={hintId} className="signup-field-hint">{meta.hint}</small>}
-    {error && <em id={errorId} className="signup-field-error" role="alert">{error}</em>}
-    {prepared && <div className="phone-verification-preview" role="status"><ShieldCheck /><span><strong>휴대폰 본인확인 단계가 준비되었습니다</strong><small>가입 양식 확인 후 안전한 계정 인증과 본인 명의 휴대폰 확인이 이어집니다.</small></span></div>}
-  </div>;
-}
 
 function AgreementItem({ id, checked, onChange, title, children, confirmation = '동의합니다' }) {
   return <article className="signup-agreement-item">
@@ -265,12 +238,10 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const [touched, setTouched] = useState({});
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [phoneVerificationPrepared, setPhoneVerificationPrepared] = useState(false);
   const formRef = useRef(null);
 
   const setField = (field, value) => {
     const nextValue = FIELD_META[field]?.phone ? formatKoreanPhone(value) : value;
-    if (field === 'phone') setPhoneVerificationPrepared(false);
     setDraft((current) => {
       const next = { ...current, [field]: nextValue };
       if (submittedOnce || touched[field]) {
@@ -288,13 +259,6 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const blurField = (field) => {
     setTouched((current) => ({ ...current, [field]: true }));
     setErrors((current) => ({ ...current, [field]: validateField(field, draft) }));
-  };
-
-  const preparePhoneVerification = () => {
-    const phoneError = validateField('phone', draft);
-    setTouched((current) => ({ ...current, phone: true }));
-    setErrors((current) => ({ ...current, phone: phoneError }));
-    if (!phoneError) setPhoneVerificationPrepared(true);
   };
 
   const toggleConsent = (key, value) => {
@@ -374,7 +338,6 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     setErrors({});
     setTouched({});
     setSubmittedOnce(false);
-    setPhoneVerificationPrepared(false);
   };
 
   if (completed) {
@@ -397,17 +360,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
 
   const consentError = submittedOnce && (errors.termsAccepted || errors.privacyAccepted || errors.ageConfirmed);
   const renderMeta = (field) => field === 'name' && memberType === 'doctor' ? { ...FIELD_META[field], label: '이름' } : FIELD_META[field];
-  const renderField = (field) => field === 'phone' ? <PhoneVerificationField
-    key={field}
-    fieldId={`signup-${memberType}-${field}`}
-    meta={renderMeta(field)}
-    value={draft[field]}
-    error={submittedOnce || touched[field] ? errors[field] : ''}
-    prepared={phoneVerificationPrepared}
-    onChange={(value) => setField(field, value)}
-    onBlur={() => blurField(field)}
-    onRequest={preparePhoneVerification}
-  /> : <SignupField
+  const renderField = (field) => <SignupField
     key={field}
     fieldId={`signup-${memberType}-${field}`}
     meta={renderMeta(field)}
@@ -467,7 +420,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
 
       {errors.submit && <p className="signup-error" role="alert">{errors.submit}</p>}
       <button className="button primary full" type="submit">{signedIn ? '가입 완료하기' : '계속해서 계정 인증'} <ArrowRight /></button>
-      <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '일반 회원'}으로 작성</a>
+      <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 작성</a>
     </form>
   </section>;
 }
@@ -484,8 +437,8 @@ function SignedOutCard({ memberType }) {
       {content.label}으로 계속 <ArrowRight />
     </a>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>아이디·로그인 정보를 잊으셨나요?</a>
-    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 휴대폰 본인확인 결과로 가입자를 확인합니다.</div>
-    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '일반 회원'}으로 가입</a>
+    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 이메일 계정으로 가입자를 확인합니다.</div>
+    <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 가입</a>
   </section>;
 }
 
@@ -667,7 +620,7 @@ export default function AccountPage({ memberType = '', loginOnly = false }) {
   else if (!memberType) content = <MemberTypeChooser />;
   else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={(account, identity) => setState((current) => ({ ...current, account, identity:identity || current.identity, signedIn:true }))} />;
   return <div className="signup-page">
-    <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '일반 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
+    <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의료인 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
     <div className="signup-shell signup-shell-centered">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}</div>
   </div>;
 }

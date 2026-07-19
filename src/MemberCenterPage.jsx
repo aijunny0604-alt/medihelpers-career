@@ -120,7 +120,7 @@ export default function MemberCenterPage({ route, qa }) {
     email: accountState.identity.email || profile?.email || demo.profile.email,
     displayName: profile?.displayName || accountState.identity.displayName || demo.profile.displayName
   };
-  const roleLabel = role === 'hospital' ? '병원 회원' : '일반 회원';
+  const roleLabel = role === 'hospital' ? '병원 회원' : '의료인 회원';
   const inquiries = qa.active ? demo.inquiries : serverData.consultations.map((item) => {
     const payload = item.payload || {};
     return {

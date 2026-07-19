@@ -6,7 +6,7 @@ import {
   talentDisplayName,
 } from "./talentPrivacy.js";
 
-test("비회원과 일반 회원에게는 성만 남기고 이름을 가린다", () => {
+test("비회원과 의료인 회원에게는 성만 남기고 이름을 가린다", () => {
   assert.equal(maskTalentName("김현우"), "김○○");
   assert.equal(talentDisplayName({ name: "김현우", identityConsent: true }, false), "김○○");
 });

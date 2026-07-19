@@ -83,54 +83,14 @@ export function getMedicalStaffJobs(operations) {
   return [...operationalMedicalJobs(operations?.contents || []), ...sampleJobs].map(normalizeJob);
 }
 
-export default function MedicalStaffPage({ operations, medicalTalent = [] }) {
-  // 치과 관련 직군(치과위생사 등)은 취급하지 않으므로 목록에서 제외한다.
-  const liveJobs = useMemo(
-    () => getMedicalStaffJobs(operations).filter((job) => !/치과/.test(job.role || '')),
-    [operations?.contents]
-  );
-  const liveCategories = categories;
-  const [category, setCategory] = useState('전체 직군');
-  const [keyword, setKeyword] = useState('');
-  const visible = useMemo(() => liveJobs.filter((job) => (category === '전체 직군' || roleGroup(job.role) === category) && (!keyword || `${job.title} ${job.hospital} ${job.region}`.includes(keyword))), [liveJobs, category, keyword]);
-  const openJob = (job) => go(`/medical-staff/jobs/${encodeURIComponent(job.id)}`);
-
-  return <div className="medical-staff-hub">
-    <section className="medical-staff-hero">
-      <div><span><UsersRound /> MEDICAL STAFF JOBS</span><h1>간호·의료기사·약무<br /><em>의료인 채용 공고</em></h1><p>병원이 등록한 간호·보건·의료기사·약무 <b>일자리 공고</b>를 확인하고 지원하세요. 구직 인재의 이력서를 찾는 병원은 <a href={withBase('/talent')}>인재정보</a>를 이용하세요.</p><div className="medical-staff-actions"><button onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/advertise/apply?staff=1')}><Building2 /> 병원 · 공고 등록</button></div></div>
-      <aside><small>구직 의료인</small><strong>공고를 보고<br />바로 지원하세요</strong><ul><li><Check /> 직군·지역·조건별 공고</li><li><Check /> 로그인 후 지원·문의</li><li><Check /> 연락처는 동의 후 전달</li></ul></aside>
+export default function MedicalStaffPage({ operations, medicalTalent = [], talentSection = null }) {
+  // 의료인 구인구직 = 구직 의료인 게시판 전용(병원 채용공고 목록은 /jobs·광고로 이동, 여기선 구직만).
+  return <div className="medical-staff-hub medical-staff-seek-only">
+    <section className="medical-staff-hero seek-hero">
+      <div><span><UsersRound /> MEDICAL PROFESSIONALS</span><h1>의료인 구인구직<br /><em>구직 중인 의료인 인재</em></h1><p>의사·간호·의료기사·약무 등 의료인이 직접 등록한 <b>구직 이력서</b>입니다. 병원 회원은 <b>열람권</b>을 결제하면 이름·연락처·상세 이력을 열람할 수 있습니다.</p><div className="medical-staff-actions"><button onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서·구직 글 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/headhunting?role=hospital')}><Building2 /> 병원 · 인재 채용 상담</button></div></div>
+      <aside><small>병원 회원</small><strong>열람권으로<br />인재를 확인하세요</strong><ul><li><Check /> 진료과·직군·지역별 구직 인재</li><li><Check /> 열람권 결제 후 상세 열람</li><li><Check /> 연락처는 동의 후 전달</li></ul></aside>
     </section>
-    <section className="medical-staff-search" aria-label="의료인 채용정보 검색">
-      <div className="medical-staff-search-title"><span><Search /></span><div><small>MEDICAL STAFF SEARCH</small><h2>직군과 지역으로 채용정보를 찾으세요</h2></div></div>
-      <div className="medical-staff-category-row">{liveCategories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
-      <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="기관명, 직무, 지역 검색" /></label>
-    </section>
-    <section className="section medical-staff-results">
-      <header><div><small>검색 결과 {visible.length}건</small><h2>의료인 채용정보</h2><p>목록에서 핵심 조건을 비교하고, 상세 페이지에서 업무와 지원 절차를 확인하세요.</p></div><span><ShieldCheck /> 등록 기관과 공고를 순차 검수합니다</span></header>
-      {!!visible.length && <div className="medical-staff-list-head" aria-hidden="true"><span>직군</span><span>채용공고</span><span>지원조건</span><span>급여</span><span>마감</span><span /></div>}
-      <div className="medical-staff-job-list">{visible.map((job) => <article
-        key={job.id}
-        role="link"
-        tabIndex="0"
-        aria-label={`${job.hospital} ${job.title} 상세 보기`}
-        onClick={() => openJob(job)}
-        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openJob(job); } }}
-      >
-        <span className="medical-staff-role">{job.role}</span>
-        <div className="medical-staff-job-main"><div className="ms-job-top-row"><small>{job.hospital}</small>{job.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div><h3>{job.title}</h3><p><MapPin /> {job.region} <i /> <BriefcaseBusiness /> {job.type}</p></div>
-        <span className="medical-staff-career">{job.career}</span>
-        <strong>{job.pay}</strong>
-        <span className="medical-staff-deadline"><CalendarDays /> {job.deadline}</span>
-        <span className="medical-staff-row-action">상세 보기 <ArrowRight /></span>
-      </article>)}</div>
-      {!visible.length && <div className="medical-staff-empty"><Stethoscope /><strong>조건에 맞는 공고가 없습니다</strong><p>검색 조건을 바꾸거나 채용 알림을 신청해 보세요.</p></div>}
-    </section>
-    {medicalTalent.length > 0 && <section className="section medical-staff-seeking-cta">
-      <div className="medical-seeking-banner">
-        <div><span className="section-kicker">MEDICAL STAFF SEEKING</span><h2>구직 중인 간호·의료인 {medicalTalent.length}명</h2><p>이력서를 등록한 간호·보건·의료기사·약무 인재는 인재정보에서 의사와 함께 확인합니다. 연락처·상세는 열람권으로 열람합니다.</p></div>
-        <button type="button" className="button primary" onClick={() => go('/talent')}>인재정보에서 의료인 보기 <ArrowRight /></button>
-      </div>
-    </section>}
+    {talentSection}
   </div>;
 }
 

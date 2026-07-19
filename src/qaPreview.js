@@ -30,9 +30,9 @@ export const QA_STATE_OPTIONS = Object.freeze([
   },
   {
     id: 'doctor',
-    label: '일반 회원',
-    shortLabel: '일반 회원',
-    description: '일반 회원 로그인 상태에서 채용정보·이력서·상담 기능을 점검합니다.',
+    label: '의료인 회원',
+    shortLabel: '의료인 회원',
+    description: '의료인 회원 로그인 상태에서 채용정보·이력서·상담 기능을 점검합니다.',
     tone: 'doctor',
     capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: false, privateDetails: false },
     metrics: [['상세조건', '멤버십 잠금'], ['관심공고', '3건'], ['프리미엄', '미이용']]
@@ -41,7 +41,7 @@ export const QA_STATE_OPTIONS = Object.freeze([
     id: 'doctor-member',
     label: '멤버십 이용 회원',
     shortLabel: '멤버십 이용 중',
-    description: '일반 회원의 멤버십 활성 상태와 상세조건·선택형 커리어 서비스를 점검합니다.',
+    description: '의료인 회원의 멤버십 활성 상태와 상세조건·선택형 커리어 서비스를 점검합니다.',
     tone: 'member',
     capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, membership: true, privateDetails: true },
     metrics: [['상세조건', '무료 열람'], ['서비스', '커리어 컨시어지'], ['다음 결제', '2026.08.16']]

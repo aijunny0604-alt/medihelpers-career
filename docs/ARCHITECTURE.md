@@ -13,6 +13,7 @@
 ```
 
 - 프론트엔드: React + Vite
+- 라우팅: `main.jsx`의 경량 자체 라우터(`useRoute` + history/popstate 기반, 프레임워크 라우터 없음). 통합·이전된 옛 경로는 App 상단 `ROUTE_ALIASES` 테이블에서 렌더 시점에 동기 정규화(`/talent`→`/medical-staff`, `/professions`→`/headhunting`; base 경로·쿼리스트링 보존). effect+popstate 방식 리다이렉트는 무거운 페이지에서 빈 화면을 유발하므로 쓰지 않음
 - 호스팅·서버 런타임: OpenAI Sites
 - 데이터베이스: Sites D1 바인딩 `DB`
 - 배포 산출물: `scripts/package-sites.mjs`가 SPA와 API Worker를 `dist/`에 구성

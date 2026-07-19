@@ -155,7 +155,7 @@ const categoryLabels = {
 const featureLabels = {
   doctorRecruitment: ['의사 초빙정보', '의사 채용공고 목록과 상세 페이지'],
   talentSearch: ['인재정보', '병원 회원의 익명 인재 검색'],
-  resumeRegistration: ['이력서 등록', '일반 회원 중 의료인 이력서 작성 및 관리'],
+  resumeRegistration: ['이력서 등록', '의료인 회원 이력서 작성 및 관리'],
   medicalStaffHub: ['의료인 채용 허브', '간호·보건 직군 확장 영역'],
   paidCareerService: ['프리미엄 커리어 서비스', '유료 조건 비교·계약 분석'],
   adRegistration: ['병원 광고 등록', '공고 상품 신청과 검수'],
@@ -304,6 +304,7 @@ function Dashboard({ data, select }) {
       <section className="admin-panel">
         <header><div><small>QUICK MANAGEMENT</small><h2>빠른 관리</h2></div></header>
         <div className="admin-quick-grid">
+          <button className="admin-quick-highlight" onClick={() => go('/admin/post')}><Plus /><span><strong>공고 올리기</strong><small>의사·의료인 채용공고 바로 등록</small></span><ChevronRight /></button>
           <button onClick={() => select('monitoring')}><Activity /><span><strong>통합 모니터링</strong><small>공고·상담·채용·결제 상태</small></span><ChevronRight /></button>
           <button onClick={() => select('contents')}><PencilLine /><span><strong>콘텐츠 통합 관리</strong><small>공고·인재·게시글 CRUD</small></span><ChevronRight /></button>
           <button onClick={() => select('payments')}><CreditCard /><span><strong>결제 · 환불 관리</strong><small>주문·승인·영수증·환불</small></span><ChevronRight /></button>
@@ -505,7 +506,7 @@ function ContentManager({ data, setData, mutate, qa }) {
       <div className="admin-content-form">
         <label><span>콘텐츠 유형 *</span><select value={editing.contentType} onChange={(e) => change('contentType',e.target.value)}>{Object.entries(contentTypeLabels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         <label><span>운영 상태 *</span><select value={editing.status} onChange={(e) => change('status',e.target.value)}><option value="draft">임시저장</option><option value="published">공개</option><option value="hidden">숨김</option><option value="closed">마감·종료</option></select></label>
-        <label><span>열람 권한 *</span><select value={editing.visibility} onChange={(e) => change('visibility',e.target.value)}><option value="public">전체 공개</option><option value="doctor">일반 회원</option><option value="hospital">병원 회원</option><option value="admin">관리자 전용</option></select></label>
+        <label><span>열람 권한 *</span><select value={editing.visibility} onChange={(e) => change('visibility',e.target.value)}><option value="public">전체 공개</option><option value="doctor">의료인 회원</option><option value="hospital">병원 회원</option><option value="admin">관리자 전용</option></select></label>
         <label className="admin-pin-toggle"><span>상단 고정 <i>(최대 5개 · 현재 {pinnedCount}개)</i></span><button type="button" className={`admin-switch ${editing.pinned ? 'on' : ''}`} onClick={() => change('pinned', !editing.pinned)} aria-label="상단 고정" disabled={!editing.pinned && pinnedCount >= 5}><i /></button></label>
         <label className="wide"><span>제목 *</span><input value={editing.title} onChange={(e) => change('title',e.target.value)} placeholder="공고 또는 게시글 제목" /></label>
         <label className="wide"><span>기관명·보조 제목</span><input value={editing.subtitle} onChange={(e) => change('subtitle',e.target.value)} placeholder="병원명, 공개용 후보명, 카테고리" /></label>
@@ -540,7 +541,7 @@ function ContentDetail({ item, onClose, onEdit }) {
     return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', handleKey); };
   }, [onClose]);
   const payload = Object.entries(item.payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined);
-  const visibility = { public:'전체 공개', doctor:'일반 회원', hospital:'병원 회원', admin:'관리자 전용' }[item.visibility] || item.visibility;
+  const visibility = { public:'전체 공개', doctor:'의료인 회원', hospital:'병원 회원', admin:'관리자 전용' }[item.visibility] || item.visibility;
   const status = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감·종료' }[item.status] || item.status;
   const payloadLabels = { primary:'지역·주요 분류', secondary:'급여·핵심 조건', description:'상세 설명' };
   return <div className="admin-content-detail-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -600,7 +601,7 @@ function Members({ data, mutate }) {
   });
   return <>
     <section className="admin-member-summary">
-      <article><UserRoundCog /><strong>{data.metrics.doctors}</strong><p>일반 회원</p><small>의료직군·자격 인증 상태와 결제 이력 연결</small></article>
+      <article><UserRoundCog /><strong>{data.metrics.doctors}</strong><p>의료인 회원</p><small>의료직군·자격 인증 상태와 결제 이력 연결</small></article>
       <article><Building2 /><strong>{data.metrics.hospitals}</strong><p>병원 회원</p><small>기관·담당자·광고 주문 연결</small></article>
       <article><CreditCard /><strong>{data.metrics.payments || 0}</strong><p>전체 결제 주문</p><small>회원별 누적 결제액 추적</small></article>
     </section>
@@ -608,7 +609,7 @@ function Members({ data, mutate }) {
       <header><div><small>MEMBER DATABASE</small><h2>회원가입 회원 정보 DB</h2><p>계정, 연락처, 회원 유형, 인증·활동 상태, 약관 동의와 결제 누계를 한곳에서 확인합니다.</p></div></header>
       <div className="admin-data-toolbar">
         <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름·이메일·병원·연락처 검색" /></label>
-        <select value={role} onChange={(event) => setRole(event.target.value)}><option value="all">전체 회원</option><option value="doctor">일반 회원</option><option value="hospital">병원 회원</option></select>
+        <select value={role} onChange={(event) => setRole(event.target.value)}><option value="all">전체 회원</option><option value="doctor">의료인 회원</option><option value="hospital">병원 회원</option></select>
         <span>검색 결과 <b>{members.length}</b>명</span>
       </div>
       <div className="admin-member-table">
@@ -696,7 +697,7 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
     {showReceipt && <ReceiptModal payment={receiptPayload} buyerName={payment.customerName} onClose={() => setShowReceipt(false)} />}
     <dl>
       <div><dt>회원</dt><dd>{payment.customerName || '-'}<small>{payment.customerEmail}<br />{payment.customerPhone}</small></dd></div>
-      <div><dt>상품</dt><dd>{payment.productName}<small>{payment.accountRole === 'hospital' ? '병원 회원' : '일반 회원'} · {payment.productType}</small></dd></div>
+      <div><dt>상품</dt><dd>{payment.productName}<small>{payment.accountRole === 'hospital' ? '병원 회원' : '의료인 회원'} · {payment.productType}</small></dd></div>
       <div><dt>결제금액</dt><dd><b>{Number(payment.totalAmount).toLocaleString()}원</b><small>공급가 {Number(payment.supplyAmount).toLocaleString()}원 · 부가세 {Number(payment.taxAmount).toLocaleString()}원</small></dd></div>
       <div><dt>처리시각</dt><dd>{String(payment.createdAt || '-').slice(0,16)}<small>결제 {String(payment.paidAt || '-').slice(0,16)}</small></dd></div>
     </dl>
