@@ -125,6 +125,17 @@ async function handle(method, path, bodyText) {
       return jsonRes({ signedIn: true, account: { role: 'hospital' }, orders });
     }
     if (path === '/api/talent-access-audit') return jsonRes({ viewers: [], alerts: [], recent: [] });
+    if (path === '/api/admin-console') {
+      // 관리자 콘솔 대시보드/콘텐츠 관리 화면 확인용 목 데이터.
+      const contents = read('devmock_admin_contents', [
+        { id: 'c1', contentType: 'doctor_job', title: '소화기내과 전문의 추천채용', subtitle: '김해좋은내과병원', status: 'published', visibility: 'public', sortOrder: 100, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-18 10:00' },
+        { id: 'c2', contentType: 'medical_job', title: '병동 간호사 모집', subtitle: '서울○○병원', status: 'published', visibility: 'public', sortOrder: 0, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-17 09:00' },
+      ]);
+      return jsonRes({
+        metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: contents.length, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0 },
+        contents, categories: [], features: {}, settings: {}, audit: [], consultations: [], cases: [], members: [], payments: [], transactions: [], refunds: [], resumes: [],
+      });
+    }
     return jsonRes({ mock: true });
   }
   return jsonRes({ mock: true, ok: true });

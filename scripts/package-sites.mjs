@@ -797,7 +797,7 @@ async function publicSiteOperationsApi(request, env) {
   const [settingsResult, featuresResult, contentResult] = await Promise.all([
     env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings').all(),
     env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
-    env.DB.prepare("SELECT id, content_type AS contentType, title, subtitle, visibility, payload_json AS payloadJson, published_at AS publishedAt, updated_at AS updatedAt FROM admin_content_records WHERE status='published' ORDER BY published_at DESC, updated_at DESC LIMIT 500").all()
+    env.DB.prepare("SELECT id, content_type AS contentType, title, subtitle, visibility, payload_json AS payloadJson, sort_order AS sortOrder, published_at AS publishedAt, updated_at AS updatedAt FROM admin_content_records WHERE status='published' ORDER BY sort_order DESC, published_at DESC, updated_at DESC LIMIT 500").all()
   ]);
   const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingValue]));
   const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
@@ -869,7 +869,7 @@ async function adminConsoleApi(request, env) {
       env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings').all(),
       env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
       env.DB.prepare('SELECT id, group_key AS groupKey, name, slug, sort_order AS sortOrder, enabled FROM admin_categories ORDER BY group_key, sort_order, name').all(),
-      env.DB.prepare('SELECT id, content_type AS contentType, title, subtitle, status, visibility, payload_json AS payloadJson, created_by AS createdBy, updated_by AS updatedBy, published_at AS publishedAt, created_at AS createdAt, updated_at AS updatedAt FROM admin_content_records ORDER BY updated_at DESC LIMIT 500').all(),
+      env.DB.prepare('SELECT id, content_type AS contentType, title, subtitle, status, visibility, payload_json AS payloadJson, sort_order AS sortOrder, created_by AS createdBy, updated_by AS updatedBy, published_at AS publishedAt, created_at AS createdAt, updated_at AS updatedAt FROM admin_content_records ORDER BY sort_order DESC, updated_at DESC LIMIT 500').all(),
       env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, a.updated_at AS updatedAt, COALESCE(ap.email,'') email, COALESCE(ap.full_name,'') fullName, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus, ap.last_login_at AS lastLoginAt, COALESCE(mp.phone,'') phone, COALESCE(mp.organization,'') organization, COALESCE(mp.job_title,'') jobTitle, (SELECT COUNT(*) FROM consent_records cr WHERE cr.account_id=a.id) consentCount, (SELECT COUNT(*) FROM payment_orders po WHERE po.account_id=a.id) orderCount, COALESCE((SELECT SUM(po.total_amount) FROM payment_orders po WHERE po.account_id=a.id AND po.status='paid'),0) lifetimeValue FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id LEFT JOIN member_profiles mp ON mp.account_id=a.id ORDER BY a.created_at DESC LIMIT 500").all(),
       env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.account_id AS accountId, po.product_type AS productType, po.product_id AS productId, po.product_name AS productName, po.supply_amount AS supplyAmount, po.tax_amount AS taxAmount, po.total_amount AS totalAmount, po.status, po.payment_method AS paymentMethod, po.customer_name AS customerName, po.customer_email AS customerEmail, po.customer_phone AS customerPhone, po.metadata_json AS metadataJson, po.admin_note AS adminNote, po.paid_at AS paidAt, po.cancelled_at AS cancelledAt, po.created_at AS createdAt, po.updated_at AS updatedAt, a.role accountRole FROM payment_orders po JOIN accounts a ON a.id=po.account_id ORDER BY po.created_at DESC LIMIT 500").all(),
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_type AS transactionType, provider, provider_transaction_id AS providerTransactionId, amount, status, failure_code AS failureCode, failure_message AS failureMessage, processed_at AS processedAt FROM payment_transactions ORDER BY created_at DESC LIMIT 1000").all(),
@@ -950,15 +950,24 @@ async function adminConsoleApi(request, env) {
     const visibility = String(payload.visibility || 'public');
     const details = payload.payload && typeof payload.payload === 'object' ? payload.payload : {};
     if (!allowedTypes.includes(contentType) || !title || !allowedStatuses.includes(status) || !allowedVisibility.includes(visibility)) return json({ error:'콘텐츠 입력값을 확인해주세요.' }, 400);
+    // 상단 고정(pin): 최대 5개까지. sort_order를 고정 순서로 사용(고정=100 이상, 일반=0).
+    const PIN_LIMIT = 5;
+    const wantPinned = Boolean(payload.pinned);
+    const editingId = action === 'content_update' ? String(payload.id || '') : '';
+    if (wantPinned) {
+      const pinnedRow = await env.DB.prepare("SELECT COUNT(*) c FROM admin_content_records WHERE sort_order >= 100 AND id != ?").bind(editingId).first();
+      if (Number(pinnedRow?.c || 0) >= PIN_LIMIT) return json({ error:'상단 고정은 최대 ' + PIN_LIMIT + '개까지 가능합니다. 다른 고정을 해제한 뒤 다시 시도해 주세요.', code:'PIN_LIMIT' }, 400);
+    }
+    const sortOrder = wantPinned ? 100 : 0;
     if (action === 'content_create') {
       const id = crypto.randomUUID();
-      await env.DB.prepare('INSERT INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, created_by, updated_by, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, contentType, title, subtitle, status, visibility, JSON.stringify(details), admin.email, admin.email, status === 'published' ? new Date().toISOString() : null).run();
-      await writeAdminAudit(env, admin, 'content_create', title, { id, contentType, status });
+      await env.DB.prepare('INSERT INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, sort_order, created_by, updated_by, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, contentType, title, subtitle, status, visibility, JSON.stringify(details), sortOrder, admin.email, admin.email, status === 'published' ? new Date().toISOString() : null).run();
+      await writeAdminAudit(env, admin, 'content_create', title, { id, contentType, status, pinned: wantPinned });
     } else {
-      const id = String(payload.id || '');
+      const id = editingId;
       if (!id) return json({ error:'수정할 콘텐츠를 확인해주세요.' }, 400);
-      await env.DB.prepare("UPDATE admin_content_records SET content_type=?, title=?, subtitle=?, status=?, visibility=?, payload_json=?, updated_by=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(contentType, title, subtitle, status, visibility, JSON.stringify(details), admin.email, status, id).run();
-      await writeAdminAudit(env, admin, 'content_update', title, { id, contentType, status });
+      await env.DB.prepare("UPDATE admin_content_records SET content_type=?, title=?, subtitle=?, status=?, visibility=?, payload_json=?, sort_order=?, updated_by=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(contentType, title, subtitle, status, visibility, JSON.stringify(details), sortOrder, admin.email, status, id).run();
+      await writeAdminAudit(env, admin, 'content_update', title, { id, contentType, status, pinned: wantPinned });
     }
   } else if (action === 'content_delete') {
     const id = String(payload.id || '');

@@ -461,19 +461,21 @@ function ContentManager({ data, setData, mutate, qa }) {
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
   const contents = data.contents || [];
+  // 편집 중인 항목을 제외한 현재 고정(상단) 개수(sort_order>=100). 최대 5개 제한 안내용.
+  const pinnedCount = contents.filter((item) => Number(item.sortOrder || 0) >= 100 && item.id !== editing?.id).length;
   const visible = contents.filter((item) => (type === 'all' || item.contentType === type) && (!keyword || `${item.title} ${item.subtitle}`.toLowerCase().includes(keyword.toLowerCase())));
   const openNew = () => setEditing({ ...emptyContent, payload:{ ...emptyContent.payload } });
   const openEdit = (item) => {
     if (item.source === 'catalog') return;
     setSelected(null);
-    setEditing({ ...item, payload:{ ...emptyContent.payload, ...(item.payload || {}) } });
+    setEditing({ ...item, pinned: Number(item.sortOrder || 0) >= 100, payload:{ ...emptyContent.payload, ...(item.payload || {}) } });
   };
   const change = (key, value) => setEditing((old) => ({ ...old, [key]:value }));
   const changePayload = (key, value) => setEditing((old) => ({ ...old, payload:{ ...old.payload, [key]:value } }));
   const save = async () => {
     if (!editing?.title.trim()) return;
     const isUpdate = Boolean(editing.id);
-    const record = { ...editing, title:editing.title.trim(), subtitle:editing.subtitle.trim(), updatedAt:new Date().toISOString().slice(0,16).replace('T',' ') };
+    const record = { ...editing, title:editing.title.trim(), subtitle:editing.subtitle.trim(), sortOrder: editing.pinned ? 100 : 0, updatedAt:new Date().toISOString().slice(0,16).replace('T',' ') };
     if (qa) setData((old) => ({ ...old, contents:isUpdate ? (old.contents || []).map((item) => item.id === record.id ? record : item) : [{ ...record, id:crypto.randomUUID() }, ...(old.contents || [])], metrics:{ ...old.metrics, contents:isUpdate ? old.metrics.contents : (old.metrics.contents || 0) + 1 } }));
     const saved = await mutate(isUpdate ? 'content_update' : 'content_create', record, isUpdate ? '콘텐츠를 수정했습니다.' : '새 콘텐츠를 등록했습니다.');
     if (qa || saved) setEditing(null);
@@ -496,6 +498,7 @@ function ContentManager({ data, setData, mutate, qa }) {
         <label><span>콘텐츠 유형 *</span><select value={editing.contentType} onChange={(e) => change('contentType',e.target.value)}>{Object.entries(contentTypeLabels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         <label><span>운영 상태 *</span><select value={editing.status} onChange={(e) => change('status',e.target.value)}><option value="draft">임시저장</option><option value="published">공개</option><option value="hidden">숨김</option><option value="closed">마감·종료</option></select></label>
         <label><span>열람 권한 *</span><select value={editing.visibility} onChange={(e) => change('visibility',e.target.value)}><option value="public">전체 공개</option><option value="doctor">일반 회원</option><option value="hospital">병원 회원</option><option value="admin">관리자 전용</option></select></label>
+        <label className="admin-pin-toggle"><span>상단 고정 <i>(최대 5개 · 현재 {pinnedCount}개)</i></span><button type="button" className={`admin-switch ${editing.pinned ? 'on' : ''}`} onClick={() => change('pinned', !editing.pinned)} aria-label="상단 고정" disabled={!editing.pinned && pinnedCount >= 5}><i /></button></label>
         <label className="wide"><span>제목 *</span><input value={editing.title} onChange={(e) => change('title',e.target.value)} placeholder="공고 또는 게시글 제목" /></label>
         <label className="wide"><span>기관명·보조 제목</span><input value={editing.subtitle} onChange={(e) => change('subtitle',e.target.value)} placeholder="병원명, 공개용 후보명, 카테고리" /></label>
         <label><span>지역·주요 분류</span><input value={editing.payload.primary} onChange={(e) => changePayload('primary',e.target.value)} placeholder="예: 부산 해운대구" /></label>
@@ -513,7 +516,7 @@ function ContentManager({ data, setData, mutate, qa }) {
     </div>}
     <div className="admin-content-table">
       <div className="head"><span>유형</span><span>제목·기관</span><span>공개 범위</span><span>상태</span><span>최근 수정</span><span>관리</span></div>
-      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{item.title}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button>{item.source !== 'catalog' && <><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title} 삭제`}><Trash2 /></button></>}</div></div>)}
+      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{Number(item.sortOrder || 0) >= 100 && <span className="content-pin-badge">📌 상단고정</span>}{item.title}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button>{item.source !== 'catalog' && <><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title} 삭제`}><Trash2 /></button></>}</div></div>)}
       {!visible.length && <div className="admin-content-empty"><FileText /><span>조건에 맞는 운영 데이터가 없습니다.</span></div>}
     </div>
     {selected && <ContentDetail item={selected} onClose={() => setSelected(null)} onEdit={() => openEdit(selected)} />}
