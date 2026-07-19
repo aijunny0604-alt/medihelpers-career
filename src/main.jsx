@@ -1894,7 +1894,23 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
       .catch(() => active && setUnlock({ loading: false, unlocked: false, detail: null, limited: false, message: "" }));
     return () => { active = false; };
   }, [person.code]);
-  const d = unlock.detail || {};
+  // 서버 상세(실제 이력서)가 있으면 그것, 없으면(정적 데모 인재) person 자체의 상세 필드로 폴백.
+  const demoDetail = (person.introduction || person.skills || person.careers) ? {
+    name: person.fullName || person.name,
+    phone: person.phone || '상담 시 안내',
+    email: person.email || '',
+    specialty: person.dept,
+    desiredRegions: person.region,
+    detail: {
+      introduction: person.introduction || '',
+      skills: person.skills || '',
+      licenseName: person.licenseName || '',
+      experienceYears: person.career || '',
+      school: person.school || '', major: person.major || '', graduation: person.graduation || '',
+      careers: person.careers || [],
+    },
+  } : null;
+  const d = unlock.detail || (unlock.unlocked ? demoDetail : null) || {};
   return (
     <Modal
       wide
@@ -3128,8 +3144,8 @@ export function App() {
   else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} route={route} liveTalent={liveTalent} medicalTalent={medicalTalent} /></AuthGate>;
   else if (path === '/matching-report') page = <AuthGate auth={auth} title="매칭 리포트는 회원 전용입니다" description="찜한 병원·후보를 비교하는 매칭 리포트는 로그인 후 이용할 수 있습니다."><MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} /></AuthGate>;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
-  // 의료인 채용은 일자리 공고 → 채용정보(/jobs)처럼 공개(구직자 유입). 사람(이력서)만 병원전용은 /talent.
-  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <MedicalStaffPage operations={operations} medicalTalent={medicalTalent} />;
+  // 의료인 채용은 로그인 회원 전용(비회원·경쟁사 정보 수집 차단). 인재정보(/talent)는 병원 전용.
+  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} /></AuthGate>;
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
     : <MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} />;

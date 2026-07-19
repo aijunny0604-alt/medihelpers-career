@@ -70,7 +70,12 @@ async function handle(method, path, bodyText) {
   if (path.startsWith('/api/talent-detail/') && method === 'GET') {
     const talentId = decodeURIComponent(path.slice('/api/talent-detail/'.length));
     const unlocks = read(LS.unlocks, {});
-    if (unlocks[talentId]) return jsonRes({ unlocked: true, detail: mockDetailFor(talentId) });
+    if (unlocks[talentId]) {
+      // 실제 이력서(resume-<id>)만 서버 상세를 흉내. 정적 데모(MH-...)는 detail:null로 반환해
+      // 클라이언트가 data.js의 데모 상세로 폴백하게 한다(실제 서버 동작과 동일).
+      const detail = talentId.startsWith('resume-') ? mockDetailFor(talentId) : null;
+      return jsonRes({ unlocked: true, detail });
+    }
     return jsonRes({ unlocked: false, detail: null });
   }
 
