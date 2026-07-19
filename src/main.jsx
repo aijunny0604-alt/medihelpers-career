@@ -25,6 +25,7 @@ import { PrivacyPolicyPage, RefundPolicyPage, TermsPage, WithdrawalPolicyPage } 
 import { operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
+import { openInicisPayment } from './inicisPay.js';
 import {
   appendStoredRecord,
   readStoredArray,
@@ -2662,6 +2663,16 @@ function Checkout({ plan }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok)
         throw new Error(result.error || "결제 요청을 저장하지 못했습니다.");
+      // 이니시스 키가 설정된 환경이면 실제 표준결제창을 띄우고, 이후 승인은 서버(returnUrl)가 처리한다.
+      if (result.inicis?.configured) {
+        await openInicisPayment(result.inicis, {
+          productName: plan.name,
+          buyerName: data.manager,
+          buyerTel: data.phone,
+          buyerEmail: data.email,
+        });
+        return;
+      }
       appendStoredRecord("medihelpers_ad_requests", {
         id: result.order?.orderNumber || `AD-${Date.now()}`,
         planId: plan.id,
@@ -3071,6 +3082,16 @@ function TalentUnlockCheckout({ plan, talentId }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
       const orderNumber = result.order?.orderNumber;
+      // 이니시스 키가 설정된 환경이면 실제 표준결제창을 띄운다(승인은 서버 returnUrl이 처리).
+      if (result.inicis?.configured) {
+        await openInicisPayment(result.inicis, {
+          productName: plan.name,
+          buyerName: data.name,
+          buyerTel: data.phone,
+          buyerEmail: data.email,
+        });
+        return;
+      }
       const approve = await fetch('/api/payment-approve', {
         method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
         body:JSON.stringify({ orderNumber, resultCode:'0000' })
@@ -3206,9 +3227,17 @@ function MembershipCheckout({ plan, onClose }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
       const orderNumber = result.order?.orderNumber;
-      // 결제 승인: 이니시스 키가 설정돼 있으면 실제 결제창, 없으면 서버가 테스트(가상) 승인 처리.
+      // 결제 승인: 이니시스 키가 설정돼 있으면 실제 표준결제창을 띄운다.
+      // 결제창에서 인증이 끝나면 이니시스가 returnUrl(서버)로 POST → 서버가 승인·결과 페이지로 이동시키므로
+      // 여기서는 결제창을 연 뒤 흐름을 넘긴다(아래 테스트 승인 로직을 타지 않음).
       if (result.inicis?.configured) {
-        // TODO(실키 준비 시): 이니시스 표준결제창(stdpay) 로드·submit. 지금은 승인 엔드포인트로 진행.
+        await openInicisPayment(result.inicis, {
+          productName: plan.name,
+          buyerName: data.name,
+          buyerTel: data.phone,
+          buyerEmail: data.email,
+        });
+        return;
       }
       const approve = await fetch('/api/payment-approve', {
         method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },

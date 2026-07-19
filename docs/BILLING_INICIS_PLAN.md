@@ -65,11 +65,22 @@
 
 미설정 시: 주문 생성 응답 `inicis.configured=false`, `/api/payment-approve`는 503. 즉 결제창이 안 뜨고 기존 "결제 요청 접수"까지만.
 
-## 남은 구현 (키 준비 후)
+## 구현 완료 (2026-07-20)
 
-- **클라이언트 결제창 호출**: MembershipCheckout/광고신청에서 주문 생성 응답의 `inicis` 파라미터로 이니시스 표준결제창 스크립트(stdpay) 로드·submit. (키 없으면 테스트 불가라 보류)
-- **웹훅/노티 수신**: 이니시스 결제결과 통보 멱등 저장(`payment_webhook_events`).
-- 테스트 MID → 실거래 MID 전환.
+- ✅ **클라이언트 결제창 호출 구현**: `src/inicisPay.js`(loadInicisScript·openInicisPayment) 신설. 주문 생성 응답의 `inicis.configured=true`면 표준결제창(stdpay) 스크립트를 1회 로드하고 숨김 폼(mid/oid/price/timestamp/signature/mKey/returnUrl 등)을 만들어 `INIStdPay.pay()` 호출. 결제 3개 지점 모두 연결:
+  - 멤버십 결제(MembershipCheckout)
+  - 광고 신청(AdvertiseApply)
+  - 인재 열람권(TalentUnlockCheckout)
+- ✅ 키 미설정(`configured:false`) 환경에서는 기존 테스트(가상) 승인 흐름 그대로 — 로컬·미설정 배포에서 회귀 없음(빌드·테스트 49/49, 콘솔 에러 0).
+- 서버는 이미 구현됨: `buildInicisPaymentParams`(서명·mKey·returnUrl/closeUrl), `paymentApproveApi`(승인요청·금액검증·원장 저장).
+
+## 남은 작업 (키·도메인 준비 후)
+
+- **환경변수 3개 설정**: `INICIS_MID`, `INICIS_SIGN_KEY`, `SITE_ORIGIN` → 넣는 즉시 실결제 전환(코드 수정 불필요).
+- **이니시스에 결제 도메인 등록**: 등록된 도메인에서만 결제창이 열림. 도메인 변경 시 이니시스에 변경 신고 필요. 기존 medihelpers.co.kr과 병행 사용하려면 도메인 추가 등록(또는 별도 MID) 가능 여부를 이니시스에 확인.
+- ⚠️ **로컬(localhost)에서는 실결제 테스트 불가** — 이니시스가 returnUrl로 콜백해야 하므로 배포된 도메인에서만 검증 가능.
+- **웹훅/노티 수신**: 이니시스 결제결과 통보 멱등 저장(`payment_webhook_events`) — 미구현.
+- 테스트 MID → 실거래 MID 전환(스크립트 URL은 `inicisPay.js`의 live 플래그로 분기).
 
 ## 보안·규정 체크 (BILLING.md 필수 규칙 연계)
 
