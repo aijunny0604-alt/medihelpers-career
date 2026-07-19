@@ -174,6 +174,25 @@ async function consultationApi(request, env, pathname) {
         await env.DB.prepare('INSERT INTO recruitment_cases (id, consultation_id, hospital_name, specialty, position_title, next_action) VALUES (?, ?, ?, ?, ?, ?)').bind(caseId, id, payload.hospital, payload.specialty, payload.specialty + ' 의사 초빙', '병원 채용조건 확인').run();
       } catch {}
     }
+    // 공고 지원 알림 라우팅: 일반 병원이 올린 공고면 그 병원 계정에 알림, 아빠(admin) 인증공고면 관리자에게(기존).
+    // payload.jobId로 공고를 찾아 등록자(created_by)가 병원 계정이면 그 계정의 활동(알림)에 지원자를 남긴다.
+    if (requestType === 'doctor' && payload.jobId) {
+      try {
+        await ensureMemberCenterSchema(env);
+        const jobRow = await env.DB.prepare("SELECT title, created_by AS createdBy FROM admin_content_records WHERE id=?").bind(String(payload.jobId)).first();
+        if (jobRow && jobRow.createdBy) {
+          // 등록자가 관리자(아빠)면 병원 직접 알림 대상 아님(헤드헌터 경유). 병원 계정이면 그 병원에 알림.
+          const adminList = String(env.ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+          const ownerEmail = String(jobRow.createdBy).toLowerCase();
+          if (!adminList.includes(ownerEmail)) {
+            const ownerAccount = await env.DB.prepare('SELECT a.id FROM accounts a JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE lower(ap.email)=? LIMIT 1').bind(ownerEmail).first();
+            if (ownerAccount) {
+              await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_application', ?, ?)").bind(crypto.randomUUID(), ownerAccount.id, ('새 지원자 · ' + (jobRow.title || '공고')).slice(0,200), (requesterName + ' · ' + payload.specialty).slice(0,300)).run();
+            }
+          }
+        }
+      } catch {}
+    }
     const record = { id, requestType, requesterName, phone:payload.phone, payload };
     let emailStatus = 'failed'; let smsStatus = 'failed';
     try { emailStatus = await sendConsultationEmail(env, record); } catch { emailStatus = 'failed'; }

@@ -44,6 +44,8 @@ const copy = {
 export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
   const isDoctor = mode === "doctor";
   const content = copy[mode];
+  // 어느 공고에 지원했는지(URL ?job=id). 공고 소유 병원에게 지원 알림을 연결하는 데 사용.
+  const appliedJobId = (() => { try { return new URLSearchParams(window.location.search).get("job") || ""; } catch { return ""; } })();
   const qaAllowed = Boolean(
     qa?.active &&
       (qa.info.capabilities.admin ||
@@ -91,7 +93,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
     const fields = Object.fromEntries(form.entries());
     // 등록 이력서가 있고 '내 이력서로 지원'을 켜면 이력서를 연동(파일 재첨부 불필요).
     const linkedResume = isDoctor && myResume && useMyResume ? { resumeId: myResume.id, resumeTitle: myResume.title } : {};
-    const payload = { attachmentName: file?.name || "", ...linkedResume, ...fields };
+    const payload = { attachmentName: file?.name || "", ...(appliedJobId ? { jobId: appliedJobId } : {}), ...linkedResume, ...fields };
     try {
       if (qaAllowed) {
         const previewId = `QA-${isDoctor ? "D" : "H"}-${String(Date.now()).slice(-6)}`;
