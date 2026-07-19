@@ -35,16 +35,18 @@ export function getHospitalMood(job = {}) {
   return { ...mood, primary: job.brandColor };
 }
 
-// 광고(집중채용) 공고 카드는 같은 상품이므로 병원별로 색을 다르게 하지 않고 골드 한 가지로 통일한다.
+// 광고(집중채용) 공고 카드는 같은 상품이므로 병원별로 색을 다르게 하지 않고 사이트 블루로 통일한다.
+// 프리미엄 표식은 카드 상단의 얇은 골드 라인 하나로만 준다(과한 금색 사용을 피함).
 // (병원 로고 색상 등 다른 용도는 getHospitalMood를 그대로 사용해 병원별 개성을 유지)
-export const AD_GOLD_MOOD = { id: 'gold', primary: '#b98a2e', accent: '#e2bd6a', surface: '#fdf7ea', deep: '#5d431a' };
+export const AD_MOOD = { id: 'brand', primary: '#1263e8', accent: '#67a0ed', surface: '#f2f7ff', deep: '#123f7a' };
+export const AD_GOLD = '#c89b2d';
 
 export function hospitalMoodStyle() {
   return {
-    '--job-color': AD_GOLD_MOOD.primary,
-    '--job-accent': AD_GOLD_MOOD.accent,
-    '--job-surface': AD_GOLD_MOOD.surface,
-    '--job-deep': AD_GOLD_MOOD.deep
+    '--job-color': AD_MOOD.primary,
+    '--job-accent': AD_MOOD.accent,
+    '--job-surface': AD_MOOD.surface,
+    '--job-deep': '#123f7a'
   };
 }
 

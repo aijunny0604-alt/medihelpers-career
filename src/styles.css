@@ -4247,21 +4247,19 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   height:180px;
   top:-112px;
   right:-80px;
-  border:30px solid rgba(202,157,49,.08);
+  border:30px solid rgba(18,99,232,.05);
   border-radius:50%;
   pointer-events:none;
 }
 .unified-job-grid .job-card.premium-ad.ad-spotlight .ad-brand-stage{
   position:relative;
-  border:1px solid rgba(202,157,49,.34)!important;
+  border:1px solid #e8edf5!important;
   border-radius:14px!important;
-  background:
-    radial-gradient(circle at 86% 8%,rgba(220,178,71,.18),transparent 36%),
-    linear-gradient(135deg,#fffef9,#fff 72%)!important;
-  box-shadow:0 12px 28px rgba(120,91,24,.09)!important;
+  background:linear-gradient(180deg,#fbfcfe,#fff 72%)!important;
+  box-shadow:0 10px 24px rgba(31,61,103,.06)!important;
 }
 .unified-job-grid .job-card.premium-ad.ad-spotlight .job-bottom{
-  border-top-color:rgba(202,157,49,.28);
+  border-top-color:#edf1f6;
 }
 .unified-job-grid .job-card.premium-ad.ad-spotlight .card-action{
   position:relative;
@@ -4271,9 +4269,9 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   padding:0 15px;
   border:0;
   border-radius:11px;
-  background:linear-gradient(135deg,#c89b2d,#a3761f);
+  background:linear-gradient(135deg,#1263e8,#0b52c3);
   color:#fff!important;
-  box-shadow:0 10px 22px rgba(151,111,26,.22);
+  box-shadow:0 10px 22px rgba(18,99,232,.22);
   justify-content:center;
 }
 .unified-job-grid .job-card.premium-ad.ad-spotlight:hover{
@@ -4285,11 +4283,11 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 
 /* Featured recruitment keeps the same brand-first system as spotlight,
    with a quieter treatment that preserves the product hierarchy. */
-/* 등급별 색 통일: 광고(집중채용) 공고는 등급 구분 없이 모두 골드 하나로 고정 */
+/* 등급별 색 통일: 광고 공고는 등급 구분 없이 사이트 블루로(프리미엄 표식은 상단 골드 라인만) */
 .unified-job-grid .job-card.premium-ad.ad-featured{
-  --mood-primary:#b98a2e!important;
-  --job-color:#b98a2e!important;
-  --mood-soft:#fdf7ea!important;
+  --mood-primary:#1263e8!important;
+  --job-color:#1263e8!important;
+  --mood-soft:#eef4ff!important;
   border-color:color-mix(in srgb,var(--mood-primary,var(--job-color,#6759d7)) 38%,#dbe4ef)!important;
   border-top-width:5px!important;
   background:
@@ -4364,9 +4362,9 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   padding:0 15px;
   border:0;
   border-radius:11px;
-  background:linear-gradient(135deg,#c89b2d,#a3761f);
+  background:linear-gradient(135deg,#1263e8,#0b52c3);
   color:#fff!important;
-  box-shadow:0 10px 22px rgba(151,111,26,.22);
+  box-shadow:0 10px 22px rgba(18,99,232,.22);
   justify-content:center;
   font-weight:850;
 }
@@ -5211,3 +5209,23 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .js-lock{display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:12.5px;font-weight:800;color:#c07a1a;background:#fff6e6;padding:6px 11px;border-radius:9px;white-space:nowrap}
 .js-lock svg{width:14px}
 .js-lock.open{color:#0d8a63;background:#e7f7f0}
+
+/* ── 광고(프리미엄) 공고 카드: 금색은 상단 얇은 라인 한 줄로만 ── */
+.unified-job-grid .job-card.premium-ad,
+.unified-job-grid .job-card.premium-ad.ad-featured,
+.unified-job-grid .job-card.premium-ad.ad-spotlight{
+  border-top:3px solid #c89b2d!important;
+  border-right-color:#e6ecf5!important;
+  border-bottom-color:#e6ecf5!important;
+  border-left-color:#e6ecf5!important;
+}
+/* 로고 스테이지는 병원 로고가 주인공 — 금색 틴트 대신 중립 배경 */
+.unified-job-grid .job-card.premium-ad .ad-brand-stage{
+  background:linear-gradient(180deg,#fbfcfe,#fff)!important;
+  border-color:#e8edf5!important;
+}
+.unified-job-grid .job-card.premium-ad:hover{
+  border-right-color:#cddcf1!important;
+  border-bottom-color:#cddcf1!important;
+  border-left-color:#cddcf1!important;
+}
