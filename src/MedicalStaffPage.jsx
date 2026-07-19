@@ -117,7 +117,7 @@ export default function MedicalStaffPage({ operations, medicalTalent = [] }) {
         onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openJob(job); } }}
       >
         <span className="medical-staff-role">{job.role}</span>
-        <div className="medical-staff-job-main"><small>{job.hospital}</small><h3>{job.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}{job.title}</h3><p><MapPin /> {job.region} <i /> <BriefcaseBusiness /> {job.type}</p></div>
+        <div className="medical-staff-job-main"><div className="ms-job-top-row"><small>{job.hospital}</small>{job.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div><h3>{job.title}</h3><p><MapPin /> {job.region} <i /> <BriefcaseBusiness /> {job.type}</p></div>
         <span className="medical-staff-career">{job.career}</span>
         <strong>{job.pay}</strong>
         <span className="medical-staff-deadline"><CalendarDays /> {job.deadline}</span>
