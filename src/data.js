@@ -2,7 +2,7 @@ export const jobs = [
   {
     id: 'samcheonpo-specialists', hospital: '삼천포제일병원', title: '각 과 전문의 의료진 초빙',
     location: '경남 사천시', region: '경남', type: '정규직', dept: '전문의', pay: '협의 후 결정',
-    badge: '집중채용', adTier: 'spotlight', color: '#2367e8', logo: '/samcheonpo-jeil-horizontal-logo-v2.png', brandFit: 'banner', logoDesignSample: true, logoText: '삼제', schedule: '주 5일', updated: '오늘', deadline: '2026.08.31', recruitmentReason: '진료과 확충', workHours: '평일 08:30~18:00 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
+    badge: '집중채용', adTier: 'spotlight', verifiedByHeadhunter: true, color: '#2367e8', logo: '/samcheonpo-jeil-horizontal-logo-v2.png', brandFit: 'banner', logoDesignSample: true, logoText: '삼제', schedule: '주 5일', updated: '오늘', deadline: '2026.08.31', recruitmentReason: '진료과 확충', workHours: '평일 08:30~18:00 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
     facilityType: '종합병원', focus: '지역 거점 진료·전문의 진료', scale: '병원급 의료기관', access: '주차·숙소 조건 협의 가능',
     summary: '지역 거점 종합병원에서 진료과별 전문의를 모십니다. 진료 여건과 근무 일정은 전문 컨설턴트가 개별 조율합니다.',
     benefits: ['기숙사 협의', '학회 지원', '전담 컨설턴트 협상']
@@ -50,7 +50,7 @@ export const jobs = [
   {
     id: 'suwon-radiology', hospital: '수원중앙영상의학센터', title: '영상의학과 판독 전문의',
     location: '경기 수원시', region: '경기', type: '정규직', dept: '영상의학과', pay: '월 1,500만원~',
-    badge: '비공개', color: '#3468c0', logoText: '수중', schedule: '주 5일', updated: '6일 전', deadline: '2026.08.28', recruitmentReason: '판독 인력 증원', workHours: '평일 09:00~18:00', daysOff: '주말·공휴일 휴무',
+    badge: '비공개', verifiedByHeadhunter: true, color: '#3468c0', logoText: '수중', schedule: '주 5일', updated: '6일 전', deadline: '2026.08.28', recruitmentReason: '판독 인력 증원', workHours: '평일 09:00~18:00', daysOff: '주말·공휴일 휴무',
     facilityType: '영상의학센터', focus: '검진 영상 판독', scale: '전문 진료기관', access: '경기 수원 생활권',
     summary: '검진 영상 판독 중심의 포지션으로 세부 일정은 비공개 상담 후 안내합니다.',
     benefits: ['판독 중심', '장비 최신화', '비공개 협상']

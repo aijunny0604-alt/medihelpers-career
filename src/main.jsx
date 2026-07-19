@@ -503,6 +503,9 @@ function JobCard({
             : `${job.hospital} ${job.title} 상세보기`
         }
       />
+      {job.verifiedByHeadhunter && (
+        <span className="tag tag-verified job-verified-float"><ShieldCheck /> 헤드헌터 인증</span>
+      )}
       <div className="job-top">
         <div>
           <span
@@ -797,6 +800,9 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               >
                 {job.badge}
               </span>
+              {job.verifiedByHeadhunter && (
+                <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>
+              )}
               {isAd && <span>AD · 병원 브랜드 채용관</span>}
               {qaUnlocked && (
                 <span className="qa-unlocked-badge">
