@@ -25,7 +25,7 @@ function readQaAdminPreview() {
 function AdminAccessGate({ error, account }) {
   const signedInButNotAdmin = account.signedIn && !account.isAdmin;
   const returnTo = withBase("/admin/consultations");
-  const loginHref = withBase(`/signin-with-chatgpt?return_to=${returnTo}`);
+  const loginHref = withBase(`/login?next=${encodeURIComponent(returnTo)}`);
   return <section className="consult-admin-access">
     <ShieldCheck /><small>SECURE ADMIN AREA</small><h1>실제 관리자 인증이 필요합니다</h1>
     <p>{signedInButNotAdmin ? "현재 로그인 계정은 관리자 허용목록에 등록되어 있지 않습니다." : "관리자 계정으로 로그인한 뒤 상담함을 열 수 있습니다."}</p>

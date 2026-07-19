@@ -160,7 +160,7 @@ export function PrivacyPolicyPage() {
   return <LegalLayout eyebrow="PRIVACY POLICY" title="개인정보처리방침" description="메디헬퍼스가 실제 서비스에서 처리하는 개인정보와 보호 기준을 공개합니다.">
     <Section number="01" title="처리 목적과 항목">
       <div className="legal-table">
-        <div><b>회원·계정</b><span>회원 식별, 본인확인, 계정 보안, 권한 제공</span><span>이름, 이메일, 휴대폰 번호, 회원 유형, 동의 일시·버전</span></div>
+        <div><b>회원·계정</b><span>회원 식별, 로그인, 계정 보안, 권한 제공</span><span>이름, 이메일, 휴대폰 번호, 비밀번호 단방향 해시, 회원 유형, 동의 일시·버전</span></div>
         <div><b>개인 회원</b><span>맞춤 채용정보, 이력서·상담 관리</span><span>의료 직군, 전문 분야, 활동 지역, 선택 입력한 경력·희망조건</span></div>
         <div><b>병원 회원</b><span>기관 확인, 공고·채용의뢰·결제 관리</span><span>담당자명·직책, 병원명, 기관 유형, 대표자명, 대표전화, 주소</span></div>
         <div><b>상담·문의</b><span>상담 접수, 후보 추천, 면접·조건 조율</span><span>이름, 연락처, 이메일, 진료과·직군, 희망조건, 문의내용</span></div>
@@ -185,7 +185,7 @@ export function PrivacyPolicyPage() {
     <Section number="04" title="처리업무 위탁과 인프라">
       <p>서비스 운영을 위해 홈페이지 호스팅·인증·데이터베이스 인프라 제공자에게 필요한 범위의 처리를 맡길 수 있습니다. 실제 이용 중인 수탁자와 업무 내용은 변경 시 이 방침에 공개하고, 계약을 통해 보호조치와 재위탁 제한을 관리합니다.</p>
       <div className="legal-table compact">
-        <div><b>OpenAI Sites 및 연결 인프라</b><span>웹사이트 호스팅, 인증 헤더 전달, 서버 기능 운영</span><span>계약 또는 서비스 이용 종료 시까지</span></div>
+        <div><b>OpenAI Sites 및 연결 인프라</b><span>웹사이트 호스팅과 서버 기능 운영</span><span>계약 또는 서비스 이용 종료 시까지</span></div>
         <div><b>Cloudflare</b><span>데이터베이스·보안 인프라 운영</span><span>계약 또는 서비스 이용 종료 시까지</span></div>
       </div>
       <p>이메일·문자 알림 또는 결제 기능을 정식 연결할 때에는 해당 수탁자와 처리 항목을 서비스 적용 전에 이 방침에 추가합니다.</p>
@@ -199,7 +199,7 @@ export function PrivacyPolicyPage() {
     <Section number="07" title="안전성 확보조치">
       <ul>
         <li>역할에 따른 접근권한 부여와 관리자 접근 기록 관리</li>
-        <li>전송구간 암호화, 비밀번호를 직접 수집하지 않는 외부 인증 방식</li>
+        <li>전송구간 암호화, 비밀번호 단방향 해시, 보안 세션 쿠키와 로그인 실패 잠금</li>
         <li>후보자 실명·연락처의 동의 기반 공개와 감사 기록</li>
         <li>보안 업데이트, 취약점 점검, 백업 및 사고 대응 절차</li>
       </ul>

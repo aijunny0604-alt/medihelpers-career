@@ -3,6 +3,8 @@
 ## 핵심 테이블
 
 - `accounts`: 인증 이메일의 HMAC-SHA-256 키, 최소 역할, 가입·변경 시각
+- `auth_credentials`: 자체 로그인 이메일, PBKDF2 비밀번호 해시·salt·반복 횟수, 실패 횟수·잠금 시각
+- `auth_sessions`: 브라우저 세션 토큰의 SHA-256 해시, 계정 연결, 생성·만료 시각
 - `consent_records`: 이용약관·연령 확인·개인정보 처리 안내 확인 유형과 문서 버전
 - `profiles`: 공통 회원 정보와 역할
 - `professions`: 보건의료 직군과 직군별 검색 스키마

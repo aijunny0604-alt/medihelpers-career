@@ -7,6 +7,9 @@
 | `/api/categories` | GET | 공개 | 활성 진료과·지역·의료인 직군 |
 | `/api/site-operations` | GET | 공개/역할별 | 사이트 설정·기능 플래그·게시 콘텐츠 |
 | `/api/account` | GET·POST·DELETE | 인증 | 가입 가능 상태, 계정 생성·탈퇴 |
+| `/api/auth/register` | POST | 공개 | 자체 이메일·비밀번호 계정 생성 및 로그인 |
+| `/api/auth/login` | POST | 공개 | 자체 계정 로그인 및 보안 세션 쿠키 발급 |
+| `/api/auth/logout` | POST | 로그인 | 현재 세션 폐기 및 쿠키 삭제 |
 | `/api/member-center` | GET·PATCH | 회원 | 프로필·알림·활동·상담·주문 |
 | `/api/payment-orders` | GET·POST | 회원 | 본인 주문 조회·상품 신청 |
 | `/api/consultations` | POST | 로그인 | 구직·구인 상담 접수 |

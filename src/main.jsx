@@ -270,7 +270,7 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
           ? '이력서 등록·구직 활동은 의사·의료인 회원 전용입니다. 병원 회원은 이용할 수 없으며, 인재 채용은 채용정보·인재정보를 이용해 주세요.'
           : '로그인 후 이용할 수 있는 화면입니다. 로그인하거나 회원가입 후 다시 시도해 주세요.')}</p>
         <div className="auth-gate-actions">
-          <Link className="button primary" to={`/signup?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인 · 회원가입</Link>
+          <Link className="button primary" to={`/login?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인</Link>
           {hospitalNeed && <Link className="button outline" to={`/signup/hospital?next=${encodeURIComponent(getRoute())}`}><Building2 size={16} /> 병원 회원가입</Link>}
         </div>
         <span className="auth-gate-note"><ShieldCheck size={14} /> 경쟁 업체의 무단 열람을 막기 위해 회원 인증 후 공개합니다.</span>
@@ -351,7 +351,7 @@ function Header({ path, qa, operations }) {
   const [open, setOpen] = useState(false);
   const accountLabel = qa.active ? qa.info.shortLabel : '로그인';
   const signedInPreview = qa.active && qa.info.capabilities.signedIn;
-  const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/signup';
+  const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/login';
   const primaryAction = qa.active && qa.info.capabilities.admin
     ? { label: '관리자 모드', to: '/admin' }
     : qa.active && qa.info.capabilities.hospital
@@ -3219,6 +3219,7 @@ export function App() {
   else if (path === '/admin' || path === '/admin/console') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
   else if (path === '/mypage' || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
+  else if (path === '/login') page = <AccountPage loginOnly />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} need="doctor" title="이력서 등록은 의사·의료인 회원 전용입니다" description="이력서에는 개인정보가 포함되어 의사·의료인 회원만 안전하게 작성할 수 있습니다. 병원 회원은 인재 채용을 위해 채용정보·인재정보를 이용해 주세요."><ResumeRoute qa={qa} /></AuthGate>;

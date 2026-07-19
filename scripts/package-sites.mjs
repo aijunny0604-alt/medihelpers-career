@@ -95,14 +95,65 @@ function signupEnabled(env) {
   const accountSecretReady = env && typeof env.ACCOUNT_HASH_SECRET === 'string' && env.ACCOUNT_HASH_SECRET.length >= 32;
   return approvedCopyEmbedded && accountSecretReady && env.SIGNUP_ENABLED === 'true' && env.LEGAL_DOCUMENT_STATUS === 'approved';
 }
-function authenticatedUser(request) {
-  const email = (request.headers.get('oai-authenticated-user-email') || '').trim().toLowerCase();
-  if (!email) return null;
-  let displayName = '';
-  if (request.headers.get('oai-authenticated-user-full-name-encoding') === 'percent-encoded-utf-8') {
-    try { displayName = decodeURIComponent(request.headers.get('oai-authenticated-user-full-name') || ''); } catch { displayName = ''; }
+const authCookieName = 'mh_session';
+const authSessionSeconds = 60 * 60 * 24 * 7;
+const passwordIterations = 210000;
+function bytesToHex(bytes) {
+  return [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+}
+function randomHex(byteLength) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+function cookieValue(request, name) {
+  const cookies = String(request.headers.get('cookie') || '').split(';');
+  for (const cookie of cookies) {
+    const separator = cookie.indexOf('=');
+    if (separator < 0) continue;
+    if (cookie.slice(0, separator).trim() === name) return cookie.slice(separator + 1).trim();
   }
-  return { email, displayName };
+  return '';
+}
+function authCookie(token, maxAge = authSessionSeconds) {
+  return authCookieName + '=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + maxAge;
+}
+function normalizeEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  return email.length <= 254 && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) ? email : '';
+}
+function validPassword(value) {
+  const password = String(value || '');
+  return password.length >= 8 && password.length <= 128 && /[a-zA-Z]/.test(password) && /[0-9]/.test(password);
+}
+async function authSha256Hex(value) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return bytesToHex(new Uint8Array(digest));
+}
+async function passwordHash(password, saltHex, iterations = passwordIterations) {
+  const salt = Uint8Array.from(saltHex.match(/.{2}/g) || [], value => Number.parseInt(value, 16));
+  const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const digest = await crypto.subtle.deriveBits({ name:'PBKDF2', hash:'SHA-256', salt, iterations }, material, 256);
+  return bytesToHex(new Uint8Array(digest));
+}
+function constantTimeEqual(left, right) {
+  const a = String(left || '');
+  const b = String(right || '');
+  let difference = a.length ^ b.length;
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) difference |= (a.charCodeAt(index) || 0) ^ (b.charCodeAt(index) || 0);
+  return difference === 0;
+}
+async function authenticatedUser(request, env) {
+  const token = cookieValue(request, authCookieName);
+  if (!token || !env || !env.DB) return null;
+  try {
+    await ensureAccountSchema(env);
+    const tokenHash = await authSha256Hex(token);
+    const row = await env.DB.prepare("SELECT c.email_normalized AS email, s.account_id AS accountId FROM auth_sessions s JOIN auth_credentials c ON c.account_id=s.account_id WHERE s.token_hash=? AND s.expires_at > CURRENT_TIMESTAMP LIMIT 1").bind(tokenHash).first();
+    return row ? { email: row.email, displayName:'', accountId: row.accountId } : null;
+  } catch {
+    return null;
+  }
 }
 async function userKey(email, secret) {
   const encoder = new TextEncoder();
@@ -138,8 +189,8 @@ async function ensureAdminConsoleSchema(env) {
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
-function adminIdentity(request, env) {
-  const identity = authenticatedUser(request);
+async function adminIdentity(request, env) {
+  const identity = await authenticatedUser(request, env);
   const allowed = String(env.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
   return identity && allowed.includes(identity.email) ? identity : null;
 }
@@ -187,7 +238,7 @@ async function consultationApi(request, env, pathname) {
   try { await ensureConsultationSchema(env); } catch { return json({ error:'상담 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   if (request.method === 'POST' && pathname === '/api/consultations') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-    const identity = authenticatedUser(request);
+    const identity = await authenticatedUser(request, env);
     if (!identity) return json({ error:'상담 신청은 로그인 후 이용할 수 있습니다.' }, 401);
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 65536) return json({ error:'입력 내용이 너무 큽니다.' }, 413);
@@ -244,7 +295,7 @@ async function consultationApi(request, env, pathname) {
     await env.DB.prepare('UPDATE consultation_requests SET email_notification_status = ?, sms_notification_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(emailStatus, smsStatus, id).run();
     return json({ id, saved:true, notifications:{ email:emailStatus, sms:smsStatus } }, 201);
   }
-  const admin = adminIdentity(request, env);
+  const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 로그인이 필요합니다.' }, 401);
   if (request.method === 'GET' && pathname === '/api/consultations') {
     const result = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests ORDER BY created_at DESC LIMIT 200').all();
@@ -266,10 +317,123 @@ function sameOrigin(request) {
   const origin = request.headers.get('origin');
   return !origin || origin === new URL(request.url).origin;
 }
+function sqliteTimestamp(date) {
+  return date.toISOString().replace('T', ' ').replace(/\\.\\d{3}Z$/, '');
+}
+async function createAuthSession(env, accountId) {
+  const token = randomHex(32);
+  const tokenHash = await authSha256Hex(token);
+  const expiresAt = sqliteTimestamp(new Date(Date.now() + authSessionSeconds * 1000));
+  await env.DB.prepare('DELETE FROM auth_sessions WHERE expires_at <= CURRENT_TIMESTAMP').run();
+  await env.DB.prepare('INSERT INTO auth_sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)').bind(tokenHash, accountId, expiresAt).run();
+  return token;
+}
+async function authApi(request, env, pathname) {
+  if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+  if (!env || !env.DB) return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503);
+  try {
+    await ensureAccountSchema(env);
+    await ensureMemberCenterSchema(env);
+    await ensureCommerceSchema(env);
+  } catch {
+    return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503);
+  }
+  if (request.method === 'POST' && pathname === '/api/auth/logout') {
+    const token = cookieValue(request, authCookieName);
+    if (token) {
+      const tokenHash = await authSha256Hex(token);
+      await env.DB.prepare('DELETE FROM auth_sessions WHERE token_hash=?').bind(tokenHash).run();
+    }
+    return json({ signedOut:true }, 200, { 'set-cookie':authCookie('', 0) });
+  }
+  if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  const length = Number(request.headers.get('content-length') || 0);
+  if (length > 32768) return json({ error:'요청 크기가 너무 큽니다.' }, 413);
+  let body;
+  try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  const email = normalizeEmail(body.email);
+  const password = String(body.password || '');
+  if (!email || !validPassword(password)) return json({ error:'이메일과 영문·숫자를 포함한 8자 이상의 비밀번호를 확인해주세요.' }, 400);
+
+  if (pathname === '/api/auth/login') {
+    const credential = await env.DB.prepare("SELECT c.account_id AS accountId, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE c.email_normalized=? LIMIT 1").bind(email).first();
+    if (credential?.lockedUntil) {
+      const lockedUntil = Date.parse(String(credential.lockedUntil).replace(' ', 'T') + 'Z');
+      if (Number.isFinite(lockedUntil) && lockedUntil > Date.now()) return json({ error:'로그인 시도가 많아 15분 동안 잠겼습니다. 잠시 후 다시 시도해주세요.' }, 429);
+    }
+    const salt = credential?.passwordSalt || '9d0b570d7f104f429a9c3e57f813b9da';
+    const iterations = Number(credential?.passwordIterations || passwordIterations);
+    const candidateHash = await passwordHash(password, salt, iterations);
+    const valid = Boolean(credential) && constantTimeEqual(candidateHash, credential.passwordHash);
+    if (!valid) {
+      if (credential) {
+        const failures = Number(credential.failedAttempts || 0) + 1;
+        if (failures >= 5) {
+          await env.DB.prepare("UPDATE auth_credentials SET failed_attempts=0, locked_until=datetime('now','+15 minutes'), updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(credential.accountId).run();
+        } else {
+          await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=?, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(failures, credential.accountId).run();
+        }
+      }
+      return json({ error:'이메일 또는 비밀번호가 올바르지 않습니다.' }, 401);
+    }
+    if (credential.status !== 'active') return json({ error:credential.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
+    await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
+    await env.DB.prepare('UPDATE account_admin_profiles SET last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
+    const token = await createAuthSession(env, credential.accountId);
+    return json({ signedIn:true, account:{ role:credential.role }, identity:{ email } }, 200, { 'set-cookie':authCookie(token) });
+  }
+
+  if (pathname === '/api/auth/register') {
+    if (!signupEnabled(env)) return json({ error:'회원가입 운영 설정이 아직 완료되지 않았습니다.' }, 503);
+    if (!['doctor','hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
+      return json({ error:'회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
+    }
+    const duplicate = await env.DB.prepare('SELECT account_id FROM auth_credentials WHERE email_normalized=? LIMIT 1').bind(email).first();
+    if (duplicate) return json({ error:'이미 가입된 이메일입니다. 로그인해주세요.' }, 409);
+    const key = await userKey(email, env.ACCOUNT_HASH_SECRET);
+    let account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key=?').bind(key).first();
+    if (!account) {
+      const withdrawn = await env.DB.prepare("SELECT (julianday('now') - julianday(withdrawn_at)) AS days FROM withdrawn_members WHERE user_key=?").bind(key).first();
+      if (withdrawn && Number(withdrawn.days) < 30) {
+        const remaining = Math.max(1, Math.ceil(30 - Number(withdrawn.days)));
+        return json({ error:'회원 탈퇴 후 30일이 지나야 재가입할 수 있습니다. 약 ' + remaining + '일 후 다시 시도해주세요.', code:'REJOIN_BLOCKED', remainingDays:remaining }, 403);
+      }
+      const accountId = crypto.randomUUID();
+      await env.DB.prepare('INSERT INTO accounts (id, user_key, role) VALUES (?, ?, ?)').bind(accountId, key, body.role).run();
+      account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE id=?').bind(accountId).first();
+    } else if (account.role !== body.role) {
+      await env.DB.prepare('UPDATE accounts SET role=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(body.role, account.id).run();
+      account.role = body.role;
+    }
+    const salt = randomHex(16);
+    const hash = await passwordHash(password, salt);
+    try {
+      await env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations).run();
+    } catch {
+      return json({ error:'이미 가입된 이메일입니다. 로그인해주세요.' }, 409);
+    }
+    const displayName = String(body.displayName || body.name || '').trim().slice(0, 80);
+    const phone = String(body.phone || '').trim().slice(0, 40);
+    const organization = String(body.organization || body.hospitalName || body.specialty || '').trim().slice(0, 160);
+    const jobTitle = String(body.jobTitle || body.hospitalRole || body.professionType || '').trim().slice(0, 160);
+    const records = [
+      env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
+      env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, last_login_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, email, displayName),
+      env.DB.prepare("INSERT INTO member_profiles (account_id, display_name, phone, organization, job_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, phone=excluded.phone, organization=excluded.organization, job_title=excluded.job_title, updated_at=CURRENT_TIMESTAMP").bind(account.id, displayName, phone, organization, jobTitle),
+      env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'terms', termsVersion),
+      env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'age_confirmation', termsVersion),
+      env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'privacy_notice_ack', privacyNoticeVersion)
+    ];
+    await env.DB.batch(records);
+    const token = await createAuthSession(env, account.id);
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName } }, 201, { 'set-cookie':authCookie(token) });
+  }
+  return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
+}
 async function accountApi(request, env) {
   const enabled = signupEnabled(env);
-  const identity = authenticatedUser(request);
-  const isAdmin = Boolean(adminIdentity(request, env));
+  const identity = await authenticatedUser(request, env);
+  const isAdmin = Boolean(await adminIdentity(request, env));
   if (request.method === 'GET') {
     if (!enabled) return json({ signupEnabled: false, signedIn: Boolean(identity), account: null, identity: identity || {}, isAdmin });
     if (!identity) return json({ signupEnabled: true, signedIn: false, account: null, identity: {}, isAdmin: false });
@@ -329,17 +493,21 @@ async function accountApi(request, env) {
     if (Number(billing?.total || 0) > 0) {
       await env.DB.batch([
         markWithdrawn,
+        env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM auth_credentials WHERE account_id=?').bind(account.id),
         env.DB.prepare("UPDATE account_admin_profiles SET status='withdrawn', email='', full_name='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id),
         env.DB.prepare("UPDATE member_profiles SET display_name='', phone='', organization='', job_title='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id)
       ]);
-      return json({ deleted:true, retainedForBilling:true });
+      return json({ deleted:true, retainedForBilling:true }, 200, { 'set-cookie':authCookie('', 0) });
     }
     await env.DB.batch([
       markWithdrawn,
+      env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM auth_credentials WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM consent_records WHERE account_id = ?').bind(account.id),
       env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(account.id)
     ]);
-    return json({ deleted:true, retainedForBilling:false });
+    return json({ deleted:true, retainedForBilling:false }, 200, { 'set-cookie':authCookie('', 0) });
   }
   return json({ error: '지원하지 않는 요청입니다.' }, 405);
 }
@@ -349,7 +517,7 @@ function cleanMemberProfile(profile) {
   return { displayName: clean('displayName'), phone: clean('phone'), organization: clean('organization'), jobTitle: clean('jobTitle') };
 }
 async function memberCenterApi(request, env) {
-  const identity = authenticatedUser(request);
+  const identity = await authenticatedUser(request, env);
   if (!identity) return json({ signedIn:false, account:null, identity:{} }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
   try { await ensureAccountSchema(env); await ensureConsultationSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
@@ -448,7 +616,7 @@ async function memberCenterApi(request, env) {
 }
 // 이력서 저장/조회 API. 로그인한 일반(의사·의료인) 회원 본인 이력서만 다룬다.
 async function resumeApi(request, env) {
-  const identity = authenticatedUser(request);
+  const identity = await authenticatedUser(request, env);
   if (!identity) return json({ error:'이력서는 로그인 후 등록할 수 있습니다.' }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
   try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'이력서 저장소를 사용할 수 없습니다.' }, 503); }
@@ -490,7 +658,7 @@ async function resumeApi(request, env) {
 }
 // 관심공고(찜) 저장/조회. 로그인 회원의 서버 저장. 비로그인은 클라이언트 localStorage 사용.
 async function savedJobsApi(request, env) {
-  const identity = authenticatedUser(request);
+  const identity = await authenticatedUser(request, env);
   if (!identity) return json({ signedIn:false, saved:[] }, 200);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ signedIn:false, saved:[] });
   try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ signedIn:false, saved:[] }); }
@@ -521,12 +689,12 @@ async function talentDetailApi(request, env, pathname) {
   if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   const talentId = decodeURIComponent(pathname.slice('/api/talent-detail/'.length));
   if (!talentId) return json({ error:'대상이 없습니다.' }, 400);
-  const identity = authenticatedUser(request);
+  const identity = await authenticatedUser(request, env);
   if (!identity || !env.ACCOUNT_HASH_SECRET) return json({ unlocked:false, detail:null });
   try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ unlocked:false, detail:null }); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
-  const isAdmin = adminIdentity(request, env);
+  const isAdmin = await adminIdentity(request, env);
   // 병원·관리자만 열람 가능. 병원은 열람권(유효기간 내) 보유 시에만.
   if (!account && !isAdmin) return json({ unlocked:false, detail:null });
   let hasUnlock = Boolean(isAdmin);
@@ -595,7 +763,7 @@ function createOrderNumber() {
   return 'MH-' + date + '-' + crypto.randomUUID().replaceAll('-','').slice(0,8).toUpperCase();
 }
 async function paymentOrderApi(request, env) {
-  const identity = authenticatedUser(request);
+  const identity = await authenticatedUser(request, env);
   if (!identity) return json({ error:'로그인한 회원만 결제를 신청할 수 있습니다.' }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
   try { await ensureAccountSchema(env); await ensureCommerceSchema(env); } catch { return json({ error:'결제 데이터 저장소를 사용할 수 없습니다.' }, 503); }
@@ -751,7 +919,7 @@ async function paymentApproveApi(request, env) {
   return json({ approved:true, status:'paid', orderNumber:oid, tid });
 }
 async function recruitmentCrmApi(request, env, pathname) {
-  const admin = adminIdentity(request, env);
+  const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 401);
   try { await ensureRecruitmentCrmSchema(env); } catch { return json({ error:'채용 CRM 저장소를 사용할 수 없습니다.' }, 503); }
   if (request.method === 'GET' && pathname === '/api/recruitment-crm') {
@@ -786,7 +954,7 @@ async function recruitmentCrmApi(request, env, pathname) {
 // 관리자용: 인재 이력서 열람 감사. 병원별 열람량과 차단·폭주 경고를 확인해 정보 빼가기를 탐지.
 async function talentAccessAuditApi(request, env) {
   if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
-  const admin = adminIdentity(request, env);
+  const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 401);
   try { await ensureRecruitmentCrmSchema(env); } catch { return json({ admin, viewers:[], alerts:[], recent:[] }); }
   const dayAgo = new Date(Date.now() - 86400000).toISOString();
@@ -869,8 +1037,8 @@ async function publicSiteOperationsApi(request, env) {
   await ensureAdminConsoleSchema(env);
   await seedAdminConsole(env);
   const allowedVisibility = new Set(['public']);
-  const identity = authenticatedUser(request);
-  if (adminIdentity(request, env)) ['doctor','hospital','admin'].forEach(value => allowedVisibility.add(value));
+  const identity = await authenticatedUser(request, env);
+  if (await adminIdentity(request, env)) ['doctor','hospital','admin'].forEach(value => allowedVisibility.add(value));
   else if (identity && env.ACCOUNT_HASH_SECRET) {
     try {
       await ensureAccountSchema(env);
@@ -929,7 +1097,7 @@ async function publicSiteOperationsApi(request, env) {
   return json({ settings, features, contents });
 }
 async function adminConsoleApi(request, env) {
-  const admin = adminIdentity(request, env);
+  const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
   try {
     await ensureAccountSchema(env);
@@ -1177,6 +1345,7 @@ async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
+  if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout') return authApi(request, env, pathname);
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);

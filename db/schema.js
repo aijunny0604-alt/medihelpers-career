@@ -20,7 +20,31 @@ export const accountSchemaStatements = [
   `CREATE TABLE IF NOT EXISTS withdrawn_members (
     user_key TEXT PRIMARY KEY,
     withdrawn_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`
+  )`,
+  `CREATE TABLE IF NOT EXISTS auth_credentials (
+    account_id TEXT PRIMARY KEY,
+    email_normalized TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    password_iterations INTEGER NOT NULL,
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until TEXT,
+    password_changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS auth_credentials_email_idx ON auth_credentials(email_normalized)`,
+  `CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_hash TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS auth_sessions_account_idx ON auth_sessions(account_id, expires_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS auth_sessions_expiry_idx ON auth_sessions(expires_at)`
 ];
 
 export const consultationSchemaStatements = [

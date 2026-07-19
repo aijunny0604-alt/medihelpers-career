@@ -118,6 +118,18 @@ async function accountRequest(method = 'GET', body) {
   return data;
 }
 
+async function authRequest(action, body = {}) {
+  const response = await fetch(`/api/auth/${action}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || '로그인 요청을 처리하지 못했습니다.');
+  return data;
+}
+
 function MemberTypeChooser() {
   return <section className="signup-card member-type-card">
     <span className="signup-card-icon"><UserRound /></span>
@@ -128,6 +140,7 @@ function MemberTypeChooser() {
       <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>INDIVIDUAL · 일반 회원</small><strong>채용정보를 찾고 있어요</strong><p>의사·의료인 채용정보 · 비공개 상담 · 이력서 관리</p><b>일반 회원으로 시작하기 <ArrowRight /></b></div></a>
       <a className="hospital-choice" href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>HOSPITAL · 병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 후보 추천 · 채용 진행 관리</p><b>병원 회원으로 시작하기 <ArrowRight /></b></div></a>
     </div>
+    <div className="signup-existing-account">이미 메디헬퍼스 계정이 있으신가요? <a href={withBase('/login')}>이메일로 로그인</a></div>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 받지 않고, 인증된 계정과 본인 명의 휴대폰 확인으로 중복 가입을 방지합니다.</div>
   </section>;
 }
@@ -333,13 +346,26 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         return;
       }
     }
-    // 상세 입력값은 인증 서비스로 넘기지 않습니다. 형식 확인 후 계정 인증 단계만 안내합니다.
-    setCompleted(true);
-    setDraft((current) => clearDraftFields(current));
-    setErrors({});
-    setTouched({});
-    setSubmittedOnce(false);
-    setPhoneVerificationPrepared(false);
+    try {
+      const result = await authRequest('register', {
+        role: memberType,
+        email: draft.email,
+        password: draft.password,
+        displayName: draft.name,
+        phone: draft.phone,
+        hospitalName: draft.hospitalName,
+        hospitalRole: draft.hospitalRole,
+        professionType: draft.professionType,
+        specialty: draft.specialty,
+        termsAccepted: true,
+        privacyAcknowledged: true,
+        ageConfirmed: true
+      });
+      setDraft((current) => clearDraftFields(current));
+      onComplete(result.account, result.identity);
+    } catch (requestError) {
+      setErrors((current) => ({ ...current, submit: requestError.message }));
+    }
   };
 
   const resetForm = () => {
@@ -357,13 +383,13 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       <small>FINAL ACCOUNT VERIFICATION</small>
       <h2>마지막 계정 인증만 남았습니다</h2>
       <p>가입 양식과 필수 동의를 확인했습니다. 안전한 계정 인증을 완료하면 회원 계정이 생성됩니다.</p>
-      <div className="signup-launch-boundary"><LockKeyhole /><span><strong>메디헬퍼스는 비밀번호를 별도로 보관하지 않습니다.</strong><small>인증된 이메일 계정으로 중복 가입을 확인하고 회원 유형과 동의 기록을 안전하게 저장합니다.</small></span></div>
+      <div className="signup-launch-boundary"><LockKeyhole /><span><strong>비밀번호는 안전한 단방향 해시로 보호합니다.</strong><small>이메일 계정으로 중복 가입을 확인하고 회원 유형과 동의 기록을 안전하게 저장합니다.</small></span></div>
       <dl>
         <div><dt>선택한 회원 유형</dt><dd>{content.label}</dd></div>
         <div><dt>다음 단계</dt><dd>계정 인증 후 가입 완료</dd></div>
       </dl>
       <div className="account-actions">
-        <a className="button primary" href={withBase(`/signin-with-chatgpt?return_to=${withBase(`/signup/${memberType}`)}`)}>계정 인증하고 가입 완료 <ArrowRight /></a>
+        <a className="button primary" href={withBase('/login')}>메디헬퍼스 로그인 <ArrowRight /></a>
         <button type="button" className="button outline" onClick={resetForm}><RotateCcw size={15} /> 입력 내용 수정</button>
       </div>
     </section>;
@@ -453,13 +479,49 @@ function SignedOutCard({ memberType }) {
     <span className="signup-card-icon"><RoleIcon /></span>
     <small>{content.eyebrow}</small>
     <h2>{content.label} 계정 인증</h2>
-    <p>{content.description} 메디헬퍼스가 비밀번호를 별도로 수집하지 않도록 안전한 계정 인증을 사용합니다.</p>
-    <a className="button primary full signup-provider" href={withBase(`/signin-with-chatgpt?return_to=${withBase(`/signup/${memberType}`)}`)}>
+    <p>{content.description} 메디헬퍼스 자체 이메일 계정으로 안전하게 로그인합니다.</p>
+    <a className="button primary full signup-provider" href={withBase('/login')}>
       {content.label}으로 계속 <ArrowRight />
     </a>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>아이디·로그인 정보를 잊으셨나요?</a>
     <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 휴대폰 본인확인 결과로 가입자를 확인합니다.</div>
     <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '일반 회원'}으로 가입</a>
+  </section>;
+}
+
+function LoginCard() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      await authRequest('login', { email, password });
+      const requested = new URLSearchParams(window.location.search).get('next') || '/mypage';
+      window.location.href = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : '/mypage');
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return <section className="signup-card signup-login-card">
+    <span className="signup-card-icon"><LockKeyhole /></span>
+    <small>MEDIHELPERS ACCOUNT</small>
+    <h2>메디헬퍼스 로그인</h2>
+    <p>OpenAI 계정이 아닌 메디헬퍼스 이메일과 비밀번호로 로그인합니다.</p>
+    <form onSubmit={submit}>
+      <label><span>이메일</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="example@email.com" required /></label>
+      <label><span>비밀번호</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="비밀번호를 입력해주세요" minLength={8} maxLength={128} required /></label>
+      {error && <p className="signup-error" role="alert">{error}</p>}
+      <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 로그인 중</> : <>로그인 <ArrowRight /></>}</button>
+    </form>
+    <a className="signup-recovery-link" href={withBase('/account/recovery')}>비밀번호를 잊으셨나요?</a>
+    <div className="signup-login-join"><span>아직 계정이 없으신가요?</span><a href={withBase('/signup')}>회원 유형을 선택하고 가입하기</a></div>
+    <div className="signup-security-copy"><ShieldCheck /> 로그인 세션은 보안 쿠키로 보호되며 비밀번호 원문은 저장하지 않습니다.</div>
   </section>;
 }
 
@@ -515,13 +577,16 @@ function SignupForm({ identity = {}, memberType, onComplete }) {
 }
 
 function AccountCard({ account, identity = {} }) {
+  const signOut = async () => {
+    try { await authRequest('logout'); } finally { window.location.href = withBase('/'); }
+  };
   return <section className="signup-card account-complete">
     <span className="account-check"><CircleCheck /></span>
     <small>WELCOME TO MEDIHELPERS</small>
     <h2>가입이 완료되었습니다</h2>
     <p>{identity.displayName || identity.email || '회원'}님, 필요한 기능을 사용할 때만 추가 정보를 요청하겠습니다.</p>
     <dl><div><dt>회원 유형</dt><dd>{accountRoleLabel(account.role)}</dd></div><div><dt>가입 상태</dt><dd>기본 회원</dd></div><div><dt>마케팅 수신</dt><dd>미동의</dd></div></dl>
-    <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><a className="button outline" href={withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`)}>로그아웃</a></div>
+    <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><button className="button outline" type="button" onClick={signOut}>로그아웃</button></div>
   </section>;
 }
 
@@ -538,7 +603,7 @@ export function WithdrawSection({ onDeleted }) {
     try {
       await accountRequest('DELETE');
       if (onDeleted) onDeleted();
-      else window.location.href = withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`);
+      else window.location.href = withBase('/');
     } catch (error) {
       setDeleteError(error.message || '계정 삭제를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
@@ -585,10 +650,10 @@ function SignupPrinciples({ memberType, previewMode }) {
   </aside>;
 }
 
-export default function AccountPage({ memberType = '' }) {
+export default function AccountPage({ memberType = '', loginOnly = false }) {
   const [state, setState] = useState({ loading: true, signupEnabled: false, signedIn: false, account: null, identity: {} });
   const [error, setError] = useState('');
-  const title = useMemo(() => state.account ? '내 계정' : roleContent[memberType]?.title || '회원가입', [memberType, state.account]);
+  const title = useMemo(() => state.account ? '내 계정' : loginOnly ? '로그인' : roleContent[memberType]?.title || '회원가입', [memberType, state.account, loginOnly]);
   useEffect(() => {
     accountRequest().then((data) => setState({ loading: false, ...data })).catch((loadError) => {
       if (loadError.code !== 'STATIC_HOSTING') setError(loadError.message);
@@ -598,8 +663,9 @@ export default function AccountPage({ memberType = '' }) {
   let content;
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;
+  else if (loginOnly) content = <LoginCard />;
   else if (!memberType) content = <MemberTypeChooser />;
-  else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
+  else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={(account, identity) => setState((current) => ({ ...current, account, identity:identity || current.identity, signedIn:true }))} />;
   return <div className="signup-page">
     <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '일반 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
     <div className="signup-shell signup-shell-centered">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}</div>

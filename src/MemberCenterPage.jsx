@@ -66,7 +66,7 @@ function statusClass(value = '') {
 }
 
 function MemberGate() {
-  return <section className="member-gate"><span><LockKeyhole /></span><small>MEMBERS ONLY</small><h1>로그인 후 내 활동을<br />한곳에서 관리하세요</h1><p>공고·상담·결제·이력서와 회원정보는 본인 계정에서만 확인할 수 있습니다.</p><div><a className="button primary" href={withBase('/signup')}>로그인·회원가입 <ArrowRight /></a><a className="button outline" href={withBase('/account/recovery')}>로그인 도움</a></div></section>;
+  return <section className="member-gate"><span><LockKeyhole /></span><small>MEMBERS ONLY</small><h1>로그인 후 내 활동을<br />한곳에서 관리하세요</h1><p>공고·상담·결제·이력서와 회원정보는 본인 계정에서만 확인할 수 있습니다.</p><div><a className="button primary" href={withBase('/login?next=/mypage')}>로그인 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입</a></div></section>;
 }
 
 export default function MemberCenterPage({ route, qa }) {
