@@ -1222,6 +1222,21 @@ function HomePage({ liveJobs = jobs }) {
   const [region, setRegion] = useState('전국');
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
+    <section className="home-video-hero" aria-label="메디헬퍼스 소개">
+      <video className="home-video-hero-bg" autoPlay muted loop playsInline preload="metadata" poster={withBase('/hero-medihelpers-poster.jpg')}>
+        <source src={withBase('/hero-medihelpers.mp4')} type="video/mp4" />
+      </video>
+      <div className="home-video-hero-overlay" />
+      <div className="home-video-hero-inner">
+        <span className="home-video-hero-eyebrow">MEDIHELPERS · 의사 헤드헌팅</span>
+        <h1>의사·의료인 채용,<br /><em>사람이 직접 연결합니다</em></h1>
+        <p>초빙정보부터 비공개 이직상담, 전담 헤드헌팅까지. 병원과 의료진을 가장 잘 맞는 조건으로 잇습니다.</p>
+        <div className="home-video-hero-actions">
+          <Link className="button primary" to="/jobs">의사 초빙정보 보기 <ArrowRight /></Link>
+          <Link className="button glass" to="/headhunting?role=doctor">헤드헌터 상담</Link>
+        </div>
+      </div>
+    </section>
     <section className="home-job-hub">
       <div className="home-job-hub-inner">
         <div className="home-job-hub-head"><div><span className="section-kicker">DOCTOR RECRUITMENT</span><h1>의사 초빙정보</h1></div><p>진료과와 지역, 근무형태를 선택하면 원하는 공고를 바로 확인할 수 있습니다.</p></div>

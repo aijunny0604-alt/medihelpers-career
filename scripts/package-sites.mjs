@@ -102,7 +102,7 @@ function adminIdentity(request, env) {
   return identity && allowed.includes(identity.email) ? identity : null;
 }
 function cleanConsultationPayload(payload) {
-  const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message'];
+  const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message','jobId','resumeId','resumeTitle'];
   return Object.fromEntries(allowed.filter(key => typeof payload[key] === 'string').map(key => [key, payload[key].trim().slice(0, key === 'message' ? 3000 : 300)]));
 }
 function escapeHtml(value) {
@@ -179,7 +179,9 @@ async function consultationApi(request, env, pathname) {
     if (requestType === 'doctor' && payload.jobId) {
       try {
         await ensureMemberCenterSchema(env);
-        const jobRow = await env.DB.prepare("SELECT title, created_by AS createdBy FROM admin_content_records WHERE id=?").bind(String(payload.jobId)).first();
+        // 공개 목록의 공고 id는 operationalDoctorJobs에서 'admin-<uuid>' 형태 → 접두사 제거해 실제 레코드 id로 조회.
+        const realJobId = String(payload.jobId).replace(/^admin-/, '');
+        const jobRow = await env.DB.prepare("SELECT title, created_by AS createdBy FROM admin_content_records WHERE id=?").bind(realJobId).first();
         if (jobRow && jobRow.createdBy) {
           // 등록자가 관리자(아빠)면 병원 직접 알림 대상 아님(헤드헌터 경유). 병원 계정이면 그 병원에 알림.
           const adminList = String(env.ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
@@ -363,6 +365,28 @@ async function memberCenterApi(request, env) {
         env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'refund_request', '환불(청약철회)을 요청했습니다.', ?)").bind(crypto.randomUUID(), account.id, ('주문 ' + order.orderNumber).slice(0,200))
       ]);
       return json({ requested:true, orderNumber:order.orderNumber });
+    }
+    // 병원 자기계정 공고 등록: 병원 회원이 채용공고를 올린다. 검수 대기(draft)로 저장, created_by=병원 이메일.
+    // 관리자(아빠)가 콘솔에서 승인(published)해야 공개 목록에 노출된다. 기본 무료.
+    if (body.action === 'job_create') {
+      if (account.role !== 'hospital') return json({ error:'채용공고 등록은 병원 회원만 가능합니다.' }, 403);
+      try { await ensureAdminConsoleSchema(env); } catch { return json({ error:'공고 저장소를 사용할 수 없습니다.' }, 503); }
+      const s = (v, max = 200) => String(v == null ? '' : v).trim().slice(0, max);
+      const contentType = body.staffType === 'medical' ? 'medical_job' : 'doctor_job';
+      const title = s(body.title, 180);
+      const hospital = s(body.hospital, 120) || (account.role === 'hospital' ? '' : '');
+      if (!title) return json({ error:'공고 제목을 입력해주세요.' }, 400);
+      const details = {
+        primary: s(body.region), secondary: s(body.role), dept: s(body.dept), region: s(body.region),
+        role: s(body.role), employmentType: s(body.employmentType), career: s(body.career),
+        pay: s(body.pay), deadline: s(body.deadline), schedule: s(body.schedule),
+        description: s(body.description, 3000), fromHospital: true,
+      };
+      const id = crypto.randomUUID();
+      await env.DB.prepare('INSERT INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(id, contentType, title, hospital, 'draft', 'public', JSON.stringify(details).slice(0,120000), identity.email, identity.email).run();
+      try { await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_posted', '채용공고를 등록했습니다(검수 대기).', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,200)).run(); } catch {}
+      return json({ created:true, id, status:'draft', message:'공고가 접수되었습니다. 검수 후 게시됩니다.' }, 201);
     }
     return json({ error:'지원하지 않는 요청입니다.' }, 400);
   }
