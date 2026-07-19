@@ -97,7 +97,7 @@ function signupEnabled(env) {
 }
 const authCookieName = 'mh_session';
 const authSessionSeconds = 60 * 60 * 24 * 7;
-const passwordIterations = 210000;
+const passwordIterations = 100000;
 function bytesToHex(bytes) {
   return [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
 }
@@ -363,7 +363,8 @@ async function authApi(request, env, pathname) {
     }
     const salt = credential?.passwordSalt || '9d0b570d7f104f429a9c3e57f813b9da';
     const iterations = Number(credential?.passwordIterations || passwordIterations);
-    const candidateHash = await passwordHash(password, salt, iterations);
+    let candidateHash;
+    try { candidateHash = await passwordHash(password, salt, iterations); } catch { return json({ error:'로그인 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503); }
     const valid = Boolean(credential) && constantTimeEqual(candidateHash, credential.passwordHash);
     if (!valid) {
       if (credential) {
@@ -406,7 +407,8 @@ async function authApi(request, env, pathname) {
       account.role = body.role;
     }
     const salt = randomHex(16);
-    const hash = await passwordHash(password, salt);
+    let hash;
+    try { hash = await passwordHash(password, salt); } catch { return json({ error:'가입 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503); }
     try {
       await env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations).run();
     } catch {
