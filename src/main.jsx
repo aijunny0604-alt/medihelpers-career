@@ -2772,7 +2772,7 @@ function AdvertisePage({ qa }) {
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
   };
   return <>
-    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="초기 파트너 가격 59,000원부터 시작합니다. 의사 초빙공고 등록부터 전담 컨설턴트의 후보 발굴까지 필요한 만큼 선택하세요."><a className="button light" href="#plans">광고 상품 비교</a></PageHero>
+    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="채용공고 등록은 무료입니다. 상단 노출·추천 등 광고 상품만 선택해 결제하세요."><button className="button light" onClick={() => navigate(canRegisterAds ? '/advertise/post' : '/signup/hospital?next=/advertise/post')}>무료 채용공고 등록 <ArrowRight /></button><a className="button glass" href="#plans">광고 상품 비교</a></PageHero>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '병원 회원가입 후 신청'}</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
   </>;
@@ -2798,6 +2798,50 @@ function AdvertiseApplyPage({ route, qa }) {
     );
   }
   return <Checkout plan={plan} />;
+}
+
+// 병원 자기계정 채용공고 등록(무료). 제출 시 검수 대기(draft)로 접수 → 관리자 승인 후 게시.
+function HospitalJobPostPage({ qa }) {
+  const accountProfile = useAccountProfile();
+  const [staffType, setStaffType] = useState('doctor');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+  const submit = async (event) => {
+    event.preventDefault();
+    setError(''); setSubmitting(true);
+    const f = Object.fromEntries(new FormData(event.currentTarget).entries());
+    try {
+      const res = await fetch(withBase('/api/member-center'), {
+        method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'job_create', staffType, title: f.title, hospital: f.hospital, dept: f.dept, role: f.role, region: f.region, employmentType: f.employmentType, career: f.career, pay: f.pay, deadline: f.deadline, schedule: f.schedule, description: f.description }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '공고 등록에 실패했습니다.');
+      setDone(true); window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) { setError(e.message); } finally { setSubmitting(false); }
+  };
+  if (done) return <section className="section"><div className="checkout-success"><span><CircleCheck /></span><h2>채용공고가 접수되었습니다</h2><p>메디헬퍼스 검수 후 게시됩니다. 게시 상태와 지원자는 마이페이지에서 확인할 수 있습니다.</p><div className="talent-unlock-success-actions"><Link className="button primary" to="/mypage">마이페이지 <ArrowRight /></Link><Link className="button outline" to="/advertise">광고센터</Link></div></div></section>;
+  return <section className="section job-post-section"><div className="job-post-card">
+    <div className="job-post-head"><small>FREE JOB POSTING</small><h2>채용공고 등록</h2><p>무료로 채용공고를 등록합니다. 상단 노출·추천은 광고센터에서 별도 신청할 수 있습니다. 등록 후 메디헬퍼스 검수를 거쳐 게시됩니다.</p></div>
+    <div className="job-post-typetabs"><button type="button" className={staffType === 'doctor' ? 'active' : ''} onClick={() => setStaffType('doctor')}><Stethoscope /> 의사 채용</button><button type="button" className={staffType === 'medical' ? 'active' : ''} onClick={() => setStaffType('medical')}><UsersRound /> 의료인(간호·기사) 채용</button></div>
+    <form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'} className="job-post-form">
+      <label className="wide"><span>공고 제목 *</span><input required name="title" placeholder="예: 검진 내과 전문의 초빙 / 병동 간호사 모집" /></label>
+      <label><span>병원·기관명 *</span><input required name="hospital" defaultValue={accountProfile.organization || accountProfile.name} placeholder="병원명" /></label>
+      <label><span>{staffType === 'doctor' ? '진료과' : '직군'} *</span><input required name="dept" placeholder={staffType === 'doctor' ? '예: 내과, 정형외과' : '예: 간호사, 방사선사'} /></label>
+      <label><span>세부 직무·포지션</span><input name="role" placeholder="예: 검진 진료의, 병동 간호" /></label>
+      <label><span>근무 지역 *</span><input required name="region" placeholder="예: 서울 강남, 경기 수원" /></label>
+      <label><span>고용 형태</span><input name="employmentType" placeholder="예: 정규직, 주 4.5일, 계약직" /></label>
+      <label><span>경력 조건</span><input name="career" placeholder="예: 경력 2년 이상, 신입 가능" /></label>
+      <label><span>급여 조건</span><input name="pay" placeholder="예: 월 1,200만원~, 협의" /></label>
+      <label><span>근무 시간</span><input name="schedule" placeholder="예: 평일 09:00~18:00" /></label>
+      <label><span>마감일</span><input name="deadline" type="date" /></label>
+      <label className="wide"><span>모집 상세 *</span><textarea required name="description" rows="6" placeholder="담당 업무, 자격 요건, 복리후생 등 상세 내용을 입력해 주세요." /></label>
+      {error && <p className="form-error wide" role="alert">{error}</p>}
+      <button className="button primary full wide" type="submit" disabled={submitting}>{submitting ? '등록 중…' : '검수 요청하고 등록하기'} <ArrowRight /></button>
+      <p className="job-post-note wide"><ShieldCheck /> 의료법·채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p>
+    </form>
+  </div></section>;
 }
 
 function MembershipCheckout({ plan, onClose }) {
@@ -3165,6 +3209,7 @@ export function App() {
     ? <NotFoundPage />
     : <MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} />;
   else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} />;
+  else if (path === '/advertise/post') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="채용공고 등록은 병원 회원 전용입니다" description="병원 회원으로 로그인하면 무료로 채용공고를 등록할 수 있습니다."><HospitalJobPostPage route={route} qa={qa} /></AuthGate>;
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;
   else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/talent-unlock') page = <TalentUnlockPage route={route} qa={qa} />;
