@@ -146,6 +146,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
   const job = jobs.find((item) => String(item.id) === String(jobId));
   const [signedIn, setSignedIn] = useState(Boolean(qa?.active && qa.info.capabilities.signedIn));
   const [accountRole, setAccountRole] = useState('');
+  const [roleReady, setRoleReady] = useState(Boolean(qa?.active)); // 실제 계정 role 확정 여부(깜빡임 방지)
 
   useEffect(() => {
     if (!job) return undefined;
@@ -158,13 +159,15 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
     if (qa?.active) {
       setSignedIn(Boolean(qa.info.capabilities.signedIn));
       setAccountRole(qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor ? 'doctor' : '');
+      setRoleReady(true);
       return undefined;
     }
     let active = true;
+    setRoleReady(false);
     fetch('/api/account', { credentials:'same-origin', headers:{ accept:'application/json' } })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('account')))
-      .then((result) => { if (active) { setSignedIn(Boolean(result.signedIn)); setAccountRole(result.account?.role || ''); } })
-      .catch(() => { if (active) { setSignedIn(false); setAccountRole(''); } });
+      .then((result) => { if (active) { setSignedIn(Boolean(result.signedIn)); setAccountRole(result.account?.role || ''); setRoleReady(true); } })
+      .catch(() => { if (active) { setSignedIn(false); setAccountRole(''); setRoleReady(true); } });
     return () => { active = false; };
   }, [qa?.active, qa?.state]);
 
@@ -222,7 +225,12 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
         </main>
 
         <aside className="medical-staff-apply-panel">
-          {isHospital ? <>
+          {!roleReady ? <>
+            <small>지원·문의</small>
+            <h2>이 공고에 관심이 있으신가요?</h2>
+            <p>계정 상태를 확인하고 있습니다…</p>
+            <button className="primary" disabled>확인 중… <ArrowRight /></button>
+          </> : isHospital ? <>
             <small>병원 회원 안내</small>
             <h2>인재를 찾고 계신가요?</h2>
             <p>병원 회원은 이 공고에 지원할 수 없습니다. 우리 병원 채용은 인재정보 열람 또는 채용 의뢰로 진행해 주세요.</p>
@@ -240,6 +248,6 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
         </aside>
       </div>
     </div>
-    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div>{isHospital ? <button onClick={() => go('/talent')}>인재정보 보기 <ArrowRight /></button> : <button onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원'} <ArrowRight /></button>}</div>
+    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div>{!roleReady ? <button disabled>확인 중…</button> : isHospital ? <button onClick={() => go('/talent')}>인재정보 보기 <ArrowRight /></button> : <button onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원'} <ArrowRight /></button>}</div>
   </div>;
 }

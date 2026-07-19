@@ -237,9 +237,9 @@ async function accountApi(request, env) {
     // 재가입 제한(회원 탈퇴 약관 제4조): 탈퇴일로부터 30일 이내에는 재가입 불가.
     const existingAccount = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(key).first();
     if (!existingAccount) {
-      const withdrawn = await env.DB.prepare("SELECT withdrawn_at AS at, CAST((julianday('now') - julianday(withdrawn_at)) AS INTEGER) AS days FROM withdrawn_members WHERE user_key = ?").bind(key).first();
+      const withdrawn = await env.DB.prepare("SELECT withdrawn_at AS at, (julianday('now') - julianday(withdrawn_at)) AS days FROM withdrawn_members WHERE user_key = ?").bind(key).first();
       if (withdrawn && Number(withdrawn.days) < 30) {
-        const remaining = 30 - Number(withdrawn.days);
+        const remaining = Math.max(1, Math.ceil(30 - Number(withdrawn.days)));
         return json({ error: '회원 탈퇴 후 30일이 지난 뒤 재가입할 수 있습니다. 약 ' + remaining + '일 후 다시 시도해 주세요.', code: 'REJOIN_BLOCKED', remainingDays: remaining }, 403);
       }
     }
@@ -570,7 +570,13 @@ async function buildInicisPaymentParams(env, order) {
 // (DB 저장·paid 처리·거래기록은 실제로 작동. 실제 카드 청구만 없음.)
 async function paymentApproveApi(request, env) {
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
-  const testMode = !env.INICIS_MID || !env.INICIS_SIGN_KEY;
+  const inicisReady = Boolean(env.INICIS_MID && env.INICIS_SIGN_KEY);
+  // 안전장치: 실결제 의도(PAYMENT_LIVE=true)인데 키가 불완전하면 '무료 승인'을 막고 명시적으로 실패시킨다.
+  // (프로덕션에서 키 누락/오타로 전 주문이 무료 통과되는 사고 방지)
+  if (env.PAYMENT_LIVE === 'true' && !inicisReady) {
+    return json({ error:'결제 설정이 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.', code:'PG_NOT_CONFIGURED' }, 503);
+  }
+  const testMode = !inicisReady;
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 저장소를 사용할 수 없습니다.' }, 503); }
   let body; try { body = await request.json(); } catch {
@@ -1001,20 +1007,25 @@ async function adminConsoleApi(request, env) {
     const reason = cleanOrderValue(payload.reason, 500);
     const order = await env.DB.prepare("SELECT order_number AS orderNumber, total_amount AS totalAmount, status, metadata_json AS metadataJson FROM payment_orders WHERE id=?").bind(orderId).first();
     if (!order || !['paid','partially_refunded'].includes(order.status)) return json({ error:'환불 가능한 결제 주문을 확인해주세요.' }, 400);
-    const previous = await env.DB.prepare("SELECT COALESCE(SUM(amount),0) total FROM payment_refunds WHERE order_id=? AND status IN ('requested','processing','succeeded')").bind(orderId).first();
+    // 이미 확정(succeeded)된 환불 합계만 집계해 초과환불 방지(집계 기준을 refund_resolve와 통일).
+    const previous = await env.DB.prepare("SELECT COALESCE(SUM(amount),0) total FROM payment_refunds WHERE order_id=? AND status='succeeded'").bind(orderId).first();
     if (!amount || amount > Number(order.totalAmount) - Number(previous?.total || 0)) return json({ error:'환불 가능 금액을 확인해주세요.' }, 400);
     const id = crypto.randomUUID();
     const totalRefunded = Number(previous?.total || 0) + amount;
     const fullyRefunded = totalRefunded >= Number(order.totalAmount);
     const statements = [
-      env.DB.prepare("INSERT INTO payment_refunds (id, order_id, amount, reason, requested_by) VALUES (?, ?, ?, ?, ?)").bind(id, orderId, amount, reason, admin.email),
-      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_requested', ?)").bind(crypto.randomUUID(), orderId, admin.email, JSON.stringify({ refundId:id, amount, reason }))
+      // 관리자 직접환불은 즉시 확정(succeeded)으로 기록(회원 요청은 별도로 requested).
+      env.DB.prepare("INSERT INTO payment_refunds (id, order_id, amount, reason, status, requested_by, processed_at) VALUES (?, ?, ?, ?, 'succeeded', ?, CURRENT_TIMESTAMP)").bind(id, orderId, amount, reason, admin.email),
+      // 환불 거래기록(대사·정산용).
+      env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'refund', 'manual', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), orderId, id, amount),
+      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_processed', ?)").bind(crypto.randomUUID(), orderId, admin.email, JSON.stringify({ refundId:id, amount, reason }))
     ];
-    // 전액 환불이면 주문을 환불 상태로 전이하고 광고 노출기간을 회수한다.
+    // 전액 환불이면 주문을 환불 상태로 전이하고 광고 노출기간과 인재 열람권을 회수한다.
     if (fullyRefunded) {
       const meta = { ...(parseJsonObject(order.metadataJson) || {}) };
       delete meta.exposure;
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), orderId));
+      statements.push(env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id=?").bind(orderId));
     } else {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(orderId));
     }
@@ -1044,12 +1055,16 @@ async function adminConsoleApi(request, env) {
     const fullyRefunded = Number(already?.total || 0) + amount >= Number(refund.totalAmount);
     const statements = [
       env.DB.prepare("UPDATE payment_refunds SET amount=?, status='succeeded', processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(amount, refundId),
+      // 환불 거래기록(대사·정산용).
+      env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'refund', 'manual', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), refund.orderId, refundId, amount),
       env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_approved', ?)").bind(crypto.randomUUID(), refund.orderId, admin.email, JSON.stringify({ refundId, amount, fullyRefunded }).slice(0,4000))
     ];
     if (fullyRefunded) {
       const meta = { ...(parseJsonObject(refund.metadataJson) || {}) };
       delete meta.exposure;
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), refund.orderId));
+      // 인재 열람권 회수: 환불 후 연락처 계속 열람 방지.
+      statements.push(env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id=?").bind(refund.orderId));
     } else {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.orderId));
     }

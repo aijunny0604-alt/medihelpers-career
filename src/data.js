@@ -160,14 +160,19 @@ export const adPlans = [
   }
 ];
 
+// 상단 메뉴: 왼→오른쪽으로 '일자리 찾기(구직) → 인재 찾기(병원) → 헤드헌팅 서비스' 흐름으로 정돈.
+// group은 드롭다운/구분선 등 향후 그룹 표기에 사용(현재는 순서 정렬 기준).
 export const navItems = [
-  { path: '/jobs', label: '채용정보' },
-  { path: '/talent', label: '인재정보' },
-  { path: '/resume', label: '이력서 등록' },
-  { path: '/headhunting', label: '맞춤 헤드헌팅' },
-  { path: '/medical-staff', label: '의료인 채용' },
-  { path: '/matching-report', label: '매칭 리포트' },
-  { path: '/advertise', label: '광고센터' }
+  // 구직자(의사·의료인)용 — 일자리·이력서
+  { path: '/jobs', label: '의사 채용', group: 'seeker' },
+  { path: '/medical-staff', label: '의료인 채용', group: 'seeker' },
+  { path: '/resume', label: '이력서 등록', group: 'seeker' },
+  // 병원(채용)용 — 인재·공고
+  { path: '/talent', label: '인재정보', group: 'hospital' },
+  { path: '/advertise', label: '광고센터', group: 'hospital' },
+  // 헤드헌팅 서비스
+  { path: '/headhunting', label: '맞춤 헤드헌팅', group: 'service' },
+  { path: '/matching-report', label: '매칭 리포트', group: 'service' }
 ];
 
 export const membershipPlans = [

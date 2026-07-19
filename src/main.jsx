@@ -1955,8 +1955,24 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
               {d.phone && <div><dt>연락처</dt><dd><a href={`tel:${String(d.phone).replace(/\D/g, '')}`}>{d.phone}</a></dd></div>}
               {d.email && <div><dt>이메일</dt><dd><a href={`mailto:${d.email}`}>{d.email}</a></dd></div>}
               {d.specialty && <div><dt>전문분야</dt><dd>{d.specialty}</dd></div>}
-              {d.detail?.introduction && <div className="wide"><dt>자기소개</dt><dd>{d.detail.introduction}</dd></div>}
+              {(d.detail?.licenseName || d.detail?.licenseNumber) && <div><dt>면허·자격</dt><dd>{d.detail.licenseName}{d.detail.licenseNumber ? ` (${d.detail.licenseNumber})` : ''}</dd></div>}
+              {d.detail?.experienceYears && <div><dt>총 경력</dt><dd>{d.detail.experienceYears}</dd></div>}
+              {d.desiredRegions && <div><dt>희망 지역</dt><dd>{d.desiredRegions}</dd></div>}
+              {(d.detail?.school || d.detail?.major) && <div><dt>학력</dt><dd>{[d.detail.school, d.detail.major, d.detail.graduation].filter(Boolean).join(' · ')}</dd></div>}
+              {d.detail?.skills && <div className="wide"><dt>주요 술기·역량</dt><dd>{d.detail.skills}</dd></div>}
+              {d.detail?.introduction && <div className="wide"><dt>경력 요약·자기소개</dt><dd className="talent-intro-text">{d.detail.introduction}</dd></div>}
             </dl>
+            {Array.isArray(d.detail?.careers) && d.detail.careers.filter((c) => c && (c.institution || c.department || c.duties)).length > 0 && (
+              <div className="talent-career-history">
+                <h4><BriefcaseBusiness /> 의료기관 경력</h4>
+                {d.detail.careers.filter((c) => c && (c.institution || c.department || c.duties)).map((c, i) => (
+                  <div className="talent-career-item" key={i}>
+                    <div className="talent-career-head"><strong>{c.institution || '근무 기관'}</strong><span>{[c.department, c.position].filter(Boolean).join(' · ')}</span>{(c.start || c.current) && <em>{c.start}{c.current ? ' ~ 재직 중' : c.end ? ` ~ ${c.end}` : ''}</em>}</div>
+                    {c.duties && <p>{c.duties}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         ) : (
           <section className={`talent-detail-private${unlock.limited ? ' talent-detail-limited' : ''}`}>
@@ -3080,6 +3096,17 @@ export function App() {
   useEffect(() => {
     if (path === '/qa-preview' && !qaState) selectQaState('guest');
   }, [path, qaState, selectQaState]);
+  // 실제 로그인 사용자에게 예전 QA 미리보기 상태가 남아 실제 권한을 덮어쓰는 문제 방지:
+  // /qa-preview 화면이 아닌데 실제 로그인(account) 상태면 QA 상태를 자동 해제한다.
+  useEffect(() => {
+    if (!qaState || path === '/qa-preview') return;
+    let active = true;
+    fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((result) => { if (active && result && (result.signedIn || result.account)) { setQaState(''); writeStoredString(QA_PREVIEW_STORAGE_KEY, ''); } })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [qaState, path]);
 
   const qaActive = path === '/qa-preview' || Boolean(qaState);
   const qaInfo = getQaStateInfo(qaState);

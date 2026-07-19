@@ -4793,3 +4793,12 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .refund-request-actions{display:flex;gap:8px;flex-shrink:0}
 .refund-request-actions button{padding:7px 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid transparent}
 .refund-request-actions .admin-ghost{background:#fff;border-color:#d8ccb0;color:#8a7a5a}
+
+/* 열람권 상세: 경력 이력 표시 */
+.talent-intro-text{white-space:pre-line;line-height:1.7}
+.talent-career-history{margin-top:18px;padding-top:16px;border-top:1px solid #e3ebf4}
+.talent-career-history h4{display:flex;align-items:center;gap:7px;margin:0 0 12px;font-size:14px;color:#26324a}.talent-career-history h4 svg{width:17px;color:#149e7f}
+.talent-career-item{padding:12px 0;border-bottom:1px solid #eef2f7}.talent-career-item:last-child{border-bottom:none}
+.talent-career-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.talent-career-head strong{font-size:14px;color:#16233a}.talent-career-head span{font-size:13px;color:#5a6a80}.talent-career-head em{margin-left:auto;font-size:12px;color:#8a93a2;font-style:normal}
+.talent-career-item p{margin:6px 0 0;font-size:13px;color:#5a6a80;line-height:1.6}
