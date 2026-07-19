@@ -373,7 +373,7 @@ function Header({ path, qa, operations }) {
           if (item.path === '/talent' && operations.features.talentSearch === false) return false;
           if (item.path === '/advertise' && operations.features.adRegistration === false) return false;
           return true;
-        }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''}`}>{item.label}</Link>)}
+        }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''} ${item.highlight ? 'nav-highlight' : ''}`}>{item.label}</Link>)}
         <Link to="/qa-preview" onClick={() => setOpen(false)} className={`mobile-preview-link ${path === '/qa-preview' ? 'active' : ''}`}><ShieldCheck size={16} /> 권한 화면 미리보기</Link>
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/qa-preview' || path.startsWith('/signup') ? 'active' : ''}`}>{signedInPreview ? '마이페이지' : qa.active ? `QA · ${accountLabel}` : '로그인·회원가입'}</Link>
       </nav>
@@ -1502,7 +1502,7 @@ function TalentPage({ qa, route = '', liveTalent = talent, medicalTalent = [] })
   const openCode = useMemo(() => new URLSearchParams(route.split('?')[1] || '').get('open') || '', [route]);
   useEffect(() => {
     if (!openCode) return;
-    const found = sourceTalent.find((p) => p.code === openCode);
+    const found = sourceTalent.find((p) => (p.detailId || p.code) === openCode || p.code === openCode);
     if (found) {
       // 다른 탭에 가려 안 보이지 않도록 전체 탭으로 전환한 뒤 상세를 연다.
       setStaffFilter('all');
@@ -1887,7 +1887,7 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
   const [unlock, setUnlock] = useState({ loading: true, unlocked: false, detail: null, limited: false, message: "" });
   useEffect(() => {
     let active = true;
-    fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
+    fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.detailId || person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
       // 429(열람 한도 초과)는 응답 본문(limited/message)을 읽어 사용자에게 안내한다.
       .then((r) => r.json().catch(() => ({})).then((body) => ({ ok: r.ok, status: r.status, body })))
       .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
@@ -2004,7 +2004,7 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           ) : unlock.limited ? (
             <a className="button primary" href="tel:0513425463"><Phone /> 담당자 문의</a>
           ) : (
-            <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${person.code}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
+            <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${encodeURIComponent(person.detailId || person.code)}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
           )}
         </div>
       </div>

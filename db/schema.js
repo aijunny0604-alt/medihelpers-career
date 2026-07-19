@@ -170,7 +170,7 @@ export const commerceSchemaStatements = [
     transaction_id TEXT,
     amount INTEGER NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested','processing','succeeded','failed','cancelled')),
+    status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested','processing','succeeded','failed','cancelled','rejected')),
     requested_by TEXT NOT NULL DEFAULT '',
     provider_refund_id TEXT NOT NULL DEFAULT '',
     processed_at TEXT,

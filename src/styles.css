@@ -39,6 +39,10 @@ footer{background:#f8fafc;border-top:1px solid #e5ebf2;padding:55px max(24px,cal
 /* Simple, action-first home navigation */
 .nav-wrap nav a.nav-ad{color:var(--blue)}
 .nav-wrap nav a.nav-ad:before{content:'AD';display:inline-grid;place-items:center;margin-right:5px;padding:2px 4px;border-radius:4px;background:#e7f0ff;color:var(--blue);font:800 7px 'Manrope';vertical-align:2px}
+/* 맞춤 헤드헌팅 강조 메뉴 */
+.nav-wrap nav a.nav-highlight{color:#149e7f;font-weight:800}
+.nav-wrap nav a.nav-highlight:before{content:'★';margin-right:4px;color:#f5a623;font-size:11px;vertical-align:1px}
+.nav-wrap nav a.nav-highlight:hover,.nav-wrap nav a.nav-highlight.active{color:#0f7d63}
 .quick-access{max-width:1192px;margin:24px auto 0;display:grid;grid-template-columns:1.45fr .8fr .8fr;border:1px solid #dfe6f0;border-radius:18px;background:#fff;box-shadow:0 12px 32px rgba(39,67,105,.08);overflow:hidden}
 .quick-find,.quick-consult,.quick-ad{min-height:105px;padding:20px 22px}
 .quick-find{display:flex;align-items:center;gap:22px}

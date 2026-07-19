@@ -522,7 +522,6 @@ function AccountCard({ account, identity = {} }) {
     <p>{identity.displayName || identity.email || '회원'}님, 필요한 기능을 사용할 때만 추가 정보를 요청하겠습니다.</p>
     <dl><div><dt>회원 유형</dt><dd>{accountRoleLabel(account.role)}</dd></div><div><dt>가입 상태</dt><dd>기본 회원</dd></div><div><dt>마케팅 수신</dt><dd>미동의</dd></div></dl>
     <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><a className="button outline" href={withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`)}>로그아웃</a></div>
-    <p className="account-withdraw-hint">회원 탈퇴는 <a href={withBase('/mypage')}>마이페이지 → 회원정보</a>에서 진행할 수 있습니다.</p>
   </section>;
 }
 

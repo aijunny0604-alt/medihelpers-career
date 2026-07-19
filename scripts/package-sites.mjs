@@ -299,7 +299,7 @@ async function memberCenterApi(request, env) {
     const preferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
     const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
     const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
-    const orders = await env.DB.prepare('SELECT order_number AS orderNumber, product_type AS productType, product_name AS productName, total_amount AS totalAmount, status, payment_method AS paymentMethod, metadata_json AS metadataJson, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
+    const orders = await env.DB.prepare('SELECT order_number AS orderNumber, product_type AS productType, product_name AS productName, supply_amount AS supplyAmount, tax_amount AS taxAmount, total_amount AS totalAmount, status, payment_method AS paymentMethod, customer_name AS customerName, metadata_json AS metadataJson, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
     // 의사 회원의 이력서 요약(완성도·공개범위)을 함께 내려 마이페이지 지표에 사용.
     let resume = null;
     if (account.role === 'doctor') {
@@ -319,6 +319,33 @@ async function memberCenterApi(request, env) {
     }
     const orderList = (orders.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure: meta.exposure || null }; });
     return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
+  }
+  if (request.method === 'POST') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    // 소비자 환불(청약철회) 요청: 회원(병원·의사 공용)이 본인 결제 건에 환불을 신청. 실제 승인·환불은 관리자.
+    if (body.action === 'refund_request') {
+      const orderNumber = String(body.orderNumber || '').trim().slice(0, 60);
+      const reason = String(body.reason == null ? '' : body.reason).trim().slice(0, 500);
+      if (!orderNumber) return json({ error:'환불할 결제 건을 확인해주세요.' }, 400);
+      if (!reason) return json({ error:'환불 사유를 입력해주세요.' }, 400);
+      // 반드시 본인 소유 주문만. account_id로 소유권 확인.
+      const order = await env.DB.prepare("SELECT id, order_number AS orderNumber, total_amount AS totalAmount, status FROM payment_orders WHERE order_number=? AND account_id=?").bind(orderNumber, account.id).first();
+      if (!order) return json({ error:'본인 결제 내역에서 환불할 건을 찾을 수 없습니다.' }, 404);
+      if (!['paid','partially_refunded'].includes(order.status)) return json({ error:'이미 환불되었거나 환불할 수 없는 상태의 결제입니다.' }, 400);
+      // 중복 요청 방지: 처리 대기 중인 환불 요청이 있으면 거절.
+      const pending = await env.DB.prepare("SELECT COUNT(*) c FROM payment_refunds WHERE order_id=? AND status IN ('requested','processing')").bind(order.id).first();
+      if (Number(pending?.c || 0) > 0) return json({ error:'이미 접수된 환불 요청이 처리 중입니다. 처리 결과를 기다려 주세요.' }, 409);
+      const refundId = crypto.randomUUID();
+      await env.DB.batch([
+        // 소비자 요청은 금액 미확정(0) 상태로 접수, 관리자가 확정·처리. requested_by=회원 이메일.
+        env.DB.prepare("INSERT INTO payment_refunds (id, order_id, amount, reason, status, requested_by) VALUES (?, ?, 0, ?, 'requested', ?)").bind(refundId, order.id, reason, identity.email),
+        env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_requested_by_member', ?)").bind(crypto.randomUUID(), order.id, identity.email, JSON.stringify({ refundId, reason }).slice(0,4000)),
+        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'refund_request', '환불(청약철회)을 요청했습니다.', ?)").bind(crypto.randomUUID(), account.id, ('주문 ' + order.orderNumber).slice(0,200))
+      ]);
+      return json({ requested:true, orderNumber:order.orderNumber });
+    }
+    return json({ error:'지원하지 않는 요청입니다.' }, 400);
   }
   if (request.method === 'PATCH') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -355,29 +382,6 @@ async function resumeApi(request, env) {
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 131072) return json({ error:'이력서 내용이 너무 큽니다.' }, 413);
     let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
-    // 소비자 환불(청약철회) 요청: 회원이 본인 결제 건에 환불을 신청한다(실제 승인·환불은 관리자).
-    if (body.action === 'refund_request') {
-      try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 시스템을 사용할 수 없습니다.' }, 503); }
-      const orderNumber = String(body.orderNumber || '').trim().slice(0, 60);
-      const reason = String(body.reason == null ? '' : body.reason).trim().slice(0, 500);
-      if (!orderNumber) return json({ error:'환불할 결제 건을 확인해주세요.' }, 400);
-      if (!reason) return json({ error:'환불 사유를 입력해주세요.' }, 400);
-      // 반드시 본인 소유 주문만. account_id로 소유권 확인.
-      const order = await env.DB.prepare("SELECT id, order_number AS orderNumber, total_amount AS totalAmount, status FROM payment_orders WHERE order_number=? AND account_id=?").bind(orderNumber, account.id).first();
-      if (!order) return json({ error:'본인 결제 내역에서 환불할 건을 찾을 수 없습니다.' }, 404);
-      if (!['paid','partially_refunded'].includes(order.status)) return json({ error:'이미 환불되었거나 환불할 수 없는 상태의 결제입니다.' }, 400);
-      // 중복 요청 방지: 처리 대기 중인 환불 요청이 있으면 거절.
-      const pending = await env.DB.prepare("SELECT COUNT(*) c FROM payment_refunds WHERE order_id=? AND status IN ('requested','processing')").bind(order.id).first();
-      if (Number(pending?.c || 0) > 0) return json({ error:'이미 접수된 환불 요청이 처리 중입니다. 처리 결과를 기다려 주세요.' }, 409);
-      const refundId = crypto.randomUUID();
-      await env.DB.batch([
-        // 소비자 요청은 금액 미확정(0) 상태로 접수, 관리자가 확정·처리. requested_by=회원 이메일.
-        env.DB.prepare("INSERT INTO payment_refunds (id, order_id, amount, reason, status, requested_by) VALUES (?, ?, 0, ?, 'requested', ?)").bind(refundId, order.id, reason, identity.email),
-        env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_requested_by_member', ?)").bind(crypto.randomUUID(), order.id, identity.email, JSON.stringify({ refundId, reason }).slice(0,4000)),
-        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'refund_request', '환불(청약철회)을 요청했습니다.', ?)").bind(crypto.randomUUID(), account.id, ('주문 ' + order.orderNumber).slice(0,200))
-      ]);
-      return json({ requested:true, orderNumber:order.orderNumber });
-    }
     const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0, max);
     const title = s(body.title); const name = s(body.name); const phone = s(body.phone, 40);
     if (!title || !name || !phone) return json({ error:'이력서 제목·성함·연락처는 필수입니다.' }, 400);
@@ -619,7 +623,7 @@ async function paymentApproveApi(request, env) {
     const tid = 'TEST-' + Date.now().toString(36).toUpperCase();
     await env.DB.batch([
       env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(buildExposureMeta(order.metadataJson), order.id),
-      env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'approve', 'test', ?, ?, 'success', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
+      env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'capture', 'test', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
       env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'test', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid, testMode:true }))
     ]);
     await recordTalentUnlock();
@@ -655,7 +659,7 @@ async function paymentApproveApi(request, env) {
   const tid = String(approval?.tid || body.tid || '');
   await env.DB.batch([
     env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(buildExposureMeta(order.metadataJson), order.id),
-    env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'approve', 'inicis', ?, ?, 'success', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
+    env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'capture', 'inicis', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'inicis', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid }))
   ]);
   await recordTalentUnlock();

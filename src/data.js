@@ -167,12 +167,13 @@ export const navItems = [
   { path: '/jobs', label: '의사 채용', group: 'seeker' },
   { path: '/medical-staff', label: '의료인 채용', group: 'seeker' },
   { path: '/resume', label: '이력서 등록', group: 'seeker' },
-  // 병원(채용)용 — 인재·공고
+  // 병원(채용)용 — 인재
   { path: '/talent', label: '인재정보', group: 'hospital' },
-  { path: '/advertise', label: '광고센터', group: 'hospital' },
-  // 헤드헌팅 서비스
-  { path: '/headhunting', label: '맞춤 헤드헌팅', group: 'service' },
-  { path: '/matching-report', label: '매칭 리포트', group: 'service' }
+  // 헤드헌팅 서비스 — 맞춤 헤드헌팅은 강조(highlight)
+  { path: '/headhunting', label: '맞춤 헤드헌팅', group: 'service', highlight: true },
+  { path: '/matching-report', label: '매칭 리포트', group: 'service' },
+  // 광고센터는 기존처럼 맨 뒤
+  { path: '/advertise', label: '광고센터', group: 'hospital' }
 ];
 
 export const membershipPlans = [

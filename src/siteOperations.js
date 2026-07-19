@@ -36,6 +36,8 @@ export function operationalTalent(contents = []) {
     const p = item.payload || {};
     // 이력서 자동 노출 인재(fromResume)는 payload의 익명 필드를 그대로 사용. 실명은 없음.
     return {
+      // 상세(연락처·이력서) 조회 키. 이력서 자동노출 인재는 'resume-<id>' 형태(서버 talent-detail가 이 키로 이력서 조회).
+      detailId: item.id || p.code || '',
       code: p.code || `관리-${String(index + 1).padStart(3, '0')}`,
       name: p.name || '',
       fullName: item.title || p.name || '',
