@@ -1740,6 +1740,7 @@ function TalentPage({ qa, route = '', liveTalent = talent, medicalTalent = [] })
                 <div>
                   <small>{talentDisplayName(person, canViewIdentity)}</small>
                   <h3>
+                    {person.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}
                     {person.dept} · {person.career}
                   </h3>
                 </div>
