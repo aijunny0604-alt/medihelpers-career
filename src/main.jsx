@@ -1998,7 +1998,8 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
         <div className="talent-detail-actions">
           <button type="button" className="button outline" onClick={onClose}>목록 계속 보기</button>
           {person.sample ? (
-            <Link className="button primary" to="/resume" onClick={onClose}>내 이력서 등록하기 <ArrowRight /></Link>
+            // 인재정보는 병원 회원 전용 화면 → 샘플 카드의 CTA도 병원(열람하는 쪽) 기준으로 안내.
+            <button type="button" className="button primary" onClick={onClose}>실제 인재 목록 보기 <ArrowRight /></button>
           ) : unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
           ) : unlock.limited ? (
@@ -3127,7 +3128,8 @@ export function App() {
   else if (path === '/talent') page = operations.features.talentSearch === false ? <NotFoundPage /> : <AuthGate auth={auth} need="hospital" title="의료진 인재정보는 병원 회원 전용입니다" description="지원 의사의 익명 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요."><TalentPage qa={qa} route={route} liveTalent={liveTalent} medicalTalent={medicalTalent} /></AuthGate>;
   else if (path === '/matching-report') page = <AuthGate auth={auth} title="매칭 리포트는 회원 전용입니다" description="찜한 병원·후보를 비교하는 매칭 리포트는 로그인 후 이용할 수 있습니다."><MatchingReportPage route={route} jobs={liveJobs} talent={liveTalent} onNavigate={navigate} /></AuthGate>;
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} />;
-  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} /></AuthGate>;
+  // 의료인 채용은 일자리 공고 → 채용정보(/jobs)처럼 공개(구직자 유입). 사람(이력서)만 병원전용은 /talent.
+  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <MedicalStaffPage operations={operations} medicalTalent={medicalTalent} />;
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
     : <MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} />;
