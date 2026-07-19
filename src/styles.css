@@ -5012,7 +5012,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* ── 의사 초빙 정보란 (헤드헌팅 게시판) ── */
 .headhunt-board-section{background:#fff}
 .headhunt-board-lead{max-width:620px;margin:12px auto 0;color:#66788f;font-size:16px;line-height:1.7;text-wrap:balance}
-.headhunt-board{max-width:1080px;margin:36px auto 0}
+.headhunt-board{max-width:1400px;margin:36px auto 0}
 .headhunt-board-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 .headhunt-board-tabs{display:inline-flex;gap:6px;padding:5px;background:#eef2f8;border-radius:12px}
 .headhunt-board-tabs button{padding:9px 18px;border:0;border-radius:9px;background:transparent;font-size:14px;font-weight:750;color:#5f6d81;cursor:pointer;transition:background .2s,color .2s}
@@ -5070,22 +5070,22 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 }
 
 .headhunt-board-table{border:1px solid #e4eaf2;border-radius:16px;overflow:hidden}
-.headhunt-board-head,.headhunt-board-row{display:grid;grid-template-columns:70px 1fr 110px 72px 110px;align-items:center}
-.headhunt-board-head{background:#102441;color:#dfe8f5;font-size:12.5px;font-weight:700}
-.headhunt-board-head>span{padding:14px 16px}
+.headhunt-board-head,.headhunt-board-row{display:grid;grid-template-columns:84px 1fr 130px 90px 130px;align-items:center}
+.headhunt-board-head{background:#102441;color:#dfe8f5;font-size:14px;font-weight:700}
+.headhunt-board-head>span{padding:18px 20px}
 .headhunt-board-head>span:not(:nth-child(2)){text-align:center}
 .headhunt-board-row{border-top:1px solid #eef1f6;background:#fff;cursor:pointer;transition:background .15s}
 .headhunt-board-row:hover{background:#f5f9ff}
-.headhunt-board-row>span,.headhunt-board-row>time{padding:16px}
-.hb-no{text-align:center;color:#93a1b5;font:700 13px 'Manrope';font-variant-numeric:tabular-nums}
-.hb-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#1c2f4c;font-size:15px;font-weight:650}
+.headhunt-board-row>span,.headhunt-board-row>time{padding:20px}
+.hb-no{text-align:center;color:#93a1b5;font:700 14px 'Manrope';font-variant-numeric:tabular-nums}
+.hb-title{display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:#1c2f4c;font-size:17px;font-weight:650}
 .hb-title em{font-style:normal;color:#1263e8;font-weight:800}
 .hb-kind{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px}
 .hb-kind.doctor{background:#eaf2ff;color:#1263e8}
 .hb-kind.medical{background:#e9f6f1;color:#12876e}
-.hb-author{text-align:center;color:#5f6d81;font-size:13px}
-.hb-views{text-align:center;color:#8a97a8;font-size:13px;font-variant-numeric:tabular-nums}
-.hb-date{text-align:center;color:#8a97a8;font-size:13px;font-variant-numeric:tabular-nums}
+.hb-author{text-align:center;color:#5f6d81;font-size:14px;white-space:nowrap}
+.hb-views{text-align:center;color:#8a97a8;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hb-date{text-align:center;color:#8a97a8;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
 
 .headhunt-board-empty{padding:70px 24px;text-align:center;border:1px dashed #cbd8e9;border-radius:18px;color:#7b8799}
 .headhunt-board-empty>svg{width:38px;height:38px;color:#7da3d7}

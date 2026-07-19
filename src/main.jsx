@@ -2214,38 +2214,30 @@ function HeadhuntBoard({ operations }) {
         </div>
 
         {total > 0 ? (
-          <ol className="hb-cards">
+          <div className="headhunt-board-table" role="table">
+            <div className="headhunt-board-head" role="row" aria-hidden="true">
+              <span>번호</span><span>제목</span><span>작성자</span><span>조회</span><span>등록일</span>
+            </div>
             {visible.map((post, index) => (
-              <li key={post.id}>
-                <article
-                  className="hb-card"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelected(post)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(post); } }}
-                >
-                  <div className="hb-card-top">
-                    <span className={`hb-card-kind ${post.kind === '의료인' ? 'medical' : 'doctor'}`}>{post.kind} 초빙</span>
-                    {post.region && <span className="hb-card-region"><MapPin size={13} /> {post.region}</span>}
-                    <span className="hb-card-no">No.{total - index}</span>
-                  </div>
-                  <h3>{post.title}</h3>
-                  <p className="hb-card-org"><Building2 size={14} /> {post.hospital || '메디헬퍼스 등록 기관'}</p>
-                  <div className="hb-card-tags">
-                    {post.dept && <span>{post.dept}</span>}
-                    {post.pay && <span className="pay">{post.pay}</span>}
-                    {post.timing && <span>{post.timing}</span>}
-                  </div>
-                  <footer className="hb-card-meta">
-                    <span>{post.author}</span>
-                    <span><Eye size={12} /> {post.views.toLocaleString()}</span>
-                    <time>{post.date || '-'}</time>
-                    <em className="hb-card-more">자세히 보기 <ArrowRight size={14} /></em>
-                  </footer>
-                </article>
-              </li>
+              <div
+                className="headhunt-board-row"
+                role="button"
+                tabIndex={0}
+                key={post.id}
+                onClick={() => setSelected(post)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(post); } }}
+              >
+                <span className="hb-no">{total - index}</span>
+                <span className="hb-title">
+                  {post.region && <em>[{post.region}]</em>} {post.title}
+                  <b className={`hb-kind ${post.kind === '의료인' ? 'medical' : 'doctor'}`}>{post.kind}</b>
+                </span>
+                <span className="hb-author">{post.author}</span>
+                <span className="hb-views">{post.views}</span>
+                <time className="hb-date">{post.date || '-'}</time>
+              </div>
             ))}
-          </ol>
+          </div>
         ) : (
           <div className="headhunt-board-empty">
             <FileText />
