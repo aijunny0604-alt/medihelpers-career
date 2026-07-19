@@ -15,7 +15,12 @@ export const accountSchemaStatements = [
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     UNIQUE (account_id, consent_type, document_version)
   )`,
-  `CREATE INDEX IF NOT EXISTS consent_records_account_idx ON consent_records(account_id)`
+  `CREATE INDEX IF NOT EXISTS consent_records_account_idx ON consent_records(account_id)`,
+  // 재가입 제한(약관상 30일)을 위한 탈퇴 이력. 개인정보가 아닌 user_key 해시만 보관.
+  `CREATE TABLE IF NOT EXISTS withdrawn_members (
+    user_key TEXT PRIMARY KEY,
+    withdrawn_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`
 ];
 
 export const consultationSchemaStatements = [

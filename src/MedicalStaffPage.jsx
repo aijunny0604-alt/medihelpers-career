@@ -145,6 +145,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
   const jobs = useMemo(() => getMedicalStaffJobs(operations), [operations?.contents]);
   const job = jobs.find((item) => String(item.id) === String(jobId));
   const [signedIn, setSignedIn] = useState(Boolean(qa?.active && qa.info.capabilities.signedIn));
+  const [accountRole, setAccountRole] = useState('');
 
   useEffect(() => {
     if (!job) return undefined;
@@ -156,13 +157,14 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
   useEffect(() => {
     if (qa?.active) {
       setSignedIn(Boolean(qa.info.capabilities.signedIn));
+      setAccountRole(qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor ? 'doctor' : '');
       return undefined;
     }
     let active = true;
     fetch('/api/account', { credentials:'same-origin', headers:{ accept:'application/json' } })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('account')))
-      .then((result) => { if (active) setSignedIn(Boolean(result.signedIn)); })
-      .catch(() => { if (active) setSignedIn(false); });
+      .then((result) => { if (active) { setSignedIn(Boolean(result.signedIn)); setAccountRole(result.account?.role || ''); } })
+      .catch(() => { if (active) { setSignedIn(false); setAccountRole(''); } });
     return () => { active = false; };
   }, [qa?.active, qa?.state]);
 
@@ -171,6 +173,8 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
   const applyPath = `/request/job-seeker?staff=1&job=${encodeURIComponent(job.id)}`;
   const loginPath = `/signup/doctor?next=${encodeURIComponent(applyPath)}`;
   const actionPath = signedIn ? applyPath : loginPath;
+  // 병원 회원은 지원 주체가 아니라 채용 주체 → '지원하기' 대신 인재 채용 경로로 안내.
+  const isHospital = accountRole === 'hospital';
   const process = job.process?.length ? job.process : ['온라인 지원·문의', '서류 확인', '기관 면접', '최종 합격'];
   const documents = job.documents?.length ? job.documents : ['이력서', '자격 확인 서류'];
 
@@ -218,15 +222,24 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
         </main>
 
         <aside className="medical-staff-apply-panel">
-          <small>지원·문의</small>
-          <h2>이 공고에 관심이 있으신가요?</h2>
-          <p>로그인 후 지원 의사를 남기면 메디헬퍼스가 접수 내용을 확인하고 다음 절차를 안내합니다.</p>
-          <button className="primary" onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원하기'} <ArrowRight /></button>
-          <button className="secondary" onClick={() => go(actionPath)}>채용 문의 남기기</button>
-          <div><LockKeyhole /><span><strong>연락처는 공개하지 않습니다</strong><small>지원자의 연락처와 이력서는 로그인·동의 후 채용 절차에 필요한 범위에서만 전달됩니다.</small></span></div>
+          {isHospital ? <>
+            <small>병원 회원 안내</small>
+            <h2>인재를 찾고 계신가요?</h2>
+            <p>병원 회원은 이 공고에 지원할 수 없습니다. 우리 병원 채용은 인재정보 열람 또는 채용 의뢰로 진행해 주세요.</p>
+            <button className="primary" onClick={() => go('/talent')}>인재정보 보기 <ArrowRight /></button>
+            <button className="secondary" onClick={() => go('/request/headhunter')}>채용 의뢰하기</button>
+            <div><LockKeyhole /><span><strong>지원은 의사·의료인 회원 전용</strong><small>공고 지원은 구직 회원만 가능하며, 병원은 채용 측 기능을 이용합니다.</small></span></div>
+          </> : <>
+            <small>지원·문의</small>
+            <h2>이 공고에 관심이 있으신가요?</h2>
+            <p>로그인 후 지원 의사를 남기면 메디헬퍼스가 접수 내용을 확인하고 다음 절차를 안내합니다.</p>
+            <button className="primary" onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원하기'} <ArrowRight /></button>
+            <button className="secondary" onClick={() => go(actionPath)}>채용 문의 남기기</button>
+            <div><LockKeyhole /><span><strong>연락처는 공개하지 않습니다</strong><small>지원자의 연락처와 이력서는 로그인·동의 후 채용 절차에 필요한 범위에서만 전달됩니다.</small></span></div>
+          </>}
         </aside>
       </div>
     </div>
-    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div><button onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원'} <ArrowRight /></button></div>
+    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div>{isHospital ? <button onClick={() => go('/talent')}>인재정보 보기 <ArrowRight /></button> : <button onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원'} <ArrowRight /></button>}</div>
   </div>;
 }

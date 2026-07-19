@@ -21,7 +21,7 @@ import AccountRecoveryPage from './AccountRecoveryPage.jsx';
 import MedicalStaffPage, { MedicalStaffDetailPage } from './MedicalStaffPage.jsx';
 import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
 import AdminConsolePage from './AdminConsolePage.jsx';
-import { PrivacyPolicyPage, TermsPage } from './LegalPages.jsx';
+import { PrivacyPolicyPage, TermsPage, WithdrawalPolicyPage } from './LegalPages.jsx';
 import { operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
@@ -249,18 +249,25 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
   if (auth.status === 'loading') {
     return <section className="auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>로그인 상태를 확인하고 있습니다…</p></div></section>;
   }
-  const ok = need === 'hospital' ? (auth.isHospital || auth.isAdmin) : auth.status === 'member';
+  const ok = need === 'hospital'
+    ? (auth.isHospital || auth.isAdmin)
+    : need === 'doctor'
+      ? (auth.role === 'doctor' || auth.isAdmin)
+      : auth.status === 'member';
   if (ok) return children;
   const hospitalNeed = need === 'hospital';
+  const doctorNeed = need === 'doctor';
   return <div className="auth-gate-wrap">
     <div className="auth-gate-blurred" aria-hidden="true">{children}</div>
     <div className="auth-gate-overlay">
       <div className="auth-gate-card">
         <span className="auth-gate-icon"><LockKeyhole /></span>
-        <small>{hospitalNeed ? 'HOSPITAL MEMBERS ONLY' : 'MEMBERS ONLY'}</small>
-        <h2>{title || (hospitalNeed ? '병원 회원 전용입니다' : '회원 전용입니다')}</h2>
+        <small>{hospitalNeed ? 'HOSPITAL MEMBERS ONLY' : doctorNeed ? 'DOCTOR MEMBERS ONLY' : 'MEMBERS ONLY'}</small>
+        <h2>{title || (hospitalNeed ? '병원 회원 전용입니다' : doctorNeed ? '의사 회원 전용입니다' : '회원 전용입니다')}</h2>
         <p>{description || (hospitalNeed
           ? '의료진 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요.'
+          : doctorNeed
+          ? '이력서 등록·구직 활동은 의사·의료인 회원 전용입니다. 병원 회원은 이용할 수 없으며, 인재 채용은 채용정보·인재정보를 이용해 주세요.'
           : '로그인 후 이용할 수 있는 화면입니다. 로그인하거나 회원가입 후 다시 시도해 주세요.')}</p>
         <div className="auth-gate-actions">
           <Link className="button primary" to={`/signup?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인 · 회원가입</Link>
@@ -397,7 +404,7 @@ function Footer({ operations }) {
       </div>
       <div className="footer-column"><strong>의사</strong><Link to="/jobs">초빙정보</Link><Link to="/resume">이력서 등록</Link><Link to="/headhunting">비공개 이직 상담</Link></div>
       <div className="footer-column"><strong>병원</strong><Link to="/talent">의사 인재정보</Link><Link to="/headhunting">의사 채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
-      <div className="footer-column"><strong>안내</strong><Link to="/medical-staff">의료인 채용</Link><Link to="/signup">로그인·회원가입</Link><Link to="/terms">이용약관</Link><Link to="/privacy">개인정보처리방침</Link></div>
+      <div className="footer-column"><strong>안내</strong><Link to="/medical-staff">의료인 채용</Link><Link to="/signup">로그인·회원가입</Link><Link to="/terms">이용약관</Link><Link to="/privacy">개인정보처리방침</Link><Link to="/withdrawal">회원 탈퇴 약관</Link></div>
     </div>
     <div className="footer-bottom"><span>© 2026 MEDIHELPERS. 대표 이형석 · 사업자등록번호 873-92-00515 · 직업정보제공사업 부산북부지청 제2017-1호</span><span>부산광역시 북구 만덕대로116번길 28</span></div>
   </footer>;
@@ -2699,7 +2706,7 @@ function TalentUnlockPage({ route, qa }) {
     <PageHero tone="membership" eyebrow="TALENT RESUME UNLOCK" title="인재 이력서 열람권" description="구직 공개에 동의한 의사·의료인 후보의 연락처와 이력서 상세를 병원 회원이 열람합니다." />
     {canUnlock
       ? <TalentUnlockCheckout plan={plan} talentId={talentId} />
-      : <section className="section"><div className="ad-apply-gate-card"><span><Building2 /></span><small>HOSPITAL ACCOUNT REQUIRED</small><h1>병원 회원 로그인 후<br />열람권을 구매할 수 있어요</h1><p>후보 개인정보 보호를 위해 병원 회원만 인재 이력서 열람권을 결제할 수 있습니다.</p><Link className="button primary full" to={`/signup/hospital?next=${encodeURIComponent(route)}`}>로그인·병원 회원가입 <ArrowRight /></Link><Link className="ad-apply-gate-back" to="/medical-staff">인재 목록 다시 보기</Link></div></section>}
+      : <section className="section ad-apply-gate"><div className="ad-apply-gate-card"><span><Building2 /></span><small>HOSPITAL ACCOUNT REQUIRED</small><h1>병원 회원 로그인 후<br />열람권을 구매할 수 있어요</h1><p>후보 개인정보 보호를 위해 병원 회원만 인재 이력서 열람권을 결제할 수 있습니다.</p><Link className="button primary full" to={`/signup/hospital?next=${encodeURIComponent(route)}`}>로그인·병원 회원가입 <ArrowRight /></Link><Link className="ad-apply-gate-back" to="/medical-staff">인재 목록 다시 보기</Link></div></section>}
   </>;
 }
 
@@ -3109,12 +3116,13 @@ export function App() {
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
-  else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} title="이력서 등록은 회원 전용입니다" description="이력서에는 개인정보가 포함되어 로그인 후 안전하게 작성할 수 있습니다. 로그인하거나 회원가입 후 이용해 주세요."><ResumeRoute qa={qa} /></AuthGate>;
+  else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} need="doctor" title="이력서 등록은 의사·의료인 회원 전용입니다" description="이력서에는 개인정보가 포함되어 의사·의료인 회원만 안전하게 작성할 수 있습니다. 병원 회원은 인재 채용을 위해 채용정보·인재정보를 이용해 주세요."><ResumeRoute qa={qa} /></AuthGate>;
   else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" qa={qa} />;
   else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" qa={qa} />;
   else if (path === '/signup' || path === '/account') page = <AccountPage />;
   else if (path === '/terms') page = <TermsPage />;
   else if (path === '/privacy') page = <PrivacyPolicyPage />;
+  else if (path === '/withdrawal') page = <WithdrawalPolicyPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
   if (path === '/admin' || path.startsWith('/admin/')) {

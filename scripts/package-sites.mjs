@@ -234,9 +234,20 @@ async function accountApi(request, env) {
     if (!['doctor', 'hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error: '회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
+    // 재가입 제한(회원 탈퇴 약관 제4조): 탈퇴일로부터 30일 이내에는 재가입 불가.
+    const existingAccount = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(key).first();
+    if (!existingAccount) {
+      const withdrawn = await env.DB.prepare("SELECT withdrawn_at AS at, CAST((julianday('now') - julianday(withdrawn_at)) AS INTEGER) AS days FROM withdrawn_members WHERE user_key = ?").bind(key).first();
+      if (withdrawn && Number(withdrawn.days) < 30) {
+        const remaining = 30 - Number(withdrawn.days);
+        return json({ error: '회원 탈퇴 후 30일이 지난 뒤 재가입할 수 있습니다. 약 ' + remaining + '일 후 다시 시도해 주세요.', code: 'REJOIN_BLOCKED', remainingDays: remaining }, 403);
+      }
+    }
     const newId = crypto.randomUUID();
     await env.DB.prepare("INSERT INTO accounts (id, user_key, role) VALUES (?, ?, ?) ON CONFLICT(user_key) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP").bind(newId, key, body.role).run();
     const account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
+    // 재가입이 허용되어 새로 가입했으므로 탈퇴 이력 정리.
+    await env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key = ?').bind(key).run();
     await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, last_login_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, identity.email, identity.displayName || '').run();
     const records = [
       ['terms', termsVersion],
@@ -250,14 +261,18 @@ async function accountApi(request, env) {
     const account = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(key).first();
     if (!account) return json({ deleted:true });
     const billing = await env.DB.prepare('SELECT COUNT(*) total FROM payment_orders WHERE account_id=?').bind(account.id).first();
+    // 재가입 30일 제한을 위해 탈퇴 시각 기록(개인정보 아닌 user_key 해시만).
+    const markWithdrawn = env.DB.prepare("INSERT INTO withdrawn_members (user_key, withdrawn_at) VALUES (?, CURRENT_TIMESTAMP) ON CONFLICT(user_key) DO UPDATE SET withdrawn_at=CURRENT_TIMESTAMP").bind(key);
     if (Number(billing?.total || 0) > 0) {
       await env.DB.batch([
+        markWithdrawn,
         env.DB.prepare("UPDATE account_admin_profiles SET status='withdrawn', email='', full_name='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id),
         env.DB.prepare("UPDATE member_profiles SET display_name='', phone='', organization='', job_title='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id)
       ]);
       return json({ deleted:true, retainedForBilling:true });
     }
     await env.DB.batch([
+      markWithdrawn,
       env.DB.prepare('DELETE FROM consent_records WHERE account_id = ?').bind(account.id),
       env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(account.id)
     ]);

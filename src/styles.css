@@ -4736,3 +4736,23 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .medical-seeking-banner p{color:#5a6a80;font-size:14px;line-height:1.6;max-width:620px}
 .medical-seeking-banner .button{flex-shrink:0}
 @media(max-width:640px){.medical-seeking-banner{padding:20px}.medical-seeking-banner .button{width:100%;justify-content:center}}
+
+/* 회원 탈퇴 안내·동의 화면 (개인정보보호법·전자상거래법 고지) */
+.account-withdraw{margin-top:22px;padding:22px;border:1px solid #f0d2d2;border-radius:18px;background:#fdf7f7;text-align:left}
+.account-withdraw-head{display:flex;align-items:center;gap:9px;color:#c0392b}.account-withdraw-head svg{width:22px}.account-withdraw-head strong{font-size:16px;color:#8f2d22}
+.account-withdraw-lead{margin:10px 0 16px;color:#6a5450;font-size:14px;line-height:1.6}
+.account-withdraw-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.account-withdraw-item{padding:14px;border-radius:13px;background:#fff;border:1px solid #eadada}
+.account-withdraw-item small{display:block;font-weight:800;font-size:12px;margin-bottom:6px;letter-spacing:.02em}
+.account-withdraw-item.delete small{color:#c0392b}.account-withdraw-item.keep small{color:#2f6fb0}
+.account-withdraw-item p{margin:0;color:#5c6470;font-size:13px;line-height:1.6}
+.account-withdraw-note{margin:14px 0 0;color:#7a8290;font-size:12.5px;line-height:1.6}.account-withdraw-note a{color:var(--blue);font-weight:700}
+.account-withdraw-consent{display:flex;align-items:flex-start;gap:9px;margin:16px 0 4px;color:#40474f;font-size:13.5px;line-height:1.5;cursor:pointer}
+.account-withdraw-consent input{margin-top:2px;width:17px;height:17px;flex-shrink:0}
+.account-withdraw-actions{display:flex;gap:10px;margin-top:16px}.account-withdraw-actions .button{flex:1;justify-content:center}
+.button.danger{background:#c0392b;color:#fff;border:1px solid #c0392b}.button.danger:hover:not(:disabled){background:#a93226}.button.danger:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:560px){.account-withdraw-grid{grid-template-columns:1fr}}
+
+/* 가입완료 화면의 탈퇴 안내 힌트(탈퇴 UI는 마이페이지로 이동) */
+.account-withdraw-hint{margin:18px 0 0;color:#8a93a2;font-size:13px}.account-withdraw-hint a{color:var(--blue);font-weight:700}
+.member-withdraw{border-color:#f0d2d2;background:#fdf9f9}.member-withdraw .account-delete{color:#c0392b;border-color:#e5b8b8}

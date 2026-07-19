@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
-  LockKeyhole, RotateCcw, ShieldCheck, Sparkles, Stethoscope, UserRound
+  LockKeyhole, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, UserRound
 } from 'lucide-react';
 import { accountRoleLabel, validateSignup } from './signupModel.js';
 import {
@@ -514,18 +514,7 @@ function SignupForm({ identity = {}, memberType, onComplete }) {
   </section>;
 }
 
-function AccountCard({ account, identity = {}, onDeleted }) {
-  const [deleting, setDeleting] = useState(false);
-  const remove = async () => {
-    if (!window.confirm('메디헬퍼스 계정을 삭제할까요? 자격 확인 자료가 없는 현재 계정 정보는 즉시 삭제됩니다.')) return;
-    setDeleting(true);
-    try {
-      await accountRequest('DELETE');
-      onDeleted();
-    } finally {
-      setDeleting(false);
-    }
-  };
+function AccountCard({ account, identity = {} }) {
   return <section className="signup-card account-complete">
     <span className="account-check"><CircleCheck /></span>
     <small>WELCOME TO MEDIHELPERS</small>
@@ -533,7 +522,49 @@ function AccountCard({ account, identity = {}, onDeleted }) {
     <p>{identity.displayName || identity.email || '회원'}님, 필요한 기능을 사용할 때만 추가 정보를 요청하겠습니다.</p>
     <dl><div><dt>회원 유형</dt><dd>{accountRoleLabel(account.role)}</dd></div><div><dt>가입 상태</dt><dd>기본 회원</dd></div><div><dt>마케팅 수신</dt><dd>미동의</dd></div></dl>
     <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><a className="button outline" href={withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`)}>로그아웃</a></div>
-    <button className="account-delete" type="button" onClick={remove} disabled={deleting}>{deleting ? '삭제 중…' : '계정 삭제'}</button>
+    <p className="account-withdraw-hint">회원 탈퇴는 <a href={withBase('/mypage')}>마이페이지 → 회원정보</a>에서 진행할 수 있습니다.</p>
+  </section>;
+}
+
+// 회원 탈퇴 안내·동의·실행 UI. 마이페이지 회원정보 탭에서 사용(가입 완료 화면과 분리).
+export function WithdrawSection({ onDeleted }) {
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const remove = async () => {
+    if (!agreed) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await accountRequest('DELETE');
+      if (onDeleted) onDeleted();
+      else window.location.href = withBase(`/signout-with-chatgpt?return_to=${withBase('/')}`);
+    } catch (error) {
+      setDeleteError(error.message || '계정 삭제를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+  return <section className="member-panel member-withdraw">
+    <div className="member-panel-head"><div><h3>회원 탈퇴</h3><p>계정과 개인정보를 삭제합니다. 신중히 진행해 주세요.</p></div></div>
+    {!confirmOpen
+      ? <button className="account-delete" type="button" onClick={() => { setConfirmOpen(true); setAgreed(false); setDeleteError(''); }}>회원 탈퇴 진행</button>
+      : <div className="account-withdraw" role="group" aria-label="회원 탈퇴 안내 및 동의">
+          <div className="account-withdraw-head"><ShieldAlert /><strong>회원 탈퇴 전 확인해 주세요</strong></div>
+          <p className="account-withdraw-lead">탈퇴하면 아래와 같이 처리되며, 개인정보 삭제는 <b>되돌릴 수 없습니다</b>.</p>
+          <div className="account-withdraw-grid">
+            <div className="account-withdraw-item delete"><small>즉시 삭제</small><p>이름·연락처·이메일·소속 등 회원 개인정보와 동의 기록. 등록한 이력서·프로필은 공개가 중단되고 파기됩니다.</p></div>
+            <div className="account-withdraw-item keep"><small>법령상 분리 보관</small><p>결제·거래·계약 및 청약철회에 관한 기록은 「전자상거래 등에서의 소비자보호에 관한 법률」에 따라 <b>5년간</b> 다른 정보와 분리해 보관 후 파기합니다.</p></div>
+          </div>
+          <p className="account-withdraw-note">보유·파기 기준은 <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침</a>과 <a href={withBase('/withdrawal')} target="_blank" rel="noreferrer">회원 탈퇴 약관</a>을 따릅니다. 진행 중인 결제·상담·채용 건이 있으면 종료 후 처리될 수 있습니다.</p>
+          <label className="account-withdraw-consent"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /><span>위 안내를 확인했으며, 회원 탈퇴 및 개인정보 삭제에 동의합니다.</span></label>
+          {deleteError && <p className="form-error" role="alert">{deleteError}</p>}
+          <div className="account-withdraw-actions">
+            <button type="button" className="button outline" onClick={() => setConfirmOpen(false)} disabled={deleting}>취소</button>
+            <button type="button" className="button danger" onClick={remove} disabled={!agreed || deleting}>{deleting ? '탈퇴 처리 중…' : '동의하고 탈퇴'}</button>
+          </div>
+        </div>}
   </section>;
 }
 
@@ -567,7 +598,7 @@ export default function AccountPage({ memberType = '' }) {
   }, []);
   let content;
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
-  else if (state.account) content = <AccountCard account={state.account} identity={state.identity} onDeleted={() => setState((current) => ({ ...current, account: null }))} />;
+  else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;
   else if (!memberType) content = <MemberTypeChooser />;
   else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={(account) => setState((current) => ({ ...current, account }))} />;
   return <div className="signup-page">

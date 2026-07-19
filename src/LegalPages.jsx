@@ -90,6 +90,39 @@ export function TermsPage() {
   </LegalLayout>;
 }
 
+export function WithdrawalPolicyPage() {
+  return <LegalLayout eyebrow="MEMBERSHIP WITHDRAWAL" title="회원 탈퇴 약관" description="회원 탈퇴 절차와 탈퇴 후 정보 처리, 재가입 기준을 안내합니다.">
+    <Section number="01" title="탈퇴 방법과 효력">
+      <ul>
+        <li>회원은 언제든지 <b>마이페이지 → 회원정보 → 회원 탈퇴</b>에서 직접 탈퇴할 수 있습니다.</li>
+        <li>탈퇴는 안내 사항 확인과 동의 절차를 거쳐 즉시 처리되며, 처리 즉시 서비스 이용이 종료됩니다.</li>
+        <li>탈퇴 신청은 본인 계정으로 로그인한 상태에서만 가능합니다.</li>
+      </ul>
+    </Section>
+    <Section number="02" title="탈퇴 시 개인정보 처리">
+      <ul>
+        <li><b>즉시 삭제</b>: 이름·연락처·이메일·소속 등 회원 개인정보와 동의 기록. 등록한 이력서·인재 프로필은 공개가 중단되고 파기됩니다.</li>
+        <li><b>법령상 분리 보관</b>: 결제·거래·계약 및 청약철회에 관한 기록은 「전자상거래 등에서의 소비자보호에 관한 법률」에 따라 <b>5년</b>, 소비자 불만·분쟁처리 기록은 <b>3년</b> 등 관계 법령이 정한 기간 동안 다른 정보와 분리해 보관 후 파기합니다.</li>
+        <li>세부 항목과 기간은 <a href={withBase('/privacy')}>개인정보처리방침</a>의 보유·이용 기간을 따릅니다.</li>
+      </ul>
+    </Section>
+    <Section number="03" title="진행 중인 거래·계약">
+      <p>탈퇴 시점에 진행 중인 결제, 상담, 채용 연결, 광고·열람권 이용 건이 있는 경우 해당 건의 정산·환불·분쟁 처리가 완료된 후 탈퇴가 최종 반영될 수 있습니다. 환불은 <a href={withBase('/refund')}>환불 정책</a>과 결제 당시 고지한 조건에 따릅니다.</p>
+    </Section>
+    <Section number="04" title="재가입 제한">
+      <ul>
+        <li>탈퇴 회원은 <b>탈퇴일로부터 30일이 지난 후</b> 다시 가입할 수 있습니다.</li>
+        <li>이 제한은 무료 혜택 반복 수령, 부정 이용, 기록 세탁 등 서비스 남용을 방지하기 위한 것으로, 관계 법령이 아닌 본 약관에 따른 회사 정책입니다.</li>
+        <li>재가입 시 이전 계정의 활동 내역·이력서·권한은 복원되지 않으며, 새 회원으로 다시 시작합니다.</li>
+      </ul>
+    </Section>
+    <Section number="05" title="문의">
+      <p>탈퇴·재가입·개인정보 처리에 관한 문의는 <a href={`mailto:${operator.email}`}>{operator.email}</a> 또는 <a href={`tel:${operator.phone.replace(/\D/g, '')}`}>{operator.phone}</a>로 연락해 주세요.</p>
+      <p><a href={withBase('/privacy')}>개인정보처리방침</a> · <a href={withBase('/terms')}>서비스 이용약관</a></p>
+    </Section>
+  </LegalLayout>;
+}
+
 export function PrivacyPolicyPage() {
   return <LegalLayout eyebrow="PRIVACY POLICY" title="개인정보처리방침" description="메디헬퍼스가 실제 서비스에서 처리하는 개인정보와 보호 기준을 공개합니다.">
     <Section number="01" title="처리 목적과 항목">
