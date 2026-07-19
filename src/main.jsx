@@ -1627,7 +1627,7 @@ function TalentPage({ qa, route = '', liveTalent = talent, medicalTalent = [] })
             <span>
               <UserRoundSearch /> TALENT SEARCH
             </span>
-            <strong>필요한 진료과와 근무조건으로 인재를 찾으세요</strong>
+            <strong>구직 중인 의사·의료인 이력서를 열람하세요</strong>
             <button
               type="button"
               onClick={() => {

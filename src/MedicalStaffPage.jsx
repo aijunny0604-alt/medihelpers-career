@@ -97,8 +97,8 @@ export default function MedicalStaffPage({ operations, medicalTalent = [] }) {
 
   return <div className="medical-staff-hub">
     <section className="medical-staff-hero">
-      <div><span><UsersRound /> MEDICAL STAFF JOBS</span><h1>의료인 채용은 더 넓게,<br /><em>의사 헤드헌팅은 더 깊게.</em></h1><p>메디헬퍼스의 의사 전문성을 유지하면서 병원 운영에 필요한 의료직군 채용을 별도 허브에서 연결합니다.</p><div className="medical-staff-actions"><button onClick={() => go('/advertise/apply?staff=1')}><Building2 /> 의료인 공고 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서 등록</button></div></div>
-      <aside><small>병원 채용 담당자</small><strong>한 계정으로<br />의사와 의료인 채용 관리</strong><ul><li><Check /> 직군별 공고 등록</li><li><Check /> 지원자·문의 통합 관리</li><li><Check /> 광고 성과와 이용내역 확인</li></ul></aside>
+      <div><span><UsersRound /> MEDICAL STAFF JOBS</span><h1>간호·의료기사·약무<br /><em>의료인 채용 공고</em></h1><p>병원이 등록한 간호·보건·의료기사·약무 <b>일자리 공고</b>를 확인하고 지원하세요. 구직 인재의 이력서를 찾는 병원은 <a href={withBase('/talent')}>인재정보</a>를 이용하세요.</p><div className="medical-staff-actions"><button onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/advertise/apply?staff=1')}><Building2 /> 병원 · 공고 등록</button></div></div>
+      <aside><small>구직 의료인</small><strong>공고를 보고<br />바로 지원하세요</strong><ul><li><Check /> 직군·지역·조건별 공고</li><li><Check /> 로그인 후 지원·문의</li><li><Check /> 연락처는 동의 후 전달</li></ul></aside>
     </section>
     <section className="medical-staff-search" aria-label="의료인 채용정보 검색">
       <div className="medical-staff-search-title"><span><Search /></span><div><small>MEDICAL STAFF SEARCH</small><h2>직군과 지역으로 채용정보를 찾으세요</h2></div></div>
