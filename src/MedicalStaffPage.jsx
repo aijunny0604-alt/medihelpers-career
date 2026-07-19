@@ -238,16 +238,16 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
             <button className="secondary" onClick={() => go('/request/headhunter')}>채용 의뢰하기</button>
             <div><LockKeyhole /><span><strong>지원은 의사·의료인 회원 전용</strong><small>공고 지원은 구직 회원만 가능하며, 병원은 채용 측 기능을 이용합니다.</small></span></div>
           </> : <>
-            <small>지원·문의</small>
-            <h2>이 공고에 관심이 있으신가요?</h2>
-            <p>로그인 후 지원 의사를 남기면 메디헬퍼스가 접수 내용을 확인하고 다음 절차를 안내합니다.</p>
-            <button className="primary" onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원하기'} <ArrowRight /></button>
-            <button className="secondary" onClick={() => go(actionPath)}>채용 문의 남기기</button>
-            <div><LockKeyhole /><span><strong>연락처는 공개하지 않습니다</strong><small>지원자의 연락처와 이력서는 로그인·동의 후 채용 절차에 필요한 범위에서만 전달됩니다.</small></span></div>
+            <small>지원·상담</small>
+            <h2>이 공고에 지원하시겠어요?</h2>
+            <p>병원에 이력서를 접수하거나, 조건이 애매하면 메디헬퍼스 헤드헌터에게 먼저 상담받을 수 있습니다.</p>
+            <button className="primary" onClick={() => go(actionPath)}>{signedIn ? '이 병원에 이력서 접수' : '로그인 후 이력서 접수'} <ArrowRight /></button>
+            <button className="secondary" onClick={() => go('/headhunting?role=doctor')}>헤드헌터에게 상담받기</button>
+            <div><LockKeyhole /><span><strong>연락처는 공개하지 않습니다</strong><small>이력서와 연락처는 로그인·동의 후 채용 절차에 필요한 범위에서만 병원에 전달됩니다.</small></span></div>
           </>}
         </aside>
       </div>
     </div>
-    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div>{!roleReady ? <button disabled>확인 중…</button> : isHospital ? <button onClick={() => go('/talent')}>인재정보 보기 <ArrowRight /></button> : <button onClick={() => go(actionPath)}>{signedIn ? '지원하기' : '로그인 후 지원'} <ArrowRight /></button>}</div>
+    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div>{!roleReady ? <button disabled>확인 중…</button> : isHospital ? <button onClick={() => go('/talent')}>인재정보 보기 <ArrowRight /></button> : <button onClick={() => go(actionPath)}>{signedIn ? '이력서 접수' : '로그인 후 접수'} <ArrowRight /></button>}</div>
   </div>;
 }
