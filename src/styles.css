@@ -4285,11 +4285,11 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 
 /* Featured recruitment keeps the same brand-first system as spotlight,
    with a quieter treatment that preserves the product hierarchy. */
-/* 등급별 색 통일: 개별 병원 무드 색 대신 피처드는 메디헬퍼스 블루 하나로 고정 */
+/* 등급별 색 통일: 광고(집중채용) 공고는 등급 구분 없이 모두 골드 하나로 고정 */
 .unified-job-grid .job-card.premium-ad.ad-featured{
-  --mood-primary:#1263e8!important;
-  --job-color:#1263e8!important;
-  --mood-soft:#eaf2fe!important;
+  --mood-primary:#b98a2e!important;
+  --job-color:#b98a2e!important;
+  --mood-soft:#fdf7ea!important;
   border-color:color-mix(in srgb,var(--mood-primary,var(--job-color,#6759d7)) 38%,#dbe4ef)!important;
   border-top-width:5px!important;
   background:
