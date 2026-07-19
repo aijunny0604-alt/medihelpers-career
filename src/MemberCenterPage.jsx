@@ -290,6 +290,11 @@ const RECEIPT_OPERATOR = {
 export function ReceiptModal({ payment, buyerName, onClose }) {
   const won = (n) => `${Number(n || 0).toLocaleString('ko-KR')}원`;
   const receiptRef = React.useRef(null);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const buildDocHtml = () => {
     const node = receiptRef.current;
     if (!node) return '';
