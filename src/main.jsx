@@ -503,9 +503,7 @@ function JobCard({
             : `${job.hospital} ${job.title} 상세보기`
         }
       />
-      {job.verifiedByHeadhunter && !isAd && (
-        <span className="tag tag-verified job-verified-float"><ShieldCheck /> 헤드헌터 인증</span>
-      )}
+      {/* 채용정보(/jobs) 메인 공고는 병원이 올리는 광고라 헤드헌터 인증 배지를 표시하지 않는다. */}
       <div className="job-top">
         <div>
           <span
@@ -800,9 +798,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               >
                 {job.badge}
               </span>
-              {job.verifiedByHeadhunter && (
-                <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>
-              )}
               {isAd && <span>AD · 병원 브랜드 채용관</span>}
               {qaUnlocked && (
                 <span className="qa-unlocked-badge">
@@ -1154,7 +1149,7 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '', initial
   };
   if (submitted) return <div className="consult-success"><span><CircleCheck /></span><small>상담번호 {submitted}</small><h3>상담 요청을 정확히 접수했습니다</h3><p>담당 헤드헌터가 내용을 먼저 검토한 뒤 선택하신 방식으로 연락드립니다.</p><div className="consult-next"><span><b>1</b>상담 접수</span><i /><span><b>2</b>내용 검토</span><i /><span><b>3</b>담당자 연락</span></div><a className="button outline" href="tel:0513425463"><Phone /> 급하면 전화로 문의</a></div>;
   return <form className="consult-form guided" onSubmit={submit}>
-    <div className="guided-head"><div><small>간편 1:1 상담</small><h3>{role === 'doctor' ? '내 조건에 맞는 이직 상담' : '우리 병원에 맞는 채용 상담'}</h3></div><span>약 1~2분</span></div>
+    <div className="guided-head"><div><small>간편 1:1 상담</small><h3>{role === 'doctor' ? '내 조건에 맞는 이직 상담' : '우리 병원에 맞는 채용 상담'}</h3></div></div>
     <div className="consult-progress" aria-label={`상담 ${step}단계`}><div className={step >= 1 ? 'active' : ''}><b>1</b><span>상담 목적</span></div><i /><div className={step >= 2 ? 'active' : ''}><b>2</b><span>필수 조건</span></div><i /><div className={step >= 3 ? 'active' : ''}><b>3</b><span>연락 방법</span></div></div>
     {step === 1 && <div className="consult-step"><div className="role-select-guide"><span className="role-select-badge"><UserRoundSearch /></span><div><strong>어느 쪽으로 상담하시나요?</strong><p>선택에 따라 필요한 질문만 안내해 드립니다.</p></div></div><div className="role-tabs role-tabs-rich"><button type="button" className={role === 'doctor' ? 'active' : ''} onClick={() => changeRole('doctor')}><Stethoscope /><b>의사·의료인</b><em>이직·구직 상담</em></button><button type="button" className={role === 'hospital' ? 'active' : ''} onClick={() => changeRole('hospital')}><Building2 /><b>병원·기관</b><em>의료진 채용 상담</em></button></div><div className="step-question"><small>하나만 선택해주세요</small><h4>어떤 상담이 필요하신가요?</h4></div><div className="choice-grid">{topics.map((topic) => <button type="button" key={topic} className={data.topic === topic ? 'selected' : ''} onClick={() => update('topic', topic)}><span>{topic}</span>{data.topic === topic && <Check />}</button>)}</div><button type="button" className="button primary full" disabled={!data.topic} onClick={() => setStep(2)}>다음 · 필요한 조건 입력 <ArrowRight /></button></div>}
       {step === 2 && <div className="consult-step"><div className="step-question"><small>{data.topic}</small><h4>꼭 필요한 조건만 알려주세요</h4><p>정확하지 않아도 괜찮습니다. 담당자가 함께 정리해드려요.</p></div><div className="form-grid"><label><span>{role === 'doctor' ? '진료과·전문과목' : '채용 진료과·전문과목'} *</span><input value={data.department} onChange={(e) => update('department', e.target.value)} placeholder="예: 소화기내과, 정형외과 전문의" autoFocus /></label><label><span>{role === 'doctor' ? '희망 지역' : '병원 지역'}</span><input value={data.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산·경남" /></label></div><div className="field-group"><span>{role === 'doctor' ? '희망 근무형태' : '채용 형태'}</span><div className="choice-row">{workTypes.map((item) => <button type="button" key={item} className={data.workType === item ? 'selected' : ''} onClick={() => update('workType', item)}>{item}</button>)}</div></div><label className="wide-field"><span>추가로 전하고 싶은 내용 <i>선택</i></span><textarea value={data.message} onChange={(e) => update('message', e.target.value)} rows="3" placeholder={role === 'doctor' ? '희망 보수나 피하고 싶은 조건을 적어주세요.' : '채용 일정이나 꼭 필요한 경력을 적어주세요.'} /></label><div className="step-actions"><button type="button" className="button outline" onClick={() => setStep(1)}><ArrowLeft /> 이전</button><button type="button" className="button primary" disabled={!data.department.trim()} onClick={() => setStep(3)}>다음 · 연락 방법 <ArrowRight /></button></div></div>}
@@ -1738,7 +1733,7 @@ function TalentPage({ qa, route = '', liveTalent = talent, medicalTalent = [] })
         <div className="talent-grid talent-portal-list">
           {visibleTalent.map((person) => (
             <article className="talent-card" key={person.code}>
-              {person.verifiedByHeadhunter && <div className="talent-verified-head"><span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span></div>}
+              <div className="talent-verified-head">{person.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
               <div className="talent-top">
                 <span className="avatar">
                   <UserRound />
@@ -3125,17 +3120,10 @@ export function App() {
   useEffect(() => {
     if (path === '/qa-preview' && !qaState) selectQaState('guest');
   }, [path, qaState, selectQaState]);
-  // 실제 로그인 사용자에게 예전 QA 미리보기 상태가 남아 실제 권한을 덮어쓰는 문제 방지:
-  // /qa-preview 화면이 아닌데 실제 로그인(account) 상태면 QA 상태를 자동 해제한다.
-  useEffect(() => {
-    if (!qaState || path === '/qa-preview') return;
-    let active = true;
-    fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((result) => { if (active && result && (result.signedIn || result.account)) { setQaState(''); writeStoredString(QA_PREVIEW_STORAGE_KEY, ''); } })
-      .catch(() => {});
-    return () => { active = false; };
-  }, [qaState, path]);
+  // QA 미리보기는 사용자가 리본의 '종료'로 명시적으로 끈다(자동 해제하지 않음).
+  // 예전엔 '실제 로그인 시 자동 해제'를 넣었으나, 페이지 이동마다 QA가 풀려 미리보기가
+  // 불가능했다(특히 로컬 목은 항상 signedIn). QA는 화면 미리보기일 뿐이고 실제 데이터
+  // 권한은 서버가 인증으로 독립 검증하므로, 자동 해제는 제거한다.
 
   const qaActive = path === '/qa-preview' || Boolean(qaState);
   const qaInfo = getQaStateInfo(qaState);

@@ -4167,6 +4167,9 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .consultation-focus .consult-step{padding-bottom:48px}
 .consultation-focus .choice-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .consultation-focus .choice-grid button{min-height:64px;padding-inline:16px}
+/* 상담 목적 선택지 — 글자 가운데 정렬 */
+.consult-step .choice-grid button{justify-content:center;text-align:center;gap:7px}
+.consult-step .choice-grid button svg{margin-left:2px}
 .consult-submit-error{margin:14px 0 0;padding:13px 15px;border:1px solid #fecaca;border-radius:12px;background:#fff1f2;color:#be123c;font-size:14px;font-weight:750;line-height:1.5}
 @media(max-width:1300px){.consultation-focus{max-width:1120px}.consultation-focus .choice-grid{grid-template-columns:1fr 1fr}.consultation-focus .consult-form.guided{max-width:1080px}}
 @media(max-width:780px){.consultation-focus{padding:52px 16px 72px;gap:28px;scroll-margin-top:82px}.consultation-focus .consult-copy h2{font-size:36px;letter-spacing:-1.8px}.consultation-focus .consult-copy>p{font-size:15px}.consultation-focus .consult-points{grid-template-columns:1fr}.consultation-focus .consult-points>div{min-height:76px;padding:14px 15px}.consultation-focus .guided-head{padding:27px 22px 22px}.consultation-focus .guided-head h3{font-size:24px}.consultation-focus .consult-progress{padding:17px 22px}.consultation-focus .guided-body,.consultation-focus .consult-step{padding-left:20px;padding-right:20px}.consultation-focus .consult-step{padding-bottom:26px}.consultation-focus .choice-grid{grid-template-columns:1fr}}
@@ -4826,8 +4829,10 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 인증 배지 위치 정리: 제목 밀림 방지 */
 .ms-job-top-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ms-job-top-row .tag-verified{font-size:11px;padding:2px 8px}
-/* 인재 카드 인증 배지: 카드 최상단 별도 줄(아바타·이름과 겹치지 않게) */
-.talent-verified-head{margin-bottom:12px}
+/* 인재 카드 인증 배지: 카드 최상단 별도 줄. 배지 없어도 같은 높이 슬롯을 예약해 카드 높이 통일 */
+.talent-grid{align-items:stretch}
+.talent-card{display:flex;flex-direction:column}
+.talent-verified-head{min-height:22px;margin-bottom:10px;display:flex;align-items:center}
 .talent-verified-head .tag-verified{display:inline-flex;font-size:10.5px;padding:3px 9px}
 
 /* 헤드헌팅 상담 역할 선택 — 고급 카드형 */
@@ -4836,22 +4841,31 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .role-select-badge svg{width:21px}
 .role-select-guide strong{display:block;font-size:15px;color:#16233a;letter-spacing:-.01em}
 .role-select-guide p{margin:2px 0 0;font-size:12.5px;color:#68758a}
-.role-tabs-rich{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.role-tabs-rich button{display:flex;flex-direction:column;align-items:center;gap:5px;padding:16px 12px;border-radius:14px;border:1.5px solid #e2e9f2;background:#fff;cursor:pointer;transition:.16s;color:#6a7688}
-.role-tabs-rich button svg{width:22px;height:22px;color:#98a4b5;transition:.16s}
-.role-tabs-rich button b{font-size:15px;color:#37455c;font-weight:800}
-.role-tabs-rich button em{font-size:11.5px;font-style:normal;color:#8a95a6}
-.role-tabs-rich button:hover{border-color:#c3d6ef;background:#fafcff}
-.role-tabs-rich button.active{border-color:var(--blue,#1a5fd4);background:linear-gradient(135deg,#f2f7ff,#eefaf6);box-shadow:0 4px 14px rgba(26,95,212,.12)}
-.role-tabs-rich button.active svg,.role-tabs-rich button.active b{color:var(--blue,#1a5fd4)}
-.role-tabs-rich button.active em{color:#4a7fd4}
-
-/* 리치 역할 탭이 기존 role-tabs 파란배경 규칙에 덮이지 않게(글자 안보임 방지) */
+.role-tabs-rich{display:grid !important;grid-template-columns:1fr 1fr;gap:12px;background:transparent !important;padding:0 !important;margin-bottom:22px}
 .consultation-focus .role-tabs.role-tabs-rich button,
-.role-tabs.role-tabs-rich button{min-height:auto;flex-direction:column;justify-content:center}
+.role-tabs.role-tabs-rich button,
+.role-tabs-rich button{display:flex !important;flex-direction:column !important;align-items:center !important;justify-content:center !important;text-align:center;gap:6px !important;height:auto !important;min-height:78px !important;padding:16px 14px !important;border-radius:16px;border:1.5px solid #e4ebf4;background:#fff;cursor:pointer;transition:.18s cubic-bezier(.4,0,.2,1);color:#6a7688;box-shadow:0 1px 2px rgba(30,50,80,.03);line-height:1.3}
+.role-tabs-rich button>svg{width:25px !important;height:25px !important;color:#aab4c4;transition:.18s}
+.role-tabs-rich button b{display:block;font-size:15.5px;color:#2f3d54;font-weight:800;letter-spacing:-.01em}
+.role-tabs-rich button em{display:block;font-size:12px;font-style:normal;font-weight:600;color:#8a95a6}
+.role-tabs-rich button:hover{border-color:#c3d6ef;background:#fafcff;transform:translateY(-1px)}
 .consultation-focus .role-tabs.role-tabs-rich button.active,
-.role-tabs.role-tabs-rich button.active{background:linear-gradient(135deg,#f2f7ff,#eefaf6);box-shadow:0 4px 14px rgba(26,95,212,.12)}
+.role-tabs.role-tabs-rich button.active,
+.role-tabs-rich button.active{border-color:var(--blue,#1a5fd4);background:linear-gradient(135deg,#f4f8ff,#eefaf6);box-shadow:0 6px 18px rgba(26,95,212,.14)}
 .consultation-focus .role-tabs.role-tabs-rich button.active b,
-.role-tabs.role-tabs-rich button.active b{color:var(--blue,#1a5fd4)}
-.consultation-focus .role-tabs.role-tabs-rich button.active svg{color:var(--blue,#1a5fd4)}
-.consultation-focus .role-tabs.role-tabs-rich button.active em{color:#4a7fd4}
+.role-tabs-rich button.active b,.role-tabs-rich button.active>svg,.consultation-focus .role-tabs.role-tabs-rich button.active>svg{color:var(--blue,#1a5fd4)}
+.role-tabs-rich button.active em,.consultation-focus .role-tabs.role-tabs-rich button.active em{color:#4a7fd4}
+
+/* 지원 시 등록 이력서 연동 카드 */
+.quick-resume-link{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1.5px solid #d5e3f5;border-radius:14px;background:#f5f9ff;cursor:pointer;transition:.15s}
+.quick-resume-link.on{border-color:var(--blue,#1a5fd4);background:linear-gradient(135deg,#eef5ff,#eefaf6)}
+.quick-resume-link input{width:18px;height:18px;flex-shrink:0}
+.quick-resume-link-icon{flex-shrink:0;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#e5eefb;color:var(--blue,#1a5fd4)}
+.quick-resume-link-icon svg{width:19px}
+.quick-resume-link-body{flex:1;min-width:0;display:flex;flex-direction:column}
+.quick-resume-link-body strong{font-size:14px;color:#1a2740}
+.quick-resume-link-body small{font-size:12px;color:#5f6d82;margin-top:2px}
+.quick-resume-edit{flex-shrink:0;font-size:12.5px;font-weight:700;color:var(--blue,#1a5fd4);padding:6px 10px;border-radius:8px;background:#fff;border:1px solid #d5e3f5}
+
+/* 의료인 채용 상세 hero — 직군 + 인증 배지 한 줄 */
+.medical-staff-detail-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}

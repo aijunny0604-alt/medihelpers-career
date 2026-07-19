@@ -186,7 +186,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
       <button className="medical-staff-back" onClick={() => go('/medical-staff')}><ArrowLeft /> 의료인 채용 목록</button>
       <section className="medical-staff-detail-hero">
         <div>
-          <span className="medical-staff-detail-role">{job.role}</span>
+          <div className="medical-staff-detail-tags"><span className="medical-staff-detail-role">{job.role}</span>{job.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
           <p>{job.hospital}</p>
           <h1>{job.title}</h1>
           <div className="medical-staff-detail-meta"><span><MapPin /> {job.region}</span><span><BriefcaseBusiness /> {job.type}</span><span><CalendarDays /> {job.deadline}</span></div>
