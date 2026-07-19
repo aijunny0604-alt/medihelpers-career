@@ -234,7 +234,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
             <small>병원 회원 안내</small>
             <h2>이 공고는 지원용 공고입니다</h2>
             <p>병원 회원은 다른 기관의 공고에 지원할 수 없습니다. 우리 병원 채용이 필요하면 메디헬퍼스 헤드헌터에게 의뢰해 주세요.</p>
-            <button className="primary" onClick={() => go('/request/headhunter')}>채용 의뢰하기 <ArrowRight /></button>
+            <button className="primary" onClick={() => go('/request/hiring')}>채용 의뢰하기 <ArrowRight /></button>
             <div><LockKeyhole /><span><strong>지원은 의사·의료인 회원 전용</strong><small>공고 지원은 구직 회원만 가능하며, 병원은 채용 측 기능을 이용합니다.</small></span></div>
           </> : <>
             <small>지원·상담</small>
@@ -247,6 +247,6 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
         </aside>
       </div>
     </div>
-    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div>{!roleReady ? <button disabled>확인 중…</button> : isHospital ? <button onClick={() => go('/request/headhunter')}>채용 의뢰하기 <ArrowRight /></button> : <button onClick={() => go(actionPath)}>{signedIn ? '이력서 접수' : '로그인 후 접수'} <ArrowRight /></button>}</div>
+    <div className="medical-staff-mobile-cta"><div><small>{job.hospital}</small><strong>{job.pay}</strong></div>{!roleReady ? <button disabled>확인 중…</button> : isHospital ? <button onClick={() => go('/request/hiring')}>채용 의뢰하기 <ArrowRight /></button> : <button onClick={() => go(actionPath)}>{signedIn ? '이력서 접수' : '로그인 후 접수'} <ArrowRight /></button>}</div>
   </div>;
 }

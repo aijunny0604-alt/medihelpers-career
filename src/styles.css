@@ -77,8 +77,8 @@ footer{background:#f8fafc;border-top:1px solid #e5ebf2;padding:55px max(24px,cal
   .site-header{height:clamp(76px,4.6vw,88px)}
   .nav-wrap{max-width:1500px;padding-inline:clamp(28px,3vw,54px)}
   .brand img{width:clamp(168px,10vw,196px)}
-  .nav-wrap nav{gap:clamp(18px,1.5vw,30px)}
-  .nav-wrap nav a{font-size:clamp(13px,.24vw + 10px,16px);padding-block:32px}
+  .nav-wrap nav{gap:clamp(20px,1.7vw,34px)}
+  .nav-wrap nav a{font-size:clamp(14.5px,.26vw + 11px,17px);font-weight:700;padding-block:32px}
   .nav-actions .text-link{font-size:clamp(12px,.2vw + 9px,14px)}
   .button{min-height:clamp(46px,2.8vw,54px);padding-inline:clamp(20px,1.5vw,28px);font-size:clamp(14px,.22vw + 11px,16px)}
   .button.compact{min-height:clamp(42px,2.5vw,49px)}
