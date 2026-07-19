@@ -133,6 +133,10 @@ async function ensureRecruitmentCrmSchema(env) {
 async function ensureAdminConsoleSchema(env) {
   if (!env || !env.DB) throw new Error('ADMIN_CONSOLE_DB_UNAVAILABLE');
   await env.DB.batch(adminConsoleSchemaStatements.map(statement => env.DB.prepare(statement)));
+  // 마이그레이션: 이미 생성된 admin_content_records 테이블에 sort_order가 없으면 추가(상단 고정용).
+  // CREATE TABLE IF NOT EXISTS는 기존 테이블을 안 바꾸므로, 배포 이전 생성분에는 컬럼이 없어 SELECT가 실패한다.
+  // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
+  try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
 function adminIdentity(request, env) {
   const identity = authenticatedUser(request);
