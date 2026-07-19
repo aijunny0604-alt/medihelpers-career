@@ -9,6 +9,8 @@
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career`
 - 보조 공개본: GitHub Pages `aijunny0604-alt.github.io/medihelpers-career`
 - 소스 저장소: GitHub `aijunny0604-alt/medihelpers-career`
+- 현재 운영 소스 브랜치: `agent/medihelpers-ui-stability`
+- 현재 Sites 운영 버전: `191` (`f2512b7`, 2026-07-19 배포)
 
 ## Current Rules
 
@@ -16,8 +18,8 @@
 - 기존 `.openai/hosting.json`의 프로젝트 연결을 유지합니다.
 - 비밀값은 저장소가 아닌 호스팅 환경변수에 저장합니다.
 - 공개 배포 전 샘플 데이터와 개인정보를 재검토합니다.
-- 검증된 변경과 문서를 한 커밋으로 GitHub `main`에 푸시합니다.
-- GitHub Pages는 `main` 푸시를 감지해 자동 빌드·배포합니다.
+- 검증된 변경과 문서를 운영 소스 브랜치 `agent/medihelpers-ui-stability`에 푸시합니다.
+- GitHub Pages 미러의 배포 브랜치는 별도 워크플로 설정을 확인한 뒤 동기화합니다.
 - Sites는 GitHub와 동일한 커밋을 소스 저장소에 반영한 뒤 버전을 저장하고 공개 배포합니다.
 - 로컬 저장만으로 자동 푸시하지 않으며, 검증되지 않은 변경을 공개하지 않습니다.
 
