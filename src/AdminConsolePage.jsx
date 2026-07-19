@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { jobs, talent } from './data.js';
 import { sampleJobs as medicalStaffJobs } from './MedicalStaffPage.jsx';
+import { ReceiptModal } from './MemberCenterPage.jsx';
 
 const catalogContents = [
   ...jobs.map((job) => ({
@@ -668,6 +669,7 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
   useEffect(() => { setStatus(payment.status); setMethod(payment.paymentMethod || 'card'); setAdminNote(payment.adminNote || ''); setProviderTransactionId(''); setRefundAmount(''); setRefundReason(''); }, [payment.id]);
+  const [showReceipt, setShowReceipt] = useState(false);
   const orderTransactions = transactions.filter((item) => item.orderId === payment.id);
   const orderRefunds = refunds.filter((item) => item.orderId === payment.id);
   const save = () => mutate('payment_update', { id:payment.id, status, paymentMethod:method, provider:'manual', providerTransactionId, adminNote }, '결제 상태와 거래 이력을 저장했습니다.');
@@ -675,8 +677,12 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
     const saved = await mutate('refund_create', { orderId:payment.id, amount:Number(refundAmount), reason:refundReason }, '환불 요청을 원장에 기록했습니다.');
     if (saved) { setRefundAmount(''); setRefundReason(''); }
   };
+  const resolveRefund = (refundId, decision) => mutate('refund_resolve', { refundId, decision }, decision === 'approve' ? '환불 요청을 승인했습니다.' : '환불 요청을 거부했습니다.');
+  // 영수증 모달용 매핑(회원 영수증과 동일 포맷).
+  const receiptPayload = { id:payment.orderNumber, item:payment.productName, date:String(payment.paidAt || payment.createdAt || '').slice(0,10), method:payment.paymentMethod === 'transfer' ? '계좌이체' : '카드', status:paymentStatusLabel[payment.status] || payment.status, total:Number(payment.totalAmount||0), supply:Number(payment.supplyAmount||Math.round(Number(payment.totalAmount||0)/1.1)), tax:Number(payment.taxAmount||(Number(payment.totalAmount||0)-Math.round(Number(payment.totalAmount||0)/1.1))), customerName:payment.customerName };
   return <div className="admin-payment-detail">
-    <header><div><small>ORDER DETAIL</small><h3>{payment.orderNumber}</h3></div><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status]}</span></header>
+    <header><div><small>ORDER DETAIL</small><h3>{payment.orderNumber}</h3></div><div className="admin-order-head-actions"><button type="button" className="admin-receipt-btn" onClick={() => setShowReceipt(true)}><ReceiptText /> 영수증</button><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status]}</span></div></header>
+    {showReceipt && <ReceiptModal payment={receiptPayload} buyerName={payment.customerName} onClose={() => setShowReceipt(false)} />}
     <dl>
       <div><dt>회원</dt><dd>{payment.customerName || '-'}<small>{payment.customerEmail}<br />{payment.customerPhone}</small></dd></div>
       <div><dt>상품</dt><dd>{payment.productName}<small>{payment.accountRole === 'hospital' ? '병원 회원' : '일반 회원'} · {payment.productType}</small></dd></div>
@@ -691,7 +697,8 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
       <button className="admin-primary wide" onClick={save}><Save />결제 상태 저장</button>
     </div>
     <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{String(item.processedAt || '').slice(0,16)}</time></div>)}{!orderTransactions.length && <p>아직 승인·실패 거래가 없습니다.</p>}</section>
-    {['paid','partially_refunded'].includes(payment.status) && <section className="payment-refund"><h4><RotateCcw />환불 접수</h4><div><input value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} inputMode="numeric" placeholder="환불 금액" /><input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} placeholder="환불 사유" /><button onClick={refund}>환불 기록</button></div>{orderRefunds.map((item) => <p key={item.id}>{Number(item.amount).toLocaleString()}원 · {item.status} · {item.reason}</p>)}</section>}
+    {orderRefunds.some((item) => item.status === 'requested') && <section className="payment-refund-requests"><h4><RotateCcw />회원 환불(청약철회) 요청</h4>{orderRefunds.filter((item) => item.status === 'requested').map((item) => <div key={item.id} className="refund-request-row"><div><strong>환불 요청</strong><small>{item.reason || '사유 미입력'}</small><small>요청자 {item.requestedBy || '회원'}</small></div><div className="refund-request-actions"><button type="button" className="admin-primary" onClick={() => resolveRefund(item.id, 'approve')}>승인(전액 환불)</button><button type="button" className="admin-ghost" onClick={() => resolveRefund(item.id, 'reject')}>거부</button></div></div>)}</section>}
+    {['paid','partially_refunded'].includes(payment.status) && <section className="payment-refund"><h4><RotateCcw />환불 접수(관리자 직접)</h4><div><input value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} inputMode="numeric" placeholder="환불 금액" /><input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} placeholder="환불 사유" /><button onClick={refund}>환불 기록</button></div>{orderRefunds.filter((item) => item.status !== 'requested').map((item) => <p key={item.id}>{Number(item.amount).toLocaleString()}원 · {item.status} · {item.reason}</p>)}</section>}
   </div>;
 }
 

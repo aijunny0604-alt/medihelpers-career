@@ -94,6 +94,20 @@ async function handle(method, path, bodyText) {
     return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin: false, profile, email: identity.email });
   }
 
+  // 마이페이지 환불(청약철회) 요청 목: 주문 상태를 refund_requested로 표시.
+  if (path === '/api/member-center' && method === 'POST' && body.action === 'refund_request') {
+    const orders = read(LS.orders, {});
+    if (!String(body.reason || '').trim()) return jsonRes({ error: '환불 사유를 입력해주세요.' }, 400);
+    const target = Object.values(orders).find((o) => o.orderNumber === body.orderNumber);
+    if (!target) return jsonRes({ error: '본인 결제 내역에서 환불할 건을 찾을 수 없습니다.' }, 404);
+    if (!['paid', 'partially_refunded'].includes(target.status)) return jsonRes({ error: '환불할 수 없는 상태입니다.' }, 400);
+    if (target.refundRequested) return jsonRes({ error: '이미 접수된 환불 요청이 처리 중입니다.' }, 409);
+    target.refundRequested = { reason: body.reason || '', at: new Date().toISOString() };
+    orders[target.orderNumber] = target;
+    write(LS.orders, orders);
+    return jsonRes({ requested: true, orderNumber: target.orderNumber });
+  }
+
   // 그 외 GET은 빈 기본값으로 응답해 콘솔 404를 줄인다.
   if (method === 'GET') {
     if (path === '/api/saved-jobs') return jsonRes({ saved: [] });

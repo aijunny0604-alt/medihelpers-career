@@ -4756,3 +4756,40 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 가입완료 화면의 탈퇴 안내 힌트(탈퇴 UI는 마이페이지로 이동) */
 .account-withdraw-hint{margin:18px 0 0;color:#8a93a2;font-size:13px}.account-withdraw-hint a{color:var(--blue);font-weight:700}
 .member-withdraw{border-color:#f0d2d2;background:#fdf9f9}.member-withdraw .account-delete{color:#c0392b;border-color:#e5b8b8}
+
+/* 마이페이지 환불(청약철회) 요청 */
+.member-payment-row{display:flex;flex-direction:column}
+.member-refund-btn{background:#fff;border:1px solid #e0c9c9;color:#c0392b;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.member-refund-btn:hover{background:#fdf5f5}
+.member-refund-form{margin:10px 0 4px;padding:14px;border:1px solid #ead9d9;border-radius:12px;background:#fdf9f9}
+.member-refund-note{margin:0 0 10px;color:#6a5450;font-size:12.5px;line-height:1.6}.member-refund-note a{color:var(--blue);font-weight:700}
+.member-refund-form textarea{width:100%;border:1px solid #dcd2d2;border-radius:9px;padding:10px;font-size:13px;resize:vertical;font-family:inherit}
+.member-refund-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}.member-refund-actions .button{min-height:40px;padding:0 16px}
+.member-refund-msg{margin:12px 4px 0;padding:10px 12px;border-radius:9px;background:#eef7f1;color:#2c6b4f;font-size:13px}
+
+/* 영수증 모달 */
+.receipt-modal{position:relative;background:#fff;border-radius:16px;max-width:600px;width:calc(100% - 32px);max-height:90vh;overflow:auto;padding:26px;box-shadow:0 30px 70px rgba(20,40,70,.25)}
+.receipt-modal .inquiry-detail-close{position:absolute;top:16px;right:16px}
+.receipt-doc .rc{border:1px solid #d6deea;border-radius:10px;padding:26px}
+.receipt-doc h1{font-size:20px;margin:0 0 4px;color:#16233a}
+.receipt-doc .sub{color:#6a7688;font-size:12px;margin-bottom:18px}
+.receipt-doc dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 16px;font-size:13.5px}
+.receipt-doc dt{color:#6a7688}.receipt-doc dd{margin:0;text-align:right;font-weight:600;color:#26324a}
+.receipt-doc .amt{border-top:2px solid #16233a;margin-top:8px;padding-top:12px}
+.receipt-doc .amt>div{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;color:#40495a}
+.receipt-doc .amt .total{font-size:17px;font-weight:800;color:#16233a;border-top:1px solid #d6deea;margin-top:6px;padding-top:10px}
+.receipt-doc .biz{margin-top:18px;padding-top:14px;border-top:1px dashed #cdd6e2;font-size:11.5px;color:#6a7688;line-height:1.7}
+.receipt-actions{display:flex;gap:10px;margin-top:18px}.receipt-actions .button{flex:1;justify-content:center}
+
+/* 관리자 결제 상세: 영수증 버튼 + 회원 환불요청 처리 */
+.admin-order-head-actions{display:flex;align-items:center;gap:10px}
+.admin-receipt-btn{display:inline-flex;align-items:center;gap:6px;background:#eef3fb;border:1px solid #d3e0f0;color:#2f6fb0;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.admin-receipt-btn:hover{background:#e3edf9}.admin-receipt-btn svg{width:16px}
+.payment-refund-requests{margin-top:14px;padding:14px;border:1px solid #f0d9b8;border-radius:12px;background:#fef9f0}
+.payment-refund-requests h4{display:flex;align-items:center;gap:6px;margin:0 0 10px;color:#a56a1e;font-size:14px}
+.refund-request-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #f0e2c8}
+.refund-request-row:first-of-type{border-top:none}
+.refund-request-row strong{display:block;font-size:13.5px;color:#5a4a2a}.refund-request-row small{display:block;color:#8a7a5a;font-size:12px}
+.refund-request-actions{display:flex;gap:8px;flex-shrink:0}
+.refund-request-actions button{padding:7px 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid transparent}
+.refund-request-actions .admin-ghost{background:#fff;border-color:#d8ccb0;color:#8a7a5a}

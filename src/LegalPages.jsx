@@ -90,6 +90,39 @@ export function TermsPage() {
   </LegalLayout>;
 }
 
+export function RefundPolicyPage() {
+  return <LegalLayout eyebrow="REFUND POLICY" title="환불 정책" description="유료 서비스의 청약철회·환불 기준과 절차를 「전자상거래 등에서의 소비자보호에 관한 법률」에 따라 안내합니다.">
+    <Section number="01" title="적용 대상">
+      <p>병원 공고 광고, 인재 이력서 열람권, 의사 멤버십 등 메디헬퍼스가 제공하는 유료 서비스에 적용됩니다. 각 상품의 가격·제공기간·이용조건은 결제 화면에서 계약 전에 표시합니다.</p>
+    </Section>
+    <Section number="02" title="청약철회(환불 신청) 기간">
+      <ul>
+        <li>유료 서비스 결제 후 <b>7일 이내</b>에는 원칙적으로 청약을 철회하고 환불을 요청할 수 있습니다.</li>
+        <li>다만 「전자상거래법」 제17조에 따라 <b>서비스 제공이 이미 시작된 경우</b>(예: 공고 노출 개시, 열람권으로 인재 연락처·이력서를 이미 열람한 경우)에는 그 부분에 대해 청약철회가 제한될 수 있습니다.</li>
+        <li>회사의 표시·광고 내용과 다르거나 계약 내용과 다르게 이행된 경우에는 서비스를 공급받은 날부터 <b>3개월 이내</b>, 그 사실을 안 날 또는 알 수 있었던 날부터 <b>30일 이내</b>에 청약철회를 할 수 있습니다.</li>
+      </ul>
+    </Section>
+    <Section number="03" title="환불 금액 산정">
+      <ul>
+        <li>서비스를 전혀 이용하지 않은 경우: <b>결제 금액 전액</b> 환불.</li>
+        <li>기간제 상품(광고·멤버십)을 일부 이용한 경우: 총 이용료에서 <b>이미 제공된 기간에 해당하는 금액과 실제 발생한 비용</b>을 공제한 잔액을 환불합니다.</li>
+        <li>열람권 등 건별 상품에서 <b>이미 열람이 이루어진 건</b>은 해당 건에 대한 환불이 제한될 수 있습니다(미사용분은 환불).</li>
+      </ul>
+    </Section>
+    <Section number="04" title="환불 신청과 처리 절차">
+      <ul>
+        <li>회원은 <b>마이페이지 → 결제·사용이력</b>에서 해당 결제 건의 <b>‘환불 요청’</b>으로 청약철회를 신청할 수 있습니다.</li>
+        <li>신청 접수 후 담당자가 이용 내역과 사유를 확인하여 환불 금액을 확정하고, 승인 시 결제 수단으로 환급합니다.</li>
+        <li>대금 환급은 관계 법령에 따라 청약철회 등의 의사표시를 받은 날 또는 재화 등을 반환받은 날부터 <b>영업일 기준 3일 이내</b>에 처리하는 것을 원칙으로 하며, 결제수단·PG사 정책에 따라 실제 입금까지 추가 기간이 소요될 수 있습니다.</li>
+      </ul>
+    </Section>
+    <Section number="05" title="문의와 분쟁 해결">
+      <p>환불 문의: <a href={`mailto:${operator.email}`}>{operator.email}</a> · <a href={`tel:${operator.phone.replace(/\D/g, '')}`}>{operator.phone}</a></p>
+      <p>협의가 어려운 경우 소비자분쟁조정위원회(1372) 등 관계 기관의 조정을 신청할 수 있습니다. <a href={withBase('/terms')}>서비스 이용약관</a> · <a href={withBase('/privacy')}>개인정보처리방침</a></p>
+    </Section>
+  </LegalLayout>;
+}
+
 export function WithdrawalPolicyPage() {
   return <LegalLayout eyebrow="MEMBERSHIP WITHDRAWAL" title="회원 탈퇴 약관" description="회원 탈퇴 절차와 탈퇴 후 정보 처리, 재가입 기준을 안내합니다.">
     <Section number="01" title="탈퇴 방법과 효력">

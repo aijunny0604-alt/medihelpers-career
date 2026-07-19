@@ -355,6 +355,29 @@ async function resumeApi(request, env) {
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 131072) return json({ error:'이력서 내용이 너무 큽니다.' }, 413);
     let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    // 소비자 환불(청약철회) 요청: 회원이 본인 결제 건에 환불을 신청한다(실제 승인·환불은 관리자).
+    if (body.action === 'refund_request') {
+      try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 시스템을 사용할 수 없습니다.' }, 503); }
+      const orderNumber = String(body.orderNumber || '').trim().slice(0, 60);
+      const reason = String(body.reason == null ? '' : body.reason).trim().slice(0, 500);
+      if (!orderNumber) return json({ error:'환불할 결제 건을 확인해주세요.' }, 400);
+      if (!reason) return json({ error:'환불 사유를 입력해주세요.' }, 400);
+      // 반드시 본인 소유 주문만. account_id로 소유권 확인.
+      const order = await env.DB.prepare("SELECT id, order_number AS orderNumber, total_amount AS totalAmount, status FROM payment_orders WHERE order_number=? AND account_id=?").bind(orderNumber, account.id).first();
+      if (!order) return json({ error:'본인 결제 내역에서 환불할 건을 찾을 수 없습니다.' }, 404);
+      if (!['paid','partially_refunded'].includes(order.status)) return json({ error:'이미 환불되었거나 환불할 수 없는 상태의 결제입니다.' }, 400);
+      // 중복 요청 방지: 처리 대기 중인 환불 요청이 있으면 거절.
+      const pending = await env.DB.prepare("SELECT COUNT(*) c FROM payment_refunds WHERE order_id=? AND status IN ('requested','processing')").bind(order.id).first();
+      if (Number(pending?.c || 0) > 0) return json({ error:'이미 접수된 환불 요청이 처리 중입니다. 처리 결과를 기다려 주세요.' }, 409);
+      const refundId = crypto.randomUUID();
+      await env.DB.batch([
+        // 소비자 요청은 금액 미확정(0) 상태로 접수, 관리자가 확정·처리. requested_by=회원 이메일.
+        env.DB.prepare("INSERT INTO payment_refunds (id, order_id, amount, reason, status, requested_by) VALUES (?, ?, 0, ?, 'requested', ?)").bind(refundId, order.id, reason, identity.email),
+        env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_requested_by_member', ?)").bind(crypto.randomUUID(), order.id, identity.email, JSON.stringify({ refundId, reason }).slice(0,4000)),
+        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'refund_request', '환불(청약철회)을 요청했습니다.', ?)").bind(crypto.randomUUID(), account.id, ('주문 ' + order.orderNumber).slice(0,200))
+      ]);
+      return json({ requested:true, orderNumber:order.orderNumber });
+    }
     const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0, max);
     const title = s(body.title); const name = s(body.name); const phone = s(body.phone, 40);
     if (!title || !name || !phone) return json({ error:'이력서 제목·성함·연락처는 필수입니다.' }, 400);
@@ -997,6 +1020,41 @@ async function adminConsoleApi(request, env) {
     }
     await env.DB.batch(statements);
     await writeAdminAudit(env, admin, 'refund_create', order.orderNumber, { refundId:id, amount, reason, fullyRefunded });
+  } else if (action === 'refund_resolve') {
+    // 회원이 요청한 환불(status='requested')을 관리자가 승인(금액 확정) 또는 거부한다.
+    const refundId = String(payload.refundId || '');
+    const decision = payload.decision === 'approve' ? 'approve' : payload.decision === 'reject' ? 'reject' : '';
+    if (!refundId || !decision) return json({ error:'환불 요청과 처리 방식을 확인해주세요.' }, 400);
+    const refund = await env.DB.prepare("SELECT r.id, r.order_id AS orderId, r.status, o.order_number AS orderNumber, o.total_amount AS totalAmount, o.status AS orderStatus, o.metadata_json AS metadataJson FROM payment_refunds r JOIN payment_orders o ON o.id=r.order_id WHERE r.id=?").bind(refundId).first();
+    if (!refund || refund.status !== 'requested') return json({ error:'처리 대기 중인 환불 요청을 확인해주세요.' }, 400);
+    if (decision === 'reject') {
+      const note = cleanOrderValue(payload.reason, 500);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE payment_refunds SET status='rejected', reason=CASE WHEN ?='' THEN reason ELSE reason || ' / 거부: ' || ? END, processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(note, note, refundId),
+        env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_rejected', ?)").bind(crypto.randomUUID(), refund.orderId, admin.email, JSON.stringify({ refundId, note }).slice(0,4000))
+      ]);
+      await writeAdminAudit(env, admin, 'refund_resolve', refund.orderNumber, { refundId, decision:'reject' });
+      return json({ saved:true });
+    }
+    // approve: 환불 금액 확정(미지정 시 전액), 초과 방지.
+    const already = await env.DB.prepare("SELECT COALESCE(SUM(amount),0) total FROM payment_refunds WHERE order_id=? AND status='succeeded'").bind(refund.orderId).first();
+    const remaining = Number(refund.totalAmount) - Number(already?.total || 0);
+    const amount = payload.amount ? Math.max(0, Math.floor(Number(payload.amount))) : remaining;
+    if (!amount || amount > remaining) return json({ error:'환불 가능 금액을 확인해주세요.' }, 400);
+    const fullyRefunded = Number(already?.total || 0) + amount >= Number(refund.totalAmount);
+    const statements = [
+      env.DB.prepare("UPDATE payment_refunds SET amount=?, status='succeeded', processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(amount, refundId),
+      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, detail_json) VALUES (?, ?, ?, 'refund_approved', ?)").bind(crypto.randomUUID(), refund.orderId, admin.email, JSON.stringify({ refundId, amount, fullyRefunded }).slice(0,4000))
+    ];
+    if (fullyRefunded) {
+      const meta = { ...(parseJsonObject(refund.metadataJson) || {}) };
+      delete meta.exposure;
+      statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), refund.orderId));
+    } else {
+      statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.orderId));
+    }
+    await env.DB.batch(statements);
+    await writeAdminAudit(env, admin, 'refund_resolve', refund.orderNumber, { refundId, decision:'approve', amount, fullyRefunded });
   } else {
     return json({ error:'지원하지 않는 관리 작업입니다.' }, 400);
   }

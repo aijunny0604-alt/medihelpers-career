@@ -78,6 +78,26 @@ export default function MemberCenterPage({ route, qa }) {
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [saved, setSaved] = useState('');
   const [notifications, setNotifications] = useState({ email: true, sms: true, service: true, marketing: false });
+  const [receipt, setReceipt] = useState(null); // 영수증 모달 대상 결제
+  const [refundFor, setRefundFor] = useState(null); // 환불 요청 중인 주문번호
+  const [refundReason, setRefundReason] = useState('');
+  const [refundMsg, setRefundMsg] = useState('');
+  const [refundBusy, setRefundBusy] = useState(false);
+  const submitRefund = async (orderNumber) => {
+    if (!refundReason.trim()) { setRefundMsg('환불 사유를 입력해 주세요.'); return; }
+    setRefundBusy(true); setRefundMsg('');
+    try {
+      const res = await fetch(withBase('/api/member-center'), { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body: JSON.stringify({ action:'refund_request', orderNumber, reason: refundReason.trim() }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '환불 요청을 접수하지 못했습니다.');
+      setRefundMsg('환불(청약철회) 요청이 접수되었습니다. 담당자 확인 후 처리 결과를 안내드립니다.');
+      setRefundFor(null); setRefundReason('');
+    } catch (error) {
+      setRefundMsg(error.message);
+    } finally {
+      setRefundBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (qa.active) return;
@@ -137,7 +157,12 @@ export default function MemberCenterPage({ route, qa }) {
       views: '-',
       inquiries: '-'
     }));
-  const payments = qa.active ? demo.payments : serverData.orders.map((item) => ({ id:item.orderNumber, item:item.productName, amount:`${Number(item.totalAmount || 0).toLocaleString('ko-KR')}원`, date:String(item.paidAt || item.createdAt || '').slice(0, 10), status:({ paid:'결제 완료', pending:'결제 대기', canceled:'취소', refunded:'환불' })[item.status] || item.status }));
+  const payments = qa.active ? demo.payments : serverData.orders.map((item) => {
+    const total = Number(item.totalAmount || 0);
+    const supply = Number(item.supplyAmount || Math.round(total / 1.1));
+    const tax = Number(item.taxAmount || (total - supply));
+    return { id:item.orderNumber, item:item.productName, amount:`${total.toLocaleString('ko-KR')}원`, date:String(item.paidAt || item.createdAt || '').slice(0, 10), status:({ paid:'결제 완료', pending:'결제 대기', canceled:'취소', cancelled:'취소', refunded:'환불 완료', partially_refunded:'부분 환불' })[item.status] || item.status, rawStatus:item.status, refundable:['paid','partially_refunded'].includes(item.status), total, supply, tax, method:item.paymentMethod || '카드', customerName:item.customerName || '' };
+  });
   const paidTotal = serverData.orders.filter((item) => item.status === 'paid').reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
   const hasMembership = serverData.orders.some((item) => item.status === 'paid' && /멤버십|커리어/.test(item.productName || ''));
   const resumeCompletion = serverData.resume ? `${Number(serverData.resume.completion) || 0}%` : '미등록';
@@ -182,12 +207,13 @@ export default function MemberCenterPage({ route, qa }) {
 
         {tab === 'inquiries' && <><div className="member-page-head"><div><small>MESSAGES & MATCHING</small><h2>{role === 'hospital' ? '문의·후보 연결' : '상담·제안 내역'}</h2><p>{role === 'hospital' ? '의사 문의와 헤드헌터의 후보 추천을 확인합니다. 내역을 누르면 원문과 답변을 볼 수 있습니다.' : '헤드헌터 상담과 병원 제안 진행 상태를 확인합니다. 내역을 누르면 상세 내용을 볼 수 있습니다.'}</p></div></div>{inquiries.length ? <section className="member-panel member-table-panel"><div className="member-table-head"><span>보낸 사람</span><span>문의 내용</span><span>접수일</span><span>상태</span></div>{inquiries.map((item) => <button type="button" className="member-inquiry-row" key={`${item.source}-${item.subject}`} onClick={() => setSelectedInquiry(item)}><strong>{item.name}</strong><div><b>{item.subject}</b><small>{item.source}</small></div><time>{item.time}</time><span className="member-inquiry-state"><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></span></button>)}</section> : <div className="member-empty member-empty-large"><MessageCircle /><strong>아직 상담·문의 내역이 없습니다</strong><p>새로운 상담이나 문의가 접수되면 진행 상태와 함께 표시됩니다.</p></div>}<div className="member-privacy-note"><ShieldCheck /><div><strong>{role === 'hospital' ? '의사 실명과 연락처는 동의 후 공개됩니다' : '내 실명과 연락처는 동의한 병원에만 전달됩니다'}</strong><p>메디헬퍼스 헤드헌터가 연결 범위를 확인한 뒤 필요한 정보만 안전하게 전달합니다.</p></div></div></>}
 
-        {tab === 'payments' && <><div className="member-page-head"><div><small>BILLING & USAGE</small><h2>{role === 'hospital' ? '결제·사용이력' : '멤버십·결제 내역'}</h2><p>상품 이용기간과 결제·사용 상태를 같은 기준으로 확인합니다.</p></div></div>{payments.length ? <section className="member-panel member-payment-list">{payments.map((item) => <article key={item.id}><span><Receipt /></span><div><small>{item.id}</small><strong>{item.item}</strong><p>{item.date}</p></div><b>{item.amount}</b><em className={statusClass(item.status)}>{item.status}</em><button type="button">영수증</button></article>)}</section> : <div className="member-empty member-empty-large"><Receipt /><strong>아직 결제 내역이 없습니다</strong><p>공고 상품·멤버십·열람권 결제가 완료되면 영수증과 이용기간이 표시됩니다.</p></div>}<section className="member-panel"><div className="member-panel-head"><div><h3>전체 사용 기록</h3><p>조회·상담·결제 등 계정 활동을 시간순으로 표시합니다.</p></div></div>{activities.length ? <div className="member-timeline">{activities.map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>기록된 사용 이력이 없습니다</strong><p>계정 활동이 발생하면 시간순으로 안전하게 기록됩니다.</p></div>}</section></>}
+        {tab === 'payments' && <><div className="member-page-head"><div><small>BILLING & USAGE</small><h2>{role === 'hospital' ? '결제·사용이력' : '멤버십·결제 내역'}</h2><p>상품 이용기간과 결제·사용 상태를 같은 기준으로 확인합니다.</p></div></div>{payments.length ? <section className="member-panel member-payment-list">{payments.map((item) => <div key={item.id} className="member-payment-row"><article><span><Receipt /></span><div><small>{item.id}</small><strong>{item.item}</strong><p>{item.date}</p></div><b>{item.amount}</b><em className={statusClass(item.status)}>{item.status}</em>{!qa.active && item.refundable && <button type="button" className="member-refund-btn" onClick={() => { setRefundFor(refundFor === item.id ? null : item.id); setRefundReason(''); setRefundMsg(''); }}>환불 요청</button>}<button type="button" onClick={() => setReceipt(item)}>영수증</button></article>{refundFor === item.id && <div className="member-refund-form"><p className="member-refund-note">환불(청약철회)을 요청합니다. 이미 제공이 시작된 서비스는 이용분이 공제될 수 있으며, 처리 기준은 <a href={withBase('/refund')} target="_blank" rel="noreferrer">환불 정책</a>을 따릅니다.</p><textarea rows="2" placeholder="환불 사유를 입력해 주세요 (예: 단순 변심, 중복 결제, 서비스 미이용 등)" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><div className="member-refund-actions"><button type="button" className="button outline" onClick={() => setRefundFor(null)} disabled={refundBusy}>취소</button><button type="button" className="button primary" onClick={() => submitRefund(item.id)} disabled={refundBusy}>{refundBusy ? '접수 중…' : '환불 요청 접수'}</button></div></div>}</div>)}{refundMsg && <p className="member-refund-msg" role="status">{refundMsg}</p>}</section> : <div className="member-empty member-empty-large"><Receipt /><strong>아직 결제 내역이 없습니다</strong><p>공고 상품·멤버십·열람권 결제가 완료되면 영수증과 이용기간이 표시됩니다.</p></div>}<section className="member-panel"><div className="member-panel-head"><div><h3>전체 사용 기록</h3><p>조회·상담·결제 등 계정 활동을 시간순으로 표시합니다.</p></div></div>{activities.length ? <div className="member-timeline">{activities.map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>기록된 사용 이력이 없습니다</strong><p>계정 활동이 발생하면 시간순으로 안전하게 기록됩니다.</p></div>}</section></>}
 
         {tab === 'profile' && <><div className="member-page-head"><div><small>ACCOUNT & SECURITY</small><h2>회원정보·알림·보안</h2><p>모든 회원에게 공통으로 필요한 정보를 관리합니다.</p></div>{saved && <span className="member-saved"><CircleCheck /> {saved}</span>}</div><form className="member-profile-form" onSubmit={saveProfile}><section className="member-panel"><div className="member-panel-head"><div><h3>기본 회원정보</h3><p>상담과 중요 안내에 사용할 정보를 입력해주세요.</p></div></div><div className="member-profile-grid"><label><span>이름·담당자명</span><input name="displayName" defaultValue={currentProfile.displayName} /></label><label><span>로그인 이메일</span><input name="email" type="email" defaultValue={currentProfile.email} readOnly /></label><label><span>휴대전화</span><input name="phone" defaultValue={currentProfile.phone} /></label><label><span>{role === 'hospital' ? '병원명' : '전문과목·직군'}</span><input name="organization" defaultValue={currentProfile.organization} /></label><label><span>{role === 'hospital' ? '담당자 직함' : '경력 표시'}</span><input name="jobTitle" defaultValue={currentProfile.jobTitle} /></label></div></section><section className="member-panel"><div className="member-panel-head"><div><h3>알림 설정</h3><p>중요한 진행 상태만 선택해서 받아보세요.</p></div></div><div className="member-toggle-list">{[['email','이메일 알림','상담·결제·계정 보안 안내'],['sms','문자 알림','새 문의와 헤드헌터 연락'],['service','서비스 알림','공고 마감·이력서 상태·멤버십'],['marketing','혜택·이벤트','선택 동의이며 언제든 해제 가능']].map(([key, title, copy]) => <label key={key}><div><strong>{title}</strong><small>{copy}</small></div><input type="checkbox" checked={notifications[key]} onChange={(event) => setNotifications((current) => ({ ...current, [key]: event.target.checked }))} /><span /></label>)}</div></section><section className="member-panel member-security"><div className="member-panel-head"><div><h3>로그인·보안</h3><p>로그인 이메일과 계정 접근 문제를 관리합니다.</p></div></div><div><span><KeyRound /></span><div><strong>로그인 정보</strong><p>{currentProfile.email}</p><small>비밀번호를 잊었거나 이메일 접근이 어렵다면 로그인 도움에서 본인 확인 절차를 진행하세요.</small></div><a className="button outline" href={withBase('/account/recovery')}>아이디·비밀번호 도움</a></div><div><span><ShieldCheck /></span><div><strong>개인정보처리방침·약관</strong><p>수집 항목과 보관 기간, 회원 탈퇴 처리 기준을 확인할 수 있습니다.</p></div><a className="button outline" href={withBase('/privacy')}>처리방침 보기</a></div></section><button className="button primary member-save" type="submit">변경사항 저장</button></form><WithdrawSection /></>}
       </main>
     </div>
     {selectedInquiry && <InquiryDetailModal inquiry={selectedInquiry} role={role} canAdmin={qa.info.capabilities.admin} onClose={() => setSelectedInquiry(null)} />}
+    {receipt && <ReceiptModal payment={receipt} buyerName={currentProfile.organization || currentProfile.displayName || receipt.customerName} onClose={() => setReceipt(null)} />}
   </div>;
 }
 
@@ -253,5 +279,89 @@ function InquiryDetailModal({ inquiry, role, canAdmin, onClose }) {
       </footer>
       <p className="inquiry-detail-privacy"><LockKeyhole /> {role === 'hospital' ? '후보자의 실명과 연락처는 동의된 범위에서만 공개됩니다.' : '회원님의 개인정보는 동의한 병원과 담당 헤드헌터에게만 전달됩니다.'}</p>
     </section>
+  </div>;
+}
+
+// 세금계산서형 영수증. 부가세(공급가액+세액=합계) 표시, 인쇄·PDF·이미지 저장 지원.
+const RECEIPT_OPERATOR = {
+  name: '메디헬퍼스', representative: '이형석', businessNumber: '873-92-00515',
+  address: '부산광역시 북구 만덕대로116번길 28', phone: '051-342-5463', email: 'hr@medihelpers.co.kr',
+};
+export function ReceiptModal({ payment, buyerName, onClose }) {
+  const won = (n) => `${Number(n || 0).toLocaleString('ko-KR')}원`;
+  const receiptRef = React.useRef(null);
+  const buildDocHtml = () => {
+    const node = receiptRef.current;
+    if (!node) return '';
+    return `<!doctype html><html><head><meta charset="utf-8"><title>영수증 ${payment.id}</title>` +
+      `<style>body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;margin:0;padding:24px;color:#1a2233}` +
+      `.rc{max-width:560px;margin:0 auto;border:1px solid #d6deea;border-radius:10px;padding:28px}` +
+      `.rc h1{font-size:20px;margin:0 0 4px}.rc .sub{color:#6a7688;font-size:12px;margin-bottom:18px}` +
+      `.rc dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 16px;font-size:13px}` +
+      `.rc dt{color:#6a7688}.rc dd{margin:0;text-align:right;font-weight:600}` +
+      `.rc .amt{border-top:2px solid #1a2233;margin-top:8px;padding-top:12px}` +
+      `.rc .amt div{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}` +
+      `.rc .amt .total{font-size:17px;font-weight:800;border-top:1px solid #d6deea;margin-top:6px;padding-top:10px}` +
+      `.rc .biz{margin-top:18px;padding-top:14px;border-top:1px dashed #cdd6e2;font-size:11.5px;color:#6a7688;line-height:1.7}</style>` +
+      `</head><body>${node.innerHTML}</body></html>`;
+  };
+  const printReceipt = () => {
+    const w = window.open('', '_blank', 'width=640,height=800');
+    if (!w) { alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.'); return; }
+    w.document.write(buildDocHtml());
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 300);
+  };
+  const saveImage = async () => {
+    const node = receiptRef.current;
+    if (!node) return;
+    const w = node.offsetWidth || 560, h = node.offsetHeight || 700;
+    const html = `<div xmlns="http://www.w3.org/1999/xhtml" style="font-family:'Malgun Gothic',sans-serif;background:#fff;padding:8px;box-sizing:border-box;width:${w}px">${node.innerHTML}</div>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${html}</foreignObject></svg>`;
+    const img = new Image();
+    img.onload = () => {
+      const scale = 2, canvas = document.createElement('canvas');
+      canvas.width = w * scale; canvas.height = h * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0);
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png'); a.download = `영수증_${payment.id}.png`; a.click();
+    };
+    img.onerror = () => alert('이미지 저장에 실패했습니다. 인쇄 → PDF로 저장을 이용해 주세요.');
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  };
+  return <div className="inquiry-detail-overlay" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="receipt-modal" role="dialog" aria-modal="true">
+      <button className="inquiry-detail-close" onClick={onClose} aria-label="닫기"><X /></button>
+      <div className="receipt-doc" ref={receiptRef}>
+        <div className="rc">
+          <h1>결제 영수증</h1>
+          <div className="sub">영수증 번호 {payment.id} · {payment.date}</div>
+          <dl>
+            <dt>상품명</dt><dd>{payment.item}</dd>
+            <dt>구매자</dt><dd>{buyerName || '-'}</dd>
+            <dt>결제수단</dt><dd>{payment.method || '카드'}</dd>
+            <dt>결제상태</dt><dd>{payment.status}</dd>
+          </dl>
+          <div className="amt">
+            <div><span>공급가액</span><span>{won(payment.supply)}</span></div>
+            <div><span>부가세(VAT 10%)</span><span>{won(payment.tax)}</span></div>
+            <div className="total"><span>합계(부가세 포함)</span><span>{won(payment.total)}</span></div>
+          </div>
+          <div className="biz">
+            {RECEIPT_OPERATOR.name} · 대표 {RECEIPT_OPERATOR.representative}<br />
+            사업자등록번호 {RECEIPT_OPERATOR.businessNumber}<br />
+            {RECEIPT_OPERATOR.address}<br />
+            {RECEIPT_OPERATOR.phone} · {RECEIPT_OPERATOR.email}
+          </div>
+        </div>
+      </div>
+      <div className="receipt-actions">
+        <button type="button" className="button outline" onClick={printReceipt}>인쇄 / PDF 저장</button>
+        <button type="button" className="button primary" onClick={saveImage}>이미지(PNG) 저장</button>
+      </div>
+    </div>
   </div>;
 }
