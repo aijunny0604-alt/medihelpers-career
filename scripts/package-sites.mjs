@@ -20,6 +20,8 @@ const samcheonpoHorizontalLogoBase64 = (await readFile(path.join(sourceDir, 'sam
 const isarangBrandBase64 = (await readFile(path.join(sourceDir, 'isarang-children-brand-mark.png'))).toString('base64');
 const isarangBannerBase64 = (await readFile(path.join(sourceDir, 'isarang-children-recruitment-banner-v2.png'))).toString('base64');
 const mediAngelBase64 = (await readFile(path.join(sourceDir, 'assets', 'medi-angel-assistant-v2.png'))).toString('base64');
+const heroPosterBase64 = (await readFile(path.join(sourceDir, 'hero-medihelpers-poster.jpg'))).toString('base64');
+const heroVideoBase64 = (await readFile(path.join(sourceDir, 'hero-medihelpers.mp4'))).toString('base64');
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist/server', { recursive: true });
@@ -38,6 +40,8 @@ const samcheonpoHorizontalLogoBase64 = ${JSON.stringify(samcheonpoHorizontalLogo
 const isarangBrandBase64 = ${JSON.stringify(isarangBrandBase64)};
 const isarangBannerBase64 = ${JSON.stringify(isarangBannerBase64)};
 const mediAngelBase64 = ${JSON.stringify(mediAngelBase64)};
+const heroPosterBase64 = ${JSON.stringify(heroPosterBase64)};
+const heroVideoBase64 = ${JSON.stringify(heroVideoBase64)};
 const cssPath = ${JSON.stringify(cssPath)};
 const jsPath = ${JSON.stringify(jsPath)};
 const accountSchemaStatements = ${JSON.stringify(accountSchemaStatements)};
@@ -49,6 +53,40 @@ const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatemen
 const termsVersion = 'terms-v1.0-2026-07-18';
 const privacyNoticeVersion = 'privacy-v1.0-2026-07-18';
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
+function binaryAsset(request, base64, contentType, cacheControl = 'public, max-age=31536000, immutable') {
+  const bytes = binary(base64);
+  const headers = {
+    'content-type': contentType,
+    'cache-control': cacheControl,
+    'accept-ranges': 'bytes',
+    'x-content-type-options': 'nosniff'
+  };
+  const range = request.headers.get('range');
+  if (!range) {
+    headers['content-length'] = String(bytes.length);
+    return new Response(bytes, { status: 200, headers });
+  }
+  const match = range.match(/^bytes=(\\d*)-(\\d*)$/);
+  if (!match) {
+    headers['content-range'] = 'bytes */' + bytes.length;
+    return new Response(null, { status: 416, headers });
+  }
+  let start = match[1] ? Number(match[1]) : 0;
+  let end = match[2] ? Number(match[2]) : bytes.length - 1;
+  if (!match[1] && match[2]) {
+    const suffixLength = Number(match[2]);
+    start = Math.max(0, bytes.length - suffixLength);
+    end = bytes.length - 1;
+  }
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || start >= bytes.length) {
+    headers['content-range'] = 'bytes */' + bytes.length;
+    return new Response(null, { status: 416, headers });
+  }
+  end = Math.min(end, bytes.length - 1);
+  headers['content-range'] = 'bytes ' + start + '-' + end + '/' + bytes.length;
+  headers['content-length'] = String(end - start + 1);
+  return new Response(bytes.slice(start, end + 1), { status: 206, headers });
+}
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers } });
 }
@@ -1157,6 +1195,8 @@ async function responseFor(request, env) {
   if (pathname === '/isarang-children-brand-mark.png') return new Response(binary(isarangBrandBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/isarang-children-recruitment-banner-v2.png') return new Response(binary(isarangBannerBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/assets/medi-angel-assistant-v2.png') return new Response(binary(mediAngelBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/hero-medihelpers-poster.jpg') return binaryAsset(request, heroPosterBase64, 'image/jpeg');
+  if (pathname === '/hero-medihelpers.mp4') return binaryAsset(request, heroVideoBase64, 'video/mp4');
   if (!pathname.includes('.')) return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=60' } });
   return new Response('Not Found', { status: 404 });
 }
