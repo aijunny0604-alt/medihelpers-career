@@ -5211,6 +5211,9 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .js-lock svg{width:14px}
 .js-lock.open{color:#0d8a63;background:#e7f7f0}
 
+/* 폼 제출 실패 메시지(결제·회원탈퇴 등) — 정의가 없어 본문 글씨처럼 보이던 문제 수정 */
+.form-error{margin:14px 0 0;padding:12px 15px;border:1px solid #f3bbc0;border-radius:11px;background:#fff2f3;color:#b53a47;font-size:14px;font-weight:750;line-height:1.55}
+
 /* ── 광고(프리미엄) 공고 카드: 금색은 상단 얇은 라인 한 줄로만 ── */
 .unified-job-grid .job-card.premium-ad,
 .unified-job-grid .job-card.premium-ad.ad-featured,

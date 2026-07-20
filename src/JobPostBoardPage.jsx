@@ -9,9 +9,11 @@ import { withBase } from './basePath.js';
 // 관리자 콘솔의 복잡한 통합 관리 대신, "공고 올리기 + 내가 올린 공고 관리"만 담은 간편 전용 페이지.
 // 기존 /api/admin-console 의 content_create/update/delete 를 그대로 사용해 /jobs·/medical-staff 에 노출된다.
 
+// 노출 위치: 두 유형 모두 맞춤 헤드헌팅의 '의사 초빙 정보란'(HeadhuntBoard)에 게시된다.
+// doctor_job은 추가로 의사 채용(/jobs) 목록에도 노출된다. (/medical-staff는 구직 게시판 전용으로 바뀌어 공고 목록 없음)
 const POST_TYPES = [
-  { key: 'doctor_job', label: '의사 채용공고', icon: Stethoscope, hint: '봉직의·원장·검진 등 의사 초빙공고 (의사 채용 목록에 노출)', target: '/jobs' },
-  { key: 'medical_job', label: '의료인 채용공고', icon: UsersRound, hint: '간호·의료기사·약무 등 의료인 채용공고 (의료인 채용 목록에 노출)', target: '/medical-staff' },
+  { key: 'doctor_job', label: '의사 채용공고', icon: Stethoscope, hint: '봉직의·원장·검진 등 의사 초빙공고 (초빙 정보란 + 의사 채용 목록에 노출)', target: '/headhunting' },
+  { key: 'medical_job', label: '의료인 채용공고', icon: UsersRound, hint: '간호·의료기사·약무 등 의료인 초빙공고 (초빙 정보란에 노출)', target: '/headhunting' },
 ];
 
 const emptyPost = () => ({
@@ -217,7 +219,7 @@ export default function JobPostBoardPage() {
           </div>
         </div>
         <div className="post-card-actions">
-          <button onClick={() => go(item.contentType === 'doctor_job' ? '/jobs' : '/medical-staff')} title="사이트에서 보기"><Eye /> 사이트 보기</button>
+          <button onClick={() => go(item.contentType === 'doctor_job' ? '/jobs' : '/headhunting')} title="사이트에서 보기"><Eye /> 사이트 보기</button>
           <button onClick={() => openEdit(item)}><PencilLine /> 수정</button>
           <button onClick={() => toggleHidden(item)}>{item.status === 'published' ? <><EyeOff /> 숨기기</> : <><Check /> 공개</>}</button>
           <button className="post-card-delete" onClick={() => remove(item)}><Trash2 /> 삭제</button>

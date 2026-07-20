@@ -131,7 +131,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
     return () => { active = false; };
   }, [qa?.active, qa?.state]);
 
-  if (!job) return <div className="medical-staff-detail-page"><section className="medical-staff-detail-missing"><Stethoscope /><h1>공고를 찾을 수 없습니다</h1><p>마감되었거나 주소가 변경된 공고입니다.</p><button onClick={() => go('/medical-staff')}><ArrowLeft /> 의료인 채용 목록</button></section></div>;
+  if (!job) return <div className="medical-staff-detail-page"><section className="medical-staff-detail-missing"><Stethoscope /><h1>공고를 찾을 수 없습니다</h1><p>마감되었거나 주소가 변경된 공고입니다.</p><button onClick={() => go('/headhunting')}><ArrowLeft /> 초빙 정보란</button></section></div>;
 
   const applyPath = `/request/job-seeker?staff=1&job=${encodeURIComponent(job.id)}`;
   const loginPath = `/signup/doctor?next=${encodeURIComponent(applyPath)}`;
@@ -143,7 +143,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
 
   return <div className="medical-staff-detail-page">
     <div className="medical-staff-detail-shell">
-      <button className="medical-staff-back" onClick={() => go('/medical-staff')}><ArrowLeft /> 의료인 채용 목록</button>
+      <button className="medical-staff-back" onClick={() => go('/headhunting')}><ArrowLeft /> 초빙 정보란</button>
       <section className="medical-staff-detail-hero">
         <div>
           <div className="medical-staff-detail-tags"><span className="medical-staff-detail-role">{job.role}</span>{job.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
