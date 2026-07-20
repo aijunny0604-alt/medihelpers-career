@@ -4855,7 +4855,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 홈 대문 영상 히어로 (HR닥터형 시네마틱) */
 .home-video-hero{position:relative;min-height:clamp(520px,72vh,760px);display:flex;align-items:center;overflow:hidden;background:#0b1524}
 .home-video-hero-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;z-index:0}
-.home-video-hero-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(105deg,rgba(8,17,33,.86) 0%,rgba(8,17,33,.62) 42%,rgba(8,17,33,.28) 72%,rgba(8,17,33,.15) 100%)}
+/* 좌측(문구 영역)만 가독성 확보용으로 어둡게, 우측은 영상이 잘 보이도록 옅게 */
+.home-video-hero-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(105deg,rgba(8,17,33,.72) 0%,rgba(8,17,33,.42) 40%,rgba(8,17,33,.12) 70%,rgba(8,17,33,0) 100%)}
 .home-video-hero-inner{position:relative;z-index:2;max-width:1200px;width:100%;margin:0 auto;padding:0 clamp(22px,5vw,64px);color:#fff}
 .home-video-hero-eyebrow{display:inline-block;font:800 12.5px/1 'Manrope',sans-serif;letter-spacing:.14em;color:#7fb4ff;background:rgba(120,170,255,.14);border:1px solid rgba(120,170,255,.3);padding:8px 14px;border-radius:999px;backdrop-filter:blur(4px)}
 .home-video-hero h1{margin:20px 0 14px;font-size:clamp(34px,5vw,58px);line-height:1.16;letter-spacing:-.03em;font-weight:850;text-wrap:balance;text-shadow:0 2px 20px rgba(0,0,0,.3)}
