@@ -337,10 +337,14 @@ function sameOrigin(request) {
 function sqliteTimestamp(date) {
   return date.toISOString().replace('T', ' ').replace(/\\.\\d{3}Z$/, '');
 }
-async function createAuthSession(env, accountId) {
+// [보안] 관리자 세션은 일반 회원(7일)보다 짧게 유지한다.
+// 관리자 계정이 탈취되면 전 회원 개인정보·결제 상태에 접근할 수 있어 노출 시간을 줄인다.
+const adminSessionSeconds = 12 * 60 * 60;
+async function createAuthSession(env, accountId, options = {}) {
   const token = randomHex(32);
   const tokenHash = await authSha256Hex(token);
-  const expiresAt = sqliteTimestamp(new Date(Date.now() + authSessionSeconds * 1000));
+  const lifetimeSeconds = options.isAdmin ? adminSessionSeconds : authSessionSeconds;
+  const expiresAt = sqliteTimestamp(new Date(Date.now() + lifetimeSeconds * 1000));
   await env.DB.prepare('DELETE FROM auth_sessions WHERE expires_at <= CURRENT_TIMESTAMP').run();
   await env.DB.prepare('INSERT INTO auth_sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)').bind(tokenHash, accountId, expiresAt).run();
   return token;
@@ -374,17 +378,23 @@ async function authApi(request, env, pathname) {
 
   if (pathname === '/api/auth/login') {
     const credential = await env.DB.prepare("SELECT c.account_id AS accountId, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE c.email_normalized=? LIMIT 1").bind(email).first();
+    // [보안] 잠금 상태여도 즉시 응답하지 않는다.
+    // 예전에는 잠긴 계정에만 429를 돌려줘서, 공격자가 아무 비밀번호나 5번 넣어보고
+    // 상태 코드만으로 "이 이메일이 가입돼 있는지" 확인할 수 있었다(계정 열거).
+    // 이제 잠금 여부와 무관하게 비밀번호 해시까지 계산한 뒤 동일한 401을 돌려준다.
+    let locked = false;
     if (credential?.lockedUntil) {
       const lockedUntil = Date.parse(String(credential.lockedUntil).replace(' ', 'T') + 'Z');
-      if (Number.isFinite(lockedUntil) && lockedUntil > Date.now()) return json({ error:'로그인 시도가 많아 15분 동안 잠겼습니다. 잠시 후 다시 시도해주세요.' }, 429);
+      locked = Number.isFinite(lockedUntil) && lockedUntil > Date.now();
     }
     const salt = credential?.passwordSalt || '9d0b570d7f104f429a9c3e57f813b9da';
     const iterations = Number(credential?.passwordIterations || passwordIterations);
     let candidateHash;
     try { candidateHash = await passwordHash(password, salt, iterations); } catch { return json({ error:'로그인 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503); }
-    const valid = Boolean(credential) && constantTimeEqual(candidateHash, credential.passwordHash);
+    const valid = !locked && Boolean(credential) && constantTimeEqual(candidateHash, credential.passwordHash);
     if (!valid) {
-      if (credential) {
+      // 이미 잠긴 계정은 실패 횟수를 더 올리지 않는다(무한 잠금 연장 방지).
+      if (credential && !locked) {
         const failures = Number(credential.failedAttempts || 0) + 1;
         if (failures >= 5) {
           await env.DB.prepare("UPDATE auth_credentials SET failed_attempts=0, locked_until=datetime('now','+15 minutes'), updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(credential.accountId).run();
@@ -397,8 +407,11 @@ async function authApi(request, env, pathname) {
     if (credential.status !== 'active') return json({ error:credential.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
     await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     await env.DB.prepare('UPDATE account_admin_profiles SET last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
-    const token = await createAuthSession(env, credential.accountId);
-    return json({ signedIn:true, account:{ role:credential.role }, identity:{ email } }, 200, { 'set-cookie':authCookie(token) });
+    // [보안] 관리자 계정은 세션·쿠키 수명을 12시간으로 단축(탈취 시 노출 시간 축소).
+    const isAdminAccount = String(env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(email);
+    const token = await createAuthSession(env, credential.accountId, { isAdmin: isAdminAccount });
+    const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
+    return json({ signedIn:true, account:{ role:credential.role }, identity:{ email } }, 200, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
 
   if (pathname === '/api/auth/register') {
@@ -422,6 +435,9 @@ async function authApi(request, env, pathname) {
     } else if (account.role !== body.role) {
       await env.DB.prepare('UPDATE accounts SET role=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(body.role, account.id).run();
       account.role = body.role;
+      // [보안] 역할이 바뀌면 기존 세션을 모두 무효화한다.
+      // (의사 계정이 병원으로 전환될 때 예전 세션이 그대로 남아 새 권한을 얻는 것을 막는다)
+      try { await env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id).run(); } catch {}
     }
     const salt = randomHex(16);
     let hash;
@@ -1436,7 +1452,29 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
     const assetResponse = await env.ASSETS.fetch(request);
     if (assetResponse && assetResponse.status !== 404) return assetResponse;
   }`}
-  if (!pathname.includes('.')) return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=60' } });
+  if (!pathname.includes('.')) return new Response(html, { status: 200, headers: {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'public, max-age=60',
+    // [보안] 기본 보안 헤더. 이니시스 결제창(stdpay/stgstdpay)은 반드시 허용해야 결제가 동작한다.
+    'content-security-policy': [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob:",
+      "connect-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      "frame-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      "form-action 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'"
+    ].join('; '),
+    'strict-transport-security': 'max-age=31536000; includeSubDomains',
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
+    'referrer-policy': 'strict-origin-when-cross-origin',
+    'permissions-policy': 'geolocation=(), microphone=(), camera=(), payment=()'
+  } });
   return new Response('Not Found', { status: 404 });
 }
 export default { async fetch(request, env) { return responseFor(request, env); } };
