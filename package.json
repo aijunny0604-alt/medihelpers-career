@@ -8,7 +8,8 @@
     "build": "vite build --outDir client-build && node scripts/package-sites.mjs",
     "preview": "vite preview --outDir client-build",
     "build:pages": "vite build --outDir client-build",
-    "test": "node --test src/*.test.js"
+    "test": "node --test src/*.test.js",
+    "build:cf": "vite build --outDir client-build && node scripts/package-sites.mjs --target=cloudflare"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

@@ -2,6 +2,13 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
 
+// 빌드 타깃: 기본은 OpenAI Sites(정적 파일을 Worker에 base64 인라인).
+// --target=cloudflare 이면 Cloudflare Workers용으로 만든다:
+//   정적 파일을 인라인하지 않고 Static Assets(env.ASSETS)로 서빙 → Worker 번들 크기 급감(제한 대응).
+const target = process.argv.includes('--target=cloudflare') ? 'cloudflare' : 'sites';
+const inlineAssets = target !== 'cloudflare';
+const outRoot = target === 'cloudflare' ? 'dist-cf' : 'dist';
+
 const sourceDir = 'client-build';
 const html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
 const cssMatch = html.match(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/);
@@ -12,22 +19,32 @@ const jsPath = jsMatch[1];
 const css = await readFile(path.join(sourceDir, cssPath.replace(/^\//, '')), 'utf8');
 const js = await readFile(path.join(sourceDir, jsPath.replace(/^\//, '')), 'utf8');
 const logoSvg = await readFile(path.join(sourceDir, 'medihelpers-logo.svg'), 'utf8');
-const ogBase64 = (await readFile(path.join(sourceDir, 'og-medihelpers-v2.jpg'))).toString('base64');
-const faviconBase64 = (await readFile(path.join(sourceDir, 'favicon.png'))).toString('base64');
-const appleIconBase64 = (await readFile(path.join(sourceDir, 'apple-touch-icon.png'))).toString('base64');
-const samcheonpoBrandBase64 = (await readFile(path.join(sourceDir, 'samcheonpo-jeil-brand-mark.png'))).toString('base64');
-const samcheonpoHorizontalLogoBase64 = (await readFile(path.join(sourceDir, 'samcheonpo-jeil-horizontal-logo-v2.png'))).toString('base64');
-const isarangBrandBase64 = (await readFile(path.join(sourceDir, 'isarang-children-brand-mark.png'))).toString('base64');
-const isarangBannerBase64 = (await readFile(path.join(sourceDir, 'isarang-children-recruitment-banner-v2.png'))).toString('base64');
-const mediAngelBase64 = (await readFile(path.join(sourceDir, 'assets', 'medi-angel-assistant-v2.png'))).toString('base64');
-const heroPosterBase64 = (await readFile(path.join(sourceDir, 'hero-medihelpers-poster.jpg'))).toString('base64');
-const heroVideoBase64 = (await readFile(path.join(sourceDir, 'hero-medihelpers.mp4'))).toString('base64');
+// cloudflare 타깃에서는 인라인하지 않는다(빈 문자열). 정적 파일은 Static Assets가 서빙한다.
+const readBase64 = async (...segments) => inlineAssets
+  ? (await readFile(path.join(sourceDir, ...segments))).toString('base64')
+  : '';
+const ogBase64 = await readBase64('og-medihelpers-v2.jpg');
+const faviconBase64 = await readBase64('favicon.png');
+const appleIconBase64 = await readBase64('apple-touch-icon.png');
+const samcheonpoBrandBase64 = await readBase64('samcheonpo-jeil-brand-mark.png');
+const samcheonpoHorizontalLogoBase64 = await readBase64('samcheonpo-jeil-horizontal-logo-v2.png');
+const isarangBrandBase64 = await readBase64('isarang-children-brand-mark.png');
+const isarangBannerBase64 = await readBase64('isarang-children-recruitment-banner-v2.png');
+const mediAngelBase64 = await readBase64('assets', 'medi-angel-assistant-v2.png');
+const heroPosterBase64 = await readBase64('hero-medihelpers-poster.jpg');
+const heroVideoBase64 = await readBase64('hero-medihelpers.mp4');
 
-await rm('dist', { recursive: true, force: true });
-await mkdir('dist/server', { recursive: true });
-await mkdir('dist/.openai', { recursive: true });
-await cp('.openai/hosting.json', 'dist/.openai/hosting.json');
-await cp('drizzle', 'dist/.openai/drizzle', { recursive: true });
+await rm(outRoot, { recursive: true, force: true });
+await mkdir(`${outRoot}/server`, { recursive: true });
+if (inlineAssets) {
+  await mkdir(`${outRoot}/.openai`, { recursive: true });
+  await cp('.openai/hosting.json', `${outRoot}/.openai/hosting.json`);
+  await cp('drizzle', `${outRoot}/.openai/drizzle`, { recursive: true });
+} else {
+  // Cloudflare: 정적 파일을 그대로 복사해 Static Assets로 서빙한다.
+  await cp(sourceDir, `${outRoot}/public`, { recursive: true });
+  await cp('drizzle', `${outRoot}/drizzle`, { recursive: true });
+}
 const server = `const html = ${JSON.stringify(html)};
 const css = ${JSON.stringify(css)};
 const js = ${JSON.stringify(js)};
@@ -1404,7 +1421,7 @@ async function responseFor(request, env) {
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
-  if (pathname === '/og-medihelpers.jpg') return new Response(binary(ogBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' } });
+${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(binary(ogBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' } });
   if (pathname === '/og-medihelpers-v2.jpg') return new Response(binary(ogBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/favicon.png') return new Response(binary(faviconBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/apple-touch-icon.png') return new Response(binary(appleIconBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
@@ -1414,7 +1431,11 @@ async function responseFor(request, env) {
   if (pathname === '/isarang-children-recruitment-banner-v2.png') return new Response(binary(isarangBannerBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/assets/medi-angel-assistant-v2.png') return new Response(binary(mediAngelBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/hero-medihelpers-poster.jpg') return binaryAsset(request, heroPosterBase64, 'image/jpeg');
-  if (pathname === '/hero-medihelpers.mp4') return binaryAsset(request, heroVideoBase64, 'video/mp4');
+  if (pathname === '/hero-medihelpers.mp4') return binaryAsset(request, heroVideoBase64, 'video/mp4');` : `  // [Cloudflare] 정적 파일은 Static Assets 바인딩이 서빙한다(Worker 번들에 인라인하지 않음).
+  if (pathname.includes('.') && env.ASSETS) {
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (assetResponse && assetResponse.status !== 404) return assetResponse;
+  }`}
   if (!pathname.includes('.')) return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=60' } });
   return new Response('Not Found', { status: 404 });
 }
@@ -1429,5 +1450,35 @@ export function matchApiRoute() { return null; }
 export async function runMiddleware() { return { continue: true }; }
 export async function handleApiRoute() { return new Response('Not Found', { status: 404 }); }
 export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }
+${inlineAssets ? '' : `
+// [Cloudflare Workers] 진입점은 위의 \`export default { fetch }\`를 그대로 사용한다.
+// env로 D1(DB)·시크릿·ASSETS 바인딩이 주입된다.`}
 `;
-await writeFile('dist/server/index.js', server, 'utf8');
+await writeFile(`${outRoot}/server/index.js`, server, 'utf8');
+
+if (!inlineAssets) {
+  // Cloudflare 배포 설정. 시크릿(INICIS_* 등)은 파일에 넣지 않고 `wrangler secret put`으로 주입한다.
+  const wrangler = [
+    'name = "medihelpers-career"',
+    'main = "server/index.js"',
+    'compatibility_date = "2026-07-01"',
+    'compatibility_flags = ["nodejs_compat"]',
+    '',
+    '# 정적 파일(HTML 제외한 이미지·영상·JS·CSS)은 Worker 번들이 아니라 Static Assets로 서빙한다.',
+    '[assets]',
+    'directory = "./public"',
+    'binding = "ASSETS"',
+    '',
+    '# D1: 실제 database_id는 `wrangler d1 create medihelpers` 후 채워 넣는다.',
+    '[[d1_databases]]',
+    'binding = "DB"',
+    'database_name = "medihelpers"',
+    'database_id = "REPLACE_WITH_D1_DATABASE_ID"',
+    '',
+    '[vars]',
+    '# 공개 가능한 값만 여기에. 비밀값은 wrangler secret put 사용.',
+    '# SITE_ORIGIN = "https://medihelpers.co.kr"',
+    ''
+  ].join('\n');
+  await writeFile(`${outRoot}/wrangler.toml`, wrangler, 'utf8');
+}

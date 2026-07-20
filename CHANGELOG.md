@@ -1,5 +1,13 @@
 # 업데이트 기록
 
+## 2026-07-20 · 보안 강화 · Cloudflare 이전 준비
+- **결제 승인 API 치명적 취약점 4건 수정**(실결제 전 필수): 승인 검증 필수화(fail closed — 기존엔 주문번호만 알면 공짜 결제 가능), 멱등성(중복 승인·열람권 중복 생성 차단), authUrl SSRF 화이트리스트(`*.inicis.com` https만 — 기존엔 공격자 서버로 signKey 파생값 유출 가능), 금액 검증 항상 실행, 승인 MOID 일치 확인, 열람권 기록 실패 로깅
+- **병원 무료 공고 API 차단**: SPA 경로만 막혀 있어 `job_create` API 직접 호출로 무료 공고 생성이 가능하던 우회로 제거(403)
+- **구직자 실명 보호(H1)**: `canRevealTalentIdentity`가 '병원 회원이면 공개'였던 것을 **열람권 확인 필수**로 변경. 목록은 항상 마스킹, 실명은 서버가 검증하는 상세에서만 — 열람권 수익모델 보호
+- **Cloudflare Workers 이전 준비**: `npm run build:cf` 추가. 정적 파일을 Static Assets로 분리해 **Worker 번들 12MB → 1.4MB**(무료 3MB 제한 통과), `wrangler.toml` 자동 생성, `docs/CLOUDFLARE_MIGRATION.md` 이전 가이드 작성
+  - 배경: OpenAI Sites 약관이 결제·PCI 처리를 금지 → 이니시스 결제를 붙이려면 이전 필요
+- **히어로 영상 압축**: 2.9MB → 960KB (1280×720, 24fps, 무음)
+
 ## 2026-07-20 · 결제 흐름 보강 · 전수조사 수정
 - **PG 리턴 결과 페이지 처리**: 이니시스가 결제창 인증 후 브라우저를 `returnUrl`로 form POST 이동시키는데 서버가 JSON을 반환해 **사용자 화면에 JSON 원문이 노출될 문제**를 수정. form POST 리턴은 `/mypage?payment=paid|failed`로 303 리다이렉트(성공·실패·승인실패·금액불일치·통신실패 전 경로)
 - **결제 결과 배너**: 마이페이지 상단에 성공(초록)/실패(빨강) 안내 배너 추가(`.payment-result-notice`), 주문번호·사유 표시
