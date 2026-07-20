@@ -2347,7 +2347,9 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' })
               >
                 <span className={`medical-staff-role jobseeker-role ${kind === '의료인' ? 'medical' : 'doctor'}`}>{kind}</span>
                 <div className="medical-staff-job-main">
-                  <div className="ms-job-top-row"><small>{talentDisplayName(person, canViewIdentity)}{person.identityConsent ? '' : ' · 이름 비공개'}</small>{person.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
+                  {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
+                      실명은 열람권을 서버가 검증하는 상세(TalentDetailModal)에서만 공개된다. */}
+                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small>{person.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
                   <h3>{person.dept || '전문 인력'} · {person.career || '경력 협의'}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
                 </div>
