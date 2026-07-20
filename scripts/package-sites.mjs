@@ -838,10 +838,20 @@ async function paymentApproveApi(request, env) {
   const testMode = !inicisReady;
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 저장소를 사용할 수 없습니다.' }, 503); }
-  let body; try { body = await request.json(); } catch {
-    // 이니시스는 form-urlencoded로 리턴하므로 폼도 파싱.
-    try { const form = await request.formData(); body = Object.fromEntries(form.entries()); } catch { return json({ error:'결제 결과를 확인할 수 없습니다.' }, 400); }
+  let body; let fromPgForm = false;
+  try { body = await request.json(); } catch {
+    // 이니시스는 결제창 인증 후 브라우저를 이 주소로 form-urlencoded POST 이동시킨다.
+    try { const form = await request.formData(); body = Object.fromEntries(form.entries()); fromPgForm = true; } catch { return json({ error:'결제 결과를 확인할 수 없습니다.' }, 400); }
   }
+  // 브라우저가 직접 이동해 온 경우(PG 리턴)에는 JSON이 아니라 결과 페이지로 보내야 한다.
+  // (그렇지 않으면 사용자 화면에 JSON 원문이 그대로 노출된다)
+  const siteOrigin = env.SITE_ORIGIN || '';
+  const pgRedirect = (status, orderNumber, message) => Response.redirect(
+    `${siteOrigin}/mypage?payment=${encodeURIComponent(status)}` +
+    (orderNumber ? `&order=${encodeURIComponent(orderNumber)}` : '') +
+    (message ? `&message=${encodeURIComponent(message)}` : ''),
+    303
+  );
   const resultCode = String(body.resultCode || body.P_STATUS || '');
   const authToken = String(body.authToken || '');
   const authUrl = String(body.authUrl || '');
@@ -887,7 +897,9 @@ async function paymentApproveApi(request, env) {
   // 결제창 인증 실패
   if (resultCode && resultCode !== '0000') {
     await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
-    return json({ approved:false, status:'failed', message:String(body.resultMsg || '결제가 취소되었거나 실패했습니다.') });
+    const failMessage = String(body.resultMsg || '결제가 취소되었거나 실패했습니다.');
+    if (fromPgForm) return pgRedirect('failed', oid, failMessage);
+    return json({ approved:false, status:'failed', message:failMessage });
   }
   // 실제 승인요청: authUrl로 authToken을 전송해 최종 승인. 승인 금액이 주문 금액과 다르면 거절.
   let approval = null;
@@ -899,15 +911,20 @@ async function paymentApproveApi(request, env) {
       const res = await fetch(authUrl, { method:'POST', headers:{ 'content-type':'application/x-www-form-urlencoded' },
         body:new URLSearchParams({ mid:env.INICIS_MID, authToken, timestamp, signature, verification, charset:'UTF-8', format:'JSON' }) });
       approval = await res.json();
-    } catch { return json({ error:'승인 서버 통신에 실패했습니다.' }, 502); }
+    } catch {
+      if (fromPgForm) return pgRedirect('failed', oid, '승인 서버 통신에 실패했습니다.');
+      return json({ error:'승인 서버 통신에 실패했습니다.' }, 502);
+    }
     const approvedAmount = Number(approval?.TotPrice || approval?.price || 0);
     if (String(approval?.resultCode) !== '0000') {
       await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+      if (fromPgForm) return pgRedirect('failed', oid, String(approval?.resultMsg || '승인 실패'));
       return json({ approved:false, status:'failed', message:String(approval?.resultMsg || '승인 실패') });
     }
     if (approvedAmount !== Number(order.totalAmount)) {
       // 금액 위변조 방지: 승인금액≠주문금액이면 실패 처리.
       await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+      if (fromPgForm) return pgRedirect('failed', oid, '결제 금액이 일치하지 않습니다.');
       return json({ approved:false, status:'failed', message:'결제 금액이 일치하지 않습니다.' }, 400);
     }
   }
@@ -918,6 +935,7 @@ async function paymentApproveApi(request, env) {
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'inicis', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid }))
   ]);
   await recordTalentUnlock();
+  if (fromPgForm) return pgRedirect('paid', oid, '');
   return json({ approved:true, status:'paid', orderNumber:oid, tid });
 }
 async function recruitmentCrmApi(request, env, pathname) {

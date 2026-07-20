@@ -1127,6 +1127,8 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '', initial
     event.preventDefault();
     setSubmitting(true);
     setSubmitError('');
+    // 이 폼은 결제가 없지만, 아래 공통 finally 가드와 형태를 맞추기 위해 선언한다(항상 false).
+    let paymentWindowOpened = false;
     const message = [`상담 유형: ${data.topic}`, initialContext ? `문의 대상: ${initialContext}` : '', data.message].filter(Boolean).join('\n');
     const payload = { phone:data.phone, specialty:data.department, region:data.region, workType:data.workType, contactTime:data.contactTime, message };
     if (role === 'doctor') payload.name = data.name;
@@ -1145,7 +1147,8 @@ function ConsultationForm({ initialRole = 'doctor', initialContext = '', initial
     } catch (error) {
       setSubmitError(error.message);
     } finally {
-      setSubmitting(false);
+      // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
+      if (!paymentWindowOpened) setSubmitting(false);
     }
   };
   if (submitted) return <div className="consult-success"><span><CircleCheck /></span><small>상담번호 {submitted}</small><h3>상담 요청을 정확히 접수했습니다</h3><p>담당 헤드헌터가 내용을 먼저 검토한 뒤 선택하신 방식으로 연락드립니다.</p><div className="consult-next"><span><b>1</b>상담 접수</span><i /><span><b>2</b>내용 검토</span><i /><span><b>3</b>담당자 연락</span></div><a className="button outline" href="tel:0513425463"><Phone /> 급하면 전화로 문의</a></div>;
@@ -1497,6 +1500,9 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   </>;
 }
 
+// ⚠️ 현재 미사용(2026-07-20): 인재정보(/talent)가 의료인 구인구직(/medical-staff)으로 통합되면서
+// 구직 목록은 JobSeekerBoard가 담당한다. 이 컴포넌트는 렌더되는 곳이 없다(라우트·import 0건).
+// 인재정보 페이지를 되살릴 때 재사용할 수 있어 남겨둔다. 삭제해도 기능 영향 없음.
 export function TalentPage({ qa, route = '', liveTalent = talent, medicalTalent = [], embedded = false }) {
   const siteCategories = useSiteCategories();
   // 의사·의료인을 한 화면에서 필터 탭으로 전환한다. 목적(인재 탐색)이 같아 같은 위치에 노출.
@@ -2646,6 +2652,7 @@ function Checkout({ plan }) {
     };
     setSubmitError("");
     setSubmitting(true);
+    let paymentWindowOpened = false;
     try {
       const response = await fetch("/api/payment-orders", {
         method: "POST",
@@ -2671,6 +2678,8 @@ function Checkout({ plan }) {
           buyerTel: data.phone,
           buyerEmail: data.email,
         });
+        // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
+        paymentWindowOpened = true;
         return;
       }
       appendStoredRecord("medihelpers_ad_requests", {
@@ -2686,7 +2695,8 @@ function Checkout({ plan }) {
     } catch (error) {
       setSubmitError(error.message);
     } finally {
-      setSubmitting(false);
+      // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
+      if (!paymentWindowOpened) setSubmitting(false);
     }
   };
   return (
@@ -3074,6 +3084,7 @@ function TalentUnlockCheckout({ plan, talentId }) {
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
     setSubmitError('');
     setSubmitting(true);
+    let paymentWindowOpened = false;
     try {
       const response = await fetch('/api/payment-orders', {
         method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
@@ -3090,6 +3101,8 @@ function TalentUnlockCheckout({ plan, talentId }) {
           buyerTel: data.phone,
           buyerEmail: data.email,
         });
+        // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
+        paymentWindowOpened = true;
         return;
       }
       const approve = await fetch('/api/payment-approve', {
@@ -3103,7 +3116,8 @@ function TalentUnlockCheckout({ plan, talentId }) {
     } catch (error) {
       setSubmitError(error.message);
     } finally {
-      setSubmitting(false);
+      // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
+      if (!paymentWindowOpened) setSubmitting(false);
     }
   };
   if (done) {
@@ -3217,6 +3231,7 @@ function MembershipCheckout({ plan, onClose }) {
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
     setSubmitError('');
     setSubmitting(true);
+    let paymentWindowOpened = false;
     try {
       const response = await fetch('/api/payment-orders', {
         method:'POST',
@@ -3237,6 +3252,8 @@ function MembershipCheckout({ plan, onClose }) {
           buyerTel: data.phone,
           buyerEmail: data.email,
         });
+        // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
+        paymentWindowOpened = true;
         return;
       }
       const approve = await fetch('/api/payment-approve', {
@@ -3251,7 +3268,8 @@ function MembershipCheckout({ plan, onClose }) {
     } catch (error) {
       setSubmitError(error.message);
     } finally {
-      setSubmitting(false);
+      // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
+      if (!paymentWindowOpened) setSubmitting(false);
     }
   };
   return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '결제가 완료되었습니다' : '멤버십 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '결제 내역은 마이페이지에서 확인할 수 있습니다.'}</> : <>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</>}</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" defaultValue={plan.audience === 'hospital' ? (accountProfile.organization || accountProfile.name) : accountProfile.name} /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? 'DB에 안전하게 저장 중…' : '결제 안내 요청하기'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;

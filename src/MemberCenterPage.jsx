@@ -70,7 +70,13 @@ function MemberGate() {
 }
 
 export default function MemberCenterPage({ route, qa }) {
-  const requestedTab = new URLSearchParams(route.split('?')[1] || '').get('tab');
+  const params = new URLSearchParams(route.split('?')[1] || '');
+  const requestedTab = params.get('tab');
+  // 이니시스 결제창에서 돌아온 결과(서버가 /mypage?payment=paid|failed 로 리다이렉트)를 안내한다.
+  const paymentResult = params.get('payment') || '';
+  const paymentOrder = params.get('order') || '';
+  const paymentMessage = params.get('message') || '';
+  const [paymentNoticeClosed, setPaymentNoticeClosed] = useState(false);
   const [tab, setTab] = useState(requestedTab || 'overview');
   const [accountState, setAccountState] = useState({ loading: !qa.active, signedIn: qa.active && qa.info.capabilities.signedIn, role: qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor || qa.info.capabilities.membership ? 'doctor' : qa.info.capabilities.admin ? 'admin' : '', identity: {} });
   const [profile, setProfile] = useState(null);
@@ -192,6 +198,20 @@ export default function MemberCenterPage({ route, qa }) {
   };
 
   return <div className={`member-center role-${role}`}>
+    {paymentResult && !paymentNoticeClosed && (
+      <div className={`payment-result-notice ${paymentResult === 'paid' ? 'ok' : 'fail'}`} role="status">
+        <div>
+          <strong>{paymentResult === 'paid' ? '결제가 완료되었습니다' : '결제가 완료되지 않았습니다'}</strong>
+          <p>
+            {paymentResult === 'paid'
+              ? '결제 내역과 이용 상태는 아래 결제·이용 내역에서 확인하실 수 있습니다.'
+              : (paymentMessage || '결제가 취소되었거나 승인에 실패했습니다. 다시 시도해 주세요.')}
+            {paymentOrder ? ` (주문번호 ${paymentOrder})` : ''}
+          </p>
+        </div>
+        <button type="button" onClick={() => setPaymentNoticeClosed(true)} aria-label="알림 닫기">확인</button>
+      </div>
+    )}
     <header className="member-center-hero"><div><small>MY MEDIHELPERS</small><h1>{currentProfile.displayName}님, 반갑습니다</h1><p>{role === 'hospital' ? '공고 반응부터 후보 문의와 결제 내역까지 병원 채용 업무를 한곳에서 관리하세요.' : '이력서와 상담 제안, 관심 공고와 멤버십 이용 내역을 한곳에서 관리하세요.'}</p></div><div className="member-identity"><span>{role === 'hospital' ? <Building2 /> : <Stethoscope />}</span><div><small>현재 로그인</small><strong>{roleLabel}</strong><em><BadgeCheck /> 본인 확인</em></div></div></header>
     <div className="member-center-shell">
       <aside className="member-side"><div className="member-mini-profile"><span>{role === 'hospital' ? <Building2 /> : <UserRound />}</span><div><strong>{currentProfile.organization}</strong><small>{currentProfile.jobTitle}</small></div></div><nav>{nav.map(([id, label, Icon]) => <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon />{label}<ChevronRight /></button>)}</nav><div className="member-side-help"><MessageCircle /><strong>도움이 필요하신가요?</strong><p>담당 헤드헌터에게 바로 문의하세요.</p><a href="tel:0513425463">051-342-5463</a></div></aside>

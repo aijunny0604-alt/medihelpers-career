@@ -74,6 +74,13 @@
 - ✅ 키 미설정(`configured:false`) 환경에서는 기존 테스트(가상) 승인 흐름 그대로 — 로컬·미설정 배포에서 회귀 없음(빌드·테스트 49/49, 콘솔 에러 0).
 - 서버는 이미 구현됨: `buildInicisPaymentParams`(서명·mKey·returnUrl/closeUrl), `paymentApproveApi`(승인요청·금액검증·원장 저장).
 
+## 보강 완료 (2026-07-20 추가)
+
+- ✅ **PG 리턴 → 결과 페이지 리다이렉트**: 이니시스는 결제창 인증 후 브라우저를 `returnUrl`로 form POST 이동시킨다. 서버가 JSON을 반환하면 **사용자 화면에 JSON 원문이 노출**되므로, form POST로 들어온 경우(`fromPgForm`)에는 `/mypage?payment=paid|failed&order=..&message=..`로 **303 리다이렉트**하도록 수정(성공·실패·승인실패·금액불일치·통신실패 전 경로).
+- ✅ **결제 결과 안내 배너**: 마이페이지가 `?payment=` 파라미터를 읽어 성공(초록)/실패(빨강) 배너 표시(`.payment-result-notice`).
+- ✅ **중복 결제 방지**: 결제창이 열리면 제출 버튼 잠금을 유지(`paymentWindowOpened` 플래그로 `finally`의 `setSubmitting(false)` 스킵). 결제 3지점 + 상담폼 공통 적용.
+- ✅ **실무 가이드 문서**: `docs/INICIS_SETUP_GUIDE.md` — 키 발급→도메인 등록→환경변수→테스트 순서, 문제 대응표 포함.
+
 ## 남은 작업 (키·도메인 준비 후)
 
 - **환경변수 3개 설정**: `INICIS_MID`, `INICIS_SIGN_KEY`, `SITE_ORIGIN` → 넣는 즉시 실결제 전환(코드 수정 불필요).

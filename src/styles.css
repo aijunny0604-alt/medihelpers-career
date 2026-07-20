@@ -5214,6 +5214,15 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 폼 제출 실패 메시지(결제·회원탈퇴 등) — 정의가 없어 본문 글씨처럼 보이던 문제 수정 */
 .form-error{margin:14px 0 0;padding:12px 15px;border:1px solid #f3bbc0;border-radius:11px;background:#fff2f3;color:#b53a47;font-size:14px;font-weight:750;line-height:1.55}
 
+/* 이니시스 결제창에서 돌아온 결과 안내(마이페이지 상단) */
+.payment-result-notice{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;max-width:1240px;margin:0 auto 18px;padding:18px 22px;border-radius:16px;border:1px solid}
+.payment-result-notice.ok{background:#e9f8f2;border-color:#bde5d5;color:#0d7a5c}
+.payment-result-notice.fail{background:#fff2f3;border-color:#f3bbc0;color:#b53a47}
+.payment-result-notice strong{display:block;font-size:16px}
+.payment-result-notice p{margin:5px 0 0;font-size:13.5px;line-height:1.6;opacity:.9}
+.payment-result-notice button{flex:0 0 auto;padding:10px 18px;border:1px solid currentColor;border-radius:10px;background:transparent;color:inherit;font-size:13px;font-weight:750;cursor:pointer}
+.payment-result-notice button:hover{background:rgba(255,255,255,.6)}
+
 /* ── 광고(프리미엄) 공고 카드: 금색은 상단 얇은 라인 한 줄로만 ── */
 .unified-job-grid .job-card.premium-ad,
 .unified-job-grid .job-card.premium-ad.ad-featured,
