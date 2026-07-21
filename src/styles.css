@@ -5252,3 +5252,26 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   border-bottom-color:#cddcf1!important;
   border-left-color:#cddcf1!important;
 }
+
+/* 전역 알림(토스트) — 관심공고 저장 실패처럼 화면에 붙일 자리가 없는 알림을 표시한다. */
+.app-toaster{position:fixed;right:18px;bottom:96px;z-index:1200;display:flex;flex-direction:column;gap:10px;max-width:min(380px,calc(100vw - 36px));pointer-events:none}
+.app-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border-radius:12px;background:#fff;box-shadow:0 12px 32px rgba(12,24,45,.18);border:1px solid #f0d5d5;font-size:13.5px;line-height:1.5;font-weight:600;color:#8a2b22;animation:toast-in .22s ease}
+.app-toast.ok{border-color:#cdeee4;color:#13856f}
+.app-toast svg{width:18px;height:18px;flex:0 0 auto;margin-top:1px}
+.app-toast span{flex:1 1 auto}
+.app-toast button{flex:0 0 auto;background:none;border:0;padding:2px;cursor:pointer;color:inherit;opacity:.6}
+.app-toast button:hover{opacity:1}
+.app-toast button svg{width:15px;height:15px}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (max-width:640px){.app-toaster{right:12px;left:12px;bottom:84px;max-width:none}}
+
+/* 마이페이지 관심 공고 목록 */
+.member-saved-jobs{display:flex;flex-direction:column;gap:8px}
+.member-saved-jobs a{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid #e8edf5;border-radius:12px;text-decoration:none;color:inherit;transition:border-color .15s,background .15s}
+.member-saved-jobs a:hover{border-color:#c9d8ef;background:#f7faff}
+.member-saved-jobs a>span{flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#fdeef0;color:#d9455f;display:flex;align-items:center;justify-content:center}
+.member-saved-jobs a>span svg{width:17px;height:17px}
+.member-saved-jobs a>div{flex:1 1 auto;min-width:0}
+.member-saved-jobs a strong{display:block;font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member-saved-jobs a small{display:block;margin-top:2px;color:#7a889b;font-size:12.5px}
+.member-saved-jobs a>svg{flex:0 0 auto;width:17px;height:17px;color:#9fb0c6}

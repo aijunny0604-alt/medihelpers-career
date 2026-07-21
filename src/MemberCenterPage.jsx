@@ -65,7 +65,12 @@ function statusClass(value = '') {
   return '';
 }
 
-function MemberGate() {
+function MemberGate({ failed = false }) {
+  // 불러오기 실패와 '로그인 필요'는 다른 상황이다. 예전에는 둘 다 로그인 안내가 떠서,
+  // 서버 오류로 못 불러온 회원이 로그인을 반복해도 같은 화면만 보게 됐다.
+  if (failed) {
+    return <section className="member-gate"><span><TriangleAlert /></span><small>TEMPORARY ERROR</small><h1>회원 정보를 불러오지 못했습니다</h1><p>일시적인 오류이거나 로그인이 만료되었을 수 있습니다. 새로고침 후에도 같은 화면이 보이면 고객센터로 문의해 주세요.</p><div><button className="button primary" type="button" onClick={() => window.location.reload()}>다시 시도</button><a className="button outline" href={withBase('/login?next=/mypage')}>로그인</a></div></section>;
+  }
   return <section className="member-gate"><span><LockKeyhole /></span><small>MEMBERS ONLY</small><h1>로그인 후 내 활동을<br />한곳에서 관리하세요</h1><p>공고·상담·결제·이력서와 회원정보는 본인 계정에서만 확인할 수 있습니다.</p><div><a className="button primary" href={withBase('/login?next=/mypage')}>로그인 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입</a></div></section>;
 }
 
@@ -118,7 +123,19 @@ export default function MemberCenterPage({ route, qa }) {
         if (data.notifications) setNotifications(data.notifications);
         setServerData({ consultations: data.consultations || [], activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
       })
-      .catch(() => setAccountState({ loading: false, signedIn: false, role: '', identity: {} }));
+      // 불러오기에 실패하면 그 사실을 알린다. 예전에는 전부 signedIn:false로만 처리해서
+      // 서버 오류·정지된 계정도 '로그인하세요' 화면이 떴고, 로그인해도 같은 화면으로 되돌아왔다.
+      .catch(() => setAccountState({ loading: false, signedIn: false, role: '', identity: {}, failed: true }));
+  }, [qa.active]);
+
+  // 관심공고(저장한 공고). 서버 API는 있었지만 화면에서 한 번도 호출하지 않아 마이페이지에 보이지 않았다.
+  const [savedJobs, setSavedJobs] = useState([]);
+  useEffect(() => {
+    if (qa.active) return;
+    fetch('/api/saved-jobs', { credentials: 'same-origin', headers: { accept: 'application/json' } })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (data?.saved) setSavedJobs(data.saved); })
+      .catch(() => {});
   }, [qa.active]);
 
   const role = accountState.role === 'admin' ? 'hospital' : accountState.role;
@@ -166,6 +183,19 @@ export default function MemberCenterPage({ route, qa }) {
       views: '-',
       inquiries: '-'
     }));
+  // 의사 '이력서·구직활동' 카드. 예전에는 병원용 ads(광고 주문)를 그대로 써서
+  // 의사는 이력서를 등록해도 항상 '등록한 이력서가 없습니다'만 보였다(serverData.resume를 안 읽음).
+  const resumeCards = qa.active ? demo.ads : (serverData.resume ? [{
+    id: serverData.resume.id || 'my-resume',
+    title: serverData.resume.title || '등록한 이력서',
+    plan: `완성도 ${Number(serverData.resume.completion) || 0}% · ${({ private: '비공개', headhunter: '헤드헌터 공개', public: '채용기관 공개' })[serverData.resume.visibility] || '공개 범위 확인'}`,
+    status: serverData.resume.visibility === 'private' ? '비공개' : '공개 중',
+    period: serverData.resume.updatedAt ? `최근 수정 ${String(serverData.resume.updatedAt).slice(0, 10)}` : '등록 완료',
+    views: '-',
+    inquiries: '-'
+  }] : []);
+  // 역할에 맞는 카드 목록(병원=광고 주문, 의사=이력서).
+  const recordCards = role === 'hospital' ? ads : resumeCards;
   const payments = qa.active ? demo.payments : serverData.orders.map((item) => {
     const total = Number(item.totalAmount || 0);
     const supply = Number(item.supplyAmount || Math.round(total / 1.1));
@@ -187,7 +217,7 @@ export default function MemberCenterPage({ route, qa }) {
   ], [role]);
 
   if (accountState.loading) return <section className="member-loading"><ShieldCheck /><strong>내 회원 정보를 불러오고 있습니다</strong></section>;
-  if (!accountState.signedIn || !role) return <MemberGate />;
+  if (!accountState.signedIn || !role) return <MemberGate failed={Boolean(accountState.failed)} />;
 
   const saveProfile = async (event) => {
     event.preventDefault();
@@ -255,8 +285,8 @@ export default function MemberCenterPage({ route, qa }) {
           <section className="member-panel"><div className="member-panel-head"><div><h3>최근 활동</h3><p>계정에서 발생한 주요 사용 기록입니다.</p></div><button onClick={() => setTab(role === 'hospital' ? 'ads' : 'resume')}>관리하기 <ArrowRight /></button></div>{activities.length ? <div className="member-timeline">{activities.slice(0, 3).map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>아직 사용 기록이 없습니다</strong><p>회원정보 수정, 상담, 결제 등의 활동이 기록됩니다.</p></div>}</section>
         </>}
 
-        {(tab === 'ads' || tab === 'resume') && <><div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '게시 상태, 기간, 조회와 문의 반응을 확인합니다.' : '이력서 공개 범위와 구직 활동 상태를 관리합니다.'}</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/resume')}>{role === 'hospital' ? '공고 등록' : '이력서 수정'} <ArrowRight /></a></div>{ads.length ? <div className="member-record-grid">{ads.map((item) => <article key={item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl>{/* 예전에는 onClick이 없어 눌러도 아무 일도 안 일어나는 죽은 버튼이었다. 담당자 문의로 연결한다. */}
-                  <a className="button outline" href={withBase('/request/hiring')}>담당자에게 문의 <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 공개 범위와 상담 현황을 이곳에서 관리할 수 있습니다.'}</p></div>}</>}
+        {(tab === 'ads' || tab === 'resume') && <><div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '게시 상태, 기간, 조회와 문의 반응을 확인합니다.' : '이력서 공개 범위와 구직 활동 상태를 관리합니다.'}</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/resume')}>{role === 'hospital' ? '공고 등록' : '이력서 수정'} <ArrowRight /></a></div>{recordCards.length ? <div className="member-record-grid">{recordCards.map((item) => <article key={item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl>{/* 예전에는 onClick이 없어 눌러도 아무 일도 안 일어나는 죽은 버튼이었다. 담당자 문의로 연결한다. */}
+                  <a className="button outline" href={withBase('/request/hiring')}>담당자에게 문의 <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 공개 범위와 상담 현황을 이곳에서 관리할 수 있습니다.'}</p></div>}<section className="member-panel"><div className="member-panel-head"><div><h3>관심 공고</h3><p>하트로 저장한 공고입니다. 로그인하면 다른 기기에서도 동일하게 보입니다.</p></div><a className="button outline" href={withBase('/jobs')}>공고 더 보기 <ArrowRight /></a></div>{savedJobs.length ? <div className="member-saved-jobs">{savedJobs.map((item) => <a key={item.jobId || item.id} href={withBase(`/jobs?open=${encodeURIComponent(item.jobId || item.id)}`)}><span><Heart /></span><div><strong>{item.title || item.jobId || item.id}</strong><small>{[item.dept, item.region].filter(Boolean).join(' · ') || '저장한 공고'}</small></div><ChevronRight /></a>)}</div> : <div className="member-empty"><Heart /><strong>저장한 공고가 없습니다</strong><p>채용 공고에서 하트를 누르면 이곳에 모입니다.</p></div>}</section></>}
 
         {tab === 'inquiries' && <><div className="member-page-head"><div><small>MESSAGES & MATCHING</small><h2>{role === 'hospital' ? '문의·후보 연결' : '상담·제안 내역'}</h2><p>{role === 'hospital' ? '의사 문의와 헤드헌터의 후보 추천을 확인합니다. 내역을 누르면 원문과 답변을 볼 수 있습니다.' : '헤드헌터 상담과 병원 제안 진행 상태를 확인합니다. 내역을 누르면 상세 내용을 볼 수 있습니다.'}</p></div></div>{inquiries.length ? <section className="member-panel member-table-panel"><div className="member-table-head"><span>보낸 사람</span><span>문의 내용</span><span>접수일</span><span>상태</span></div>{inquiries.map((item) => <button type="button" className="member-inquiry-row" key={`${item.source}-${item.subject}`} onClick={() => setSelectedInquiry(item)}><strong>{item.name}</strong><div><b>{item.subject}</b><small>{item.source}</small></div><time>{item.time}</time><span className="member-inquiry-state"><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></span></button>)}</section> : <div className="member-empty member-empty-large"><MessageCircle /><strong>아직 상담·문의 내역이 없습니다</strong><p>새로운 상담이나 문의가 접수되면 진행 상태와 함께 표시됩니다.</p></div>}<div className="member-privacy-note"><ShieldCheck /><div><strong>{role === 'hospital' ? '의사 실명과 연락처는 동의 후 공개됩니다' : '내 실명과 연락처는 동의한 병원에만 전달됩니다'}</strong><p>메디헬퍼스 헤드헌터가 연결 범위를 확인한 뒤 필요한 정보만 안전하게 전달합니다.</p></div></div></>}
 

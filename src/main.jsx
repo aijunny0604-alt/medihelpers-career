@@ -4,7 +4,7 @@ import {
   Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, Eye, FileCheck2, FileText, Heart, HeartPulse, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
-  ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Upload, UserRound,
+  ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, TriangleAlert, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
 import { adPlans, jobs, membershipPlans, navItems, talent, talentUnlockPlans } from './data.js';
@@ -3548,6 +3548,33 @@ function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', des
   return <section className="conversion"><div><small>MEDIHELPERS CONCIERGE</small><h2>{title}</h2><p>{description}</p></div><div><a className="button light" href="tel:0513425463"><Phone size={17} /> 전화 상담</a><Link className="button glass" to={hospital ? '/headhunting?role=hospital' : '/headhunting'}>무료 상담 신청 <ArrowRight size={17} /></Link></div></section>;
 }
 
+// 전역 알림 표시. browserStorage의 notify()가 쏘는 커스텀 이벤트를 받아 화면 우하단에 띄운다.
+// 이 앱에는 공용 토스트가 없어서 각 화면이 제각각 인라인 메시지를 만들었고,
+// 그 결과 관심공고 저장처럼 아예 아무 안내도 없는 경로가 생겼다.
+function Toaster() {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    let seq = 0;
+    const onNotify = (event) => {
+      const { message, tone } = event.detail || {};
+      if (!message) return;
+      const id = `t${Date.now()}-${seq++}`;
+      setItems((current) => [...current, { id, message, tone: tone || 'error' }]);
+      window.setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 5000);
+    };
+    window.addEventListener('medihelpers:notify', onNotify);
+    return () => window.removeEventListener('medihelpers:notify', onNotify);
+  }, []);
+  if (!items.length) return null;
+  return <div className="app-toaster" role="status" aria-live="polite">
+    {items.map((item) => <div key={item.id} className={`app-toast ${item.tone}`}>
+      {item.tone === 'ok' ? <CircleCheck /> : <TriangleAlert />}
+      <span>{item.message}</span>
+      <button type="button" onClick={() => setItems((current) => current.filter((x) => x.id !== item.id))} aria-label="알림 닫기"><X /></button>
+    </div>)}
+  </div>;
+}
+
 export function App() {
   const rawRoute = useRoute();
   const rawPath = rawRoute.split('?')[0].replace(/\/$/, '') || '/';
@@ -3645,5 +3672,5 @@ export function App() {
   if (path === '/admin' || path.startsWith('/admin/')) {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
-  return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
+  return <div className={`app ${qa.active ? 'qa-preview-active' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} /><QaPreviewRibbon qa={qa} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
 }
