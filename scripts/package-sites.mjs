@@ -460,8 +460,11 @@ async function authApi(request, env, pathname) {
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'privacy_notice_ack', privacyNoticeVersion)
     ];
     await env.DB.batch(records);
-    const token = await createAuthSession(env, account.id);
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName } }, 201, { 'set-cookie':authCookie(token) });
+    // [보안] 가입 직후 세션도 로그인과 동일하게 관리자면 12시간으로 단축한다.
+    const isAdminAccount = String(env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(email);
+    const token = await createAuthSession(env, account.id, { isAdmin: isAdminAccount });
+    const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName } }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
   return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
 }
@@ -506,8 +509,15 @@ async function accountApi(request, env) {
       }
     }
     const newId = crypto.randomUUID();
+    // [보안] 역할이 실제로 바뀌는지 미리 확인해 둔다(아래 세션 회전 판단용).
+    const priorRole = existingAccount ? (await env.DB.prepare('SELECT role FROM accounts WHERE user_key = ?').bind(key).first())?.role : null;
     await env.DB.prepare("INSERT INTO accounts (id, user_key, role) VALUES (?, ?, ?) ON CONFLICT(user_key) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP").bind(newId, key, body.role).run();
     const account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
+    // [보안] 역할이 바뀌면 기존 세션을 모두 무효화한다(/api/auth/register와 동일 정책).
+    // 이 경로가 실제 UI(마이페이지 회원유형 변경)가 호출하는 곳이라 여기서도 반드시 회전시켜야 한다.
+    if (priorRole && priorRole !== account.role) {
+      try { await env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id).run(); } catch {}
+    }
     // 재가입이 허용되어 새로 가입했으므로 탈퇴 이력 정리.
     await env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key = ?').bind(key).run();
     await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, last_login_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, identity.email, identity.displayName || '').run();

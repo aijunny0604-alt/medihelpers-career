@@ -22,7 +22,9 @@
 - `SECURITY_DATA_EXPOSURE_PLAN.md`: 급여·병원·개인정보 유출 방어(서버측 필터링)
 - `NOTIFICATION_SETUP.md`: 알림 발송 설정
 - `API.md`: 외부 연동 및 API 원칙
-- `DEPLOY.md`: 배포 운영
+- `DEPLOY.md`: 배포 운영(Sites=테스트 / Cloudflare=실결제)
+- `CLOUDFLARE_MIGRATION.md`: Cloudflare Workers 이전 절차(실결제 필수 조건)
+- `INICIS_SETUP_GUIDE.md`: 이니시스 키 발급·설정 가이드
 - `TEST.md`: 검증 기준
 - `../CHANGELOG.md`: 버전별 변경과 배포 기록
 - `PROFESSION_NETWORK.md`: 의료직군별 허브와 커뮤니티 확장 전략
