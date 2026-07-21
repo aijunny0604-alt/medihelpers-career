@@ -511,6 +511,13 @@ async function accountApi(request, env) {
     const newId = crypto.randomUUID();
     // [보안] 역할이 실제로 바뀌는지 미리 확인해 둔다(아래 세션 회전 판단용).
     const priorRole = existingAccount ? (await env.DB.prepare('SELECT role FROM accounts WHERE user_key = ?').bind(key).first())?.role : null;
+    // [보안] 이미 있는 계정의 역할을 이 API로 바꾸지 못하게 막는다.
+    // 예전에는 의사 계정이 role:'hospital'을 그대로 보내면 병원으로 전환됐고,
+    // 병원 권한으로 인재 열람권을 구매해 다른 의사들의 실명·연락처를 볼 수 있었다.
+    // 회원유형 변경은 검증이 필요한 절차라 관리자 확인을 거쳐야 한다.
+    if (priorRole && priorRole !== body.role) {
+      return json({ error:'회원 유형 변경은 고객센터를 통해 신청해 주세요.', code:'ROLE_CHANGE_NOT_ALLOWED' }, 403);
+    }
     await env.DB.prepare("INSERT INTO accounts (id, user_key, role) VALUES (?, ?, ?) ON CONFLICT(user_key) DO UPDATE SET role = excluded.role, updated_at = CURRENT_TIMESTAMP").bind(newId, key, body.role).run();
     const account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
     // [보안] 역할이 바뀌면 기존 세션을 모두 무효화한다(/api/auth/register와 동일 정책).
@@ -891,21 +898,26 @@ async function paymentApproveApi(request, env) {
   if (!oid) return json({ error:'주문번호가 없습니다.' }, 400);
   const order = await env.DB.prepare('SELECT id, account_id AS accountId, total_amount AS totalAmount, status, product_id AS productId, product_type AS productType, metadata_json AS metadataJson FROM payment_orders WHERE order_number = ?').bind(oid).first();
   if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
-  // [보안] 앱(JSON)에서 온 승인 요청은 반드시 '주문 소유자 본인'이어야 한다.
-  // 예전에는 주문번호만 알면 누구나(비로그인 포함) 승인을 호출할 수 있었고,
-  // 특히 테스트모드(이니시스 키 미설정)에서는 그대로 paid 처리 + 열람권 발급까지 됐다.
-  // PG 폼 리턴(fromPgForm)은 브라우저가 이니시스에서 리다이렉트로 넘어오는 경로라 세션 쿠키를
-  // 신뢰할 수 없으므로 제외하고, 아래 authToken/서명 검증에 맡긴다.
-  if (!fromPgForm) {
+  // [보안] 주문 소유자 본인만 승인할 수 있다. 예전에는 주문번호만 알면
+  // 누구나(비로그인 포함) 승인을 호출할 수 있었다.
+  //
+  // 검증을 건너뛰는 경우는 '실제 이니시스 서명 검증이 뒤따르는 PG 폼 리턴'뿐이다.
+  // testMode(키 미설정)에서는 뒤에 검증할 서명이 없어 그대로 paid 처리되므로,
+  // 폼 형식으로 보내 fromPgForm=true를 만들면 인증을 우회할 수 있다.
+  // → 그래서 testMode에서는 폼 리턴이라도 반드시 소유자 확인을 요구한다.
+  const skipOwnerCheck = fromPgForm && !testMode;
+  if (!skipOwnerCheck) {
+    // 폼 리턴(브라우저 이동)이면 JSON 대신 결과 페이지로 보내야 화면이 깨지지 않는다.
+    const denyOwner = (message, status) => fromPgForm ? pgRedirect('failed', oid, message) : json({ error:message }, status);
     const approver = await authenticatedUser(request, env);
-    if (!approver) return json({ error:'로그인이 필요합니다.' }, 401);
+    if (!approver) return denyOwner('로그인이 필요합니다.', 401);
     if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) {
-      return json({ error:'결제 처리를 완료할 수 없습니다.' }, 503);
+      return denyOwner('결제 처리를 완료할 수 없습니다.', 503);
     }
     const approverKey = await userKey(approver.email, env.ACCOUNT_HASH_SECRET);
     const approverAccount = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(approverKey).first();
     if (!approverAccount || approverAccount.id !== order.accountId) {
-      return json({ error:'해당 주문을 승인할 권한이 없습니다.' }, 403);
+      return denyOwner('해당 주문을 승인할 권한이 없습니다.', 403);
     }
   }
   // [보안] 멱등성: 이미 결제 완료된 주문은 재처리하지 않는다.
