@@ -17,6 +17,8 @@ const steps = [
 export default function ResumePage() {
   const [step, setStep] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
   const [resumeFileError, setResumeFileError] = useState('');
   const [dragTarget, setDragTarget] = useState('');
@@ -65,7 +67,11 @@ export default function ResumePage() {
       ...form,
       resumeFileName: resumeFile?.name || ''
     };
-    // 서버(D1)에 저장해 아빠(관리자)가 열람할 수 있게 한다. 서버 미가용 시 localStorage로 폴백.
+    // 서버(D1)에 저장해 아빠(관리자)가 열람할 수 있게 한다.
+    // 예전에는 서버가 401·403·413을 돌려줘도 catch에서 조용히 삼키고 무조건 완료 화면을 띄웠다.
+    // 의사 입장에서는 이력서가 등록된 줄 알지만 실제로는 저장되지 않아 제안을 못 받는다.
+    setSubmitting(true);
+    setSubmitError('');
     try {
       const response = await fetch(withBase('/api/resumes'), {
         method: 'POST',
@@ -84,10 +90,22 @@ export default function ResumePage() {
           detail: { ...form }
         })
       });
-      if (!response.ok) throw new Error('server save failed');
+      if (!response.ok) {
+        // 서버가 이유를 알려주면 그대로 보여준다(로그인 필요·회원유형·용량 초과 등).
+        let message = '';
+        try { message = (await response.json())?.error || ''; } catch {}
+        setSubmitError(message || '이력서를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setSubmitting(false);
+        return;
+      }
     } catch {
+      // 네트워크 자체가 안 되는 경우에만 localStorage로 임시 보관하고, 그 사실을 알린다.
       appendStoredRecord('medihelpers_resumes', snapshot);
+      setSubmitError('네트워크 연결이 불안정해 임시 저장했습니다. 연결 후 다시 등록해 주세요.');
+      setSubmitting(false);
+      return;
     }
+    setSubmitting(false);
     setCompleted(true);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
@@ -127,7 +145,8 @@ export default function ResumePage() {
           <fieldset className="resume-visibility"><legend>구직 공개 설정</legend>{[['public','구직 등록 (채용기관 공개)','병원 회원이 익명 프로필로 나를 검색할 수 있습니다. 이름·연락처는 열람권 결제 후에만 공개됩니다.'],['proposal','제안 올 때만 공개','평소엔 비공개이며, 맞는 병원 제안이 있을 때 동의를 요청합니다.'],['private','비공개 보관','목록에 올리지 않고, 내가 직접 지원할 때만 전달합니다.']].map(([value,title,copy]) => <label key={value} className={form.visibility === value ? 'active' : ''}><input type="radio" name="visibility" value={value} checked={form.visibility === value} onChange={(e) => update('visibility', e.target.value)} /><span><strong>{title}</strong><small>{copy}</small></span>{form.visibility === value && <Check />}</label>)}</fieldset>
           <label className="resume-consent"><input type="checkbox" checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>이력서 등록과 채용 매칭을 위한 개인정보 수집·이용에 동의합니다.</span></label>
         </div>}
-        <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={!form.consent}>이력서 등록하기 <ArrowRight /></button>}</div>
+        <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={!form.consent || submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
+        {submitError && <p className="form-error" role="alert">{submitError}</p>}
       </section>
       <aside className="resume-preview"><small>LIVE PREVIEW</small><div className="resume-preview-avatar"><UserRound /></div><h3>{form.title || '이력서 제목을 입력해주세요'}</h3><span className="resume-preview-role">{form.profession || '직군 미입력'}{form.specialty ? ` · ${form.specialty}` : ''}</span><dl><div><dt>희망 지역</dt><dd>{form.desiredRegions || form.region || '미입력'}</dd></div><div><dt>희망 보수</dt><dd>{form.salary || '협의'}</dd></div></dl><div className="resume-preview-privacy"><LockKeyhole /><span><strong>이름·연락처 비공개</strong><small>병원이 열람권을 결제한 경우에만 공개됩니다.</small></span></div></aside>
     </form>

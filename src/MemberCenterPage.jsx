@@ -3,7 +3,7 @@ import {
   ArrowRight, BadgeCheck, Bell, BriefcaseBusiness, Building2, CalendarDays, Clock3,
   Check, ChevronRight, CircleCheck, CreditCard, FileText, Heart, KeyRound,
   LockKeyhole, Mail, MapPin, MessageCircle, Phone, Receipt, Settings, ShieldCheck, Stethoscope,
-  UserRound, X
+  TriangleAlert, UserRound, X
 } from 'lucide-react';
 import { withBase } from './basePath.js';
 import { WithdrawSection } from './AccountPage.jsx';
@@ -83,6 +83,9 @@ export default function MemberCenterPage({ route, qa }) {
   const [serverData, setServerData] = useState({ consultations: [], activity: [], orders: [], resume: null, recommendedCandidates: [] });
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [saved, setSaved] = useState('');
+  const [saveBusy, setSaveBusy] = useState(false);
+  // 저장 결과가 성공인지 실패인지 화면에서 구분하기 위한 판단(문구 기준).
+  const saveFailed = Boolean(saved) && !saved.startsWith('저장되었습니다');
   const [notifications, setNotifications] = useState({ email: true, sms: true, service: true, marketing: false });
   const [receipt, setReceipt] = useState(null); // 영수증 모달 대상 결제
   const [refundFor, setRefundFor] = useState(null); // 환불 요청 중인 주문번호
@@ -190,11 +193,31 @@ export default function MemberCenterPage({ route, qa }) {
     event.preventDefault();
     const next = Object.fromEntries(new FormData(event.currentTarget).entries());
     setProfile({ ...currentProfile, ...next });
-    setSaved('저장되었습니다.');
-    if (!qa.active) {
-      try { await fetch('/api/member-center', { method: 'PATCH', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ profile: next, notifications }) }); } catch { setSaved('화면에 반영했습니다. 서버 저장은 다시 확인해주세요.'); }
+    if (qa.active) {
+      setSaved('저장되었습니다.');
+      window.setTimeout(() => setSaved(''), 2500);
+      return;
     }
-    window.setTimeout(() => setSaved(''), 2500);
+    // 서버 응답을 확인한 뒤에 결과를 알린다.
+    // 예전에는 fetch 전에 '저장되었습니다'를 먼저 띄우고 res.ok도 보지 않아서,
+    // 서버가 403·500을 돌려줘도 화면엔 성공으로 표시됐다(저장 안 됐는데 된 줄 앎).
+    setSaveBusy(true);
+    setSaved('');
+    try {
+      const res = await fetch('/api/member-center', { method: 'PATCH', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ profile: next, notifications }) });
+      if (res.ok) {
+        setSaved('저장되었습니다.');
+      } else {
+        let message = '';
+        try { message = (await res.json())?.error || ''; } catch {}
+        setSaved(message || (res.status === 401 ? '로그인이 만료되었습니다. 다시 로그인해 주세요.' : '저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'));
+      }
+    } catch {
+      setSaved('네트워크 연결을 확인한 뒤 다시 시도해 주세요.');
+    } finally {
+      setSaveBusy(false);
+    }
+    window.setTimeout(() => setSaved(''), 4000);
   };
 
   return <div className={`member-center role-${role}`}>
@@ -209,7 +232,16 @@ export default function MemberCenterPage({ route, qa }) {
             {paymentOrder ? ` (주문번호 ${paymentOrder})` : ''}
           </p>
         </div>
-        <button type="button" onClick={() => setPaymentNoticeClosed(true)} aria-label="알림 닫기">확인</button>
+        <button type="button" onClick={() => {
+          setPaymentNoticeClosed(true);
+          // URL에서 결제 결과 파라미터를 지운다. 안 지우면 뒤로가기·북마크로 다시 들어올 때마다
+          // 예전 결제 결과 배너가 계속 떠서 방금 결제한 것처럼 보인다.
+          try {
+            const url = new URL(window.location.href);
+            ['payment', 'order', 'message'].forEach((k) => url.searchParams.delete(k));
+            window.history.replaceState({}, '', url.pathname + (url.search || '') + url.hash);
+          } catch {}
+        }} aria-label="알림 닫기">확인</button>
       </div>
     )}
     <header className="member-center-hero"><div><small>MY MEDIHELPERS</small><h1>{currentProfile.displayName}님, 반갑습니다</h1><p>{role === 'hospital' ? '공고 반응부터 후보 문의와 결제 내역까지 병원 채용 업무를 한곳에서 관리하세요.' : '이력서와 상담 제안, 관심 공고와 멤버십 이용 내역을 한곳에서 관리하세요.'}</p></div><div className="member-identity"><span>{role === 'hospital' ? <Building2 /> : <Stethoscope />}</span><div><small>현재 로그인</small><strong>{roleLabel}</strong><em><BadgeCheck /> 본인 확인</em></div></div></header>
@@ -223,13 +255,14 @@ export default function MemberCenterPage({ route, qa }) {
           <section className="member-panel"><div className="member-panel-head"><div><h3>최근 활동</h3><p>계정에서 발생한 주요 사용 기록입니다.</p></div><button onClick={() => setTab(role === 'hospital' ? 'ads' : 'resume')}>관리하기 <ArrowRight /></button></div>{activities.length ? <div className="member-timeline">{activities.slice(0, 3).map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>아직 사용 기록이 없습니다</strong><p>회원정보 수정, 상담, 결제 등의 활동이 기록됩니다.</p></div>}</section>
         </>}
 
-        {(tab === 'ads' || tab === 'resume') && <><div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '게시 상태, 기간, 조회와 문의 반응을 확인합니다.' : '이력서 공개 범위와 구직 활동 상태를 관리합니다.'}</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/resume')}>{role === 'hospital' ? '공고 등록' : '이력서 수정'} <ArrowRight /></a></div>{ads.length ? <div className="member-record-grid">{ads.map((item) => <article key={item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl><button type="button">상세 관리 <ArrowRight /></button></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 공개 범위와 상담 현황을 이곳에서 관리할 수 있습니다.'}</p></div>}</>}
+        {(tab === 'ads' || tab === 'resume') && <><div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '게시 상태, 기간, 조회와 문의 반응을 확인합니다.' : '이력서 공개 범위와 구직 활동 상태를 관리합니다.'}</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/resume')}>{role === 'hospital' ? '공고 등록' : '이력서 수정'} <ArrowRight /></a></div>{ads.length ? <div className="member-record-grid">{ads.map((item) => <article key={item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl>{/* 예전에는 onClick이 없어 눌러도 아무 일도 안 일어나는 죽은 버튼이었다. 담당자 문의로 연결한다. */}
+                  <a className="button outline" href={withBase('/request/hiring')}>담당자에게 문의 <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 공개 범위와 상담 현황을 이곳에서 관리할 수 있습니다.'}</p></div>}</>}
 
         {tab === 'inquiries' && <><div className="member-page-head"><div><small>MESSAGES & MATCHING</small><h2>{role === 'hospital' ? '문의·후보 연결' : '상담·제안 내역'}</h2><p>{role === 'hospital' ? '의사 문의와 헤드헌터의 후보 추천을 확인합니다. 내역을 누르면 원문과 답변을 볼 수 있습니다.' : '헤드헌터 상담과 병원 제안 진행 상태를 확인합니다. 내역을 누르면 상세 내용을 볼 수 있습니다.'}</p></div></div>{inquiries.length ? <section className="member-panel member-table-panel"><div className="member-table-head"><span>보낸 사람</span><span>문의 내용</span><span>접수일</span><span>상태</span></div>{inquiries.map((item) => <button type="button" className="member-inquiry-row" key={`${item.source}-${item.subject}`} onClick={() => setSelectedInquiry(item)}><strong>{item.name}</strong><div><b>{item.subject}</b><small>{item.source}</small></div><time>{item.time}</time><span className="member-inquiry-state"><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></span></button>)}</section> : <div className="member-empty member-empty-large"><MessageCircle /><strong>아직 상담·문의 내역이 없습니다</strong><p>새로운 상담이나 문의가 접수되면 진행 상태와 함께 표시됩니다.</p></div>}<div className="member-privacy-note"><ShieldCheck /><div><strong>{role === 'hospital' ? '의사 실명과 연락처는 동의 후 공개됩니다' : '내 실명과 연락처는 동의한 병원에만 전달됩니다'}</strong><p>메디헬퍼스 헤드헌터가 연결 범위를 확인한 뒤 필요한 정보만 안전하게 전달합니다.</p></div></div></>}
 
         {tab === 'payments' && <><div className="member-page-head"><div><small>BILLING & USAGE</small><h2>{role === 'hospital' ? '결제·사용이력' : '멤버십·결제 내역'}</h2><p>상품 이용기간과 결제·사용 상태를 같은 기준으로 확인합니다.</p></div></div>{payments.length ? <section className="member-panel member-payment-list">{payments.map((item) => <div key={item.id} className="member-payment-row"><article><span><Receipt /></span><div><small>{item.id}</small><strong>{item.item}</strong><p>{item.date}</p></div><b>{item.amount}</b><em className={statusClass(item.status)}>{item.status}</em>{!qa.active && item.refundable && <button type="button" className="member-refund-btn" onClick={() => { setRefundFor(refundFor === item.id ? null : item.id); setRefundReason(''); setRefundMsg(''); }}>환불 요청</button>}{!qa.active && <button type="button" onClick={() => setReceipt(item)}>영수증</button>}</article>{refundFor === item.id && <div className="member-refund-form"><p className="member-refund-note">환불(청약철회)을 요청합니다. 이미 제공이 시작된 서비스는 이용분이 공제될 수 있으며, 처리 기준은 <a href={withBase('/refund')} target="_blank" rel="noreferrer">환불 정책</a>을 따릅니다.</p><textarea rows="2" placeholder="환불 사유를 입력해 주세요 (예: 단순 변심, 중복 결제, 서비스 미이용 등)" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><div className="member-refund-actions"><button type="button" className="button outline" onClick={() => setRefundFor(null)} disabled={refundBusy}>취소</button><button type="button" className="button primary" onClick={() => submitRefund(item.id)} disabled={refundBusy}>{refundBusy ? '접수 중…' : '환불 요청 접수'}</button></div></div>}</div>)}{refundMsg && <p className="member-refund-msg" role="status">{refundMsg}</p>}</section> : <div className="member-empty member-empty-large"><Receipt /><strong>아직 결제 내역이 없습니다</strong><p>공고 상품·멤버십·열람권 결제가 완료되면 영수증과 이용기간이 표시됩니다.</p></div>}<section className="member-panel"><div className="member-panel-head"><div><h3>전체 사용 기록</h3><p>조회·상담·결제 등 계정 활동을 시간순으로 표시합니다.</p></div></div>{activities.length ? <div className="member-timeline">{activities.map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>기록된 사용 이력이 없습니다</strong><p>계정 활동이 발생하면 시간순으로 안전하게 기록됩니다.</p></div>}</section></>}
 
-        {tab === 'profile' && <><div className="member-page-head"><div><small>ACCOUNT & SECURITY</small><h2>회원정보·알림·보안</h2><p>모든 회원에게 공통으로 필요한 정보를 관리합니다.</p></div>{saved && <span className="member-saved"><CircleCheck /> {saved}</span>}</div><form className="member-profile-form" onSubmit={saveProfile}><section className="member-panel"><div className="member-panel-head"><div><h3>기본 회원정보</h3><p>상담과 중요 안내에 사용할 정보를 입력해주세요.</p></div></div><div className="member-profile-grid"><label><span>이름·담당자명</span><input name="displayName" defaultValue={currentProfile.displayName} /></label><label><span>로그인 이메일</span><input name="email" type="email" defaultValue={currentProfile.email} readOnly /></label><label><span>휴대전화</span><input name="phone" defaultValue={currentProfile.phone} /></label><label><span>{role === 'hospital' ? '병원명' : '전문과목·직군'}</span><input name="organization" defaultValue={currentProfile.organization} /></label><label><span>{role === 'hospital' ? '담당자 직함' : '경력 표시'}</span><input name="jobTitle" defaultValue={currentProfile.jobTitle} /></label></div></section><section className="member-panel"><div className="member-panel-head"><div><h3>알림 설정</h3><p>중요한 진행 상태만 선택해서 받아보세요.</p></div></div><div className="member-toggle-list">{[['email','이메일 알림','상담·결제·계정 보안 안내'],['sms','문자 알림','새 문의와 헤드헌터 연락'],['service','서비스 알림','공고 마감·이력서 상태·멤버십'],['marketing','혜택·이벤트','선택 동의이며 언제든 해제 가능']].map(([key, title, copy]) => <label key={key}><div><strong>{title}</strong><small>{copy}</small></div><input type="checkbox" checked={notifications[key]} onChange={(event) => setNotifications((current) => ({ ...current, [key]: event.target.checked }))} /><span /></label>)}</div></section><section className="member-panel member-security"><div className="member-panel-head"><div><h3>로그인·보안</h3><p>로그인 이메일과 계정 접근 문제를 관리합니다.</p></div></div><div><span><KeyRound /></span><div><strong>로그인 정보</strong><p>{currentProfile.email}</p><small>비밀번호를 잊었거나 이메일 접근이 어렵다면 로그인 도움에서 본인 확인 절차를 진행하세요.</small></div><a className="button outline" href={withBase('/account/recovery')}>아이디·비밀번호 도움</a></div><div><span><ShieldCheck /></span><div><strong>개인정보처리방침·약관</strong><p>수집 항목과 보관 기간, 회원 탈퇴 처리 기준을 확인할 수 있습니다.</p></div><a className="button outline" href={withBase('/privacy')}>처리방침 보기</a></div></section><button className="button primary member-save" type="submit">변경사항 저장</button></form><WithdrawSection /></>}
+        {tab === 'profile' && <><div className="member-page-head"><div><small>ACCOUNT & SECURITY</small><h2>회원정보·알림·보안</h2><p>모든 회원에게 공통으로 필요한 정보를 관리합니다.</p></div>{saved && <span className={saveFailed ? 'member-saved is-error' : 'member-saved'} role="status">{saveFailed ? <TriangleAlert /> : <CircleCheck />} {saved}</span>}</div><form className="member-profile-form" onSubmit={saveProfile}><section className="member-panel"><div className="member-panel-head"><div><h3>기본 회원정보</h3><p>상담과 중요 안내에 사용할 정보를 입력해주세요.</p></div></div><div className="member-profile-grid"><label><span>이름·담당자명</span><input name="displayName" defaultValue={currentProfile.displayName} /></label><label><span>로그인 이메일</span><input name="email" type="email" defaultValue={currentProfile.email} readOnly /></label><label><span>휴대전화</span><input name="phone" defaultValue={currentProfile.phone} /></label><label><span>{role === 'hospital' ? '병원명' : '전문과목·직군'}</span><input name="organization" defaultValue={currentProfile.organization} /></label><label><span>{role === 'hospital' ? '담당자 직함' : '경력 표시'}</span><input name="jobTitle" defaultValue={currentProfile.jobTitle} /></label></div></section><section className="member-panel"><div className="member-panel-head"><div><h3>알림 설정</h3><p>중요한 진행 상태만 선택해서 받아보세요.</p></div></div><div className="member-toggle-list">{[['email','이메일 알림','상담·결제·계정 보안 안내'],['sms','문자 알림','새 문의와 헤드헌터 연락'],['service','서비스 알림','공고 마감·이력서 상태·멤버십'],['marketing','혜택·이벤트','선택 동의이며 언제든 해제 가능']].map(([key, title, copy]) => <label key={key}><div><strong>{title}</strong><small>{copy}</small></div><input type="checkbox" checked={notifications[key]} onChange={(event) => setNotifications((current) => ({ ...current, [key]: event.target.checked }))} /><span /></label>)}</div></section><section className="member-panel member-security"><div className="member-panel-head"><div><h3>로그인·보안</h3><p>로그인 이메일과 계정 접근 문제를 관리합니다.</p></div></div><div><span><KeyRound /></span><div><strong>로그인 정보</strong><p>{currentProfile.email}</p><small>비밀번호를 잊었거나 이메일 접근이 어렵다면 로그인 도움에서 본인 확인 절차를 진행하세요.</small></div><a className="button outline" href={withBase('/account/recovery')}>아이디·비밀번호 도움</a></div><div><span><ShieldCheck /></span><div><strong>개인정보처리방침·약관</strong><p>수집 항목과 보관 기간, 회원 탈퇴 처리 기준을 확인할 수 있습니다.</p></div><a className="button outline" href={withBase('/privacy')}>처리방침 보기</a></div></section><button className="button primary member-save" type="submit" disabled={saveBusy}>{saveBusy ? '저장 중…' : '변경사항 저장'}</button></form><WithdrawSection /></>}
       </main>
     </div>
     {selectedInquiry && <InquiryDetailModal inquiry={selectedInquiry} role={role} canAdmin={qa.info.capabilities.admin} onClose={() => setSelectedInquiry(null)} />}

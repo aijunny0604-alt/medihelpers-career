@@ -3064,7 +3064,8 @@ function Checkout({ plan }) {
                 </span>
                 <strong>{plan.price.toLocaleString()}원</strong>
               </div>
-              <button className="button primary full" type="submit">
+              {/* disabled 누락 시 더블클릭으로 payment_orders 행이 2건 생기고 결제창도 2번 뜬다(다른 결제 모달과 동일하게 맞춤). */}
+              <button className="button primary full" type="submit" disabled={submitting}>
                 {submitting ? "DB에 안전하게 저장 중…" : "결제 안내 요청하기"} <ArrowRight size={17} />
               </button>
               <p className="secure-note">
