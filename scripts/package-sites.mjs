@@ -808,8 +808,12 @@ async function paymentOrderApi(request, env) {
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   let body; try { body = await request.json(); } catch { return json({ error:'주문 내용을 확인해주세요.' }, 400); }
-  const product = paymentProductCatalog[String(body.productId || '')];
-  if (!product) return json({ error:'신청 상품을 확인해주세요.' }, 400);
+  // [보안] Object.hasOwn으로 조회해야 한다. 대괄호 조회만 쓰면 'constructor'·'toString' 같은
+  // 프로토타입 키가 truthy로 잡혀 !product 가드를 통과하고, product.amount가 undefined가 되어
+  // 금액이 NaN→NULL로 저장된다. 그러면 승인 시 0 !== 0 비교가 통과해 '무료 결제'가 성립한다.
+  const productId = String(body.productId || '');
+  const product = Object.hasOwn(paymentProductCatalog, productId) ? paymentProductCatalog[productId] : null;
+  if (!product || typeof product.amount !== 'number') return json({ error:'신청 상품을 확인해주세요.' }, 400);
   if (product.type === 'doctor_ad' && account.role !== 'hospital') return json({ error:'병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
   if (product.type === 'membership' && account.role !== 'doctor') return json({ error:'의사 회원만 커리어 상품을 신청할 수 있습니다.' }, 403);
   const totalAmount = product.amount;
@@ -887,6 +891,23 @@ async function paymentApproveApi(request, env) {
   if (!oid) return json({ error:'주문번호가 없습니다.' }, 400);
   const order = await env.DB.prepare('SELECT id, account_id AS accountId, total_amount AS totalAmount, status, product_id AS productId, product_type AS productType, metadata_json AS metadataJson FROM payment_orders WHERE order_number = ?').bind(oid).first();
   if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
+  // [보안] 앱(JSON)에서 온 승인 요청은 반드시 '주문 소유자 본인'이어야 한다.
+  // 예전에는 주문번호만 알면 누구나(비로그인 포함) 승인을 호출할 수 있었고,
+  // 특히 테스트모드(이니시스 키 미설정)에서는 그대로 paid 처리 + 열람권 발급까지 됐다.
+  // PG 폼 리턴(fromPgForm)은 브라우저가 이니시스에서 리다이렉트로 넘어오는 경로라 세션 쿠키를
+  // 신뢰할 수 없으므로 제외하고, 아래 authToken/서명 검증에 맡긴다.
+  if (!fromPgForm) {
+    const approver = await authenticatedUser(request, env);
+    if (!approver) return json({ error:'로그인이 필요합니다.' }, 401);
+    if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) {
+      return json({ error:'결제 처리를 완료할 수 없습니다.' }, 503);
+    }
+    const approverKey = await userKey(approver.email, env.ACCOUNT_HASH_SECRET);
+    const approverAccount = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(approverKey).first();
+    if (!approverAccount || approverAccount.id !== order.accountId) {
+      return json({ error:'해당 주문을 승인할 권한이 없습니다.' }, 403);
+    }
+  }
   // [보안] 멱등성: 이미 결제 완료된 주문은 재처리하지 않는다.
   // (결제창 리턴 재전송·새로고침·리플레이로 거래기록/열람권이 중복 생성되는 것을 막는다)
   if (String(order.status) === 'paid') {

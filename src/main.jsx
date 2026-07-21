@@ -1916,10 +1916,14 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
     return () => { active = false; };
   }, [person.code]);
   // 서버 상세(실제 이력서)가 있으면 그것, 없으면(정적 데모 인재) person 자체의 상세 필드로 폴백.
+  // [보안] 실명·연락처는 절대 클라이언트 데이터에서 만들지 않는다.
+  // 예전에는 person.fullName/phone/email을 그대로 썼는데, 그 값들이 정적 번들에 포함돼
+  // 로그인 없이 JS 파일만 받아도 후보자 연락처 전체를 긁어갈 수 있었다(열람권 모델 무력화).
+  // 실명·연락처는 서버가 열람권을 검증해 내려주는 unlock.detail에만 존재해야 한다.
   const demoDetail = (person.introduction || person.skills || person.careers) ? {
-    name: person.fullName || person.name,
-    phone: person.phone || '상담 시 안내',
-    email: person.email || '',
+    name: person.name,
+    phone: '상담 시 안내',
+    email: '',
     specialty: person.dept,
     desiredRegions: person.region,
     detail: {

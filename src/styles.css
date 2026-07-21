@@ -4856,11 +4856,19 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .home-video-hero{position:relative;min-height:clamp(520px,72vh,760px);display:flex;align-items:center;overflow:hidden;background:#0b1524}
 .home-video-hero-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;z-index:0}
 /* 좌측(문구 영역)만 가독성 확보용으로 어둡게, 우측은 영상이 잘 보이도록 옅게 */
-.home-video-hero-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(105deg,rgba(8,17,33,.72) 0%,rgba(8,17,33,.42) 40%,rgba(8,17,33,.12) 70%,rgba(8,17,33,0) 100%)}
+/* 텍스트가 놓이는 왼쪽은 충분히 어둡게, 영상이 보여야 하는 오른쪽은 열어둔다.
+   1080p 교체 후 영상이 밝아져 흰 글자 대비가 1.67:1까지 떨어졌었다(WCAG 대형 텍스트 기준 3.0 미달). */
+.home-video-hero-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(105deg,rgba(8,17,33,.88) 0%,rgba(8,17,33,.78) 38%,rgba(8,17,33,.45) 66%,rgba(8,17,33,.18) 100%)}
 .home-video-hero-inner{position:relative;z-index:2;max-width:1200px;width:100%;margin:0 auto;padding:0 clamp(22px,5vw,64px);color:#fff}
 .home-video-hero-eyebrow{display:inline-block;font:800 12.5px/1 'Manrope',sans-serif;letter-spacing:.14em;color:#7fb4ff;background:rgba(120,170,255,.14);border:1px solid rgba(120,170,255,.3);padding:8px 14px;border-radius:999px;backdrop-filter:blur(4px)}
-.home-video-hero h1{margin:20px 0 14px;font-size:clamp(34px,5vw,58px);line-height:1.16;letter-spacing:-.03em;font-weight:850;text-wrap:balance;text-shadow:0 2px 20px rgba(0,0,0,.3)}
-.home-video-hero h1 em{font-style:normal;background:linear-gradient(100deg,#6fb4ff,#5fe0c0);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+/* 헤드라인은 영상의 밝은 로고 영역까지 걸쳐서 그라데이션만으로는 대비가 부족했다.
+   글자 자체에 어두운 그림자를 실어 배경 밝기와 무관하게 읽히도록 한다. */
+.home-video-hero h1{margin:20px 0 14px;font-size:clamp(34px,5vw,58px);line-height:1.16;letter-spacing:-.03em;font-weight:850;text-wrap:balance;text-shadow:0 2px 10px rgba(4,10,20,.85),0 1px 3px rgba(4,10,20,.9)}
+/* 이 줄은 원래 하늘색 그라데이션이었는데, 밝은 영상(창가·흰 가운) 위에서 글자가 사라져 보였다.
+   그라데이션 글자는 -webkit-text-fill-color:transparent 때문에 text-shadow가 먹지 않아
+   대비를 살릴 방법이 마땅치 않다. 영상 배경에서는 가독성이 우선이라 흰색으로 통일하고
+   윗줄과 같은 그림자를 준다(브랜드 컬러는 버튼·이어브로우에 남아 있다). */
+.home-video-hero h1 em{font-style:normal;color:#fff;-webkit-text-fill-color:#fff;background:none;text-shadow:0 2px 10px rgba(4,10,20,.85),0 1px 3px rgba(4,10,20,.9)}
 .home-video-hero p{max-width:560px;font-size:clamp(15px,1.4vw,18px);line-height:1.7;color:rgba(255,255,255,.85);margin:0 0 28px}
 .home-video-hero-actions{display:flex;gap:12px;flex-wrap:wrap}
 .home-video-hero-actions .button{min-height:54px;padding:0 26px;font-size:15.5px;font-weight:800}
