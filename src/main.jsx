@@ -350,6 +350,23 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
 
 function Header({ path, qa, operations }) {
   const [open, setOpen] = useState(false);
+  // 모바일 메뉴가 열려 있는 동안에는 뒤 페이지 스크롤을 잠근다(모달과 동일한 방식).
+  // 경로가 바뀌면(링크 이동) 메뉴를 닫아 잠금이 남지 않게 한다.
+  useEffect(() => {
+    if (!open) return undefined;
+    // 이 사이트는 html이 스크롤 컨테이너라 body에만 overflow:hidden 을 걸면 배경이 그대로 스크롤된다.
+    // modal-open 은 하단 채용 도크 숨김 규칙을 재사용하기 위해 함께 유지한다.
+    document.body.classList.add('modal-open');
+    document.documentElement.classList.add('nav-locked');
+    const onKey = (event) => { if (event.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.documentElement.classList.remove('nav-locked');
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  useEffect(() => { setOpen(false); }, [path]);
   const accountLabel = qa.active ? qa.info.shortLabel : '로그인';
   const signedInPreview = qa.active && qa.info.capabilities.signedIn;
   const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/login';
@@ -362,7 +379,11 @@ function Header({ path, qa, operations }) {
       : qa.active && qa.info.capabilities.doctor
           ? { label: '마이페이지', to: '/mypage' }
           : { label: '병원 회원가입', to: '/signup/hospital?next=/advertise' };
-  return <header className="site-header">
+  return <>
+    {/* 모바일 메뉴 딤. 헤더에 backdrop-filter가 걸려 있어 헤더 안에 두면
+        position:fixed 기준이 헤더(66px)로 갇혀 높이가 0이 된다. 반드시 헤더 바깥 형제로 둔다. */}
+    <div className={`nav-scrim ${open ? 'is-open' : ''}`} onClick={() => setOpen(false)} aria-hidden="true" />
+    <header className={`site-header ${open ? 'nav-open' : ''}`}>
     <div className="nav-wrap">
       <Link className="brand" to="/" onClick={() => setOpen(false)} aria-label="메디헬퍼스 홈">
         <img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" />
@@ -385,7 +406,8 @@ function Header({ path, qa, operations }) {
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>
-  </header>;
+    </header>
+  </>;
 }
 
 function QaPreviewRibbon({ qa }) {
