@@ -5294,3 +5294,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .member-saved-jobs a strong{display:block;font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .member-saved-jobs a small{display:block;margin-top:2px;color:#7a889b;font-size:12.5px}
 .member-saved-jobs a>svg{flex:0 0 auto;width:17px;height:17px;color:#9fb0c6}
+
+/* 구직 게시판 '구직글 등록' 버튼 — 중앙 정렬 헤더 아래에 놓인다. */
+.headhunt-board-write{display:inline-flex;align-items:center;gap:8px;margin-top:16px;min-height:48px;padding:0 22px}
+.headhunt-board-write svg{width:17px;height:17px}

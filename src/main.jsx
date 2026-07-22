@@ -2297,6 +2297,11 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' })
   const [region, setRegion] = useState('전체');
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState(null);
+  // 구직글 작성 권한: 의료인(doctor) 회원 본인만. 병원 회원은 구직글을 쓸 수 없다.
+  // qa.info.capabilities는 QA 프리뷰 전용이라 실제 로그인 세션에서는 비어 있다 → useAuthGate로 실제 역할을 본다.
+  const auth = useAuthGate(qa);
+  const isHospitalMember = auth.role === 'hospital';
+  const canWriteJobSeeker = auth.role === 'doctor';
   // 열람권 결제 완료 후 /medical-staff?open=코드 로 진입하면 그 인재 상세를 바로 연다(목록으로 안 돌아가게).
   const openCode = useMemo(() => new URLSearchParams(route.split('?')[1] || '').get('open') || '', [route]);
   useEffect(() => {
@@ -2340,6 +2345,13 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' })
           <h2>구직 중인 의사·의료인</h2>
           <p className="headhunt-board-lead">의사·의료인이 직접 등록한 구직 이력서입니다. 병원 회원은 <b>열람권</b>을 결제하면 이름·연락처·상세 이력을 열람할 수 있습니다.</p>
         </div>
+        {/* 의료인 회원이 이 게시판에서 바로 구직글을 쓸 수 있게 한다.
+            병원 회원에게는 등록 경로가 없으므로(정책상 구직글은 의료인 본인만) 버튼을 숨긴다. */}
+        {!isHospitalMember && (
+          <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume' : '/signup/doctor?next=/resume')}>
+            <FileText /> {canWriteJobSeeker ? '구직글 등록' : '의료인 회원으로 등록'}
+          </a>
+        )}
       </div>
 
       <div className="headhunt-board">
