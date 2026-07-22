@@ -1,7 +1,12 @@
 # BILLING · 이니시스(INICIS) 결제 연동 계획
 
-기준일: 2026-07-18
-관련 문서: `BILLING.md`, `API.md`, `ARCHITECTURE.md`, `DB.md`
+기준일: 2026-07-18 (작성) · 2026-07-22 (주석 추가)
+관련 문서: `BILLING.md`, `API.md`, `ARCHITECTURE.md`, `DB.md`, `INICIS_SETUP_GUIDE.md`
+
+> ⚠️ **이 문서는 연동 착수 시점의 계획서다.** 아래 두 가지가 이후 변경됐으니 현재 상태는
+> `BILLING.md`와 `INICIS_SETUP_GUIDE.md`를 기준으로 볼 것.
+> 1. **연동은 완료됐다** — 결제창 호출·승인 API·금액 검증·멱등성·SSRF 방어까지 구현. 남은 건 키 발급과 Cloudflare 이전.
+> 2. **의사 멤버십은 폐지됐다(2026-07-22)** — 본문의 `MembershipCheckout`·멤버십 결제 지점·구독형 논의는 더 이상 유효하지 않다. 결제 지점은 광고·열람권 2곳뿐.
 
 ## 배경
 

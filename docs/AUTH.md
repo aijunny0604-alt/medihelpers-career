@@ -94,14 +94,21 @@ HTML 응답에 다음 헤더를 붙입니다. 생성 위치는 `scripts/package-
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | 외부로 경로 유출 방지 |
 | `Permissions-Policy` | 위치·마이크·카메라·payment 차단 | 불필요한 권한 차단 |
 
-### ⚠️ CSP와 이니시스 결제창의 결합 (회귀 주의)
+### ⚠️ CSP가 막을 수 있는 외부 리소스 (회귀 주의)
 
-CSP는 이니시스 결제창 도메인 **`https://stdpay.inicis.com`, `https://stgstdpay.inicis.com`**을
-`script-src`, `connect-src`, `frame-src`, `form-action`에 허용하고 있습니다.
+CSP는 허용 목록에 없는 외부 리소스를 **조용히** 차단한다. 서버 로그·자동 테스트에는 흔적이 남지 않고
+브라우저 콘솔에만 기록되므로, **배포본을 실제 브라우저로 열어봐야** 발견된다.
 
-**이 도메인을 CSP에서 빼면 결제창이 뜨지 않습니다.** 사용자에게는 결제 스크립트 로드 실패 안내가
-표시되지만(`src/inicisPay.js`), 서버 로그·자동 테스트에는 흔적이 남지 않아 배포 후에야 발견되기 쉽습니다.
-CSP를 조이는 작업을 할 때 반드시 유지하세요.
+현재 반드시 유지해야 하는 허용 항목:
+
+| 리소스 | 지시어 | 빼면 생기는 일 |
+|---|---|---|
+| `https://fonts.googleapis.com` | `style-src` | **사이트 전체가 대체 글꼴로 렌더**(2026-07-22 실제 발생) |
+| `https://fonts.gstatic.com` | `font-src` | 위와 동일(폰트 파일 자체가 차단) |
+| `https://stdpay.inicis.com`<br>`https://stgstdpay.inicis.com` | `script-src`·`connect-src`·`frame-src`·`form-action` | 결제창이 뜨지 않음 |
+
+이니시스 결제창의 경우 사용자에게는 스크립트 로드 실패 안내가 표시되지만(`src/inicisPay.js`),
+글꼴 차단은 아무 안내 없이 화면만 바뀌므로 더 늦게 발견된다. CSP를 조이는 작업을 할 때 위 표를 반드시 확인할 것.
 
 ## Related Docs
 

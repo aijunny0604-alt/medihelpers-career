@@ -18,7 +18,7 @@
 - `matches`: 헤드헌터 추천과 단계
 - `ad_products`: 광고 상품, 가격, 노출 규칙
 - `ad_orders`: 광고 신청의 병원 브랜드 정보, 로고 파일 참조, 공고 원고와 검수 상태
-- `membership_plans`: 회원 유형별 멤버십과 건별 상품
+- `membership_plans`: 상품 정의 테이블(테이블명은 유지하되, 의사 멤버십 폐지 후 실제 상품은 병원 광고·인재 열람권뿐)
 - `orders`: 주문 금액과 상태
 - `payments`: PG 승인·취소·웹훅 기록
 - `subscriptions`: 정기결제 상태와 다음 결제일
