@@ -7,7 +7,7 @@ const quickRoutes = [
   { path: '/jobs', label: '채용정보·상세조건', description: '공고 잠금과 상세 모달 확인', icon: Eye },
   { path: '/medical-staff', label: '의료인 구인구직', description: '의료인 구직 글·열람권 확인', icon: ClipboardCheck },
   { path: '/advertise', label: '광고센터', description: '병원 등록·결제 진입 확인', icon: Building2 },
-  { path: '/membership', label: '멤버십', description: '구독 중·결제 CTA 확인', icon: Crown }
+  { path: '/medical-staff', label: '인재 열람권', description: '병원 열람권 결제·잠금 확인', icon: Crown }
 ];
 
 const stateIcons = { guest: UserRound, admin: ShieldCheck, hospital: Building2, doctor: Stethoscope, 'doctor-member': Crown };

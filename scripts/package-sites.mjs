@@ -786,8 +786,8 @@ const paymentProductCatalog = {
   basic:{ type:'doctor_ad', name:'베이직 공고', amount:59000, exposureDays:30 },
   featured:{ type:'doctor_ad', name:'추천 공고', amount:149000, exposureDays:30 },
   intensive:{ type:'doctor_ad', name:'집중 채용', amount:299000, exposureDays:45 },
-  'doctor-single':{ type:'membership', name:'커리어 체크', amount:19000 },
-  'doctor-pass':{ type:'membership', name:'커리어 컨시어지', amount:39000, exposureDays:30 },
+  // 의사 대상 유료 멤버십(커리어 체크·컨시어지)은 폐지됐다.
+  // 유료 상품은 (1) 병원 채용광고, (2) 병원이 의사 이력서를 볼 때 구매하는 열람권 두 가지뿐이다.
   // 병원용 인재 이력서 열람권. 결제 시 talent_unlocks에 권한 기록 → 연락처·상세 공개.
   'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:5000, unlockDays:30 },
   'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (5명 팩)', amount:20000, unlockDays:30, unlockCount:5 }
@@ -822,7 +822,8 @@ async function paymentOrderApi(request, env) {
   const product = Object.hasOwn(paymentProductCatalog, productId) ? paymentProductCatalog[productId] : null;
   if (!product || typeof product.amount !== 'number') return json({ error:'신청 상품을 확인해주세요.' }, 400);
   if (product.type === 'doctor_ad' && account.role !== 'hospital') return json({ error:'병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
-  if (product.type === 'membership' && account.role !== 'doctor') return json({ error:'의사 회원만 커리어 상품을 신청할 수 있습니다.' }, 403);
+  // [정책] 인재 열람권은 병원 회원만 구매한다(의사가 결제해도 열람 권한은 병원에만 부여되므로 애초에 막는다).
+  if (product.type === 'talent_search' && account.role !== 'hospital') return json({ error:'인재 열람권은 병원 회원만 구매할 수 있습니다.' }, 403);
   const totalAmount = product.amount;
   const supplyAmount = Math.round(totalAmount / 1.1);
   const taxAmount = totalAmount - supplyAmount;
@@ -1502,7 +1503,10 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
     'content-security-policy': [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com",
-      "style-src 'self' 'unsafe-inline'",
+      // 구글 폰트(Manrope·Noto Sans KR)를 허용해야 한다. 빼면 CSP가 스타일시트를 막아
+      // 사이트 전체가 대체 글꼴로 렌더된다(배포본에서 실제로 발생했던 회귀).
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
       "connect-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",

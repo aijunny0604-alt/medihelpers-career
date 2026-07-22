@@ -7,7 +7,7 @@ import {
   ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, TriangleAlert, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
-import { adPlans, jobs, membershipPlans, navItems, talent, talentUnlockPlans } from './data.js';
+import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
 import AccountPage from './AccountPage.jsx';
 import ResumePage from './ResumePage.jsx';
@@ -374,8 +374,6 @@ function Header({ path, qa, operations }) {
     ? { label: '관리자 모드', to: '/admin' }
     : qa.active && qa.info.capabilities.hospital
       ? { label: '마이페이지', to: '/mypage' }
-      : qa.active && qa.info.capabilities.membership
-        ? { label: '마이페이지', to: '/mypage' }
       : qa.active && qa.info.capabilities.doctor
           ? { label: '마이페이지', to: '/mypage' }
           : { label: '병원 회원가입', to: '/signup/hospital?next=/advertise' };
@@ -709,14 +707,11 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   // 병원이 비용을 낸 광고 공고는 널리 알리는 것이 목적이므로 급여·조건을 공개한다.
   // 비공개 헤드헌팅 포지션(badge === "비공개")만 상담 후 공개 대상으로 잠근다.
   const restricted = job.badge === "비공개";
-  // 메디게이트 방식: 로그인한 의사 회원이면 급여·상세조건 열람(멤버십 결제 불필요).
-  // 비회원은 잠금(가입 유도). QA 프리뷰는 doctor/membership/admin 권한으로 판정.
+  // 로그인한 의사 회원이면 급여·상세조건을 무료로 본다(의사 대상 유료 멤버십은 폐지됨).
+  // 비회원은 잠금(가입 유도).
   const memberUnlocked = qa?.active
-    ? Boolean(qa.info.capabilities.doctor || qa.info.capabilities.membership || qa.info.capabilities.admin)
+    ? Boolean(qa.info.capabilities.doctor || qa.info.capabilities.admin)
     : verifiedDoctor;
-  const membershipTarget = verifiedDoctor
-    ? `/membership?type=doctor&job=${job.id}`
-    : `/signup/doctor?next=/membership?type=doctor&job=${job.id}`;
   const qaUnlocked =
     restricted && memberUnlocked;
   const locked = restricted && !qaUnlocked;
@@ -3261,262 +3256,6 @@ function HospitalJobPostPage({ qa }) {
   </div></section>;
 }
 
-function MembershipCheckout({ plan, onClose }) {
-  const [done, setDone] = useState(false);
-  const [paidInfo, setPaidInfo] = useState(null);
-  const [submitError, setSubmitError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const accountProfile = useAccountProfile();
-  const submit = async (event) => {
-    event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    setSubmitError('');
-    setSubmitting(true);
-    let paymentWindowOpened = false;
-    try {
-      const response = await fetch('/api/payment-orders', {
-        method:'POST',
-        credentials:'same-origin',
-        headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ productId:plan.id, paymentMethod:'card', customerName:data.name, customerEmail:data.email, customerPhone:data.phone, metadata:{ terms:data.terms } })
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
-      const orderNumber = result.order?.orderNumber;
-      // 결제 승인: 이니시스 키가 설정돼 있으면 실제 표준결제창을 띄운다.
-      // 결제창에서 인증이 끝나면 이니시스가 returnUrl(서버)로 POST → 서버가 승인·결과 페이지로 이동시키므로
-      // 여기서는 결제창을 연 뒤 흐름을 넘긴다(아래 테스트 승인 로직을 타지 않음).
-      if (result.inicis?.configured) {
-        await openInicisPayment(result.inicis, {
-          productName: plan.name,
-          buyerName: data.name,
-          buyerTel: data.phone,
-          buyerEmail: data.email,
-        });
-        // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
-        paymentWindowOpened = true;
-        return;
-      }
-      const approve = await fetch('/api/payment-approve', {
-        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ orderNumber, resultCode:'0000' })
-      });
-      const approveResult = await approve.json().catch(() => ({}));
-      appendStoredRecord('medihelpers_membership_requests', { id:orderNumber || `MEM-${Date.now()}`, planId:plan.id, amount:plan.price, status:approveResult.status || result.order?.status || 'pending_review', createdAt:new Date().toISOString(), ...data });
-      trackConversion('checkout_request', { planId: plan.id, amount: plan.price, paid:approveResult.approved });
-      setPaidInfo(approveResult);
-      setDone(true);
-    } catch (error) {
-      setSubmitError(error.message);
-    } finally {
-      // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
-      if (!paymentWindowOpened) setSubmitting(false);
-    }
-  };
-  return <Modal onClose={onClose}>{done ? <div className="checkout-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '결제가 완료되었습니다' : '멤버십 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '결제 내역은 마이페이지에서 확인할 수 있습니다.'}</> : <>회원 유형과 자격을 확인한 뒤 안전한 결제 링크를 보내드립니다.<br />현재는 실제 금액이 청구되지 않습니다.</>}</p><button className="button primary" onClick={onClose}>확인</button></div> : <div className="membership-checkout"><small>MEMBERSHIP ORDER</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="membership-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}</span></div><form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>{plan.audience === 'doctor' ? '의사 성함' : '병원명'} *</span><input required name="name" defaultValue={plan.audience === 'hospital' ? (accountProfile.organization || accountProfile.name) : accountProfile.name} /></label><label><span>연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>회원 자격 확인, 결제 안내 및 개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? 'DB에 안전하게 저장 중…' : '결제 안내 요청하기'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 자격 확인 후 권한이 활성화됩니다.</p></div>}</Modal>;
-}
-
-function ValueCalculator({ type, onChoose }) {
-  const [count, setCount] = useState(3);
-  const single = membershipPlans.find((plan) => plan.id === "doctor-single");
-  const pass = membershipPlans.find((plan) => plan.id === "doctor-pass");
-  const singleTotal = single.price * count;
-  const usePass = pass.price < singleTotal;
-  const recommended = usePass ? pass : single;
-  return (
-    <div className="value-calculator">
-      <div>
-        <small>나에게 맞는 이용권 계산</small>
-        <h3>이번 달에 몇 개 공고를 자세히 볼까요?</h3>
-        <p>이용 예상량에 따라 더 경제적인 상품을 바로 비교합니다.</p>
-      </div>
-      <div className="calculator-control">
-        <strong>
-          {count}
-          <span>개 공고</span>
-        </strong>
-        <input
-          aria-label="예상 이용량"
-          type="range"
-          min="1"
-          max="10"
-          value={count}
-          onChange={(event) => setCount(Number(event.target.value))}
-        />
-      </div>
-      <div className="calculator-result">
-        <span>
-          {usePass
-            ? "월 패스가 더 경제적이에요"
-            : "건별 이용권이 부담이 적어요"}
-        </span>
-        <strong>{recommended.name}</strong>
-        <p>
-          건별 이용 시 {singleTotal.toLocaleString()}원 · 추천 상품{" "}
-          {recommended.price.toLocaleString()}원
-        </p>
-        <button
-          className="button primary"
-          onClick={() => {
-            trackConversion("calculator_recommendation", {
-              type,
-              count,
-              planId: recommended.id,
-            });
-            onChoose(recommended);
-          }}
-        >
-          추천 이용권 선택
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function MembershipPage({ route, qa }) {
-  const params = new URLSearchParams(route.split("?")[1] || "");
-  const hospitalConsult = params.get("type") === "hospital" || Boolean(params.get("candidate"));
-  const type = "doctor";
-  const [selected, setSelected] = useState(null);
-  const plans = membershipPlans.filter((plan) => plan.audience === type);
-  const contextId = params.get("job");
-  const qaMemberActive =
-    qa?.active && qa.info.capabilities.membership && type === "doctor";
-  if (hospitalConsult) {
-    const candidateId = params.get("candidate") || "";
-    return <>
-      <PageHero tone="membership" eyebrow="MEDIHELPERS HEADHUNTER" title="후보 문의는 결제보다 상담부터" description="메디헬퍼스 헤드헌터가 병원의 채용조건과 후보자의 의사를 먼저 확인한 뒤 필요한 범위에서 안전하게 연결합니다." />
-      <section className="section hospital-concierge-membership"><div className="hospital-concierge-card"><span><UsersRound /></span><div><small>HUMAN-LED RECRUITING</small><h2>{candidateId ? `${candidateId} 후보가 궁금하신가요?` : '찾는 의사 조건을 말씀해주세요'}</h2><p>소개 요청권이나 후보 열람권을 판매하지 않습니다. 담당 헤드헌터가 진료과·경력·지역·보수조건을 듣고 후보자의 공개 동의를 확인한 뒤 상담을 이어갑니다.</p><ul><li><Check /> 병원 채용조건 정리</li><li><Check /> 후보 적합성 확인</li><li><Check /> 의사 동의 후 정보 전달</li><li><Check /> 면접·조건 협상 지원</li></ul><div><Link className="button primary" to={`/headhunting?role=hospital${candidateId ? `&candidate=${candidateId}` : ''}`}>헤드헌터에게 상담하기 <ArrowRight /></Link><a className="button outline" href="tel:0513425463"><Phone /> 051-342-5463</a></div></div></div></section>
-    </>;
-  }
-  return (
-    <>
-      <PageHero
-        tone="membership"
-        eyebrow="OPTIONAL CAREER SERVICE"
-        title="정보 열람은 무료로, 중요한 판단은 더 정교하게"
-        description="의사 인증 회원은 급여·근무표·당직·진료강도 등 지원 판단에 필요한 핵심정보와 헤드헌터 상담을 무료로 이용합니다. 프리미엄은 알림·분석·우선 일정처럼 시간을 줄이는 선택 서비스입니다."
-      />
-      {qaMemberActive && (
-        <section className="qa-membership-active">
-          <span>
-            <Crown />
-          </span>
-          <div>
-            <small>QA SUBSCRIPTION ACTIVE</small>
-            <strong>커리어 컨시어지 이용 중</strong>
-            <p>
-              맞춤 포지션 즉시 알림, 우선 상담 예약과 조건 분석 리포트를
-              이용하고 있습니다. 다음 가상 결제일 2026.08.16
-            </p>
-          </div>
-          <Link to="/qa-preview">
-            테스트 상태 변경 <ArrowRight />
-          </Link>
-        </section>
-      )}
-      <section className="section membership-section">
-        <div className="membership-tabs membership-tabs--single">
-          <button className="active"><Stethoscope /> 의사용 멤버십</button>
-        </div>
-        {contextId && (
-          <div className="context-offer">
-            <div>
-              <span>
-                <CircleCheck /> 무료 미리보기 확인 완료
-              </span>
-              <h3>의사 인증 후 상세조건을 무료로 확인하세요</h3>
-              <p>
-                급여 구조·실제 근무표·환자량·지원 인력 등 지원 판단에 필요한 정보를 열람료 없이 제공합니다.
-              </p>
-            </div>
-            <Link className="button primary" to={`/jobs/${contextId}`}>무료 상세정보 계속 보기 <ArrowRight /></Link>
-          </div>
-        )}
-        <section className="membership-detail-catalog" aria-labelledby="membership-detail-title">
-          <div className="membership-detail-heading">
-            <span><Crown /></span>
-            <div><small>VERIFIED DOCTOR ACCESS</small><h2 id="membership-detail-title">의사 인증 회원에게 무료로 공개되는 정보</h2><p>지원 여부를 판단하는 데 필요한 조건은 결제 없이 확인합니다.</p></div>
-          </div>
-          <div className="membership-detail-grid">
-            {[
-              [Banknote, "보수·계약", "Net·세전 기준, 인센티브, 퇴직금, 계약기간"],
-              [CalendarDays, "실제 근무표", "평일·토요일 시간, 주당 근무일, 휴무, 당직·온콜"],
-              [Stethoscope, "진료 강도", "환자 수, 검사·시술 비중, 의료장비, 간호·보조 인력"],
-              [BadgeCheck, "입사 판단", "채용 사유, 의료진 구성, 입사 시점, 면접 절차, 확인 메모"],
-            ].map(([Icon, title, copy]) => (
-              <article key={title}><span><Icon /></span><strong>{title}</strong><p>{copy}</p><small><Check /> 의사 인증 후 무료 확인</small></article>
-            ))}
-          </div>
-        </section>
-        <div className="access-explain">
-          <div>
-            <span className="access-number">FREE</span>
-            <h3>핵심정보·상담 무료</h3>
-            <p>급여, 근무표, 당직, 진료강도, 병원 확인정보와 헤드헌터 상담</p>
-          </div>
-          <ArrowRight />
-          <div className="paid-access">
-            <span className="access-number">OPTIONAL</span>
-            <h3>시간을 아끼는 선택 서비스</h3>
-            <p>즉시 알림, 우선 상담 예약, 연봉·계약 분석과 정기 커리어 점검</p>
-          </div>
-        </div>
-        <div className="membership-free-promise"><ShieldCheck /><div><strong>유료 가입 없이도 이직 상담과 포지션 제안을 받을 수 있습니다</strong><p>프리미엄 가입 여부는 병원 추천 순서나 헤드헌터의 기본 상담 품질에 영향을 주지 않습니다.</p></div><Link className="button outline" to="/request/job-seeker">무료 이직상담 신청</Link></div>
-        <div className="membership-grid">
-          {plans.map((plan) => (
-            <article
-              className={`membership-card ${plan.featured ? "featured" : ""}`}
-              key={plan.id}
-            >
-              {plan.featured && <span className="popular">추천</span>}
-              <small>
-                {plan.period === "월" ? "CAREER CONCIERGE" : "ONE-TIME REVIEW"}
-              </small>
-              <h2>{plan.name}</h2>
-              <p>{plan.description}</p>
-              <div className="price">
-                <strong>{plan.price.toLocaleString()}</strong>
-                <span>원 / {plan.period}</span>
-              </div>
-              <ul>
-                {plan.features.map((feature) => (
-                  <li key={feature}>
-                    <Check /> {feature}
-                  </li>
-                ))}
-              </ul>
-              <button
-                className={`button ${plan.featured ? "primary" : "outline"} full`}
-                onClick={() => {
-                  trackConversion("membership_plan_select", {
-                    planId: plan.id,
-                  });
-                  setSelected(plan);
-                }}
-              >
-                선택 서비스 신청
-              </button>
-            </article>
-          ))}
-        </div>
-        <div className="privacy-gate">
-          <ShieldCheck />
-          <div>
-            <strong>병원용 후보 소개권은 판매하지 않습니다</strong>
-            <p>
-              병원의 후보 문의는 메디헬퍼스 헤드헌터 상담으로 연결되며,
-              의사의 명시적 동의가 확인된 뒤에만 필요한 정보가 전달됩니다.
-            </p>
-          </div>
-        </div>
-      </section>
-      {selected && (
-        <MembershipCheckout plan={selected} onClose={() => setSelected(null)} />
-      )}
-    </>
-  );
-}
 
 function AboutPage() {
   return <>
@@ -3618,7 +3357,8 @@ export function App() {
   //   /talent      → /medical-staff (인재정보가 의료인 채용으로 통합)
   //   /professions → /headhunting   (직군 소개가 맞춤 헤드헌팅으로 통합)
   // /advertise/post(무료 직접게시)는 폐지 — 병원 공고는 유료 광고 상품으로만. 광고센터로 정규화.
-  const ROUTE_ALIASES = { '/talent': '/medical-staff', '/professions': '/headhunting', '/advertise/post': '/advertise' };
+  // '/membership'은 의사 유료 멤버십 폐지로 제거됨 → 기존 링크·북마크는 채용정보로 보낸다.
+  const ROUTE_ALIASES = { '/talent': '/medical-staff', '/professions': '/headhunting', '/advertise/post': '/advertise', '/membership': '/jobs' };
   const path = ROUTE_ALIASES[rawPath] || rawPath;
   // path·route·URL을 모두 정규 경로로 일치시킨다(쿼리스트링 보존). 자식은 정규화된 route를 받는다.
   const route = ROUTE_ALIASES[rawPath] ? `${path}${search}` : rawRoute;
@@ -3681,7 +3421,6 @@ export function App() {
   else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} />;
   // /advertise/post(무료 직접게시)는 폐지 — 상단 ROUTE_ALIASES에서 /advertise로 정규화됨(도달 불가).
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;
-  else if (path === '/membership') page = <MembershipPage route={route} qa={qa} />;
   else if (path === '/talent-unlock') page = <TalentUnlockPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <QaPreviewPage qa={qa} />;
   else if (path === '/admin/consultations') page = <ConsultationAdminPage />;

@@ -173,18 +173,7 @@ export const navItems = [
   { path: '/advertise', label: '광고센터', group: 'hospital' }
 ];
 
-export const membershipPlans = [
-  {
-    id: 'doctor-single', audience: 'doctor', name: '커리어 체크', price: 19000, period: '1회',
-    description: '지원 전 계약과 보수 조건을 헤드헌터와 함께 빠르게 점검합니다.',
-    features: ['연봉·Net/세전 기준 정리', '계약서 주요 조항 체크', '근무표·당직 조건 비교', '30분 비공개 커리어 상담']
-  },
-  {
-    id: 'doctor-pass', audience: 'doctor', name: '커리어 컨시어지', price: 39000, period: '월', featured: true,
-    description: '정보 열람료가 아니라 이직 준비에 드는 시간과 판단을 줄이는 선택 서비스입니다.',
-    features: ['맞춤 포지션 즉시 알림', '우선 상담 일정 예약', '조건 비교·연봉 분석 리포트', '분기별 커리어 점검']
-  }
-];
+// 의사 대상 유료 멤버십(membershipPlans)은 폐지됨. 유료 상품은 병원 채용광고와 인재 열람권 두 가지.
 
 // 인재 이력서 열람권(병원 결제 → 후보 연락처·이력서 상세 공개). 서버 카탈로그와 id·금액 일치.
 export const talentUnlockPlans = [

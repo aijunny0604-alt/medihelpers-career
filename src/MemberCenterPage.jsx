@@ -37,7 +37,7 @@ const hospitalDemo = {
 const doctorDemo = {
   profile: { displayName: '김도윤', email: 'doctor@medihelpers.co.kr', phone: '010-0000-0000', organization: '정형외과 전문의', jobTitle: '전문의 8년' },
   metrics: [
-    ['이력서 완성도', '82%', '공개 범위 설정 완료'], ['저장 공고', '6건', '신규 2건'], ['상담 진행', '2건', '조건 확인 중'], ['멤버십', '이용 중', '다음 갱신 08.16']
+    ['이력서 완성도', '82%', '공개 범위 설정 완료'], ['저장 공고', '6건', '신규 2건'], ['상담 진행', '2건', '조건 확인 중'], ['헤드헌터 제안', '1건', '확인 필요']
   ],
   ads: [
     { title: '내 이력서', plan: '비공개 이직 프로필', status: '헤드헌터 공개', period: '최근 수정 2026.07.16', views: 3, inquiries: 2 },
@@ -48,7 +48,6 @@ const doctorDemo = {
     { id:'INQ-D-1136', name: '해운대바른척추병원', subject: '면접 가능 일정 요청', source: '동의 후 병원 연결', time: '어제 14:20', status: '일정 조율', message:'후보자 동의 범위에서 전달받은 경력 내용을 검토했습니다. 다음 주 중 가능한 면접 일정을 2~3개 알려주세요.', details:{ 면접방식:'병원 대면', 예상시간:'약 40분', 확인항목:'진료 경험·근무조건', 연결상태:'후보 동의 완료' }, response:'담당 헤드헌터가 양측 일정을 조율하고 있습니다.', history:[['07.16','병원 연결 동의'],['어제 14:20','면접 일정 요청'],['어제 15:00','일정 조율 시작']] }
   ],
   payments: [
-    { id: 'MEM-260716-01', item: '의사 월 패스', amount: '9,900원', date: '2026.07.16', status: '이용 중' },
     { id: 'VIEW-260710-03', item: '공고 1건 열람권', amount: '2,900원', date: '2026.07.10', status: '사용 완료' }
   ],
   activity: [
@@ -203,17 +202,16 @@ export default function MemberCenterPage({ route, qa }) {
     return { id:item.orderNumber, item:item.productName, amount:`${total.toLocaleString('ko-KR')}원`, date:String(item.paidAt || item.createdAt || '').slice(0, 10), status:({ paid:'결제 완료', pending:'결제 대기', canceled:'취소', cancelled:'취소', refunded:'환불 완료', partially_refunded:'부분 환불' })[item.status] || item.status, rawStatus:item.status, refundable:['paid','partially_refunded'].includes(item.status), total, supply, tax, method:item.paymentMethod || '카드', customerName:item.customerName || '' };
   });
   const paidTotal = serverData.orders.filter((item) => item.status === 'paid').reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
-  const hasMembership = serverData.orders.some((item) => item.status === 'paid' && /멤버십|커리어/.test(item.productName || ''));
   const resumeCompletion = serverData.resume ? `${Number(serverData.resume.completion) || 0}%` : '미등록';
   const activeAds = ads.filter((item) => item.status === '노출 중').length;
   const recommendedCount = (serverData.recommendedCandidates || []).length;
   const metrics = qa.active ? demo.metrics : role === 'hospital'
     ? [['진행 중 공고', `${activeAds}건`, '노출 중 공고'], ['새 문의', `${inquiries.filter((item) => item.status === '답변 대기').length}건`, '확인 필요'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역'], ['추천 후보', `${recommendedCount}명`, '동의 후 연결']]
-    : [['이력서 완성도', resumeCompletion, serverData.resume ? '등록 완료' : '등록 후 표시'], ['상담 진행', `${inquiries.length}건`, '전체 상담'], ['멤버십', hasMembership ? '이용 중' : '미이용', '이용권 확인'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역']];
+    : [['이력서 완성도', resumeCompletion, serverData.resume ? '등록 완료' : '등록 후 표시'], ['상담 진행', `${inquiries.length}건`, '전체 상담'], ['관심 공고', `${savedJobs.length}건`, '저장한 공고'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역']];
   const nav = useMemo(() => role === 'hospital' ? [
     ['overview', '홈', Building2], ['ads', '내 공고', BriefcaseBusiness], ['inquiries', '문의·후보', MessageCircle], ['payments', '결제·사용이력', Receipt], ['profile', '회원정보', Settings]
   ] : [
-    ['overview', '홈', UserRound], ['resume', '이력서·구직활동', FileText], ['inquiries', '상담·제안', MessageCircle], ['payments', '멤버십·결제', CreditCard], ['profile', '회원정보', Settings]
+    ['overview', '홈', UserRound], ['resume', '이력서·구직활동', FileText], ['inquiries', '상담·제안', MessageCircle], ['payments', '결제 내역', CreditCard], ['profile', '회원정보', Settings]
   ], [role]);
 
   if (accountState.loading) return <section className="member-loading"><ShieldCheck /><strong>내 회원 정보를 불러오고 있습니다</strong></section>;
