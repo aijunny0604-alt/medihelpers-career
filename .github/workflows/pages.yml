@@ -30,6 +30,12 @@ jobs:
       - run: npm run build:pages
         env:
           GITHUB_PAGES: 'true'
+      # 이 미러(GitHub Pages)는 정식 오픈 전 테스트용이므로 검색엔진 색인을 차단한다.
+      # 정식 도메인 배포에는 영향이 없도록 소스(public/)가 아닌 이 워크플로에서만 주입한다.
+      - name: Block search indexing (test mirror only)
+        run: |
+          printf 'User-agent: *\nDisallow: /\n' > client-build/robots.txt
+          sed -i 's|<head>|<head><meta name="robots" content="noindex,nofollow" />|' client-build/index.html
       - run: cp client-build/index.html client-build/404.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
