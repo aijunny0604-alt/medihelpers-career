@@ -4877,7 +4877,9 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .home-video-hero-actions .button.glass{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(6px)}
 .home-video-hero-actions .button.glass:hover{background:rgba(255,255,255,.2)}
 @media(max-width:640px){.home-video-hero{min-height:420px}.home-video-hero-actions{flex-direction:column}.home-video-hero-actions .button{width:100%;justify-content:center}}
-@media(prefers-reduced-motion:reduce){.home-video-hero-bg{display:none}.home-video-hero{background:linear-gradient(120deg,#0b1524,#16304f)}}
+/* 대문 히어로 영상은 '동작 줄이기' 설정과 무관하게 항상 노출한다(무음·배경 재생).
+   그라디언트는 영상 로드 전·실패 시 폴백 배경으로만 유지한다. */
+@media(prefers-reduced-motion:reduce){.home-video-hero{background:linear-gradient(120deg,#0b1524,#16304f)}}
 
 /* 병원 채용공고 등록 폼 */
 .job-post-section{display:flex;justify-content:center}

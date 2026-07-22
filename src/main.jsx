@@ -1385,7 +1385,7 @@ function SmartAdDock({ total, onSelect, canRegister }) {
   const timerRef = useRef(null);
 
   useEffect(() => {
-    const scheduleReveal = (delay = 1450) => {
+    const scheduleReveal = (delay = 400) => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
       setVisible(false);
       const nearFooter = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 280;
@@ -1393,7 +1393,7 @@ function SmartAdDock({ total, onSelect, canRegister }) {
       timerRef.current = window.setTimeout(() => setVisible(true), delay);
     };
     const onScroll = () => scheduleReveal();
-    scheduleReveal(2200);
+    scheduleReveal(700);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
