@@ -588,7 +588,8 @@ async function memberCenterApi(request, env) {
     const preferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
     const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
     const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
-    const orders = await env.DB.prepare('SELECT order_number AS orderNumber, product_type AS productType, product_name AS productName, supply_amount AS supplyAmount, tax_amount AS taxAmount, total_amount AS totalAmount, status, payment_method AS paymentMethod, customer_name AS customerName, metadata_json AS metadataJson, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
+    // refundPending: 이 주문에 처리 대기(requested/processing) 환불 요청이 있으면 1 → 마이페이지에 '환불 요청 중' 표시.
+    const orders = await env.DB.prepare("SELECT o.order_number AS orderNumber, o.product_type AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
     // 의사 회원의 이력서 요약(완성도·공개범위)을 함께 내려 마이페이지 지표에 사용.
     let resume = null;
     if (account.role === 'doctor') {
@@ -1133,6 +1134,20 @@ const adminCategoryGroups = ['doctor_specialty','region','medical_role'];
 async function writeAdminAudit(env, admin, action, subject, payload) {
   await env.DB.prepare('INSERT INTO admin_audit_logs (id, actor_email, action, subject, payload_json) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), admin.email, action, subject || '', JSON.stringify(payload || {})).run();
 }
+// 환불(전액) 시 해당 주문으로 부여된 열람 권한을 전부 회수하는 SQL 문 목록을 만든다.
+// 단건 열람권은 order_id=결제주문id 로 저장되지만, 팩 열람권은 크레딧 풀에서 소모되며
+// order_id=풀id 로 저장되므로 결제주문id만 지우면 팩 환불 시 권한이 남는다(무료 영구 열람).
+// → 풀을 먼저 찾아 그 풀에서 발급된 열람권까지 함께 지우고, 풀도 소진 처리한다.
+function talentRevokeStatementsForOrder(env, orderId) {
+  return [
+    // 1) 단건: 결제주문에 직접 묶인 열람권 삭제.
+    env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id=?").bind(orderId),
+    // 2) 팩: 이 결제주문의 크레딧 풀에서 발급된 열람권 삭제(풀 id로 저장돼 있음).
+    env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id IN (SELECT id FROM talent_credit_pools WHERE order_id=?)").bind(orderId),
+    // 3) 팩: 남은 크레딧을 소진 처리해 더 못 쓰게 한다(기록은 남김).
+    env.DB.prepare("UPDATE talent_credit_pools SET used_credits=total_credits WHERE order_id=?").bind(orderId)
+  ];
+}
 async function seedAdminConsole(env) {
   const categories = [
     ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','외과','general-surgery',20],
@@ -1447,10 +1462,12 @@ async function adminConsoleApi(request, env) {
       const meta = { ...(parseJsonObject(order.metadataJson) || {}) };
       delete meta.exposure;
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), orderId));
-      statements.push(env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id=?").bind(orderId));
+      // 단건·팩 열람권 모두 회수(팩 크레딧 풀 포함).
+      for (const stmt of talentRevokeStatementsForOrder(env, orderId)) statements.push(stmt);
     } else {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(orderId));
     }
+    try { await ensureTalentCreditSchema(env); } catch {}
     await env.DB.batch(statements);
     await writeAdminAudit(env, admin, 'refund_create', order.orderNumber, { refundId:id, amount, reason, fullyRefunded });
   } else if (action === 'refund_resolve') {
@@ -1485,11 +1502,12 @@ async function adminConsoleApi(request, env) {
       const meta = { ...(parseJsonObject(refund.metadataJson) || {}) };
       delete meta.exposure;
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), refund.orderId));
-      // 인재 열람권 회수: 환불 후 연락처 계속 열람 방지.
-      statements.push(env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id=?").bind(refund.orderId));
+      // 인재 열람권 회수: 환불 후 연락처 계속 열람 방지(단건·팩 크레딧 풀 모두).
+      for (const stmt of talentRevokeStatementsForOrder(env, refund.orderId)) statements.push(stmt);
     } else {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.orderId));
     }
+    try { await ensureTalentCreditSchema(env); } catch {}
     await env.DB.batch(statements);
     await writeAdminAudit(env, admin, 'refund_resolve', refund.orderNumber, { refundId, decision:'approve', amount, fullyRefunded });
   } else {
