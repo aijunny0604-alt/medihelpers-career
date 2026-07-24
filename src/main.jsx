@@ -1189,10 +1189,6 @@ function QuickAccess() {
   </section>;
 }
 
-function MemberTeaser() {
-  return <section className="member-teaser"><div className="member-icon"><Crown /></div><div><small>VERIFIED DOCTOR BENEFIT</small><h2>상세조건과 헤드헌터 상담은 의사 인증 후 무료</h2><p>유료 서비스는 정보 잠금 해제가 아니라 맞춤 알림, 우선 상담 예약, 연봉·계약 분석처럼 이직 준비 시간을 줄이는 기능에 집중합니다.</p></div><Link className="button dark" to="/membership">선택 서비스 보기 <ArrowRight /></Link></section>;
-}
-
 function MediAngelAssistant() {
   const [open, setOpen] = useState(false);
   const assistantRef = useRef(null);
@@ -2996,7 +2992,7 @@ function Checkout({ plan }) {
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
                   <span>04</span>
-                  <div><h2>채용조건</h2><p>공개 가능한 핵심 조건부터 멤버십 상세조건까지 입력해주세요.</p></div>
+                  <div><h2>채용조건</h2><p>공개 가능한 핵심 조건부터 상세 근무조건까지 입력해주세요.</p></div>
                   <em>정확할수록 매칭 향상</em>
                 </div>
               <label className="wide-field">
@@ -3010,7 +3006,7 @@ function Checkout({ plan }) {
               <details className="membership-intake" open>
                 <summary>
                   <span><Crown /></span>
-                  <div><strong>의사 멤버십 상세조건</strong><small>작성한 항목은 의료인 회원의 ‘결정 조건표’에 정리됩니다</small></div>
+                  <div><strong>상세 근무조건</strong><small>작성한 항목은 지원 의료인이 확인하는 ‘결정 조건표’에 정리됩니다</small></div>
                   <em>모두 선택사항</em>
                 </summary>
                 <div className="form-grid">
@@ -3168,7 +3164,10 @@ function TalentUnlockPage({ route, qa }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const plan = talentUnlockPlans.find((item) => item.id === params.get('product')) || talentUnlockPlans[0];
   const talentId = params.get('talent') || '';
-  const canUnlock = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  // 실제 로그인 세션 기준으로 판단해야 한다. qa.active만 보면 QA 프리뷰가 아닌
+  // 진짜 병원 계정은 영영 열람권을 못 사서 결제가 막힌다(실제로 그런 버그였음).
+  const auth = useAuthGate(qa);
+  const canUnlock = Boolean((auth.role === 'hospital' || auth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
   return <>
     <PageHero tone="membership" eyebrow="TALENT RESUME UNLOCK" title="인재 이력서 열람권" description="구직 공개에 동의한 의사·의료인 후보의 연락처와 이력서 상세를 병원 회원이 열람합니다." />
     {canUnlock

@@ -194,6 +194,12 @@ async function ensureCommerceSchema(env) {
   if (!env || !env.DB) throw new Error('COMMERCE_DB_UNAVAILABLE');
   await env.DB.batch(commerceSchemaStatements.map(statement => env.DB.prepare(statement)));
 }
+// 열람권 '묶음(팩)' 크레딧 풀. 병원이 팩을 사면 크레딧 N개가 적립되고,
+// 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권(talent_unlocks)을 발급한다.
+async function ensureTalentCreditSchema(env) {
+  if (!env || !env.DB) throw new Error('TALENT_CREDIT_DB_UNAVAILABLE');
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS talent_credit_pools (id TEXT PRIMARY KEY, hospital_account_id TEXT NOT NULL, order_id TEXT, total_credits INTEGER NOT NULL DEFAULT 0, used_credits INTEGER NOT NULL DEFAULT 0, expires_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)').run();
+}
 async function ensureRecruitmentCrmSchema(env) {
   if (!env || !env.DB) throw new Error('RECRUITMENT_CRM_DB_UNAVAILABLE');
   await env.DB.batch(recruitmentCrmSchemaStatements.map(statement => env.DB.prepare(statement)));
@@ -739,6 +745,22 @@ async function talentDetailApi(request, env, pathname) {
     const now = new Date().toISOString();
     const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? AND (expires_at IS NULL OR expires_at > ?) LIMIT 1").bind(account.id, talentId, now).first();
     hasUnlock = Boolean(row);
+    // 이 인재에 직접 열람권이 없으면, 남은 '팩 크레딧'으로 새로 연다(크레딧 1개 소모).
+    if (!hasUnlock) {
+      try {
+        await ensureTalentCreditSchema(env);
+        // 유효기간 내 + 크레딧이 남은 풀을 오래된 것부터 사용(만료 임박분 우선 소진).
+        const pool = await env.DB.prepare("SELECT id, total_credits AS total, used_credits AS used, expires_at AS expiresAt FROM talent_credit_pools WHERE hospital_account_id = ? AND used_credits < total_credits AND (expires_at IS NULL OR expires_at > ?) ORDER BY expires_at IS NULL, expires_at ASC LIMIT 1").bind(account.id, now).first();
+        if (pool) {
+          // 크레딧을 원자적으로 차감(경합 시 조건 불일치로 0행 → 이중 소모 방지).
+          const spent = await env.DB.prepare("UPDATE talent_credit_pools SET used_credits = used_credits + 1 WHERE id = ? AND used_credits = ?").bind(pool.id, Number(pool.used)).run();
+          if (spent?.meta?.changes === 1 || spent?.changes === 1) {
+            await env.DB.prepare("INSERT INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.id, pool.expiresAt || null).run();
+            hasUnlock = true;
+          }
+        }
+      } catch {}
+    }
   }
   if (!hasUnlock) return json({ unlocked:false, detail:null });
   // === 정보 유출 방어: 병원 계정의 열람 빈도를 검사한다(관리자는 예외). ===
@@ -789,8 +811,10 @@ const paymentProductCatalog = {
   // 의사 대상 유료 멤버십(커리어 체크·컨시어지)은 폐지됐다.
   // 유료 상품은 (1) 병원 채용광고, (2) 병원이 의사 이력서를 볼 때 구매하는 열람권 두 가지뿐이다.
   // 병원용 인재 이력서 열람권. 결제 시 talent_unlocks에 권한 기록 → 연락처·상세 공개.
-  'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:5000, unlockDays:30 },
-  'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (5명 팩)', amount:20000, unlockDays:30, unlockCount:5 }
+  // 작은 회사라 진입장벽을 낮게: 단건 소액 + 묶음일수록 건당 단가↓(메디게이트·사람인 대비 저렴).
+  'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:3900, unlockDays:30, unlockCount:1 },
+  'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (10명 팩)', amount:29000, unlockDays:30, unlockCount:10 },
+  'talent-unlock-pack30':{ type:'talent_search', name:'인재 열람권 (30명 팩)', amount:69000, unlockDays:30, unlockCount:30 }
 };
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -944,11 +968,22 @@ async function paymentApproveApi(request, env) {
     if (product?.type !== 'talent_search') return;
     const meta = parseJsonObject(order.metadataJson) || {};
     const talentId = String(meta.talentId || '');
-    if (!talentId) return;
-    try { await ensureMemberCenterSchema(env); } catch { return; }
+    const unlockCount = Math.max(1, Number(product.unlockCount) || 1);
+    try { await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env); } catch { return; }
     const expires = product.unlockDays ? new Date(Date.now() + product.unlockDays * 86400000).toISOString() : null;
     try {
-      // 이미 같은 주문으로 기록된 열람권이 있으면 중복 생성하지 않는다(재전송·리플레이 대비).
+      if (unlockCount > 1) {
+        // 묶음(팩) 상품: 특정 인재에 바로 묶지 않고 '열람 크레딧 N개'를 적립한다.
+        // 이후 병원이 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권을 발급한다.
+        // 예전에는 unlockCount를 무시하고 1건만 발급해 5명팩이 1명만 열리던 버그가 있었다.
+        const existing = await env.DB.prepare('SELECT id FROM talent_credit_pools WHERE order_id = ? LIMIT 1').bind(order.id).first();
+        if (existing) return;
+        await env.DB.prepare("INSERT INTO talent_credit_pools (id, hospital_account_id, order_id, total_credits, used_credits, expires_at) VALUES (?, ?, ?, ?, 0, ?)")
+          .bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, expires).run();
+        return;
+      }
+      // 단건 상품: 구매 시 지정한 인재에 바로 열람권 발급.
+      if (!talentId) return;
       const existing = await env.DB.prepare('SELECT id FROM talent_unlocks WHERE order_id = ? AND talent_id = ? LIMIT 1').bind(order.id, talentId).first();
       if (existing) return;
       await env.DB.prepare("INSERT INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), order.accountId, talentId, order.id, expires).run();
@@ -957,7 +992,7 @@ async function paymentApproveApi(request, env) {
       // 조용히 넘기지 말고 이벤트로 남겨 관리자가 확인·복구할 수 있게 한다.
       try {
         await env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'system', 'talent_unlock_failed', NULL, ?)")
-          .bind(crypto.randomUUID(), order.id, JSON.stringify({ talentId, message: String(error?.message || error).slice(0, 300) })).run();
+          .bind(crypto.randomUUID(), order.id, JSON.stringify({ talentId, unlockCount, message: String(error?.message || error).slice(0, 300) })).run();
       } catch {}
     }
   };

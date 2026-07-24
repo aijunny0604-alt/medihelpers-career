@@ -35,7 +35,7 @@ export const QA_STATE_OPTIONS = Object.freeze([
     description: '의료인 회원 로그인 상태에서 채용정보·이력서·상담 기능을 점검합니다.',
     tone: 'doctor',
     capabilities: { signedIn: true, admin: false, hospital: false, doctor: true, privateDetails: false },
-    metrics: [['상세조건', '멤버십 잠금'], ['관심공고', '3건'], ['프리미엄', '미이용']]
+    metrics: [['이력서', '등록 가능'], ['관심공고', '3건'], ['상담', '무료']]
   },
   {
     id: 'hospital-unlocked',

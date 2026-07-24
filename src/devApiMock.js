@@ -6,6 +6,7 @@
 const LS = {
   orders: 'devmock_orders',
   unlocks: 'devmock_talent_unlocks',
+  creditPool: 'devmock_talent_credits', // 팩 열람권 크레딧 { total, used }
   resumes: 'devmock_resumes',
   authAccounts: 'devmock_auth_accounts', // { [email]: { role, password } }
   authSession: 'devmock_auth_session', // { email, role } | null
@@ -20,10 +21,10 @@ const CATALOG = {
   basic: { type: 'doctor_ad', name: '베이직 공고', amount: 59000 },
   featured: { type: 'doctor_ad', name: '추천 공고', amount: 149000 },
   intensive: { type: 'doctor_ad', name: '집중 채용', amount: 299000 },
-  'doctor-single': { type: 'membership', name: '커리어 체크', amount: 19000 },
-  'doctor-pass': { type: 'membership', name: '커리어 컨시어지', amount: 39000 },
-  'talent-unlock-single': { type: 'talent_search', name: '인재 열람권 (1명)', amount: 5000, unlockDays: 30 },
-  'talent-unlock-pack': { type: 'talent_search', name: '인재 열람권 (5명 팩)', amount: 20000, unlockDays: 30, unlockCount: 5 },
+  // 의사 멤버십은 폐지됨. 유료 상품은 병원 광고 + 병원 인재 열람권뿐.
+  'talent-unlock-single': { type: 'talent_search', name: '인재 열람권 (1명)', amount: 3900, unlockDays: 30, unlockCount: 1 },
+  'talent-unlock-pack': { type: 'talent_search', name: '인재 열람권 (10명 팩)', amount: 29000, unlockDays: 30, unlockCount: 10 },
+  'talent-unlock-pack30': { type: 'talent_search', name: '인재 열람권 (30명 팩)', amount: 69000, unlockDays: 30, unlockCount: 30 },
 };
 
 // 목 상세: 실제 이력서가 없어도 열람권만 있으면 그럴듯한 상세를 돌려준다(화면 확인용).
@@ -113,11 +114,19 @@ async function handle(method, path, bodyText) {
     write(LS.orders, orders);
     const product = CATALOG[order.productId];
     if (product?.type === 'talent_search') {
-      const talentId = String(order.metadata?.talentId || '');
-      if (talentId) {
-        const unlocks = read(LS.unlocks, {});
-        unlocks[talentId] = { talentId, orderNumber: order.orderNumber, at: new Date().toISOString() };
-        write(LS.unlocks, unlocks);
+      const count = Math.max(1, Number(product.unlockCount) || 1);
+      if (count > 1) {
+        // 팩: 크레딧 적립(새 인재를 열 때마다 1개 소모).
+        const pool = read(LS.creditPool, { total: 0, used: 0 });
+        pool.total = Number(pool.total || 0) + count;
+        write(LS.creditPool, pool);
+      } else {
+        const talentId = String(order.metadata?.talentId || '');
+        if (talentId) {
+          const unlocks = read(LS.unlocks, {});
+          unlocks[talentId] = { talentId, orderNumber: order.orderNumber, at: new Date().toISOString() };
+          write(LS.unlocks, unlocks);
+        }
       }
     }
     return jsonRes({ approved: true, status: 'paid', orderNumber: order.orderNumber, tid: 'MOCKTID', testMode: true, message: '[로컬 목] 가상 결제가 완료되었습니다(실제 청구 없음).' });
@@ -127,6 +136,16 @@ async function handle(method, path, bodyText) {
   if (path.startsWith('/api/talent-detail/') && method === 'GET') {
     const talentId = decodeURIComponent(path.slice('/api/talent-detail/'.length));
     const unlocks = read(LS.unlocks, {});
+    // 직접 열람권이 없으면 팩 크레딧으로 새로 연다(1개 소모).
+    if (!unlocks[talentId]) {
+      const pool = read(LS.creditPool, { total: 0, used: 0 });
+      if (Number(pool.used || 0) < Number(pool.total || 0)) {
+        pool.used = Number(pool.used || 0) + 1;
+        write(LS.creditPool, pool);
+        unlocks[talentId] = { talentId, source: 'pack', at: new Date().toISOString() };
+        write(LS.unlocks, unlocks);
+      }
+    }
     if (unlocks[talentId]) {
       // 실제 이력서(resume-<id>)만 서버 상세를 흉내. 정적 데모(MH-...)는 detail:null로 반환해
       // 클라이언트가 data.js의 데모 상세로 폴백하게 한다(실제 서버 동작과 동일).
