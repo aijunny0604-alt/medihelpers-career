@@ -41,6 +41,7 @@
 - 상담은 인증 계정 이메일로 회원 내역에 연결하며 가입 계정이 있으면 역할도 검사합니다. `ACCOUNT_HASH_SECRET`이 약하면 검사를 건너뛰지 않고 **503으로 차단**(fail-closed)합니다.
 - 후보 추천은 동의(`consent_status='granted'`)가 확인된 건만 병원에 노출합니다.
 - 응답은 `no-store`, JSON, `nosniff`를 기본으로 사용합니다. 공개 카테고리는 60초 캐시를 허용합니다.
+- 등록되지 않은 `/api/*` 경로는 SPA HTML로 폴백하지 않고 JSON 오류와 HTTP 404를 반환합니다.
 - 핸들러 밖으로 나간 예외는 최상위 try/catch가 잡아 API는 JSON `{error}`, HTML은 일반 텍스트 500으로 통일합니다(D1 오류 문구 유출 방지).
 
 ## 미구현 API

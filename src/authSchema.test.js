@@ -22,3 +22,8 @@ test('배포 서버는 보안 쿠키와 PBKDF2를 사용하고 OpenAI 로그인 
   assert.match(serverSource, /passwordIterations = 100000/);
   assert.doesNotMatch(serverSource + accountSource, /signin-with-chatgpt|signout-with-chatgpt|auth\.openai\.com/);
 });
+
+test('등록되지 않은 API 경로는 SPA HTML이 아닌 JSON 404로 종료한다', async () => {
+  const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  assert.match(serverSource, /pathname\.startsWith\('\/api\/'\).*json\(\{ error:'API 경로를 찾을 수 없습니다\.' \}, 404\)/);
+});

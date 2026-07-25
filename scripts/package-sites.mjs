@@ -1557,6 +1557,9 @@ async function responseFor(request, env) {
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
   if (pathname === '/api/talent-access-audit') return talentAccessAuditApi(request, env);
   if (pathname === '/api/admin-console') return adminConsoleApi(request, env);
+  // 알려지지 않은 API 경로를 SPA로 넘기면 HTML 200이 반환되어 연동 실패를
+  // 성공 응답으로 오인할 수 있다. API 네임스페이스는 항상 JSON 404로 끝낸다.
+  if (pathname.startsWith('/api/')) return json({ error:'API 경로를 찾을 수 없습니다.' }, 404);
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
