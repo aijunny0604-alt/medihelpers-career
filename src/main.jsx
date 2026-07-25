@@ -656,7 +656,8 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
   const next = useCallback(() => onIndex((index + 1) % total), [index, onIndex, total]);
 
   useEffect(() => {
-    if (embedded) return undefined;
+    // (예전에 Modal에서 복사하며 남은 `if (embedded) return` 가드 제거 —
+    //  PhotoLightbox에는 embedded 변수가 없어 사진 클릭 시 ReferenceError로 화면이 깨졌다.)
     const onKeyDown = (event) => {
       if (!['Escape', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       event.preventDefault();
@@ -1435,7 +1436,9 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const [adPlan, setAdPlan] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
-  const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
+  const adAuth = useAuthGate(qa);
+  const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
   const requestAdPlan = (plan) => canRegisterAds ? setAdPlan(plan) : navigate('/signup/hospital?next=/advertise');
 
   // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
@@ -3177,7 +3180,9 @@ function TalentUnlockPage({ route, qa }) {
 }
 
 function AdvertisePage({ qa }) {
-  const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청을 못 한다.
+  const adAuth = useAuthGate(qa);
+  const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
   const requestPlan = (nextPlan) => {
     const target = `/advertise/apply?plan=${nextPlan.id}`;
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
@@ -3192,7 +3197,9 @@ function AdvertisePage({ qa }) {
 function AdvertiseApplyPage({ route, qa }) {
   const params = new URLSearchParams(route.split("?")[1] || "");
   const plan = adPlans.find((item) => item.id === params.get("plan")) || adPlans[1];
-  const canRegisterAds = Boolean(qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin));
+  // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청 페이지에서 막힌다.
+  const adAuth = useAuthGate(qa);
+  const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
   if (!canRegisterAds) {
     const next = `/advertise/apply?plan=${plan.id}`;
     return (

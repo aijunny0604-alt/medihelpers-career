@@ -199,6 +199,9 @@ async function ensureCommerceSchema(env) {
 async function ensureTalentCreditSchema(env) {
   if (!env || !env.DB) throw new Error('TALENT_CREDIT_DB_UNAVAILABLE');
   await env.DB.prepare('CREATE TABLE IF NOT EXISTS talent_credit_pools (id TEXT PRIMARY KEY, hospital_account_id TEXT NOT NULL, order_id TEXT, total_credits INTEGER NOT NULL DEFAULT 0, used_credits INTEGER NOT NULL DEFAULT 0, expires_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)').run();
+  // order_id 유니크: 같은 결제 주문으로 크레딧 풀이 두 번 적립되는 것을 DB 차원에서 막는다
+  // (check-then-insert만으로는 동시 승인 경합 시 이중 적립 가능 → 팩 크레딧 2배 지급 사고).
+  try { await env.DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_talent_credit_pools_order ON talent_credit_pools(order_id)').run(); } catch {}
 }
 async function ensureRecruitmentCrmSchema(env) {
   if (!env || !env.DB) throw new Error('RECRUITMENT_CRM_DB_UNAVAILABLE');
@@ -271,15 +274,18 @@ async function consultationApi(request, env, pathname) {
     const payload = cleanConsultationPayload(body.payload || {});
     const requesterName = requestType === 'doctor' ? payload.name : payload.hospital;
     if (!['doctor','hospital'].includes(requestType) || !requesterName || !payload.phone || !payload.specialty) return json({ error:'필수 정보를 모두 입력해 주세요.' }, 400);
-    if (env.ACCOUNT_HASH_SECRET && String(env.ACCOUNT_HASH_SECRET).length >= 32) {
-      try {
-        await ensureAccountSchema(env);
-        const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
-        const account = await env.DB.prepare('SELECT role FROM accounts WHERE user_key = ?').bind(key).first();
-        if (account && account.role !== requestType) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
-      } catch {
-        return json({ error:'회원 권한을 확인할 수 없습니다.' }, 503);
-      }
+    // [보안] 다른 민감 API와 동일하게 fail-closed. 예전에는 시크릿이 약하면 이 블록을 통째로
+    // 건너뛰어 아무나 requestType:'hospital' 상담을 넣어 CRM 케이스를 생성할 수 있었다.
+    if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) {
+      return json({ error:'상담 접수 설정이 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.' }, 503);
+    }
+    try {
+      await ensureAccountSchema(env);
+      const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+      const account = await env.DB.prepare('SELECT role FROM accounts WHERE user_key = ?').bind(key).first();
+      if (account && account.role !== requestType) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
+    } catch {
+      return json({ error:'회원 권한을 확인할 수 없습니다.' }, 503);
     }
     const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
     await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload)).run();
@@ -600,9 +606,11 @@ async function memberCenterApi(request, env) {
     if (account.role === 'hospital') {
       try {
         const rows = await env.DB.prepare(
+          // [보안] 후보 동의(consent_status='granted')가 확인된 건만 병원에 노출한다.
+          // 예전에는 필터가 없어 pending·revoked·declined 후보의 존재·진행단계까지 병원이 보게 됐다.
           "SELECT s.candidate_public_id AS code, s.consent_status AS consentStatus, s.submission_status AS submissionStatus, c.specialty, c.position_title AS positionTitle, c.stage, s.updated_at AS updatedAt " +
           "FROM candidate_submissions s JOIN recruitment_cases c ON c.id = s.case_id JOIN consultation_requests cr ON cr.id = c.consultation_id " +
-          "WHERE lower(cr.email) = ? ORDER BY s.updated_at DESC LIMIT 50"
+          "WHERE lower(cr.email) = ? AND s.consent_status = 'granted' ORDER BY s.updated_at DESC LIMIT 50"
         ).bind(identity.email.toLowerCase()).all();
         recommendedCandidates = rows.results || [];
       } catch { recommendedCandidates = []; }
@@ -747,8 +755,19 @@ async function talentDetailApi(request, env, pathname) {
     const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? AND (expires_at IS NULL OR expires_at > ?) LIMIT 1").bind(account.id, talentId, now).first();
     hasUnlock = Boolean(row);
     // 이 인재에 직접 열람권이 없으면, 남은 '팩 크레딧'으로 새로 연다(크레딧 1개 소모).
+    // [보안] 단, 비공개(private) 이력서에는 크레딧을 쓰지 않는다. 어차피 상세는 안 나가므로
+    // 크레딧만 낭비되고, 공개 안 한 의사를 열람 시도하는 것 자체를 막는다.
     if (!hasUnlock) {
-      try {
+      let spendable = true;
+      const rid = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
+      if (rid) {
+        try {
+          const vis = await env.DB.prepare("SELECT visibility FROM resumes WHERE id = ? LIMIT 1").bind(rid).first();
+          // 실제 이력서인데 공개 대상이 아니면 크레딧 소모 금지(정적 샘플은 resumes에 없어 통과).
+          if (vis && !['public','proposal'].includes(vis.visibility)) spendable = false;
+        } catch {}
+      }
+      if (spendable) try {
         await ensureTalentCreditSchema(env);
         // 유효기간 내 + 크레딧이 남은 풀을 오래된 것부터 사용(만료 임박분 우선 소진).
         const pool = await env.DB.prepare("SELECT id, total_credits AS total, used_credits AS used, expires_at AS expiresAt FROM talent_credit_pools WHERE hospital_account_id = ? AND used_credits < total_credits AND (expires_at IS NULL OR expires_at > ?) ORDER BY expires_at IS NULL, expires_at ASC LIMIT 1").bind(account.id, now).first();
@@ -792,9 +811,12 @@ async function talentDetailApi(request, env, pathname) {
     } catch {}
   }
   // 열람권 보유 → 이력서 상세 제공. talentId가 resume-<id> 형태면 resumes에서 조회.
+  // [보안] visibility가 공개(public)·헤드헌터 제안(proposal)인 이력서만 실명·연락처를 내려준다.
+  // 기본값이 private이라, 이 필터가 없으면 '구직 공개'를 선택하지 않은 의사의 연락처까지
+  // 열람권만 있으면 resume-<id>로 긁어갈 수 있다(본인이 공개하지 않은 정보 유출).
   const resumeId = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
   if (resumeId) {
-    const r = await env.DB.prepare('SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ?').bind(resumeId).first();
+    const r = await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND visibility IN ('public','proposal')").bind(resumeId).first();
     if (r) {
       try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
       const { detailJson, ...rest } = r;
@@ -1001,7 +1023,7 @@ async function paymentApproveApi(request, env) {
   if (testMode) {
     const tid = 'TEST-' + Date.now().toString(36).toUpperCase();
     await env.DB.batch([
-      env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(buildExposureMeta(order.metadataJson), order.id),
+      env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status<>'paid'").bind(buildExposureMeta(order.metadataJson), order.id),
       env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'capture', 'test', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
       env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'test', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid, testMode:true }))
     ]);
@@ -1405,6 +1427,10 @@ async function adminConsoleApi(request, env) {
     const verificationStatus = String(payload.verificationStatus || '');
     const note = String(payload.adminNote || '').trim().slice(0,2000);
     if (!id || !['active','suspended','withdrawn'].includes(status) || !['unverified','pending','verified','rejected'].includes(verificationStatus)) return json({ error:'회원 상태를 확인해주세요.' }, 400);
+    // [보안] 실제 존재하는 계정만 수정한다. D1은 외래키를 강제하지 않아, id 검증 없이 upsert하면
+    // 존재하지 않는 계정 id로 고아 프로필 행이 생긴다(가짜 id로 정지 상태를 심으면 미래 가입자 잠금 등).
+    const target = await env.DB.prepare('SELECT id FROM accounts WHERE id = ? LIMIT 1').bind(id).first();
+    if (!target) return json({ error:'해당 회원을 찾을 수 없습니다.' }, 404);
     await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, status, verification_status, admin_note, updated_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET status=excluded.status, verification_status=excluded.verification_status, admin_note=excluded.admin_note, updated_by=excluded.updated_by, updated_at=CURRENT_TIMESTAMP").bind(id, status, verificationStatus, note, admin.email).run();
     await writeAdminAudit(env, admin, 'member_update', id, { status, verificationStatus });
   } else if (action === 'payment_update') {
@@ -1577,7 +1603,23 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
   } });
   return new Response('Not Found', { status: 404 });
 }
-export default { async fetch(request, env) { return responseFor(request, env); } };
+export default {
+  async fetch(request, env) {
+    try {
+      return await responseFor(request, env);
+    } catch (error) {
+      // [보안] 최상위 안전망. 핸들러 안에서 잡지 못한 DB 예외 등이 밖으로 나가면
+      // 런타임이 D1 오류 문구가 담긴 HTML 500을 그대로 노출한다(내부정보 유출 + JSON 계약 깨짐).
+      // API 경로는 JSON {error}, 그 외(HTML 페이지)는 일반 텍스트로 통일한다.
+      let isApi = false;
+      try { isApi = new URL(request.url).pathname.startsWith('/api/'); } catch {}
+      if (isApi) {
+        return new Response(JSON.stringify({ error: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' }), { status: 500, headers: { 'content-type': 'application/json; charset=utf-8' } });
+      }
+      return new Response('일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', { status: 500, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+  }
+};
 export const buildId = 'medihelpers-static';
 export const hasMiddleware = false;
 export const pageRoutes = [{ pattern: '/', patternParts: [], isDynamic: false, params: [] }];
