@@ -85,18 +85,10 @@ const FIELD_META = {
   department: { label: '부서명', optional: true, type: 'text', placeholder: '예: 인사팀, 원무과' },
   hospitalName: { label: '병원·기관명', type: 'text', autoComplete: 'organization', placeholder: '예: 서울메디컬센터' },
   representativeName: { label: '대표자명', type: 'text', placeholder: '예: 김메디' },
-  institutionType: {
-    label: '기관 유형',
-    type: 'select',
-    placeholder: '기관 유형을 선택해주세요',
-    options: ['종합병원', '병원', '의원', '검진센터', '요양병원', '치과병·의원', '한방병·의원', '기타']
-  },
-  institutionPhone: { label: '병원 대표 전화', type: 'tel', inputMode: 'numeric', placeholder: '02-0000-0000', phone: true },
-  postalCode: { label: '우편번호', type: 'text', inputMode: 'numeric', placeholder: '예: 06236' },
-  address: { label: '병원 주소', type: 'text', autoComplete: 'street-address', placeholder: '예: 서울 강남구 테헤란로 123', wide: true },
+  businessNumber: { label: '사업자등록번호', type: 'text', inputMode: 'numeric', placeholder: '000-00-00000', hint: '10자리 숫자. 광고 결제·기관 인증 시 확인합니다.' },
+  address: { label: '병원 주소', type: 'text', autoComplete: 'street-address', placeholder: '주소 검색 버튼을 눌러주세요', wide: true, addressSearch: true, readOnly: true },
   addressDetail: { label: '상세 주소', optional: true, type: 'text', placeholder: '예: 5층 인사팀', wide: true },
   website: { label: '홈페이지', optional: true, type: 'url', autoComplete: 'url', placeholder: 'https://www.hospital.co.kr' },
-  businessNumber: { label: '사업자등록번호', optional: true, type: 'text', inputMode: 'numeric', placeholder: '000-00-00000', hint: '가입 단계에서는 선택사항이며, 광고 결제·기관 인증 전에 확인합니다.' },
   fax: { label: '팩스번호', optional: true, type: 'tel', inputMode: 'numeric', placeholder: '02-0000-0000', phone: true }
 };
 
@@ -145,13 +137,58 @@ function MemberTypeChooser() {
   </section>;
 }
 
+// 다음(카카오) 우편번호 서비스로 실제 주소를 검색해 입력한다.
+// 스크립트는 한 번만 로드하고, 검색 완료 시 도로명 주소를 콜백으로 전달한다.
+let daumPostcodeLoading = null;
+function loadDaumPostcode() {
+  if (typeof window === 'undefined') return Promise.reject(new Error('no window'));
+  if (window.daum && window.daum.Postcode) return Promise.resolve();
+  if (daumPostcodeLoading) return daumPostcodeLoading;
+  daumPostcodeLoading = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => { daumPostcodeLoading = null; reject(new Error('주소 검색을 불러오지 못했습니다.')); };
+    document.head.appendChild(script);
+  });
+  return daumPostcodeLoading;
+}
+function openAddressSearch(onSelect) {
+  loadDaumPostcode().then(() => {
+    new window.daum.Postcode({
+      oncomplete: (data) => {
+        // 도로명 주소 우선, 없으면 지번 주소.
+        const addr = data.roadAddress || data.jibunAddress || data.address || '';
+        onSelect(addr);
+      }
+    }).open();
+  }).catch(() => {
+    // 스크립트 로드 실패(CSP·네트워크) 시 직접 입력할 수 있게 알린다.
+    if (typeof window !== 'undefined') window.alert('주소 검색을 열 수 없습니다. 잠시 후 다시 시도해 주세요.');
+  });
+}
+
 function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
   const errorId = `${fieldId}-error`;
   const hintId = `${fieldId}-hint`;
   const describedBy = [meta.hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
   return <div className={`signup-field ${meta.wide ? 'wide' : ''} ${error ? 'has-error' : ''}`}>
     <label htmlFor={fieldId}>{meta.label}{meta.optional ? <small>선택</small> : <b>*</b>}</label>
-    {meta.type === 'select' ? <select
+    {meta.addressSearch ? <div className="signup-address-row">
+      <input
+        id={fieldId}
+        name={fieldId}
+        type="text"
+        readOnly
+        placeholder={meta.placeholder}
+        value={value}
+        onClick={() => openAddressSearch((addr) => { onChange(addr); onBlur?.(); })}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={describedBy}
+      />
+      <button type="button" className="button outline signup-address-btn" onClick={() => openAddressSearch((addr) => { onChange(addr); onBlur?.(); })}>주소 검색</button>
+    </div> : meta.type === 'select' ? <select
       id={fieldId}
       name={fieldId}
       value={value}
@@ -343,13 +380,13 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   if (completed) {
     return <section className="signup-card signup-complete-draft">
       <span className="account-check"><CircleCheck /></span>
-      <small>FINAL ACCOUNT VERIFICATION</small>
-      <h2>마지막 계정 인증만 남았습니다</h2>
-      <p>가입 양식과 필수 동의를 확인했습니다. 안전한 계정 인증을 완료하면 회원 계정이 생성됩니다.</p>
+      <small>SIGNUP</small>
+      <h2>회원가입 신청이 접수되었습니다</h2>
+      <p>가입 양식과 필수 동의를 확인했습니다. 정식 오픈 시 이 정보로 회원 계정이 생성됩니다.</p>
       <div className="signup-launch-boundary"><LockKeyhole /><span><strong>비밀번호는 안전한 단방향 해시로 보호합니다.</strong><small>이메일 계정으로 중복 가입을 확인하고 회원 유형과 동의 기록을 안전하게 저장합니다.</small></span></div>
       <dl>
         <div><dt>선택한 회원 유형</dt><dd>{content.label}</dd></div>
-        <div><dt>다음 단계</dt><dd>계정 인증 후 가입 완료</dd></div>
+        <div><dt>다음 단계</dt><dd>정식 오픈 후 로그인</dd></div>
       </dl>
       <div className="account-actions">
         <a className="button primary" href={withBase('/login')}>메디헬퍼스 로그인 <ArrowRight /></a>
@@ -419,7 +456,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       </div>
 
       {errors.submit && <p className="signup-error" role="alert">{errors.submit}</p>}
-      <button className="button primary full" type="submit">{signedIn ? '가입 완료하기' : '계속해서 계정 인증'} <ArrowRight /></button>
+      <button className="button primary full" type="submit">{signedIn ? '회원가입 완료' : '회원가입 신청'} <ArrowRight /></button>
       <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 작성</a>
     </form>
   </section>;
@@ -431,7 +468,7 @@ function SignedOutCard({ memberType }) {
   return <section className="signup-card">
     <span className="signup-card-icon"><RoleIcon /></span>
     <small>{content.eyebrow}</small>
-    <h2>{content.label} 계정 인증</h2>
+    <h2>{content.label} 로그인</h2>
     <p>{content.description} 메디헬퍼스 자체 이메일 계정으로 안전하게 로그인합니다.</p>
     <a className="button primary full signup-provider" href={withBase('/login')}>
       {content.label}으로 계속 <ArrowRight />
@@ -442,22 +479,49 @@ function SignedOutCard({ memberType }) {
   </section>;
 }
 
+// 테스트용 계정. 관리자 판별은 서버 ADMIN_EMAILS와 일치해야 하므로 admin@medihelpers.co.kr 사용.
+const TEST_ACCOUNTS = [
+  { key: 'admin', label: '관리자', role: 'doctor', email: 'admin@medihelpers.co.kr', password: 'medihelpers1234' },
+  { key: 'hospital', label: '병원 회원', role: 'hospital', email: 'hospital-test@medihelpers.co.kr', password: 'medihelpers1234' },
+  { key: 'doctor', label: '의료인 회원', role: 'doctor', email: 'doctor-test@medihelpers.co.kr', password: 'medihelpers1234' }
+];
+
 function LoginCard() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const goNext = () => {
+    const requested = new URLSearchParams(window.location.search).get('next') || '/mypage';
+    window.location.href = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : '/mypage');
+  };
   const submit = async (event) => {
     event.preventDefault();
     setError('');
     setSubmitting(true);
     try {
       await authRequest('login', { email, password });
-      const requested = new URLSearchParams(window.location.search).get('next') || '/mypage';
-      window.location.href = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : '/mypage');
+      goNext();
     } catch (requestError) {
       setError(requestError.message);
     } finally {
+      setSubmitting(false);
+    }
+  };
+  // 테스트 계정으로 바로 로그인. 서버에 계정이 없으면 먼저 만든 뒤 로그인한다.
+  const loginTest = async (acct) => {
+    setError('');
+    setSubmitting(true);
+    try {
+      try {
+        await authRequest('login', { email: acct.email, password: acct.password });
+      } catch {
+        // 계정이 없으면 가입 후 로그인(가입 성공 시 이미 로그인 상태가 될 수 있음).
+        await authRequest('register', { role: acct.role, email: acct.email, password: acct.password, displayName: acct.label, termsAccepted: true, privacyAcknowledged: true, ageConfirmed: true });
+      }
+      goNext();
+    } catch (requestError) {
+      setError('테스트 계정 로그인에 실패했습니다: ' + requestError.message);
       setSubmitting(false);
     }
   };
@@ -473,6 +537,13 @@ function LoginCard() {
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 로그인 중</> : <>로그인 <ArrowRight /></>}</button>
     </form>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>비밀번호를 잊으셨나요?</a>
+    <div className="login-test-accounts">
+      <small>테스트 계정으로 바로 로그인</small>
+      <div className="login-test-buttons">
+        {TEST_ACCOUNTS.map((acct) => <button key={acct.key} type="button" className="button outline" disabled={submitting} onClick={() => loginTest(acct)}>{acct.label}</button>)}
+      </div>
+      <p className="login-test-note">테스트/데모 용도입니다. 계정이 없으면 자동 생성됩니다.</p>
+    </div>
     <div className="signup-login-join"><span>아직 계정이 없으신가요?</span><a href={withBase('/signup')}>회원 유형을 선택하고 가입하기</a></div>
     <div className="signup-security-copy"><ShieldCheck /> 로그인 세션은 보안 쿠키로 보호되며 비밀번호 원문은 저장하지 않습니다.</div>
   </section>;

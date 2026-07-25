@@ -1821,7 +1821,8 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
     // [보안] 기본 보안 헤더. 이니시스 결제창(stdpay/stgstdpay)은 반드시 허용해야 결제가 동작한다.
     'content-security-policy': [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      // 이니시스 결제창 + 다음(카카오) 우편번호 검색 스크립트를 허용한다.
+      "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com https://t1.daumcdn.net https://ssl.daumcdn.net",
       // 구글 폰트(Manrope·Noto Sans KR)를 허용해야 한다. 빼면 CSP가 스타일시트를 막아
       // 사이트 전체가 대체 글꼴로 렌더된다(배포본에서 실제로 발생했던 회귀).
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -1829,7 +1830,8 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
       "connect-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
-      "frame-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      // 주소 검색 팝업은 postcode.map.daum.net iframe으로 뜬다.
+      "frame-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com https://postcode.map.daum.net",
       "form-action 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
       "base-uri 'self'",
       "object-src 'none'",
@@ -1908,6 +1910,8 @@ if (!inlineAssets) {
     '[vars]',
     '# 공개 가능한 값만 여기에. 비밀값은 wrangler secret put 사용.',
     '# SITE_ORIGIN = "https://medihelpers.co.kr"',
+    '# 테스트 관리자 계정(로그인 화면 테스트 버튼)이 관리자로 인식되려면 이 이메일이 목록에 있어야 한다.',
+    'ADMIN_EMAILS = "admin@medihelpers.co.kr"',
     ''
   ].join('\n');
   await writeFile(`${outRoot}/wrangler.toml`, wrangler, 'utf8');

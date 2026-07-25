@@ -5321,3 +5321,15 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .admin-protection .admin-primary:disabled{opacity:.55;cursor:wait}
 @media(max-width:1100px){.admin-protection-summary{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:820px){.admin-protection-summary{grid-template-columns:1fr}.admin-protection-files{overflow-x:auto}.admin-protection-files>div{min-width:760px}}
+
+/* 로그인 화면 테스트 계정 버튼 */
+.login-test-accounts{margin-top:18px;padding-top:16px;border-top:1px dashed #d9e2ef}
+.login-test-accounts>small{display:block;font-size:12px;font-weight:800;color:#7a889b;letter-spacing:.3px;margin-bottom:8px}
+.login-test-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.login-test-buttons .button{flex:1 1 auto;min-width:88px;min-height:42px;font-size:13.5px}
+.login-test-note{margin:8px 0 0;font-size:11.5px;color:#9aa7b8}
+
+/* 회원가입 주소 검색 필드 */
+.signup-address-row{display:flex;gap:8px;align-items:stretch}
+.signup-address-row input{flex:1 1 auto;cursor:pointer;background:#f7faff}
+.signup-address-btn{flex:0 0 auto;min-height:auto;padding:0 16px;white-space:nowrap}

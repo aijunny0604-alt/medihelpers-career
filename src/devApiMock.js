@@ -185,7 +185,9 @@ async function handle(method, path, bodyText) {
     const profile = isHospital
       ? { displayName: '목 병원 담당자', phone: '010-1111-2222', organization: '목 병원 (로컬)', jobTitle: '채용담당' }
       : { displayName: '목 의사 회원', phone: '010-3333-4444', specialty: '내과' };
-    return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin: false, profile, email });
+    // 로컬에서도 관리자 테스트 계정은 관리자로 인식(admin@medihelpers.co.kr).
+    const isAdmin = String(email).toLowerCase() === 'admin@medihelpers.co.kr';
+    return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin, profile, email });
   }
 
   // 마이페이지 환불(청약철회) 요청 목: 주문 상태를 refund_requested로 표시.

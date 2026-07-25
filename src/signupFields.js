@@ -5,19 +5,17 @@ import { ACCOUNT_ROLES } from './signupModel.js';
 const COMMON_FIELDS = ['name', 'phone', 'email', 'password', 'passwordConfirm'];
 const INDIVIDUAL_PROFILE_FIELDS = ['professionType', 'specialty', 'region', 'birthYear', 'gender'];
 const HOSPITAL_ACCOUNT_FIELDS = ['hospitalRole', 'department'];
+// 기관 유형·대표 전화·우편번호는 가입 단계에서 제거(요청). 주소는 검색으로 입력, 사업자번호는 필수.
 const HOSPITAL_INFO_FIELDS = [
   'hospitalName',
   'representativeName',
-  'institutionType',
-  'institutionPhone',
-  'postalCode',
+  'businessNumber',
   'address',
   'addressDetail',
   'website',
-  'businessNumber',
   'fax'
 ];
-const OPTIONAL_FIELDS = new Set(['birthYear', 'gender', 'department', 'addressDetail', 'website', 'businessNumber', 'fax']);
+const OPTIONAL_FIELDS = new Set(['birthYear', 'gender', 'department', 'addressDetail', 'website', 'fax']);
 const CONSENT_KEYS = ['termsAccepted', 'privacyAccepted', 'ageConfirmed'];
 
 function normalizeRole(role) {
@@ -30,7 +28,6 @@ function digitsOnly(value) {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_PATTERN = /^01[016789]\d{7,8}$/;
-const PHONE_PATTERN = /^(0(?:2|3[1-3]|4[1-4]|5[1-5]|6[1-4]|70))\d{7,8}$/;
 const URL_PATTERN = /^https?:\/\/.+/i;
 
 function requiredText(value, label, minimum = 2) {
@@ -51,10 +48,11 @@ function validatePhone(value) {
   return '';
 }
 
-function validateInstitutionPhone(value) {
+// 사업자등록번호는 필수. 하이픈 유무 무관하게 숫자 10자리인지 확인한다.
+function validateBusinessNumber(value) {
   const digits = digitsOnly(value);
-  if (!digits) return '병원 대표 전화번호를 입력해주세요.';
-  if (!PHONE_PATTERN.test(digits) && !MOBILE_PATTERN.test(digits)) return '전화번호를 지역번호와 함께 정확히 입력해주세요.';
+  if (!digits) return '사업자등록번호를 입력해주세요.';
+  if (digits.length !== 10) return '사업자등록번호 10자리를 정확히 입력해주세요. 예: 123-45-67890';
   return '';
 }
 
@@ -132,9 +130,7 @@ export function validateField(field, draft = {}) {
     case 'hospitalRole': return requiredText(draft.hospitalRole, '담당자 직책');
     case 'hospitalName': return requiredText(draft.hospitalName, '병원·기관명');
     case 'representativeName': return requiredText(draft.representativeName, '대표자명');
-    case 'institutionType': return validateSelect(draft.institutionType, '기관 유형');
-    case 'institutionPhone': return validateInstitutionPhone(draft.institutionPhone);
-    case 'postalCode': return requiredText(draft.postalCode, '우편번호', 5);
+    case 'businessNumber': return validateBusinessNumber(draft.businessNumber);
     case 'address': return requiredText(draft.address, '병원 주소', 5);
     case 'website': return URL_PATTERN.test(String(draft.website ?? '').trim()) ? '' : '홈페이지 주소는 http:// 또는 https://로 시작해주세요.';
     default: return '';

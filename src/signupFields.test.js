@@ -37,9 +37,7 @@ function validHospitalDraft(overrides = {}) {
     hospitalName: '서울메디컬센터',
     hospitalRole: '채용 담당자',
     representativeName: '김대표',
-    institutionType: '병원',
-    institutionPhone: '02-1234-5678',
-    postalCode: '06236',
+    businessNumber: '123-45-67890',
     address: '서울 강남구 테헤란로 123',
     ...overrides
   };
@@ -52,8 +50,8 @@ test('fieldsForRole: 개인과 병원 회원에게 필요한 조건부 필드를
   ]);
   assert.deepEqual(fieldsForRole('hospital'), [
     'name', 'hospitalRole', 'department', 'phone', 'email', 'password', 'passwordConfirm',
-    'hospitalName', 'representativeName', 'institutionType', 'institutionPhone',
-    'postalCode', 'address', 'addressDetail', 'website', 'businessNumber', 'fax'
+    'hospitalName', 'representativeName', 'businessNumber',
+    'address', 'addressDetail', 'website', 'fax'
   ]);
   // 알 수 없는 역할은 공통 필드만 반환한다.
   assert.deepEqual(fieldsForRole(''), ['name', 'phone', 'email', 'password', 'passwordConfirm']);
@@ -76,14 +74,12 @@ test('의료인: 빈 필수 입력은 각 필드 오류를 낸다', () => {
   assert.equal(result.errors.hospitalRole, undefined);
 });
 
-test('병원: 기관명·담당자 역할과 기관 필수정보가 비면 오류가 난다', () => {
+test('병원: 기관명·담당자 역할·사업자번호·주소가 비면 오류가 난다', () => {
   const draft = validHospitalDraft({
     hospitalName: '',
     hospitalRole: '',
     representativeName: '',
-    institutionType: '',
-    institutionPhone: '',
-    postalCode: '',
+    businessNumber: '',
     address: ''
   });
   const result = validateApplicationDraft(draft, 'hospital');
@@ -91,10 +87,13 @@ test('병원: 기관명·담당자 역할과 기관 필수정보가 비면 오�
   assert.ok(result.errors.hospitalName);
   assert.ok(result.errors.hospitalRole);
   assert.ok(result.errors.representativeName);
-  assert.ok(result.errors.institutionType);
-  assert.ok(result.errors.institutionPhone);
-  assert.ok(result.errors.postalCode);
+  assert.ok(result.errors.businessNumber);
   assert.ok(result.errors.address);
+});
+
+test('병원: 사업자번호는 숫자 10자리여야 한다', () => {
+  assert.ok(validateField('businessNumber', { businessNumber: '123-45-6789' }), '9자리 거부');
+  assert.equal(validateField('businessNumber', { businessNumber: '123-45-67890' }), '', '10자리 통과');
 });
 
 test('병원: 조건부 필드를 채우면 통과한다', () => {
