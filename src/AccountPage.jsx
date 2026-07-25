@@ -110,7 +110,7 @@ async function accountRequest(method = 'GET', body) {
   return data;
 }
 
-async function authRequest(action, body = {}) {
+export async function authRequest(action, body = {}) {
   const response = await fetch(`/api/auth/${action}`, {
     method: 'POST',
     credentials: 'same-origin',
@@ -480,10 +480,10 @@ function SignedOutCard({ memberType }) {
 }
 
 // 테스트용 계정. 관리자 판별은 서버 ADMIN_EMAILS와 일치해야 하므로 admin@medihelpers.co.kr 사용.
-const TEST_ACCOUNTS = [
-  { key: 'admin', label: '관리자', role: 'doctor', email: 'admin@medihelpers.co.kr', password: 'medihelpers1234' },
-  { key: 'hospital', label: '병원 회원', role: 'hospital', email: 'hospital-test@medihelpers.co.kr', password: 'medihelpers1234' },
-  { key: 'doctor', label: '의료인 회원', role: 'doctor', email: 'doctor-test@medihelpers.co.kr', password: 'medihelpers1234' }
+export const TEST_ACCOUNTS = [
+  { key: 'doctor', label: '일반회원', loginLabel: '의료인 회원', role: 'doctor', email: 'doctor-test@medihelpers.co.kr', password: 'medihelpers1234' },
+  { key: 'admin', label: '관리자', loginLabel: '관리자', role: 'doctor', email: 'admin@medihelpers.co.kr', password: 'medihelpers1234' },
+  { key: 'hospital', label: '병원회원', loginLabel: '병원 회원', role: 'hospital', email: 'hospital-test@medihelpers.co.kr', password: 'medihelpers1234' }
 ];
 
 function LoginCard() {
@@ -517,7 +517,7 @@ function LoginCard() {
         await authRequest('login', { email: acct.email, password: acct.password });
       } catch {
         // 계정이 없으면 가입 후 로그인(가입 성공 시 이미 로그인 상태가 될 수 있음).
-        await authRequest('register', { role: acct.role, email: acct.email, password: acct.password, displayName: acct.label, termsAccepted: true, privacyAcknowledged: true, ageConfirmed: true });
+        await authRequest('register', { role: acct.role, email: acct.email, password: acct.password, displayName: acct.loginLabel, termsAccepted: true, privacyAcknowledged: true, ageConfirmed: true });
       }
       goNext();
     } catch (requestError) {
@@ -548,7 +548,7 @@ function LoginCard() {
     <div className="login-test-accounts">
       <small>테스트 계정으로 바로 로그인</small>
       <div className="login-test-buttons">
-        {TEST_ACCOUNTS.map((acct) => <button key={acct.key} type="button" className="button outline" disabled={submitting} onClick={() => loginTest(acct)}>{acct.label}</button>)}
+        {TEST_ACCOUNTS.map((acct) => <button key={acct.key} type="button" className="button outline" disabled={submitting} onClick={() => loginTest(acct)}>{acct.loginLabel}</button>)}
       </div>
       <p className="login-test-note">테스트/데모 용도입니다. 계정이 없으면 자동 생성됩니다.</p>
     </div>

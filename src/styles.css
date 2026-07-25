@@ -5323,6 +5323,21 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 @media(max-width:820px){.admin-protection-summary{grid-template-columns:1fr}.admin-protection-files{overflow-x:auto}.admin-protection-files>div{min-width:760px}}
 
 /* 로그인 화면 테스트 계정 버튼 */
+.nav-actions .header-account{min-height:48px;padding:0 20px;border:0;border-radius:13px;background:linear-gradient(120deg,#1263e8,#1778ed);color:#fff;font-size:14px;font-weight:850;box-shadow:0 10px 24px rgba(18,99,232,.25)}
+.nav-actions .header-account:hover{border:0;background:linear-gradient(120deg,#0f57d2,#126be3);color:#fff;transform:translateY(-1px);box-shadow:0 13px 28px rgba(18,99,232,.31)}
+.header-test-switcher{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid #dbe6f4;border-radius:12px;background:#f4f8fd}
+.header-test-switcher>span{padding:0 4px;color:#7c8da3;font:850 8px 'Manrope';letter-spacing:.8px}
+.header-test-switcher button{min-height:34px;padding:0 9px;border:0;border-radius:8px;background:transparent;color:#53667d;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}
+.header-test-switcher button:hover{background:#e5eefb;color:#1263e8}
+.header-test-switcher button.active{background:#fff;color:#1263e8;box-shadow:0 2px 9px rgba(31,79,137,.13)}
+.header-test-switcher button:disabled{cursor:wait;opacity:.62}
+.mobile-header-test-switcher{display:none}
+@media(max-width:1100px){
+  .mobile-header-test-switcher{margin-top:10px;padding:8px;border:1px solid #dbe6f4;border-radius:13px;background:#f4f8fd;display:grid;grid-template-columns:auto repeat(3,1fr);align-items:center;gap:5px}
+  .mobile-header-test-switcher>span{padding:0 5px;color:#7c8da3;font:850 8px 'Manrope';letter-spacing:.8px}
+  .mobile-header-test-switcher button{min-height:40px;padding:0 8px;border:0;border-radius:9px;background:#fff;color:#53667d;font-size:12px;font-weight:800;white-space:nowrap}
+  .mobile-header-test-switcher button.active{background:#1263e8;color:#fff}
+}
 .login-test-accounts{margin-top:18px;padding-top:16px;border-top:1px dashed #d9e2ef}
 .login-test-accounts>small{display:block;font-size:12px;font-weight:800;color:#7a889b;letter-spacing:.3px;margin-bottom:8px}
 .login-test-buttons{display:flex;gap:8px;flex-wrap:wrap}

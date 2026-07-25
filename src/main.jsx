@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
-import AccountPage from './AccountPage.jsx';
+import AccountPage, { authRequest, TEST_ACCOUNTS } from './AccountPage.jsx';
 import ResumePage from './ResumePage.jsx';
 import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
 import HeroSelect from './CustomSelect.jsx';
@@ -350,6 +350,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
 
 function Header({ path, qa, operations, auth }) {
   const [open, setOpen] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState('');
   // 모바일 메뉴가 열려 있는 동안에는 뒤 페이지 스크롤을 잠근다(모달과 동일한 방식).
   // 경로가 바뀌면(링크 이동) 메뉴를 닫아 잠금이 남지 않게 한다.
   useEffect(() => {
@@ -374,6 +375,41 @@ function Header({ path, qa, operations, auth }) {
   // 관리자는 운영 콘솔로, 일반 회원은 마이페이지로, 비로그인은 로그인 화면으로.
   const accountTarget = isAdminUser ? '/admin/console' : isSignedIn ? '/mypage' : '/login';
   const accountLabel = isAdminUser ? '관리자' : isSignedIn ? '마이페이지' : '로그인';
+  const activeTestRole = isAdminUser ? 'admin' : auth.role === 'hospital' ? 'hospital' : auth.role === 'doctor' ? 'doctor' : '';
+  const switchTestAccount = async (account) => {
+    if (switchingRole) return;
+    setSwitchingRole(account.key);
+    try {
+      try {
+        await authRequest('login', { email:account.email, password:account.password });
+      } catch {
+        await authRequest('register', {
+          role:account.role,
+          email:account.email,
+          password:account.password,
+          displayName:account.loginLabel,
+          termsAccepted:true,
+          privacyAcknowledged:true,
+          ageConfirmed:true
+        });
+      }
+      window.location.href = withBase(account.key === 'admin' ? '/admin/console' : '/mypage');
+    } catch (error) {
+      window.alert(`테스트 계정 전환에 실패했습니다: ${error.message}`);
+      setSwitchingRole('');
+    }
+  };
+  const testSwitcher = (mobile = false) => <div className={`${mobile ? 'mobile-' : ''}header-test-switcher`} aria-label="테스트 계정 바로 전환">
+    <span>TEST</span>
+    {TEST_ACCOUNTS.map((account) => <button
+      key={account.key}
+      type="button"
+      className={activeTestRole === account.key ? 'active' : ''}
+      disabled={Boolean(switchingRole)}
+      aria-pressed={activeTestRole === account.key}
+      onClick={() => switchTestAccount(account)}
+    >{switchingRole === account.key ? '전환 중…' : account.label}</button>)}
+  </div>;
   return <>
     {/* 모바일 메뉴 딤. 헤더에 backdrop-filter가 걸려 있어 헤더 안에 두면
         position:fixed 기준이 헤더(66px)로 갇혀 높이가 0이 된다. 반드시 헤더 바깥 형제로 둔다. */}
@@ -392,8 +428,10 @@ function Header({ path, qa, operations, auth }) {
           return true;
         }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''} ${item.highlight ? 'nav-highlight' : ''}`}>{item.label}</Link>)}
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>
+        {testSwitcher(true)}
       </nav>
       <div className="nav-actions">
+        {testSwitcher()}
         <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
