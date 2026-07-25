@@ -1423,13 +1423,15 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const [condition, setCondition] = useState(params.get('condition') || '전체 조건');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
-  const [adPlan, setAdPlan] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
   const adAuth = useAuthGate(qa);
   const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
-  const requestAdPlan = (plan) => canRegisterAds ? setAdPlan(plan) : navigate('/signup/hospital?next=/advertise');
+  const requestAdPlan = (plan) => {
+    const target = `/advertise/apply?plan=${plan.id}`;
+    navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
+  };
 
   // 하루 동안 고정되는 결정적 회전 seed (UTC 일 단위). 세션당 한 번만 계산.
   const daySeed = useMemo(() => Math.floor(Date.now() / 86400000), []);
@@ -1502,7 +1504,6 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
     </section>
     <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
-    {adPlan && <Checkout plan={adPlan} onClose={() => setAdPlan(null)} />}
   </>;
 }
 
