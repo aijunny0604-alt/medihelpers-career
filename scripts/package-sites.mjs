@@ -1079,7 +1079,7 @@ const paymentProductCatalog = {
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
-function adOrderContentRecord({ id, orderNumber, productId, productName, metadata, ownerEmail, createdAt }) {
+function adOrderContentRecord({ id, productName, metadata, ownerEmail, createdAt }) {
   const meta = metadata && typeof metadata === 'object' ? metadata : {};
   const hospital = cleanOrderValue(meta.hospital || '병원명 확인 필요', 180);
   const department = cleanOrderValue(meta.department || meta.specialties || '진료과 확인 필요', 180);
@@ -1095,8 +1095,6 @@ function adOrderContentRecord({ id, orderNumber, productId, productName, metadat
     createdAt:createdAt || new Date().toISOString(),
     payload:{
       fromHospital:true,
-      orderNumber:cleanOrderValue(orderNumber, 60),
-      adProductId:cleanOrderValue(productId, 80),
       adProductName:cleanOrderValue(productName, 180),
       primary:address,
       secondary:salaryBasis || department,
