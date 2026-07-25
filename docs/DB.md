@@ -1,5 +1,9 @@
 # DB
 
+> 아래 "핵심 테이블"은 목표 데이터 모델(개념)이다. 실제 런타임 D1 테이블은
+> `scripts/package-sites.mjs`(및 `db/schema.js`)가 요청 시 생성하며, 이름이 다르다.
+> 현재 구현된 테이블은 맨 아래 **"실제 런타임 테이블"**을 참고.
+
 ## 핵심 테이블
 
 - `accounts`: 인증 이메일의 HMAC-SHA-256 키, 최소 역할, 가입·변경 시각
@@ -34,10 +38,31 @@
 ## 데이터 규칙
 
 - 최소 회원가입 DB에는 이메일 원문·전화번호·이름·면허번호를 저장하지 않습니다.
-- 계정 생성·조회·삭제는 인증된 사용자 헤더와 서버 API로만 처리하고 클라이언트 역할 값을 권한으로 신뢰하지 않습니다.
+- 계정 생성·조회·삭제는 자체 로그인 세션 쿠키(`mh_session`, D1 세션)로 인증된 서버 API로만 처리하고 클라이언트 역할 값을 권한으로 신뢰하지 않습니다.
 - 동의·확인은 유형과 문서 버전을 분리하여 기록하고 마케팅 동의는 기본 생성하지 않습니다.
 - 개인정보와 공개 검색용 데이터를 분리합니다.
 - 유료 권한은 클라이언트 표시가 아니라 서버에서 검증합니다.
 - 주문 금액과 상품 조건은 주문 생성 시점의 스냅샷으로 보존합니다.
 - 후보자 동의 전에는 병원 응답에 직접 식별정보를 포함하지 않습니다.
 - 권한 만료, 환불, 소개 완료는 원본 거래 기록을 지우지 않고 상태 이력으로 남깁니다.
+
+## 실제 런타임 테이블 (2026-07-25 기준)
+
+`scripts/package-sites.mjs`가 요청 시 자동 생성하는 D1 테이블. 스키마 원본은 `db/schema.js`.
+
+**인증·회원**: `accounts`, `auth_credentials`, `auth_sessions`, `account_admin_profiles`, `member_profiles`, `member_preferences`, `member_activity`, `consent_records`, `consent_grants`, `withdrawn_members`
+
+**공고·인재**: `admin_content_records`(관리자 게시 공고·콘텐츠), `admin_categories`, `resumes`(의료인 이력서, `visibility`: public/proposal/private), `saved_jobs`(관심공고)
+
+**결제·수익**:
+- `payment_orders`: 주문(금액 스냅샷·상태)
+- `payment_transactions`·`payment_events`·`payment_receipts`·`payment_refunds`·`payment_webhook_events`·`billing_records`
+- `talent_unlocks`: 병원의 인재 열람권(단건은 `order_id`=결제주문id, 팩은 `order_id`=크레딧 풀 id)
+- **`talent_credit_pools`**(2026-07-24 신설): 열람권 팩의 크레딧 풀. `total_credits`/`used_credits`, `expires_at`. 병원이 새 인재를 열 때마다 크레딧 1개를 원자적 차감(`UPDATE ... WHERE used_credits=?`)해 `talent_unlocks`를 발급. `order_id`에 UNIQUE 인덱스(이중 적립 방지)
+
+**상담·CRM·감사**: `consultation_requests`, `recruitment_cases`, `candidate_submissions`(후보 동의 `consent_status`), `interview_events`, `access_audit_logs`(열람 감사), `admin_audit_logs`, `site_settings`, `feature_flags`
+
+### 열람권·환불 규칙 (코드 기준)
+- **열람 상세 공개**: `GET /api/talent-detail/:id`는 병원+유효 열람권일 때만 상세 제공. 이력서는 `visibility IN ('public','proposal')`만 실명·연락처를 내려준다(비공개 이력서 유출 방지).
+- **팩 크레딧 소모**: 비공개(private) 이력서에는 크레딧을 쓰지 않는다(낭비·열람 시도 차단).
+- **환불 회수**: 전액 환불 시 단건 열람권 + 그 결제의 크레딧 풀에서 발급된 열람권을 삭제하고 풀 크레딧을 소진 처리(`talentRevokeStatementsForOrder`).

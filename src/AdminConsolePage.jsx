@@ -127,10 +127,10 @@ const demoData = {
   ],
   payments: [
     { id:'o1', orderNumber:'MH-20260717-A1B2C3D4', accountId:'m2', accountRole:'hospital', productType:'doctor_ad', productName:'집중 채용', totalAmount:299000, supplyAmount:271818, taxAmount:27182, status:'awaiting_payment', paymentMethod:'card', customerName:'박지은', customerEmail:'hr@samplehospital.co.kr', customerPhone:'010-9876-5432', createdAt:'2026-07-17 14:30', adminNote:'' },
-    { id:'o2', orderNumber:'MH-20260716-E5F6G7H8', accountId:'m1', accountRole:'doctor', productType:'membership', productName:'커리어 컨시어지', totalAmount:39000, supplyAmount:35455, taxAmount:3545, status:'paid', paymentMethod:'card', customerName:'김현우', customerEmail:'doctor@example.com', customerPhone:'010-1234-5678', createdAt:'2026-07-16 10:05', paidAt:'2026-07-16 10:08', adminNote:'카드 승인 확인' },
+    { id:'o2', orderNumber:'MH-20260716-E5F6G7H8', accountId:'m2', accountRole:'hospital', productType:'talent_search', productName:'인재 열람권 (10명 팩)', totalAmount:29000, supplyAmount:26364, taxAmount:2636, status:'paid', paymentMethod:'card', customerName:'박지은', customerEmail:'hr@samplehospital.co.kr', customerPhone:'010-1234-5678', createdAt:'2026-07-16 10:05', paidAt:'2026-07-16 10:08', adminNote:'카드 승인 확인' },
   ],
   transactions: [
-    { id:'t1', orderId:'o2', transactionType:'capture', provider:'manual', providerTransactionId:'demo-tx-001', amount:39000, status:'succeeded', processedAt:'2026-07-16 10:08' },
+    { id:'t1', orderId:'o2', transactionType:'capture', provider:'manual', providerTransactionId:'demo-tx-001', amount:29000, status:'succeeded', processedAt:'2026-07-16 10:08' },
   ],
   refunds: [],
   audit: [

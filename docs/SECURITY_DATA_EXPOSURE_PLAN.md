@@ -77,6 +77,15 @@
 
 > 참고: 아래 인재 열람 방어의 429(일일 열람 상한)는 **유지**된다. H2에서 없앤 429는 로그인 잠금 응답에 한정된다.
 
+## 구현 완료 — 전수조사 보안 수정 (2026-07-25)
+
+- **비공개 이력서 유출 차단**: `talentDetailApi`가 `visibility` 검사 없이 `resume-<id>`를 조회해, 기본값(private)인 미공개 의사의 실명·연락처까지 열람권만 있으면 열렸다. `visibility IN ('public','proposal')`만 상세 제공하도록 수정. 팩 크레딧도 비공개 이력서엔 미소모.
+- **후보 동의 전 노출 차단**: 병원 추천후보 목록(`recommendedCandidates`)이 `consent_status`를 필터하지 않아 pending·revoked·declined 후보까지 노출됐다. `granted`만 반환하도록 수정.
+- **상담 역할검사 fail-closed**: `ACCOUNT_HASH_SECRET`이 약하면 역할 일치 검사를 건너뛰어 아무나 병원 상담→CRM 케이스 생성이 가능했다. 503 차단으로 변경.
+- **관리자 회원수정 고아행 방지**: `member_update`가 계정 존재 확인 없이 upsert해, 가짜 id로 정지 상태를 심으면 미래 가입자를 잠글 수 있었다(D1은 외래키 미강제). 존재 확인 후 수정.
+- **최상위 에러 핸들러**: 핸들러 밖 DB 예외가 D1 오류 문구 담긴 HTML 500으로 노출되던 것을 try/catch로 감싸 API는 JSON·HTML은 일반 텍스트로 통일.
+- **결제 멱등성**: 테스트모드 승인 UPDATE에 `status<>'paid'` 가드 추가(순차 재요청 시 주문 이중 paid·팩 크레딧 이중 적립 방지) + `talent_credit_pools.order_id` UNIQUE. ⚠️ 단, 같은 배치의 `payment_transactions`/`payment_events` INSERT는 조건부가 아니라 **동시 경합 시 중복 거래기록이 남을 수 있다**(정산 대사 시 확인 필요). 순차 재전송은 상위 `status==='paid'` early-return으로 차단됨.
+
 ## 구현 완료 — 인재 열람 방어 (2026-07-18)
 
 인재 이력서 열람권(주 수익모델)에 대한 정보 빼가기 방어를 서버에 구현했다.
