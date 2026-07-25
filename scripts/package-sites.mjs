@@ -822,7 +822,9 @@ async function memberCenterApi(request, env) {
   try { await ensureAccountSchema(env); await ensureConsultationSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
-  if (!account) return json({ signedIn:true, account:null, identity });
+  // 관리자 여부를 함께 내려준다(마이페이지가 관리자를 운영 콘솔로 안내하도록).
+  const isAdmin = Boolean(await adminIdentity(request, env));
+  if (!account) return json({ signedIn:true, account:null, identity, isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
     const profile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id).first();
@@ -851,7 +853,7 @@ async function memberCenterApi(request, env) {
       } catch { recommendedCandidates = []; }
     }
     const orderList = (orders.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure: meta.exposure || null }; });
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);

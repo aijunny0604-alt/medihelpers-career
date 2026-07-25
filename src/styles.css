@@ -5333,3 +5333,6 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .signup-address-row{display:flex;gap:8px;align-items:stretch}
 .signup-address-row input{flex:1 1 auto;cursor:pointer;background:#f7faff}
 .signup-address-btn{flex:0 0 auto;min-height:auto;padding:0 16px;white-space:nowrap}
+
+/* 관리자가 마이페이지로 진입했을 때 콘솔로 안내하는 게이트 */
+.member-admin-gate .button{margin:6px 6px 0 0}

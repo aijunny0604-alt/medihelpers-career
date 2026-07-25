@@ -213,7 +213,11 @@ async function handle(method, path, bodyText) {
         const p = CATALOG[o.productId] || {};
         return { orderNumber: o.orderNumber, productType: p.type || '', productName: p.name || o.productId, totalAmount: o.amount, status: o.status, paymentMethod: 'card', paidAt: o.createdAt, createdAt: o.createdAt, exposure: null };
       }).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-      return jsonRes({ signedIn: true, account: { role: 'hospital' }, orders });
+      // 세션의 실제 역할·관리자 여부를 반영(마이페이지가 관리자를 콘솔로 안내하도록).
+      const sess = read(LS.authSession, null) || {};
+      const role = sess.role === 'doctor' ? 'doctor' : 'hospital';
+      const isAdmin = String(sess.email || '').toLowerCase() === 'admin@medihelpers.co.kr';
+      return jsonRes({ signedIn: true, isAdmin, account: { role }, identity: { email: sess.email || '' }, orders });
     }
     if (path === '/api/talent-access-audit') return jsonRes({ viewers: [], alerts: [], recent: [] });
     if (path === '/api/site-operations') {

@@ -118,7 +118,7 @@ export default function MemberCenterPage({ route, qa }) {
     fetch('/api/member-center', { credentials: 'same-origin', headers: { accept: 'application/json' } })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('account unavailable')))
       .then((data) => {
-        setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {} });
+        setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
         if (data.profile) setProfile(data.profile);
         if (data.notifications) setNotifications(data.notifications);
         setServerData({ consultations: data.consultations || [], activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
@@ -236,6 +236,19 @@ export default function MemberCenterPage({ route, qa }) {
   ], [role]);
 
   if (accountState.loading) return <section className="member-loading"><ShieldCheck /><strong>내 회원 정보를 불러오고 있습니다</strong></section>;
+  // 관리자는 일반 마이페이지가 아니라 운영 콘솔로 안내한다(회원·공고·결제·DB 관리는 콘솔에서).
+  if (accountState.isAdmin) {
+    return <section className="member-gate member-admin-gate">
+      <span><ShieldCheck /></span>
+      <small>ADMINISTRATOR</small>
+      <h1>관리자 계정입니다</h1>
+      <p>회원·공고·결제·상담·데이터 관리는 운영 콘솔에서 처리합니다.</p>
+      <div>
+        <a className="button primary" href={withBase('/admin/console')}>운영 콘솔 열기 <ArrowRight /></a>
+        <a className="button outline" href={withBase('/admin/post')}>공고 올리기</a>
+      </div>
+    </section>;
+  }
   if (!accountState.signedIn || !role) return <MemberGate failed={Boolean(accountState.failed)} />;
 
   const saveProfile = async (event) => {
