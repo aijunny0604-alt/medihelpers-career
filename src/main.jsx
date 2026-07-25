@@ -348,7 +348,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
   return createPortal(<div className={`modal-backdrop ${closing ? 'is-closing' : ''}`} onPointerDown={(event) => event.target === event.currentTarget && requestClose()}>{card}</div>, document.body);
 }
 
-function Header({ path, qa, operations }) {
+function Header({ path, qa, operations, auth }) {
   const [open, setOpen] = useState(false);
   // 모바일 메뉴가 열려 있는 동안에는 뒤 페이지 스크롤을 잠근다(모달과 동일한 방식).
   // 경로가 바뀌면(링크 이동) 메뉴를 닫아 잠금이 남지 않게 한다.
@@ -367,9 +367,13 @@ function Header({ path, qa, operations }) {
     };
   }, [open]);
   useEffect(() => { setOpen(false); }, [path]);
-  const accountLabel = qa.active ? qa.info.shortLabel : '로그인';
-  const signedInPreview = qa.active && qa.info.capabilities.signedIn;
-  const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/login';
+  // 실제 로그인 세션으로 헤더 계정 링크를 결정한다.
+  // (QA 프리뷰 폐지 후 qa.active가 항상 false라, 예전 로직은 로그인해도 계속 '로그인'만 떴다.)
+  const isSignedIn = auth.status === 'member';
+  const isAdminUser = Boolean(auth.isAdmin);
+  // 관리자는 운영 콘솔로, 일반 회원은 마이페이지로, 비로그인은 로그인 화면으로.
+  const accountTarget = isAdminUser ? '/admin/console' : isSignedIn ? '/mypage' : '/login';
+  const accountLabel = isAdminUser ? '관리자' : isSignedIn ? '마이페이지' : '로그인';
   return <>
     {/* 모바일 메뉴 딤. 헤더에 backdrop-filter가 걸려 있어 헤더 안에 두면
         position:fixed 기준이 헤더(66px)로 갇혀 높이가 0이 된다. 반드시 헤더 바깥 형제로 둔다. */}
@@ -387,7 +391,7 @@ function Header({ path, qa, operations }) {
           if (item.path === '/advertise' && operations.features.adRegistration === false) return false;
           return true;
         }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''} ${item.highlight ? 'nav-highlight' : ''}`}>{item.label}</Link>)}
-        <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path.startsWith('/signup') ? 'active' : ''}`}>{signedInPreview ? '마이페이지' : '로그인·회원가입'}</Link>
+        <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>
       </nav>
       <div className="nav-actions">
         <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
@@ -3399,8 +3403,8 @@ export function App() {
   const qaInfo = getQaStateInfo('guest');
   const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
   const auth = useAuthGate(qa);
-  const mobileAction = qa.active && qa.info.capabilities.signedIn
-    ? { to: '/mypage', label: qa.info.capabilities.admin ? '관리 콘솔' : '마이페이지' }
+  const mobileAction = auth.status === 'member'
+    ? { to: auth.isAdmin ? '/admin/console' : '/mypage', label: auth.isAdmin ? '관리 콘솔' : '마이페이지' }
     : { to: '/signup/hospital?next=/advertise', label: '병원 가입' };
 
   let page;
@@ -3444,5 +3448,5 @@ export function App() {
   if (path === '/admin' || path.startsWith('/admin/')) {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
 }
