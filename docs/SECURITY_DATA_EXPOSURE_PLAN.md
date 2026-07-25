@@ -11,7 +11,7 @@
 - **근원**: 공고·인재 데이터가 정적 파일 `src/data.js`에 통째로 담겨 클라이언트 번들로 전송됨.
 - **노출 경로**:
   - 개발자도구 → Sources에서 번들 JS의 `data.js` 열람
-  - `/qa-preview`에서 "멤버십 이용 회원" 상태 클릭 → localStorage 플래그만으로 전 잠금 해제 (네트워크 요청 0건)
+  - ~~`/qa-preview`에서 "멤버십 이용 회원" 상태 클릭 → localStorage 플래그만으로 전 잠금 해제~~ (2026-07-25 QA 프리뷰 기능 폐지로 이 경로는 사라짐. 단, data.js 번들 노출이라는 근원 문제는 유효)
 - **노출 필드**: 모든 공고의 `pay`(급여)·`workHours`·`daysOff`, 데모 공고의 `businessNumber`·`representative`·`fullAddress`·`doctorCount`·`equipment` 등 병원 식별정보.
 - **연관**: **매칭 리포트(`MatchingReportPage`)도 동일 공고 데이터 기반**이라 같은 뿌리 문제. 데이터를 서버로 옮기면 매칭 리포트도 함께 안전해진다.
 - **부가 문제**: rate limit·봇 차단·서버 페이지네이션 전무 → 대량 스크래핑 무방비.
