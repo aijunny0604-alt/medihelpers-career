@@ -1,5 +1,17 @@
 # 업데이트 기록
 
+## 2026-07-25 · 전수조사 버그 8건 (크래시·개인정보 유출·결제·게이트)
+
+- **병원 사진 클릭 크래시 수정**: `PhotoLightbox`의 미정의 `embedded` 참조 제거(사진 클릭 시 ReferenceError로 상세 화면이 깨지던 것)
+- **비공개 이력서 유출 차단**: `talentDetailApi`가 visibility 검사 없이 조회해, 기본값(private)인 미공개 의사의 실명·연락처까지 열람권으로 열리던 것을 `public`/`proposal`만 열람 가능하게 제한. 팩 크레딧도 비공개 이력서엔 미소모
+- **상담 역할검사 fail-closed**: `ACCOUNT_HASH_SECRET`이 약하면 역할검사를 건너뛰던 것을 503으로 차단(아무나 병원 상담 접수→CRM 케이스 생성 가능하던 우회로)
+- **테스트모드 결제 멱등성**: testMode 승인 UPDATE에 `status<>'paid'` 가드 추가 + `talent_credit_pools.order_id` UNIQUE 인덱스(동시 승인 시 거래기록·팩 크레딧 이중 생성 방지)
+- **광고 등록 게이트 수정**: `AdvertisePage`·`AdvertiseApplyPage`·`JobsPage`가 `qa.active`만 봐서 진짜 로그인 병원이 광고 결제까지 도달 못하던 것을 `useAuthGate`로 수정
+- **후보 동의 전 노출 차단**: `recommendedCandidates`를 `consent_status='granted'`만 반환
+- **관리자 회원수정 고아행 방지**: `member_update`가 계정 존재 확인 없이 upsert하던 것을 404 검증 추가
+- **최상위 에러 핸들러**: 핸들러 밖 DB 예외가 D1 오류 담긴 HTML 500으로 새던 것을 try/catch로 감싸 API는 JSON·HTML은 일반 텍스트로 통일
+
+
 ## 2026-07-22 · 의사 멤버십 폐지(수익모델 단순화) · 배포본 글꼴 깨짐 수정 · 구직글 등록 버튼
 
 - **의사 대상 유료 멤버십 전면 폐지**: 유료 상품을 **병원 채용광고 + 병원 인재 열람권** 두 가지로 단순화. 의사·의료인은 전부 무료로 이용한다
