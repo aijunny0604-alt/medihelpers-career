@@ -20,6 +20,7 @@
 - `HEADHUNTING_BOARD_PLAN.md`: 구인·구직 게시 및 매칭 흐름
 - `BILLING_INICIS_PLAN.md`: 이니시스 실결제 연동 계획(가상결제→실승인 전환)
 - `SECURITY_DATA_EXPOSURE_PLAN.md`: 급여·병원·개인정보 유출 방어(서버측 필터링)
+- `DATA_PROTECTION.md`: D1→R2 일일 백업, 보존기간 자동 정리, 탈퇴·복구 운영 절차
 - `NOTIFICATION_SETUP.md`: 알림 발송 설정
 - `API.md`: 외부 연동 및 API 원칙
 - `DEPLOY.md`: 배포 운영(Sites=테스트 / Cloudflare=실결제)

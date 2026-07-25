@@ -5298,3 +5298,26 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 구직 게시판 '구직글 등록' 버튼 — 중앙 정렬 헤더 아래에 놓인다. */
 .headhunt-board-write{display:inline-flex;align-items:center;gap:8px;margin-top:16px;min-height:48px;padding:0 22px}
 .headhunt-board-write svg{width:17px;height:17px}
+
+/* 관리자 DB 백업·보존 */
+.admin-protection-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.admin-protection-summary article{min-height:126px;padding:18px;border:1px solid #dce7f1;border-radius:16px;background:#f8fbfe;display:flex;gap:12px}
+.admin-protection-summary article>svg{width:23px;color:#1263e8;flex:0 0 auto}
+.admin-protection-summary small,.admin-protection-summary strong{display:block}
+.admin-protection-summary small{color:#7c8da1;font-weight:800}
+.admin-protection-summary strong{margin-top:8px;font-size:18px}
+.admin-protection-summary p{margin:7px 0 0;color:#71849a;font-size:11px;line-height:1.5}
+.admin-protection-files{margin-top:18px;border:1px solid #dce6ef;border-radius:14px;overflow:hidden}
+.admin-protection-files>div{display:grid;grid-template-columns:minmax(260px,1.5fr) 180px 90px 120px 88px;align-items:center;gap:12px;min-height:56px;padding:0 15px;border-bottom:1px solid #e6edf3}
+.admin-protection-files .head{min-height:42px;background:#f3f7fa;color:#7b8c9f;font-size:11px;font-weight:850}
+.admin-protection-files code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#315778}
+.admin-protection-files time,.admin-protection-files span{color:#6f8298;font-size:12px}
+.admin-protection-files em{color:#07836d;font-size:11px;font-style:normal;font-weight:850}
+.admin-protection-files button{min-height:34px;border:0;border-radius:9px;background:#eaf2ff;color:#1263e8;display:flex;align-items:center;justify-content:center;gap:5px;font-weight:850}
+.admin-protection-files button svg{width:15px}
+.admin-protection-files>p{margin:0;padding:24px;color:#7c8da0;text-align:center}
+.admin-protection-note{margin:16px 0 0;padding:14px;border-radius:12px;background:#fff8e9;color:#795d20;display:flex;gap:9px;font-size:12px;line-height:1.6}
+.admin-protection-note svg{width:18px;flex:0 0 auto}
+.admin-protection .admin-primary:disabled{opacity:.55;cursor:wait}
+@media(max-width:1100px){.admin-protection-summary{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:820px){.admin-protection-summary{grid-template-columns:1fr}.admin-protection-files{overflow-x:auto}.admin-protection-files>div{min-width:760px}}

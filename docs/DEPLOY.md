@@ -30,6 +30,8 @@
 - 배포 전 `npm run build`(Sites) 또는 `npm run build:cf`(Cloudflare) 성공을 확인합니다.
 - `npm test` 통과를 확인합니다(현재 49건).
 - 기존 `.openai/hosting.json`의 프로젝트 연결을 유지합니다.
+- D1 바인딩 `DB`는 재생성·재연결하지 않고, 데이터 백업용 R2 바인딩 `BACKUPS`를 함께 유지합니다.
+- 배포 후 `/api/data-protection-health`에서 `configured:true`와 최근 성공 시각을 확인합니다.
 - 비밀값은 저장소가 아닌 호스팅 환경변수에 저장합니다.
 - 공개 배포 전 샘플 데이터와 개인정보를 재검토합니다.
 - 검증된 변경과 문서를 운영 소스 브랜치 `agent/medihelpers-ui-stability`에 푸시합니다.

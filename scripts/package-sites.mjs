@@ -215,6 +215,228 @@ async function ensureAdminConsoleSchema(env) {
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
+const backupSchemaVersion = '0006';
+const backupRetentionDays = 35;
+const backupTables = [
+  'accounts','auth_credentials','consent_records','withdrawn_members',
+  'consultation_requests','member_profiles','member_preferences','member_activity',
+  'resumes','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
+  'payment_transactions','payment_refunds','payment_receipts','payment_events',
+  'payment_webhook_events','recruitment_cases','candidate_submissions','interview_events',
+  'consent_grants','billing_records','access_audit_logs','admin_content_records',
+  'admin_categories','site_settings','feature_flags','admin_audit_logs',
+  'talent_credit_pools','data_protection_runs'
+];
+async function ensureAllSchemas(env) {
+  await ensureAccountSchema(env);
+  await ensureConsultationSchema(env);
+  await ensureMemberCenterSchema(env);
+  await ensureCommerceSchema(env);
+  await ensureTalentCreditSchema(env);
+  await ensureRecruitmentCrmSchema(env);
+  await ensureAdminConsoleSchema(env);
+}
+function protectionRunId(prefix) {
+  return prefix + '-' + Date.now() + '-' + randomHex(6);
+}
+function runChanges(result) {
+  return Number(result && result.meta && result.meta.changes || 0);
+}
+async function writeProtectionFailure(env, id, detail) {
+  try {
+    await env.DB.prepare("UPDATE data_protection_runs SET status='failed', detail_json=?, completed_at=CURRENT_TIMESTAMP WHERE id=?")
+      .bind(JSON.stringify({ error:String(detail || 'unknown').slice(0,240) }), id).run();
+  } catch {}
+}
+async function pruneExpiredBackups(env) {
+  if (!env || !env.BACKUPS) return 0;
+  const cutoff = Date.now() - backupRetentionDays * 24 * 60 * 60 * 1000;
+  let cursor;
+  let deleted = 0;
+  do {
+    const page = await env.BACKUPS.list({ prefix:'backups/', limit:1000, cursor });
+    const keys = (page.objects || []).filter(object => new Date(object.uploaded).getTime() < cutoff).map(object => object.key);
+    if (keys.length) {
+      await env.BACKUPS.delete(keys);
+      deleted += keys.length;
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return deleted;
+}
+async function runRetentionCleanup(env, triggerType = 'daily', actor = 'system') {
+  await ensureAllSchemas(env);
+  const runId = protectionRunId('retention');
+  await env.DB.prepare("INSERT INTO data_protection_runs (id, run_type, trigger_type, status, actor) VALUES (?, 'retention', ?, 'running', ?)")
+    .bind(runId, triggerType, actor).run();
+  try {
+    const results = await env.DB.batch([
+      env.DB.prepare('DELETE FROM auth_sessions WHERE expires_at <= CURRENT_TIMESTAMP'),
+      env.DB.prepare("DELETE FROM withdrawn_members WHERE withdrawn_at < datetime('now','-30 days')"),
+      env.DB.prepare("DELETE FROM consultation_requests WHERE status='closed' AND updated_at < datetime('now','-3 years')"),
+      env.DB.prepare("DELETE FROM recruitment_cases WHERE stage IN ('hired','closed') AND updated_at < datetime('now','-3 years') AND NOT EXISTS (SELECT 1 FROM billing_records b WHERE b.case_id=recruitment_cases.id)"),
+      env.DB.prepare("DELETE FROM recruitment_cases WHERE stage IN ('hired','closed') AND updated_at < datetime('now','-5 years')"),
+      env.DB.prepare("DELETE FROM payment_orders WHERE status IN ('failed','cancelled','refunded') AND updated_at < datetime('now','-5 years')"),
+      env.DB.prepare("DELETE FROM payment_orders WHERE status='paid' AND paid_at < datetime('now','-5 years')"),
+      env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id<>'' AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.id=talent_unlocks.order_id)"),
+      env.DB.prepare("DELETE FROM talent_credit_pools WHERE order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.id=talent_credit_pools.order_id)"),
+      env.DB.prepare("DELETE FROM access_audit_logs WHERE created_at < datetime('now','-3 years')"),
+      env.DB.prepare("DELETE FROM admin_audit_logs WHERE created_at < datetime('now','-3 years')"),
+      env.DB.prepare("DELETE FROM data_protection_runs WHERE started_at < datetime('now','-1 year')"),
+      env.DB.prepare("DELETE FROM accounts WHERE NOT EXISTS (SELECT 1 FROM auth_credentials c WHERE c.account_id=accounts.id) AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.account_id=accounts.id)")
+    ]);
+    const deleted = {
+      expiredSessions:runChanges(results[0]),
+      expiredWithdrawalBlocks:runChanges(results[1]),
+      consultations:runChanges(results[2]),
+      recruitmentWithoutBilling:runChanges(results[3]),
+      recruitmentWithBilling:runChanges(results[4]),
+      terminalOrders:runChanges(results[5]) + runChanges(results[6]),
+      orphanedEntitlements:runChanges(results[7]) + runChanges(results[8]),
+      accessAudit:runChanges(results[9]),
+      adminAudit:runChanges(results[10]),
+      oldRunLogs:runChanges(results[11]),
+      withdrawnAccounts:runChanges(results[12])
+    };
+    const expiredBackups = await pruneExpiredBackups(env);
+    await env.DB.prepare("UPDATE data_protection_runs SET status='succeeded', detail_json=?, completed_at=CURRENT_TIMESTAMP WHERE id=?")
+      .bind(JSON.stringify({ deleted, expiredBackups, backupRetentionDays }), runId).run();
+    return { runId, deleted, expiredBackups };
+  } catch (error) {
+    await writeProtectionFailure(env, runId, error && error.message);
+    throw error;
+  }
+}
+async function createDataBackup(env, triggerType = 'daily', actor = 'system') {
+  if (!env || !env.BACKUPS) throw new Error('BACKUP_STORAGE_UNAVAILABLE');
+  await ensureAllSchemas(env);
+  const runId = protectionRunId('backup');
+  await env.DB.prepare("INSERT INTO data_protection_runs (id, run_type, trigger_type, status, actor) VALUES (?, 'backup', ?, 'running', ?)")
+    .bind(runId, triggerType, actor).run();
+  try {
+    const queryResults = await env.DB.batch(backupTables.map(table => env.DB.prepare('SELECT * FROM ' + table)));
+    const tables = {};
+    const rowCounts = {};
+    backupTables.forEach((table, index) => {
+      const rows = queryResults[index] && queryResults[index].results || [];
+      tables[table] = rows;
+      rowCounts[table] = rows.length;
+    });
+    const createdAt = new Date().toISOString();
+    const payload = JSON.stringify({
+      format:'medihelpers-d1-backup-v1',
+      schemaVersion:backupSchemaVersion,
+      createdAt,
+      excludedTables:['auth_sessions'],
+      rowCounts,
+      tables
+    });
+    const checksum = await authSha256Hex(payload);
+    const datePath = createdAt.slice(0,10).replace(/-/g,'/');
+    const objectKey = 'backups/' + datePath + '/medihelpers-' + triggerType + '-' + createdAt.replace(/[:.]/g,'-') + '.json';
+    await env.BACKUPS.put(objectKey, payload, {
+      httpMetadata:{ contentType:'application/json; charset=utf-8' },
+      customMetadata:{ checksum, createdAt, schemaVersion:backupSchemaVersion, triggerType }
+    });
+    const stored = await env.BACKUPS.get(objectKey);
+    if (!stored) throw new Error('BACKUP_READBACK_FAILED');
+    const storedChecksum = await authSha256Hex(await stored.text());
+    if (!constantTimeEqual(storedChecksum, checksum)) {
+      await env.BACKUPS.delete(objectKey);
+      throw new Error('BACKUP_CHECKSUM_MISMATCH');
+    }
+    await env.DB.prepare("UPDATE data_protection_runs SET status='succeeded', object_key=?, checksum=?, row_counts_json=?, completed_at=CURRENT_TIMESTAMP WHERE id=?")
+      .bind(objectKey, checksum, JSON.stringify(rowCounts), runId).run();
+    return { runId, objectKey, checksum, createdAt, rowCounts, size:new TextEncoder().encode(payload).byteLength };
+  } catch (error) {
+    await writeProtectionFailure(env, runId, error && error.message);
+    throw error;
+  }
+}
+async function runDailyDataProtection(env) {
+  if (!env || !env.DB || !env.BACKUPS) return;
+  await ensureAllSchemas(env);
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
+  const claim = await env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value, updated_by) VALUES ('data_protection_daily_claim', ?, 'system') ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_by='system', updated_at=CURRENT_TIMESTAMP WHERE site_settings.setting_value<>excluded.setting_value")
+    .bind(today).run();
+  if (!runChanges(claim)) return;
+  try {
+    await runRetentionCleanup(env, 'daily', 'system');
+    await createDataBackup(env, 'daily', 'system');
+    await env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value, updated_by) VALUES ('data_protection_last_daily', ?, 'system') ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_by='system', updated_at=CURRENT_TIMESTAMP")
+      .bind(today).run();
+  } catch (error) {
+    await env.DB.prepare("UPDATE site_settings SET setting_value='', updated_at=CURRENT_TIMESTAMP WHERE setting_key='data_protection_daily_claim' AND setting_value=?").bind(today).run().catch(() => {});
+    throw error;
+  }
+}
+async function dataProtectionHealthApi(request, env) {
+  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  try {
+    await ensureAdminConsoleSchema(env);
+    const rows = await env.DB.prepare("SELECT run_type AS runType, status, completed_at AS completedAt FROM data_protection_runs WHERE status='succeeded' ORDER BY completed_at DESC LIMIT 20").all();
+    const results = rows.results || [];
+    return json({
+      configured:Boolean(env && env.DB && env.BACKUPS),
+      lastBackupAt:results.find(row => row.runType === 'backup')?.completedAt || null,
+      lastRetentionAt:results.find(row => row.runType === 'retention')?.completedAt || null,
+      backupRetentionDays
+    });
+  } catch {
+    return json({ configured:false, lastBackupAt:null, lastRetentionAt:null, backupRetentionDays }, 200);
+  }
+}
+async function adminBackupsApi(request, env) {
+  const admin = await adminIdentity(request, env);
+  if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
+  if (!env || !env.DB || !env.BACKUPS) return json({ error:'백업 저장소가 준비되지 않았습니다.' }, 503);
+  await ensureAdminConsoleSchema(env);
+  const url = new URL(request.url);
+  if (request.method === 'GET' && url.searchParams.has('key')) {
+    const key = url.searchParams.get('key') || '';
+    if (!key.startsWith('backups/') || key.includes('..')) return json({ error:'백업 파일 경로를 확인해주세요.' }, 400);
+    const object = await env.BACKUPS.get(key);
+    if (!object) return json({ error:'백업 파일을 찾을 수 없습니다.' }, 404);
+    const filename = key.split('/').pop() || 'medihelpers-backup.json';
+    return new Response(object.body, { status:200, headers:{
+      'content-type':'application/json; charset=utf-8',
+      'content-disposition':'attachment; filename="' + filename.replace(/[^a-zA-Z0-9._-]/g,'_') + '"',
+      'cache-control':'no-store',
+      'x-content-type-options':'nosniff',
+      'x-backup-checksum':object.customMetadata && object.customMetadata.checksum || ''
+    }});
+  }
+  if (request.method === 'GET') {
+    const [listing, runs] = await Promise.all([
+      env.BACKUPS.list({ prefix:'backups/', limit:100 }),
+      env.DB.prepare("SELECT id, run_type AS runType, trigger_type AS triggerType, status, actor, object_key AS objectKey, checksum, row_counts_json AS rowCountsJson, detail_json AS detailJson, started_at AS startedAt, completed_at AS completedAt FROM data_protection_runs ORDER BY started_at DESC LIMIT 30").all()
+    ]);
+    return json({
+      configured:true,
+      backupRetentionDays,
+      objects:(listing.objects || []).map(object => ({
+        key:object.key,
+        size:object.size,
+        uploaded:object.uploaded,
+        checksum:object.customMetadata && object.customMetadata.checksum || ''
+      })),
+      runs:(runs.results || []).map(row => ({
+        ...row,
+        rowCounts:parseJsonObject(row.rowCountsJson),
+        detail:parseJsonObject(row.detailJson),
+        rowCountsJson:undefined,
+        detailJson:undefined
+      }))
+    });
+  }
+  if (request.method === 'POST') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    const result = await createDataBackup(env, 'manual', admin.email);
+    await writeAdminAudit(env, admin, 'backup_create', result.objectKey, { checksum:result.checksum, size:result.size });
+    return json({ created:true, ...result }, 201);
+  }
+  return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
 async function adminIdentity(request, env) {
   const identity = await authenticatedUser(request, env);
   const allowed = String(env.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
@@ -559,6 +781,13 @@ async function accountApi(request, env) {
         markWithdrawn,
         env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM auth_credentials WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM resumes WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM saved_jobs WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM member_activity WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM member_preferences WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM consent_records WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM talent_unlocks WHERE hospital_account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM talent_credit_pools WHERE hospital_account_id=?').bind(account.id),
         env.DB.prepare("UPDATE account_admin_profiles SET status='withdrawn', email='', full_name='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id),
         env.DB.prepare("UPDATE member_profiles SET display_name='', phone='', organization='', job_title='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id)
       ]);
@@ -568,6 +797,12 @@ async function accountApi(request, env) {
       markWithdrawn,
       env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM auth_credentials WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM resumes WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM saved_jobs WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM member_activity WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM member_preferences WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM talent_unlocks WHERE hospital_account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM talent_credit_pools WHERE hospital_account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM consent_records WHERE account_id = ?').bind(account.id),
       env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(account.id)
     ]);
@@ -1557,6 +1792,8 @@ async function responseFor(request, env) {
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
   if (pathname === '/api/talent-access-audit') return talentAccessAuditApi(request, env);
   if (pathname === '/api/admin-console') return adminConsoleApi(request, env);
+  if (pathname === '/api/admin-backups') return adminBackupsApi(request, env);
+  if (pathname === '/api/data-protection-health') return dataProtectionHealthApi(request, env);
   // 알려지지 않은 API 경로를 SPA로 넘기면 HTML 200이 반환되어 연동 실패를
   // 성공 응답으로 오인할 수 있다. API 네임스페이스는 항상 JSON 404로 끝낸다.
   if (pathname.startsWith('/api/')) return json({ error:'API 경로를 찾을 수 없습니다.' }, 404);
@@ -1607,8 +1844,13 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
   return new Response('Not Found', { status: 404 });
 }
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
+      const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
+      if (ctx && ctx.waitUntil && env && env.DB && env.BACKUPS && globalThis.__mhProtectionDate !== today) {
+        globalThis.__mhProtectionDate = today;
+        ctx.waitUntil(runDailyDataProtection(env).catch(() => { globalThis.__mhProtectionDate = ''; }));
+      }
       return await responseFor(request, env);
     } catch (error) {
       // [보안] 최상위 안전망. 핸들러 안에서 잡지 못한 DB 예외 등이 밖으로 나가면
@@ -1657,6 +1899,11 @@ if (!inlineAssets) {
     'binding = "DB"',
     'database_name = "medihelpers"',
     'database_id = "REPLACE_WITH_D1_DATABASE_ID"',
+    '',
+    '# R2: D1 일일 백업과 관리자 수동 백업을 저장한다.',
+    '[[r2_buckets]]',
+    'binding = "BACKUPS"',
+    'bucket_name = "medihelpers-backups"',
     '',
     '[vars]',
     '# 공개 가능한 값만 여기에. 비밀값은 wrangler secret put 사용.',

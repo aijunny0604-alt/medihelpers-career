@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, BriefcaseBusiness, Building2, ChevronRight, CreditCard, Database,
+  Activity, Archive, BriefcaseBusiness, Building2, ChevronRight, CreditCard, Database, Download,
   Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';
@@ -90,6 +90,7 @@ const groups = [
     ['resumes', '이력서 관리', FileText],
     ['payments', '결제 · 환불 관리', CreditCard],
     ['talentAudit', '인재 열람 감사', ShieldAlert],
+    ['protection', '백업 · 데이터 보존', Archive],
     ['database', 'DB 현황', Database],
     ['audit', '변경 이력', Activity],
   ] },
@@ -281,6 +282,7 @@ export default function AdminConsolePage({ qa = false }) {
           {section === 'resumes' && <Resumes data={data} />}
           {section === 'payments' && <Payments data={data} mutate={mutate} />}
           {section === 'talentAudit' && <TalentAccessAudit active={section === 'talentAudit'} />}
+          {section === 'protection' && <DataProtection active={section === 'protection'} qa={qa} />}
           {section === 'database' && <DatabaseStatus metrics={data.metrics} />}
           {section === 'audit' && <Audit audit={data.audit} />}
         </main>
@@ -717,6 +719,81 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
 function DatabaseStatus({ metrics }) {
   const rows = [['accounts', '회원 계정', metrics.accounts], ['account_admin_profiles', '회원 인증·운영 정보', metrics.accounts], ['payment_orders', '결제 주문 원장', metrics.payments || 0], ['payment_transactions', '승인·실패 거래', metrics.payments || 0], ['payment_refunds', '환불 원장', metrics.refundedPayments || 0], ['consultation_requests', '상담 접수', metrics.consultations], ['recruitment_cases', '채용 CRM', metrics.activeCases + metrics.hiredCases], ['admin_content_records', '공고·인재·게시글', metrics.contents || 0], ['admin_categories', '운영 카테고리', metrics.categories], ['admin_audit_logs', '관리자 변경 이력', metrics.auditLogs]];
   return <section className="admin-panel"><header><div><small>DATABASE OVERVIEW</small><h2>DB 테이블 현황</h2><p>안전을 위해 임의 SQL 실행 대신 승인된 관리 기능만 제공합니다.</p></div></header><div className="admin-db-table">{rows.map(([table, label, count]) => <div key={table}><Database /><code>{table}</code><strong>{label}</strong><span>{count.toLocaleString()} records</span><em>정상</em></div>)}</div></section>;
+}
+
+function DataProtection({ active, qa }) {
+  const demo = {
+    configured:true,
+    backupRetentionDays:35,
+    objects:[{ key:'backups/2026/07/25/medihelpers-daily-2026-07-25T00-10-00-000Z.json', size:482104, uploaded:'2026-07-25T00:10:00.000Z', checksum:'demo-checksum' }],
+    runs:[{ id:'demo-backup', runType:'backup', triggerType:'daily', status:'succeeded', actor:'system', startedAt:'2026-07-25 09:10:00', completedAt:'2026-07-25 09:10:02' }]
+  };
+  const [state, setState] = useState({ loading:true, error:'', data:qa ? demo : null, creating:false });
+  const load = async () => {
+    if (qa) return setState({ loading:false, error:'', data:demo, creating:false });
+    setState((old) => ({ ...old, loading:true, error:'' }));
+    try {
+      const response = await fetch('/api/admin-backups', { credentials:'same-origin', headers:{ accept:'application/json' } });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || '백업 현황을 불러오지 못했습니다.');
+      setState({ loading:false, error:'', data:body, creating:false });
+    } catch (error) {
+      setState({ loading:false, error:error.message, data:null, creating:false });
+    }
+  };
+  useEffect(() => { if (active) load(); }, [active, qa]);
+  const create = async () => {
+    if (qa) return;
+    setState((old) => ({ ...old, creating:true, error:'' }));
+    try {
+      const response = await fetch('/api/admin-backups', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:'{}' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || '백업을 만들지 못했습니다.');
+      await load();
+    } catch (error) {
+      setState((old) => ({ ...old, creating:false, error:error.message }));
+    }
+  };
+  const download = async (key) => {
+    try {
+      const response = await fetch('/api/admin-backups?key=' + encodeURIComponent(key), { credentials:'same-origin' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || '백업 파일을 내려받지 못했습니다.');
+      }
+      const blob = await response.blob();
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = href;
+      anchor.download = key.split('/').pop() || 'medihelpers-backup.json';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(href);
+    } catch (error) {
+      setState((old) => ({ ...old, error:error.message }));
+    }
+  };
+  const data = state.data || { objects:[], runs:[], backupRetentionDays:35 };
+  const lastBackup = (data.runs || []).find((run) => run.runType === 'backup' && run.status === 'succeeded');
+  const lastRetention = (data.runs || []).find((run) => run.runType === 'retention' && run.status === 'succeeded');
+  const formatSize = (size) => size >= 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
+  return <section className="admin-panel admin-protection">
+    <header><div><small>DATA PROTECTION</small><h2>백업 · 개인정보 보존 관리</h2><p>D1 전체 데이터를 별도 R2 저장소에 매일 백업하고, 보유기간이 끝난 데이터는 자동으로 정리합니다.</p></div><button className="admin-primary" onClick={create} disabled={state.creating || state.loading}><Archive />{state.creating ? '백업 생성 중' : '지금 백업'}</button></header>
+    {state.error && <div className="admin-message">{state.error}</div>}
+    <div className="admin-protection-summary">
+      <article><ShieldCheck /><span><small>백업 저장소</small><strong>{data.configured ? '정상 연결' : '설정 필요'}</strong><p>운영 DB와 분리된 비공개 R2</p></span></article>
+      <article><Archive /><span><small>마지막 백업</small><strong>{lastBackup ? String(lastBackup.completedAt || lastBackup.startedAt).slice(0,16) : '대기 중'}</strong><p>일일 자동 + 관리자 수동 생성</p></span></article>
+      <article><RotateCcw /><span><small>마지막 보존 정리</small><strong>{lastRetention ? String(lastRetention.completedAt || lastRetention.startedAt).slice(0,16) : '대기 중'}</strong><p>탈퇴 30일 · 상담 3년 · 거래 5년</p></span></article>
+      <article><Database /><span><small>백업 보관기간</small><strong>{data.backupRetentionDays || 35}일</strong><p>만료 스냅샷 자동 삭제</p></span></article>
+    </div>
+    <div className="admin-protection-files">
+      <div className="head"><span>백업 파일</span><span>생성 시각</span><span>크기</span><span>무결성</span><span>다운로드</span></div>
+      {(data.objects || []).map((object) => <div key={object.key}><code>{object.key.split('/').pop()}</code><time>{String(object.uploaded || '').slice(0,16).replace('T',' ')}</time><span>{formatSize(Number(object.size || 0))}</span><em>{object.checksum ? 'SHA-256 확인' : '확인 대기'}</em><button onClick={() => download(object.key)}><Download />받기</button></div>)}
+      {!state.loading && !(data.objects || []).length && <p>아직 생성된 백업이 없습니다. 첫 요청 후 일일 백업이 자동 생성됩니다.</p>}
+    </div>
+    <p className="admin-protection-note"><ShieldAlert /> 백업에는 비밀번호 원문과 로그인 세션이 포함되지 않습니다. 내려받은 파일은 개인정보가 포함된 중요 자료이므로 암호화된 회사 저장소에만 보관하세요.</p>
+  </section>;
 }
 
 function Audit({ audit = [] }) {

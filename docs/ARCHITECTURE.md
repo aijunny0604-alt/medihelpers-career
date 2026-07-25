@@ -16,6 +16,7 @@
 - 라우팅: `main.jsx`의 경량 자체 라우터(`useRoute` + history/popstate 기반, 프레임워크 라우터 없음). 통합·이전된 옛 경로는 App 상단 `ROUTE_ALIASES` 테이블에서 렌더 시점에 동기 정규화(`/talent`→`/medical-staff`, `/professions`→`/headhunting`; base 경로·쿼리스트링 보존). effect+popstate 방식 리다이렉트는 무거운 페이지에서 빈 화면을 유발하므로 쓰지 않음
 - 호스팅·서버 런타임: OpenAI Sites
 - 데이터베이스: Sites D1 바인딩 `DB`
+- 백업 저장소: Sites R2 바인딩 `BACKUPS`(일일 DB 스냅샷, 35일 순환 보관)
 - 배포 산출물: `scripts/package-sites.mjs`가 SPA와 API Worker를 `dist/`에 구성
 - 마이그레이션: `drizzle/0000`~`0005`
 
@@ -60,3 +61,10 @@
 - 후보 개인정보: 공개 프로필과 분리된 비공개 저장소
 - 결제: PG 승인·취소 API와 서명 검증 웹훅
 - 콘텐츠: 정적 fixture 제거 후 D1 단일 원장
+
+## 데이터 보호
+
+- 하루 첫 요청에서 만료 데이터 정리를 수행한 뒤 R2에 전체 D1 스냅샷을 생성합니다.
+- 관리자 콘솔에서 수동 백업·목록·다운로드를 제공하며, 백업마다 SHA-256 체크섬과 실행 이력을 남깁니다.
+- 로그인 세션은 복구 대상에서 제외하고, 백업은 35일 뒤 자동 삭제합니다.
+- 자세한 운영·복구 절차는 `DATA_PROTECTION.md`를 따릅니다.
