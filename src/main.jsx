@@ -370,13 +370,6 @@ function Header({ path, qa, operations }) {
   const accountLabel = qa.active ? qa.info.shortLabel : '로그인';
   const signedInPreview = qa.active && qa.info.capabilities.signedIn;
   const accountTarget = signedInPreview ? '/mypage' : qa.active ? '/qa-preview' : '/login';
-  const primaryAction = qa.active && qa.info.capabilities.admin
-    ? { label: '관리자 모드', to: '/admin' }
-    : qa.active && qa.info.capabilities.hospital
-      ? { label: '마이페이지', to: '/mypage' }
-      : qa.active && qa.info.capabilities.doctor
-          ? { label: '마이페이지', to: '/mypage' }
-          : { label: '병원 회원가입', to: '/signup/hospital?next=/advertise' };
   return <>
     {/* 모바일 메뉴 딤. 헤더에 backdrop-filter가 걸려 있어 헤더 안에 두면
         position:fixed 기준이 헤더(66px)로 갇혀 높이가 0이 된다. 반드시 헤더 바깥 형제로 둔다. */}
@@ -398,7 +391,6 @@ function Header({ path, qa, operations }) {
       </nav>
       <div className="nav-actions">
         <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
-        <Link className="button primary compact" to={primaryAction.to}>{primaryAction.label}</Link>
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>

@@ -536,6 +536,14 @@ function LoginCard() {
       {error && <p className="signup-error" role="alert">{error}</p>}
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 로그인 중</> : <>로그인 <ArrowRight /></>}</button>
     </form>
+    <div className="signup-login-join">
+      <div>
+        <small>처음 방문하셨나요?</small>
+        <strong>메디헬퍼스 회원가입</strong>
+        <span>의료인 회원과 병원 회원 중 나에게 맞는 유형을 선택할 수 있어요.</span>
+      </div>
+      <a className="signup-login-join-button" href={withBase('/signup')}><UserRound /> 회원가입하기 <ArrowRight /></a>
+    </div>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>비밀번호를 잊으셨나요?</a>
     <div className="login-test-accounts">
       <small>테스트 계정으로 바로 로그인</small>
@@ -544,7 +552,6 @@ function LoginCard() {
       </div>
       <p className="login-test-note">테스트/데모 용도입니다. 계정이 없으면 자동 생성됩니다.</p>
     </div>
-    <div className="signup-login-join"><span>아직 계정이 없으신가요?</span><a href={withBase('/signup')}>회원 유형을 선택하고 가입하기</a></div>
     <div className="signup-security-copy"><ShieldCheck /> 로그인 세션은 보안 쿠키로 보호되며 비밀번호 원문은 저장하지 않습니다.</div>
   </section>;
 }
