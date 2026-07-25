@@ -11,7 +11,7 @@
 | `/api/auth/login` | POST | 공개 | 자체 계정 로그인 및 보안 세션 쿠키 발급 |
 | `/api/auth/logout` | POST | 로그인 | 현재 세션 폐기 및 쿠키 삭제 |
 | `/api/member-center` | GET·POST·PATCH | 회원 | GET 프로필·알림·활동·상담·주문 / POST `refund_request`(환불 요청)·`job_create`(403 차단) / PATCH 프로필·알림 |
-| `/api/payment-orders` | GET·POST | 회원 | 본인 주문 조회·상품 신청 |
+| `/api/payment-orders` | GET·POST | 회원 | 본인 주문 조회·상품 신청. 병원 광고 신청은 관리자 검수용 공고(`draft`)도 같은 D1 배치로 생성 |
 | `/api/consultations` | POST | 로그인 | 구직·구인 상담 접수 |
 | `/api/consultations` | GET | 관리자 | 상담 목록 |
 | `/api/consultations/:id` | PATCH | 관리자 | 상담 상태·메모 |

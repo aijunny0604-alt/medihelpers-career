@@ -1079,6 +1079,80 @@ const paymentProductCatalog = {
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
+function adOrderContentRecord({ id, orderNumber, productId, productName, metadata, ownerEmail, createdAt }) {
+  const meta = metadata && typeof metadata === 'object' ? metadata : {};
+  const hospital = cleanOrderValue(meta.hospital || '병원명 확인 필요', 180);
+  const department = cleanOrderValue(meta.department || meta.specialties || '진료과 확인 필요', 180);
+  const address = cleanOrderValue(meta.address, 300);
+  const salaryBasis = cleanOrderValue(meta.salaryBasis, 300);
+  const description = cleanOrderValue(meta.introduction || meta.verifiedNote, 4000);
+  return {
+    id:'ad-order-' + id,
+    contentType:'doctor_job',
+    title:cleanOrderValue(meta.title || hospital + ' ' + department + ' 초빙', 180),
+    subtitle:hospital,
+    createdBy:cleanOrderValue(ownerEmail, 254),
+    createdAt:createdAt || new Date().toISOString(),
+    payload:{
+      fromHospital:true,
+      orderNumber:cleanOrderValue(orderNumber, 60),
+      adProductId:cleanOrderValue(productId, 80),
+      adProductName:cleanOrderValue(productName, 180),
+      primary:address,
+      secondary:salaryBasis || department,
+      description,
+      hospital,
+      facilityType:cleanOrderValue(meta.facilityType, 100),
+      address,
+      region:address,
+      website:cleanOrderValue(meta.website, 500),
+      specialties:cleanOrderValue(meta.specialties, 300),
+      established:cleanOrderValue(meta.established, 100),
+      doctorCount:cleanOrderValue(meta.doctorCount, 180),
+      staffCount:cleanOrderValue(meta.staffCount, 180),
+      dailyVolume:cleanOrderValue(meta.dailyVolume, 300),
+      beds:cleanOrderValue(meta.beds, 300),
+      equipment:cleanOrderValue(meta.equipment, 500),
+      department,
+      role:department,
+      pay:salaryBasis,
+      salaryBasis,
+      incentive:cleanOrderValue(meta.incentive, 500),
+      schedule:cleanOrderValue(meta.exactHours, 500),
+      exactHours:cleanOrderValue(meta.exactHours, 500),
+      onCall:cleanOrderValue(meta.onCall, 500),
+      patientLoad:cleanOrderValue(meta.patientLoad, 500),
+      procedureScope:cleanOrderValue(meta.procedureScope, 500),
+      supportTeam:cleanOrderValue(meta.supportTeam, 500),
+      leavePolicy:cleanOrderValue(meta.leavePolicy, 500),
+      startTiming:cleanOrderValue(meta.startTiming, 300),
+      interviewProcess:cleanOrderValue(meta.interviewProcess, 500),
+      verifiedNote:cleanOrderValue(meta.verifiedNote, 2000),
+      introduction:cleanOrderValue(meta.introduction, 4000)
+    }
+  };
+}
+function insertAdOrderContentStatement(env, record) {
+  return env.DB.prepare("INSERT OR IGNORE INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, sort_order, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, 'draft', 'public', ?, 0, ?, ?, ?, ?)")
+    .bind(record.id, record.contentType, record.title, record.subtitle, JSON.stringify(record.payload), record.createdBy, record.createdBy, record.createdAt, record.createdAt);
+}
+// 이전 광고 신청은 결제 원장에만 저장됐다. 관리자 콘솔 조회 시 한 번만 복구하고
+// contentRecordId를 주문 metadata에 기록해 관리자가 삭제한 공고가 되살아나지 않게 한다.
+async function syncAdOrderContentRecords(env) {
+  const rows = await env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.product_id AS productId, po.product_name AS productName, po.metadata_json AS metadataJson, po.created_at AS createdAt, COALESCE(ac.email_normalized, po.customer_email, '') AS ownerEmail FROM payment_orders po LEFT JOIN auth_credentials ac ON ac.account_id=po.account_id WHERE po.product_type='doctor_ad' ORDER BY po.created_at DESC LIMIT 500").all();
+  const pending = [];
+  for (const row of rows.results || []) {
+    const meta = parseJsonObject(row.metadataJson) || {};
+    if (meta.contentRecordId) continue;
+    const record = adOrderContentRecord({ ...row, metadata:meta });
+    meta.contentRecordId = record.id;
+    pending.push(
+      insertAdOrderContentStatement(env, record),
+      env.DB.prepare("UPDATE payment_orders SET metadata_json=?, updated_at=updated_at WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), row.id)
+    );
+  }
+  for (let index = 0; index < pending.length; index += 50) await env.DB.batch(pending.slice(index, index + 50));
+}
 function createOrderNumber() {
   const date = new Date().toISOString().slice(0,10).replaceAll('-','');
   return 'MH-' + date + '-' + crypto.randomUUID().replaceAll('-','').slice(0,8).toUpperCase();
@@ -1117,12 +1191,20 @@ async function paymentOrderApi(request, env) {
   const customerEmail = cleanOrderValue(body.customerEmail || identity.email);
   const customerPhone = cleanOrderValue(body.customerPhone);
   const paymentMethod = ['card','transfer'].includes(body.paymentMethod) ? body.paymentMethod : 'card';
-  const metadata = body.metadata && typeof body.metadata === 'object' ? body.metadata : {};
+  const metadata = body.metadata && typeof body.metadata === 'object' ? { ...body.metadata } : {};
+  let adContentRecord = null;
+  if (product.type === 'doctor_ad') {
+    try { await ensureAdminConsoleSchema(env); } catch { return json({ error:'공고 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+    adContentRecord = adOrderContentRecord({ id, orderNumber, productId, productName:product.name, metadata, ownerEmail:identity.email });
+    metadata.contentRecordId = adContentRecord.id;
+  }
   const metadataJson = JSON.stringify(metadata).slice(0,12000);
-  await env.DB.batch([
+  const orderStatements = [
     env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, product.type, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'pending_review', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
-  ]);
+  ];
+  if (adContentRecord) orderStatements.push(insertAdOrderContentStatement(env, adContentRecord));
+  await env.DB.batch(orderStatements);
   // 이니시스 웹표준결제 파라미터(키 설정 시). 결제창은 이 값으로 호출한다.
   const inicis = await buildInicisPaymentParams(env, { orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone });
   return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'pending_review' }, inicis }, 201);
@@ -1537,6 +1619,7 @@ async function adminConsoleApi(request, env) {
     await ensureMemberCenterSchema(env);
     await ensureCommerceSchema(env);
     await seedAdminConsole(env);
+    await syncAdOrderContentRecords(env);
   } catch {
     return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }

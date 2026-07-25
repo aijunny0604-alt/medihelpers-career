@@ -2750,7 +2750,7 @@ function Checkout({ plan }) {
           </p>
           <div className="ad-apply-success-actions">
             <Link className="button outline" to="/advertise">광고센터로 돌아가기</Link>
-            <Link className="button primary" to="/qa-preview">내 공고 관리</Link>
+            <Link className="button primary" to="/mypage">내 공고 관리</Link>
           </div>
         </div>
       ) : (

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { adminConsoleSchemaStatements } from '../db/schema.js';
 
 const schema = adminConsoleSchemaStatements.join('\n');
@@ -25,4 +26,13 @@ test('관리자 콘텐츠는 작성자·수정자·게시 시각을 추적한다
   assert.match(schema, /updated_by/);
   assert.match(schema, /published_at/);
   assert.match(schema, /admin_content_records_type_idx/);
+});
+
+test('병원 광고 주문은 관리자 검수용 공고와 같은 트랜잭션으로 연결된다', async () => {
+  const source = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  assert.match(source, /function adOrderContentRecord/);
+  assert.match(source, /contentRecordId/);
+  assert.match(source, /insertAdOrderContentStatement/);
+  assert.match(source, /syncAdOrderContentRecords/);
+  assert.match(source, /fromHospital:true/);
 });
