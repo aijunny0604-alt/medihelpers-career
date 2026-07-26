@@ -23,3 +23,24 @@ test('콘텐츠 유형이 다른 레코드는 각 공개 목록에 섞이지 않
   assert.equal(operationalMedicalJobs(records).length, 1);
   assert.equal(operationalTalent(records).length, 1);
 });
+
+const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+
+test('노출 종료일(exposureEnd)이 지난 기간제 공고는 목록에서 자동으로 제외된다', () => {
+  const timed = [
+    { id:'live', contentType:'doctor_job', title:'노출 중', subtitle:'A병원', payload:{ exposureEnd: isoDay(3) } },
+    { id:'expired', contentType:'doctor_job', title:'만료됨', subtitle:'B병원', payload:{ exposureEnd: isoDay(-1) } },
+    { id:'forever', contentType:'doctor_job', title:'무기한', subtitle:'C병원', payload:{} },
+    { id:'medlive', contentType:'medical_job', title:'간호사', subtitle:'D병원', payload:{ role:'간호사', exposureEnd: isoDay(5) } },
+    { id:'medexp', contentType:'medical_job', title:'만료 간호사', subtitle:'E병원', payload:{ role:'간호사', exposureEnd: isoDay(-2) } },
+  ];
+  const doctorIds = operationalDoctorJobs(timed).map((j) => j.sourceId);
+  assert.deepEqual(doctorIds.sort(), ['forever', 'live']);
+  const medicalTitles = operationalMedicalJobs(timed).map((j) => j.title);
+  assert.deepEqual(medicalTitles, ['간호사']);
+});
+
+test('노출 종료일 당일에는 아직 노출된다(그날 자정까지)', () => {
+  const today = [{ id:'today', contentType:'doctor_job', title:'오늘까지', subtitle:'F병원', payload:{ exposureEnd: isoDay(0) } }];
+  assert.equal(operationalDoctorJobs(today).length, 1);
+});

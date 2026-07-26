@@ -1589,7 +1589,16 @@ async function publicSiteOperationsApi(request, env) {
     for (const field of sensitiveFields) if (field in filtered) delete filtered[field];
     return filtered;
   };
-  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload) }; });
+  // 기간제 유료 공고: payload.exposureEnd(YYYY-MM-DD)가 지난 공고는 서버에서 제외해 노출을 중단한다.
+  // 종료일이 없으면 계속 노출. 종료일 '그날 자정까지' 노출하고 다음 날부터 만료.
+  const nowMs = Date.now();
+  const isExpired = (payload) => {
+    const end = payload?.exposureEnd || payload?.exposure?.end;
+    if (!end) return false;
+    const endMs = new Date(String(end).slice(0, 10) + 'T23:59:59').getTime();
+    return !Number.isNaN(endMs) && endMs < nowMs;
+  };
+  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload), rawPayload:payload }; }).filter(record => !isExpired(record.rawPayload)).map(({ rawPayload, ...record }) => record);
   // 구직 등록 = 이력서 등록 시 의사가 '인재정보에 구직 공개(visibility=public)'를 직접 선택한 경우에만
   // 인재정보에 익명으로 노출한다(본인 선택, 자동 아님). 실명·연락처·이메일은 절대 미포함.
   // 연락처·이력서 상세는 병원의 열람권 결제 후 별도 API로만 제공한다.

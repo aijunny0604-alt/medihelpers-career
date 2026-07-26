@@ -552,6 +552,7 @@ function ContentManager({ data, setData, mutate, qa }) {
         <label><span>경력 조건</span><input value={editing.payload.career || ''} onChange={(e) => changePayload('career',e.target.value)} placeholder="예: 전문의 5년, 경력무관" /></label>
         <label><span>급여</span><input value={editing.payload.pay || ''} onChange={(e) => changePayload('pay',e.target.value)} placeholder="예: 월 1,500만원~" /></label>
         <label><span>마감일</span><input value={editing.payload.deadline || ''} onChange={(e) => changePayload('deadline',e.target.value)} placeholder="예: 2026.08.31, 상시채용" /></label>
+        <label><span>노출 종료일 <i>(기간제 유료 공고)</i></span><input type="date" value={(editing.payload.exposureEnd || '').slice(0,10)} onChange={(e) => changePayload('exposureEnd', e.target.value)} /><small className="field-hint">비워두면 계속 노출됩니다. 날짜를 지나면 사이트에서 자동으로 내려갑니다.</small></label>
         <label className="wide"><span>근무 일정</span><input value={editing.payload.schedule || ''} onChange={(e) => changePayload('schedule',e.target.value)} placeholder="예: 평일 09:00~18:00 · 토요일 격주" /></label>
         <label className="wide"><span>상세 설명</span><textarea value={editing.payload.description} onChange={(e) => changePayload('description',e.target.value)} placeholder="근무조건, 경력, 공개 기준 등 운영에 필요한 내용을 입력하세요." /></label>
       </div>
@@ -734,6 +735,7 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
       <div><dt>상품</dt><dd>{payment.productName}<small>{payment.accountRole === 'hospital' ? '병원 회원' : '의료인 회원'} · {payment.productType}</small></dd></div>
       <div><dt>결제금액</dt><dd><b>{Number(payment.totalAmount).toLocaleString()}원</b><small>공급가 {Number(payment.supplyAmount).toLocaleString()}원 · 부가세 {Number(payment.taxAmount).toLocaleString()}원</small></dd></div>
       <div><dt>처리시각</dt><dd>{String(payment.createdAt || '-').slice(0,16)}<small>결제 {String(payment.paidAt || '-').slice(0,16)}</small></dd></div>
+      {payment.exposure && <div><dt>노출 기간</dt><dd>{payment.exposure.start} ~ {payment.exposure.end} <small>{payment.exposure.days ? `${payment.exposure.days}일 상품` : ''}{new Date(`${String(payment.exposure.end).slice(0,10)}T23:59:59`).getTime() < Date.now() ? ' · ⛔ 노출 종료됨' : ' · ✅ 노출 중'}<br />기간 연장·수정은 ‘공고 · 인재 · 게시글’에서 해당 공고의 노출 종료일을 바꾸세요.</small></dd></div>}
     </dl>
     <div className="payment-admin-form">
       <label><span>주문 상태</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="pending_review">검수 대기</option><option value="awaiting_payment">결제 대기</option><option value="paid">결제 완료</option><option value="failed">결제 실패</option><option value="cancelled">취소</option></select></label>

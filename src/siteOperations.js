@@ -23,8 +23,19 @@ export function useSiteOperations() {
   return operations;
 }
 
+// 기간제 유료 공고: 노출 종료일(payload.exposureEnd, YYYY-MM-DD)이 지나면 목록에서 내린다.
+// 종료일이 없는 공고(관리자 무료 게시물 등)는 만료 대상이 아니다.
+function isExposureExpired(payload = {}) {
+  const end = payload.exposureEnd || payload.exposure?.end;
+  if (!end) return false;
+  // 종료일 '그날 자정까지' 노출: 종료일 다음 날 0시부터 만료.
+  const endDate = new Date(`${String(end).slice(0, 10)}T23:59:59`);
+  if (Number.isNaN(endDate.getTime())) return false;
+  return endDate.getTime() < Date.now();
+}
+
 export function operationalDoctorJobs(contents = []) {
-  return contents.filter((item) => item.contentType === 'doctor_job').map((item) => {
+  return contents.filter((item) => item.contentType === 'doctor_job' && !isExposureExpired(item.payload)).map((item) => {
     const p = item.payload || {};
     const region = p.region || String(p.primary || '').split(/[ ·]/)[0] || '전국';
     return { id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title, location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.pay || p.secondary || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:'관리자 등록', color:'#1769d4', summary:p.description || '관리자가 등록한 의사 초빙공고입니다.', benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier || undefined };
@@ -55,7 +66,7 @@ export function operationalTalent(contents = []) {
 }
 
 export function operationalMedicalJobs(contents = []) {
-  return contents.filter((item) => item.contentType === 'medical_job').map((item) => {
+  return contents.filter((item) => item.contentType === 'medical_job' && !isExposureExpired(item.payload)).map((item) => {
     const p = item.payload || {};
     const asList = (value, fallback) => Array.isArray(value)
       ? value.filter(Boolean)
