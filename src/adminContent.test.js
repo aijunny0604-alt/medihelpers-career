@@ -43,6 +43,7 @@ test('관리자 콘텐츠와 공개 초빙 게시판의 관리 버튼은 전용 
   assert.ok(source.includes("headhunt-board-table ${isAdmin ? 'admin-manage' : ''}"));
   assert.match(source, /\{isAdmin && <span>관리<\/span>\}/);
   assert.match(styles, /145px 310px/);
+  assert.match(styles, /\.content-actions\{display:grid!important;grid-template-columns:repeat\(3,minmax\(58px,1fr\)\)/);
   assert.match(styles, /\.content-actions button\{[^}]*white-space:nowrap/);
   assert.match(styles, /\.headhunt-board-table\.admin-manage[^}]*150px/);
   assert.match(styles, /grid-template-areas:'title title' 'author date' 'actions actions'/);
