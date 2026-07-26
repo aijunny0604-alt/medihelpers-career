@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
-  CreditCard, Crown, Eye, FileCheck2, FileText, Heart, HeartPulse, LockKeyhole, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
+  CreditCard, Crown, Eye, FileCheck2, FileText, Heart, HeartPulse, LockKeyhole, LogOut, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
   ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, TriangleAlert, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
@@ -354,6 +354,7 @@ function Modal({ children, onClose, wide = false, label = '상세 정보', varia
 function Header({ path, qa, operations, auth }) {
   const [open, setOpen] = useState(false);
   const [switchingRole, setSwitchingRole] = useState('');
+  const [signingOut, setSigningOut] = useState(false);
   // 모바일 메뉴가 열려 있는 동안에는 뒤 페이지 스크롤을 잠근다(모달과 동일한 방식).
   // 경로가 바뀌면(링크 이동) 메뉴를 닫아 잠금이 남지 않게 한다.
   useEffect(() => {
@@ -379,6 +380,15 @@ function Header({ path, qa, operations, auth }) {
   const accountTarget = isAdminUser ? '/admin/console' : isSignedIn ? '/mypage' : '/login';
   const accountLabel = isAdminUser ? '관리자' : isSignedIn ? '마이페이지' : '로그인';
   const activeTestRole = isAdminUser ? 'admin' : auth.role === 'hospital' ? 'hospital' : auth.role === 'doctor' ? 'doctor' : '';
+  const signOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await authRequest('logout');
+    } finally {
+      window.location.href = withBase('/');
+    }
+  };
   const switchTestAccount = async (account) => {
     if (switchingRole) return;
     setSwitchingRole(account.key);
@@ -443,11 +453,13 @@ function Header({ path, qa, operations, auth }) {
           return true;
         }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''} ${item.highlight ? 'nav-highlight' : ''}`}>{item.label}</Link>)}
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>
+        {isSignedIn && <button type="button" className="mobile-logout-button" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button>}
         {testSwitcher(true)}
       </nav>
       <div className="nav-actions">
         {testSwitcher()}
         <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
+        {isSignedIn && <button type="button" className="header-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '처리 중' : '로그아웃'}</button>}
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>

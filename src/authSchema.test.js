@@ -17,10 +17,15 @@ test('자체 로그인 자격증명과 세션을 기존 계정에 연결한다',
 test('배포 서버는 보안 쿠키와 PBKDF2를 사용하고 OpenAI 로그인 경로를 포함하지 않는다', async () => {
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   const accountSource = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const memberCenterSource = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
   assert.match(serverSource, /HttpOnly; Secure; SameSite=Lax/);
   assert.match(serverSource, /function bearerToken\(request\)/);
   assert.match(serverSource, /cookieValue\(request, authCookieName\) \|\| bearerToken\(request\)/);
   assert.match(serverSource, /x-mh-session-fallback/);
+  assert.match(mainSource, /className="header-logout"/);
+  assert.match(mainSource, /className="mobile-logout-button"/);
+  assert.match(memberCenterSource, /className="member-side-logout"/);
   assert.match(serverSource, /name:'PBKDF2'/);
   assert.match(serverSource, /passwordIterations = 100000/);
   assert.doesNotMatch(serverSource + accountSource, /signin-with-chatgpt|signout-with-chatgpt|auth\.openai\.com/);

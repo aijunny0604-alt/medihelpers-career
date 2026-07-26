@@ -7,6 +7,7 @@ import {
 import { jobs, talent } from './data.js';
 import { sampleJobs as medicalStaffJobs } from './MedicalStaffPage.jsx';
 import { ReceiptModal } from './MemberCenterPage.jsx';
+import { withBase } from './basePath.js';
 
 const catalogContents = [
   ...jobs.map((job) => ({
@@ -191,19 +192,29 @@ export default function AdminConsolePage({ qa = false }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(!qa);
 
+  // 관리자 데이터를 못 불러왔는지(권한 실패 등) 상태. true면 빈 콘솔 대신 안내 화면을 띄운다.
+  const [loadError, setLoadError] = useState('');
+
   const refresh = async () => {
     if (qa) return;
     setLoading(true);
-    try {
-      const next = await loadConsole();
-      const contents = mergeContentInventory(next.contents);
-      setData({ ...next, contents, metrics:{ ...next.metrics, contents:contents.length, databaseContents:(next.contents || []).length } });
-      setMessage('');
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setLoading(false);
+    // 로그인 직후 세션 쿠키가 아직 안 붙어 403/401이 날 수 있다(느린 PC). 몇 번 재시도한다.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const next = await loadConsole();
+        const contents = mergeContentInventory(next.contents);
+        setData({ ...next, contents, metrics:{ ...next.metrics, contents:contents.length, databaseContents:(next.contents || []).length } });
+        setMessage('');
+        setLoadError('');
+        setLoading(false);
+        return;
+      } catch (error) {
+        // 마지막 시도까지 실패하면 안내 화면을 띄운다.
+        if (attempt === 3) { setLoadError(error.message || '관리자 데이터를 불러오지 못했습니다.'); }
+        else await new Promise((r) => setTimeout(r, 500));
+      }
     }
+    setLoading(false);
   };
 
   useEffect(() => { refresh(); }, [qa]);
@@ -234,6 +245,26 @@ export default function AdminConsolePage({ qa = false }) {
     if (key === 'consultations') return go('/admin/consultations');
     setSection(key);
   };
+
+  // 관리자 데이터를 끝내 못 불러오면(권한 없음·세션 만료 등) 빈 콘솔 대신 안내 화면을 띄운다.
+  // 예전에는 이 경우 데모 데이터가 섞인 채로 섹션이 비어 보여 '빈 페이지'처럼 느껴졌다.
+  if (loadError && !qa) {
+    const isAuth = /권한|로그인|인증/.test(loadError);
+    return <div className="admin-console admin-console-gate">
+      <section className="member-gate">
+        <span><ShieldAlert /></span>
+        <small>ADMIN CONSOLE</small>
+        <h1>{isAuth ? '관리자 권한이 필요합니다' : '관리자 데이터를 불러오지 못했습니다'}</h1>
+        <p>{isAuth
+          ? '관리자 계정으로 로그인했는지 확인해 주세요. 세션이 만료됐다면 다시 로그인하면 됩니다.'
+          : '일시적인 오류일 수 있습니다. 다시 시도해 주세요.'}</p>
+        <div>
+          <button className="button primary" type="button" onClick={() => refresh()}>다시 시도</button>
+          <a className="button outline" href={withBase('/login?next=/admin/console')}>관리자 로그인</a>
+        </div>
+      </section>
+    </div>;
+  }
 
   return (
     <div className="admin-console">

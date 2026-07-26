@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, BadgeCheck, Bell, BriefcaseBusiness, Building2, CalendarDays, Clock3,
   Check, ChevronRight, CircleCheck, CreditCard, FileText, Heart, KeyRound,
-  LockKeyhole, Mail, MapPin, MessageCircle, Phone, Receipt, Settings, ShieldCheck, Stethoscope,
+  LockKeyhole, LogOut, Mail, MapPin, MessageCircle, Phone, Receipt, Settings, ShieldCheck, Stethoscope,
   TriangleAlert, UserRound, X
 } from 'lucide-react';
 import { withBase } from './basePath.js';
-import { WithdrawSection } from './AccountPage.jsx';
+import { authRequest, WithdrawSection } from './AccountPage.jsx';
 import { jobs } from './data.js';
 
 const hospitalDemo = {
@@ -97,6 +97,16 @@ export default function MemberCenterPage({ route, qa }) {
   const [refundReason, setRefundReason] = useState('');
   const [refundMsg, setRefundMsg] = useState('');
   const [refundBusy, setRefundBusy] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const signOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await authRequest('logout');
+    } finally {
+      window.location.href = withBase('/');
+    }
+  };
   const submitRefund = async (orderNumber) => {
     if (!refundReason.trim()) { setRefundMsg('환불 사유를 입력해 주세요.'); return; }
     setRefundBusy(true); setRefundMsg('');
@@ -322,7 +332,7 @@ export default function MemberCenterPage({ route, qa }) {
     )}
     <header className="member-center-hero"><div><small>MY MEDIHELPERS</small><h1>{currentProfile.displayName}님, 반갑습니다</h1><p>{role === 'hospital' ? '공고 반응부터 후보 문의와 결제 내역까지 병원 채용 업무를 한곳에서 관리하세요.' : '이력서와 상담 제안, 관심 공고와 멤버십 이용 내역을 한곳에서 관리하세요.'}</p></div><div className="member-identity"><span>{role === 'hospital' ? <Building2 /> : <Stethoscope />}</span><div><small>현재 로그인</small><strong>{roleLabel}</strong><em><BadgeCheck /> 본인 확인</em></div></div></header>
     <div className="member-center-shell">
-      <aside className="member-side"><div className="member-mini-profile"><span>{role === 'hospital' ? <Building2 /> : <UserRound />}</span><div><strong>{currentProfile.organization}</strong><small>{currentProfile.jobTitle}</small></div></div><nav>{nav.map(([id, label, Icon]) => <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon />{label}<ChevronRight /></button>)}</nav><div className="member-side-help"><MessageCircle /><strong>도움이 필요하신가요?</strong><p>담당 헤드헌터에게 바로 문의하세요.</p><a href="tel:0513425463">051-342-5463</a></div></aside>
+      <aside className="member-side"><div className="member-mini-profile"><span>{role === 'hospital' ? <Building2 /> : <UserRound />}</span><div><strong>{currentProfile.organization}</strong><small>{currentProfile.jobTitle}</small></div></div><nav>{nav.map(([id, label, Icon]) => <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon />{label}<ChevronRight /></button>)}</nav><div className="member-side-help"><MessageCircle /><strong>도움이 필요하신가요?</strong><p>담당 헤드헌터에게 바로 문의하세요.</p><a href="tel:0513425463">051-342-5463</a></div><button type="button" className="member-side-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button></aside>
       <main className="member-workspace">
         {tab === 'overview' && <>
           <div className="member-page-head"><div><small>{role === 'hospital' ? 'HOSPITAL DASHBOARD' : 'DOCTOR DASHBOARD'}</small><h2>내 활동 요약</h2><p>확인이 필요한 항목을 먼저 모았습니다.</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/jobs')}>{role === 'hospital' ? '새 공고 등록' : '초빙정보 찾기'} <ArrowRight /></a></div>

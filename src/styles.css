@@ -3334,6 +3334,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .member-mini-profile{display:flex;align-items:center;gap:11px;padding:11px 9px 18px;border-bottom:1px solid #e8edf3}.member-mini-profile>span{width:42px;height:42px;border-radius:12px;background:#eaf2ff;color:var(--blue);display:grid;place-items:center}.member-mini-profile>div{min-width:0;display:flex;flex-direction:column}.member-mini-profile strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.member-mini-profile small{color:#7d8a9d;font-size:11px}
 .member-side nav{display:flex;flex-direction:column;gap:4px;padding:13px 0}.member-side nav button{width:100%;height:47px;padding:0 12px;border:0;border-radius:11px;background:transparent;color:#68778c;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:750;text-align:left}.member-side nav button>svg:first-child{width:18px}.member-side nav button>svg:last-child{width:15px;margin-left:auto}.member-side nav button:hover,.member-side nav button.active{background:#edf4ff;color:var(--blue)}
 .member-side-help{padding:16px;border-radius:14px;background:#102b50;color:#fff;display:flex;flex-direction:column;align-items:flex-start}.member-side-help>svg{width:20px;color:#70b7ff}.member-side-help strong{margin-top:9px;font-size:13px}.member-side-help p{margin:4px 0 10px;color:#b9c9db;font-size:11px;line-height:1.55}.member-side-help a{color:#fff;font:800 15px 'Manrope'}
+.member-side-logout{width:100%;min-height:44px;margin-top:10px;border:1px solid #dce5ef;border-radius:11px;background:#fff;color:#68778c;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:800;cursor:pointer}.member-side-logout svg{width:17px}.member-side-logout:hover{border-color:#b8cae0;background:#f7faff;color:#24466f}.member-side-logout:disabled{cursor:wait;opacity:.58}
 .member-workspace{min-width:0}.member-page-head{min-height:88px;margin-bottom:18px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px}.member-page-head small{font:800 11px 'Manrope';letter-spacing:1px;color:var(--blue)}.member-page-head h2{margin:5px 0 4px;font-size:31px;letter-spacing:-1.2px}.member-page-head p{margin:0;color:#7a889b;font-size:14px}.member-page-head .button{min-height:47px}.member-saved{padding:9px 12px;border-radius:10px;background:#e9f7f3;color:#13856f;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800}.member-saved svg{width:17px}
 /* 저장 실패는 성공과 확실히 구분되게 붉은 계열로 표시한다(예전에는 실패해도 초록 '저장되었습니다'가 떴다). */
 .member-saved.is-error{background:#fdecec;color:#c0392b}
@@ -5325,6 +5326,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 로그인 화면 테스트 계정 버튼 */
 .nav-actions .header-account{min-height:48px;padding:0 20px;border:0;border-radius:13px;background:linear-gradient(120deg,#1263e8,#1778ed);color:#fff;font-size:14px;font-weight:850;box-shadow:0 10px 24px rgba(18,99,232,.25)}
 .nav-actions .header-account:hover{border:0;background:linear-gradient(120deg,#0f57d2,#126be3);color:#fff;transform:translateY(-1px);box-shadow:0 13px 28px rgba(18,99,232,.31)}
+.header-logout{min-height:42px;padding:0 12px;border:1px solid #d8e2ef;border-radius:11px;background:#fff;color:#617188;display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}.header-logout svg{width:15px}.header-logout:hover{border-color:#aebfd3;background:#f7faff;color:#284b73}.header-logout:disabled{cursor:wait;opacity:.58}
+.mobile-logout-button{display:none}
 .header-test-switcher{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid #dbe6f4;border-radius:12px;background:#f4f8fd}
 .header-test-switcher>span{padding:0 4px;color:#7c8da3;font:850 8px 'Manrope';letter-spacing:.8px}
 .header-test-switcher button{min-height:34px;padding:0 9px;border:0;border-radius:8px;background:transparent;color:#53667d;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}
@@ -5333,6 +5336,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .header-test-switcher button:disabled{cursor:wait;opacity:.62}
 .mobile-header-test-switcher{display:none}
 @media(max-width:1100px){
+  .header-logout{display:none}
+  .mobile-logout-button{min-height:48px;margin-top:4px;padding:0 12px;border:1px solid #dbe4ef;border-radius:11px;background:#fff;color:#52657d;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:800}.mobile-logout-button svg{width:18px}.mobile-logout-button:disabled{opacity:.58}
   .mobile-header-test-switcher{margin-top:10px;padding:8px;border:1px solid #dbe6f4;border-radius:13px;background:#f4f8fd;display:grid;grid-template-columns:auto repeat(3,1fr);align-items:center;gap:5px}
   .mobile-header-test-switcher>span{padding:0 5px;color:#7c8da3;font:850 8px 'Manrope';letter-spacing:.8px}
   .mobile-header-test-switcher button{min-height:40px;padding:0 8px;border:0;border-radius:9px;background:#fff;color:#53667d;font-size:12px;font-weight:800;white-space:nowrap}
@@ -5359,3 +5364,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .admin-metric-grid button.admin-metric-card:focus-visible{outline:3px solid rgba(18,99,232,.35);outline-offset:2px}
 .admin-metric-grid .admin-metric-arrow{position:absolute;top:16px;right:16px;width:16px;height:16px;color:#a4b4c6;opacity:.6;transition:opacity .15s,transform .15s}
 .admin-metric-grid button.admin-metric-card:hover .admin-metric-arrow{opacity:1;color:#1263e8;transform:translateX(2px)}
+
+/* 관리자 콘솔 데이터 로드 실패 시 안내 게이트(빈 콘솔 방지) */
+.admin-console-gate{min-height:100vh;display:grid;place-items:center;background:#f3f6fa;padding:24px}
+.admin-console-gate .member-gate{max-width:520px}

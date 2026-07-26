@@ -7,9 +7,9 @@
 | `/api/categories` | GET | 공개 | 활성 진료과·지역·의료인 직군 |
 | `/api/site-operations` | GET | 공개/역할별 | 사이트 설정·기능 플래그·게시 콘텐츠 |
 | `/api/account` | GET·POST·DELETE | 인증 | 가입 가능 상태, 계정 생성·탈퇴 |
-| `/api/auth/register` | POST | 공개 | 자체 이메일·비밀번호 계정 생성 및 로그인 |
-| `/api/auth/login` | POST | 공개 | 자체 계정 로그인 및 보안 세션 쿠키 발급 |
-| `/api/auth/logout` | POST | 로그인 | 현재 세션 폐기 및 쿠키 삭제 |
+| `/api/auth/register` | POST | 공개 | 자체 이메일·비밀번호 계정 생성 및 로그인. 요청 헤더가 보조 세션을 명시하면 탭 토큰도 반환 |
+| `/api/auth/login` | POST | 공개 | 자체 계정 로그인 및 보안 세션 쿠키 발급. 요청 헤더가 보조 세션을 명시하면 탭 토큰도 반환 |
+| `/api/auth/logout` | POST | 로그인 | 현재 D1 세션 폐기 및 보안 쿠키 삭제. 클라이언트는 탭 보조 토큰도 함께 삭제 |
 | `/api/member-center` | GET·POST·PATCH | 회원 | GET 프로필·알림·활동·상담·주문 / POST `refund_request`(환불 요청)·`job_create`(403 차단) / PATCH 프로필·알림 |
 | `/api/payment-orders` | GET·POST | 회원 | 본인 주문 조회·상품 신청. 병원 광고 신청은 관리자 검수용 공고(`draft`)도 같은 D1 배치로 생성 |
 | `/api/consultations` | POST | 로그인 | 구직·구인 상담 접수 |
@@ -33,7 +33,7 @@
 
 ## 현재 보안 규칙
 
-- 인증은 메디헬퍼스 자체 이메일·비밀번호 + D1 세션 쿠키를 사용합니다(OpenAI/Sites 인증 헤더 아님).
+- 인증은 메디헬퍼스 자체 이메일·비밀번호 + D1 세션을 사용합니다(OpenAI/Sites 인증 헤더 아님). 보안 쿠키가 기본이며 쿠키 차단 브라우저에서는 같은 출처 API에만 보내는 탭 단위 Bearer 토큰을 보조 수단으로 사용합니다.
 - 관리자는 `ADMIN_EMAILS` 허용목록으로 재검사합니다.
 - 상태 변경 요청은 동일 출처 여부를 검사합니다.
 - 회원 키는 `ACCOUNT_HASH_SECRET` 기반 HMAC으로 생성합니다.
