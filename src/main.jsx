@@ -2275,8 +2275,20 @@ function HeadhuntPostModal({ post, onClose }) {
   );
 }
 
-function HeadhuntBoard({ operations }) {
+function HeadhuntBoard({ operations, qa }) {
   const posts = useMemo(() => buildHeadhuntPosts(operations), [operations?.contents]);
+  // 관리자면 이 게시판에서 바로 공고를 올리고, 올린 글을 수정·삭제할 수 있게 한다.
+  const boardAuth = useAuthGate(qa);
+  const isAdmin = Boolean(boardAuth.isAdmin);
+  const editPost = (post) => navigate(`/admin/post?edit=${encodeURIComponent(post.id)}`);
+  const removePost = async (post) => {
+    if (!window.confirm(`‘${post.title}’ 공고를 삭제할까요? 삭제 후 사이트에서 즉시 사라집니다.`)) return;
+    try {
+      const response = await fetch('/api/admin-console', { method:'PATCH', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ action:'content_delete', payload:{ id: post.id } }) });
+      if (!response.ok) throw new Error();
+      window.location.reload();
+    } catch { window.alert('삭제하지 못했습니다. 관리자 로그인 상태인지 확인해 주세요.'); }
+  };
   const [filter, setFilter] = useState('all');
   const [region, setRegion] = useState('전체');
   const [dept, setDept] = useState('전체');
@@ -2302,6 +2314,8 @@ function HeadhuntBoard({ operations }) {
           <p className="headhunt-board-lead">메디헬퍼스가 직접 관리하는 병·의원 초빙 공고입니다. 관심 공고는 전화·문의로 바로 상담하세요.</p>
         </div>
       </div>
+
+      {isAdmin && <div className="admin-inline-bar"><div className="admin-inline-bar-label"><ShieldCheck /> 관리자 모드 · 공고 관리</div><div className="admin-inline-bar-actions"><button type="button" className="admin-inline-primary" onClick={() => navigate('/admin/post?new=1')}><Plus /> 새 공고 올리기</button><button type="button" onClick={() => navigate('/admin/post')}><PencilLine /> 내 공고 전체 관리</button><button type="button" onClick={() => navigate('/admin/console')}>관리자 콘솔</button></div><p className="admin-inline-bar-hint">관리자가 등록한 공고에는 <b>수정·삭제</b> 버튼이 표시됩니다.</p></div>}
 
       <div className="headhunt-board">
         {/* 검색 도크 — 지역·진료과·키워드 */}
@@ -2348,6 +2362,12 @@ function HeadhuntBoard({ operations }) {
                 <span className="hb-author">{post.author}</span>
                 <span className="hb-views">{post.views}</span>
                 <time className="hb-date">{post.date || '-'}</time>
+                {isAdmin && (
+                  <span className="hb-admin-actions">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); editPost(post); }}><PencilLine size={14} /> 수정</button>
+                    <button type="button" className="danger" onClick={(e) => { e.stopPropagation(); removePost(post); }}><Trash2 size={14} /> 삭제</button>
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -2528,7 +2548,7 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
           <Link className="button ghost" to="/request/hiring"><Building2 /> 병원 · 채용 의뢰하기</Link>
         </div>
       </PageHero>
-      <HeadhuntBoard operations={operations} />
+      <HeadhuntBoard operations={operations} qa={qa} />
       <section className="section consultation-layout consultation-focus">
         <div className="consult-copy">
           <span className="section-kicker">1:1 DOCTOR HEADHUNTING</span>

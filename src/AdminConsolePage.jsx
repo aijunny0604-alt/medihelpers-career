@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, Archive, BriefcaseBusiness, Building2, ChevronRight, CreditCard, Database, Download,
+  Activity, Archive, BriefcaseBusiness, Building2, Check, ChevronRight, CreditCard, Database, Download,
   Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';

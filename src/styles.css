@@ -5390,3 +5390,10 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .job-card-admin-actions button.danger{color:#c0392f}
 .job-card-admin-actions button.danger:hover{border-color:#e59a93;background:#fdf3f2}
 .job-card-admin-actions svg{width:15px}
+
+/* 헤드헌팅 초빙 정보란 — 관리자 인라인 수정/삭제 */
+.hb-admin-actions{display:inline-flex;gap:6px;margin-left:8px}
+.hb-admin-actions button{min-height:30px;padding:0 9px;border:1px solid #cdd9e7;border-radius:8px;background:#fff;color:#2c5488;font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.hb-admin-actions button:hover{border-color:#8fb7ec;background:#f2f7fd}
+.hb-admin-actions button.danger{color:#c0392f}
+.hb-admin-actions button.danger:hover{border-color:#e59a93;background:#fdf3f2}
