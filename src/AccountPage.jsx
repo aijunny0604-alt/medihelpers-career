@@ -139,7 +139,6 @@ function MemberTypeChooser() {
       <a className="hospital-choice" href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>HOSPITAL · 병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 후보 추천 · 채용 진행 관리</p><b>병원 회원으로 시작하기 <ArrowRight /></b></div></a>
     </div>
     <div className="signup-existing-account">이미 메디헬퍼스 계정이 있으신가요? <a href={withBase('/login')}>이메일로 로그인</a></div>
-    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 받지 않고, 이메일 계정으로 중복 가입을 방지합니다.</div>
   </section>;
 }
 
@@ -169,15 +168,26 @@ function openAddressSearch(onSelect) {
     overlay.className = 'address-search-overlay';
     const panel = document.createElement('div');
     panel.className = 'address-search-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', 'address-search-title');
     const bar = document.createElement('div');
     bar.className = 'address-search-bar';
+    const heading = document.createElement('div');
+    heading.className = 'address-search-heading';
     const title = document.createElement('strong');
+    title.id = 'address-search-title';
     title.textContent = '주소 검색';
+    const subtitle = document.createElement('small');
+    subtitle.textContent = '도로명, 건물명 또는 지번으로 찾아보세요';
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.setAttribute('aria-label', '주소 검색 닫기');
-    closeBtn.textContent = '✕';
-    bar.appendChild(title);
+    closeBtn.title = '닫기';
+    closeBtn.textContent = '×';
+    heading.appendChild(title);
+    heading.appendChild(subtitle);
+    bar.appendChild(heading);
     bar.appendChild(closeBtn);
     const host = document.createElement('div');
     host.className = 'address-search-embed';
@@ -185,9 +195,21 @@ function openAddressSearch(onSelect) {
     panel.appendChild(host);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
-    const cleanup = () => { try { document.body.removeChild(overlay); } catch {} };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    let closed = false;
+    const handleKeydown = (event) => { if (event.key === 'Escape') cleanup(); };
+    const cleanup = () => {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener('keydown', handleKeydown);
+      document.body.style.overflow = previousOverflow;
+      try { document.body.removeChild(overlay); } catch {}
+    };
     closeBtn.addEventListener('click', cleanup);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+    document.addEventListener('keydown', handleKeydown);
+    closeBtn.focus();
     new window.daum.Postcode({
       oncomplete: (data) => {
         const addr = data.roadAddress || data.jibunAddress || data.address || '';
@@ -417,7 +439,6 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       <small>SIGNUP</small>
       <h2>회원가입 신청이 접수되었습니다</h2>
       <p>가입 양식과 필수 동의를 확인했습니다. 정식 오픈 시 이 정보로 회원 계정이 생성됩니다.</p>
-      <div className="signup-launch-boundary"><LockKeyhole /><span><strong>비밀번호는 안전한 단방향 해시로 보호합니다.</strong><small>이메일 계정으로 중복 가입을 확인하고 회원 유형과 동의 기록을 안전하게 저장합니다.</small></span></div>
       <dl>
         <div><dt>선택한 회원 유형</dt><dd>{content.label}</dd></div>
         <div><dt>다음 단계</dt><dd>정식 오픈 후 로그인</dd></div>
@@ -454,7 +475,6 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         <section className="signup-form-section hospital-info-section">
           <header><span>02</span><div><h3>병원·기관 정보</h3><p>의사가 신뢰할 수 있는 공고와 기관 인증에 필요한 기본정보입니다.</p></div></header>
           <div className="signup-field-grid">{hospitalInfoFields().map(renderField)}</div>
-          <div className="hospital-verification-note"><ShieldCheck /><span><strong>병원 서류는 지금 올리지 않아도 됩니다</strong><small>사업자등록증·의료기관 개설 관련 서류는 공고 등록이나 결제가 필요한 시점에 안전하게 확인합니다.</small></span></div>
         </section>
       </> : <>
         <section className="signup-form-section individual-account-section">
@@ -464,7 +484,6 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         <section className="signup-form-section individual-profile-section">
           <header><span>02</span><div><h3>의료 직군·활동정보</h3><p>맞춤 채용정보와 상담 연결에 필요한 최소 경력정보만 입력해주세요.</p></div></header>
           <div className="signup-field-grid">{individualProfileFields().map(renderField)}</div>
-          <div className="hospital-verification-note individual-verification-note"><ShieldCheck /><span><strong>자격서류는 가입 후 필요할 때만 확인합니다</strong><small>면허번호·자격증·경력증명서는 이력서 공개 또는 채용 연결 단계에서 본인 동의 후 안전하게 확인합니다.</small></span></div>
         </section>
       </>}
 
@@ -486,7 +505,6 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
           </label>
           {consentError && <em role="alert">필수 동의 항목을 모두 확인해주세요.</em>}
         </div>
-        <div className="signup-no-marketing"><CircleCheck /><span><strong>마케팅 수신 동의는 받지 않습니다</strong><small>가입에 필수가 아니며 수집하지 않습니다. 광고성 알림은 정식 가입 후 원할 때만 별도로 선택할 수 있습니다.</small></span></div>
       </div>
 
       {errors.submit && <p className="signup-error" role="alert">{errors.submit}</p>}
@@ -508,7 +526,6 @@ function SignedOutCard({ memberType }) {
       {content.label}으로 계속 <ArrowRight />
     </a>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>아이디·로그인 정보를 잊으셨나요?</a>
-    <div className="signup-security-copy"><ShieldCheck /> 주민등록번호를 직접 받지 않고 이메일 계정으로 가입자를 확인합니다.</div>
     <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 가입</a>
   </section>;
 }
@@ -594,7 +611,6 @@ function LoginCard() {
       </div>
       <p className="login-test-note">테스트/데모 용도입니다. 계정이 없으면 자동 생성됩니다.</p>
     </div>
-    <div className="signup-security-copy"><ShieldCheck /> 로그인 세션은 보안 쿠키로 보호되며 비밀번호 원문은 저장하지 않습니다.</div>
   </section>;
 }
 
@@ -641,7 +657,6 @@ function SignupForm({ identity = {}, memberType, onComplete }) {
         <label className="signup-age-confirm"><input type="checkbox" checked={form.ageConfirmed} onChange={(event) => update('ageConfirmed', event.target.checked)} /><span><b>필수</b><strong>만 14세 이상임을 확인합니다.</strong></span></label>
         {(errors.termsAccepted || errors.ageConfirmed || errors.privacyAcknowledged) && <em>필수 약관과 안내를 확인해주세요.</em>}
       </div>
-      <div className="signup-no-marketing"><CircleCheck /><span><strong>광고 수신 동의는 받지 않습니다</strong><small>마케팅 알림은 가입 후 원할 때만 별도로 선택할 수 있습니다.</small></span></div>
       {submitError && <p className="signup-error" role="alert">{submitError}</p>}
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 가입 처리 중</> : <>최소 정보로 가입 완료 <ArrowRight /></>}</button>
       <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>회원 유형 다시 선택</a>
