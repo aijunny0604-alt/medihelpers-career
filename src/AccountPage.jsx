@@ -162,15 +162,43 @@ function loadDaumPostcode() {
 }
 function openAddressSearch(onSelect) {
   loadDaumPostcode().then(() => {
+    // [중요] .open()은 팝업 창을 띄우는데, 그 창(about:blank)이 우리 페이지의 CSP를
+    // 물려받아 카카오 우편번호 콘텐츠가 '콘텐츠 차단'으로 막힌다(빨간 금지 화면).
+    // 대신 .embed()로 우리 페이지 안 iframe에 넣으면 frame-src 허용만으로 정상 동작한다.
+    const overlay = document.createElement('div');
+    overlay.className = 'address-search-overlay';
+    const panel = document.createElement('div');
+    panel.className = 'address-search-panel';
+    const bar = document.createElement('div');
+    bar.className = 'address-search-bar';
+    const title = document.createElement('strong');
+    title.textContent = '주소 검색';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', '주소 검색 닫기');
+    closeBtn.textContent = '✕';
+    bar.appendChild(title);
+    bar.appendChild(closeBtn);
+    const host = document.createElement('div');
+    host.className = 'address-search-embed';
+    panel.appendChild(bar);
+    panel.appendChild(host);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    const cleanup = () => { try { document.body.removeChild(overlay); } catch {} };
+    closeBtn.addEventListener('click', cleanup);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
     new window.daum.Postcode({
       oncomplete: (data) => {
-        // 도로명 주소 우선, 없으면 지번 주소.
         const addr = data.roadAddress || data.jibunAddress || data.address || '';
         onSelect(addr);
-      }
-    }).open();
+        cleanup();
+      },
+      onclose: () => cleanup(),
+      width: '100%',
+      height: '100%'
+    }).embed(host);
   }).catch(() => {
-    // 스크립트 로드 실패(CSP·네트워크) 시 직접 입력할 수 있게 알린다.
     if (typeof window !== 'undefined') window.alert('주소 검색을 열 수 없습니다. 잠시 후 다시 시도해 주세요.');
   });
 }
