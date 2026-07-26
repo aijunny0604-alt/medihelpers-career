@@ -36,3 +36,14 @@ test('병원 광고 주문은 관리자 검수용 공고와 같은 트랜잭션�
   assert.match(source, /syncAdOrderContentRecords/);
   assert.match(source, /fromHospital:true/);
 });
+
+test('관리자 콘텐츠와 공개 초빙 게시판의 관리 버튼은 전용 열에서 한 줄로 표시된다', async () => {
+  const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
+  assert.ok(source.includes("headhunt-board-table ${isAdmin ? 'admin-manage' : ''}"));
+  assert.match(source, /\{isAdmin && <span>관리<\/span>\}/);
+  assert.match(styles, /145px 310px/);
+  assert.match(styles, /\.content-actions button\{[^}]*white-space:nowrap/);
+  assert.match(styles, /\.headhunt-board-table\.admin-manage[^}]*150px/);
+  assert.match(styles, /grid-template-areas:'title title' 'author date' 'actions actions'/);
+});

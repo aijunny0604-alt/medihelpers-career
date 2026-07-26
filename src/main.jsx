@@ -2341,9 +2341,10 @@ function HeadhuntBoard({ operations, qa }) {
         </div>
 
         {total > 0 ? (
-          <div className="headhunt-board-table" role="table">
+          <div className={`headhunt-board-table ${isAdmin ? 'admin-manage' : ''}`} role="table">
             <div className="headhunt-board-head" role="row" aria-hidden="true">
               <span>번호</span><span>제목</span><span>작성자</span><span>조회</span><span>등록일</span>
+              {isAdmin && <span>관리</span>}
             </div>
             {visible.map((post, index) => (
               <div
