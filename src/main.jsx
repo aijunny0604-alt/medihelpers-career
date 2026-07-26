@@ -2521,6 +2521,9 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
   const profession = params.get("profession") || "";
   return (
     <>
+      {/* 방문자가 실제로 찾는 건 공고다 → 초빙 정보란(게시판)을 최상단에 두고
+          상담 유도 히어로는 게시판 아래로 내린다. */}
+      <HeadhuntBoard operations={operations} qa={qa} />
       <PageHero
         tone="headhunting-hero"
         eyebrow="1:1 DOCTOR HEADHUNTING"
@@ -2549,7 +2552,6 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
           <Link className="button ghost" to="/request/hiring"><Building2 /> 병원 · 채용 의뢰하기</Link>
         </div>
       </PageHero>
-      <HeadhuntBoard operations={operations} qa={qa} />
       <section className="section consultation-layout consultation-focus">
         <div className="consult-copy">
           <span className="section-kicker">1:1 DOCTOR HEADHUNTING</span>

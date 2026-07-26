@@ -5025,7 +5025,9 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 }
 
 /* ── 의사 초빙 정보란 (헤드헌팅 게시판) ── */
-.headhunt-board-section{background:#fff}
+/* 초빙 정보란이 페이지 최상단(고정 헤더 바로 아래) 첫 섹션이라 상단 여백을 넉넉히 준다. */
+.headhunt-board-section{background:#fff;padding-top:104px}
+@media(max-width:600px){.headhunt-board-section{padding-top:74px}}
 .headhunt-board-lead{max-width:620px;margin:12px auto 0;color:#66788f;font-size:16px;line-height:1.7;text-wrap:balance}
 .headhunt-board{max-width:1400px;margin:36px auto 0}
 .headhunt-board-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
@@ -5083,7 +5085,10 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 @media(max-width:600px){
   .hb-cards{grid-template-columns:1fr}
-  .hb-search-dock{padding:16px}
+  /* 게시판이 최상단이라 모바일에서 공고 목록이 첫 화면에 최대한 들어오게 여백을 줄인다. */
+  .hb-search-dock{padding:16px;margin-bottom:16px}
+  .headhunt-board-section .section-head{margin-bottom:16px}
+  .headhunt-board-lead{display:none}
   .hb-search-filters{gap:9px}
   .hb-search-filters label{flex:1 1 100%}
   .hb-search-filters select{width:100%}
