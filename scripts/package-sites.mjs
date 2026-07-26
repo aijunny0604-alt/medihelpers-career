@@ -138,7 +138,10 @@ function bearerToken(request) {
   return match ? match[1] : '';
 }
 function requestAuthToken(request) {
-  return cookieValue(request, authCookieName) || bearerToken(request);
+  // The client sends the freshly issued tab token when a browser cannot store
+  // or has not yet replaced the HttpOnly cookie. Prefer that explicit token so
+  // a stale cookie cannot keep the previous test account active.
+  return bearerToken(request) || cookieValue(request, authCookieName);
 }
 function authCookie(token, maxAge = authSessionSeconds) {
   return authCookieName + '=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + maxAge;
