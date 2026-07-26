@@ -542,17 +542,20 @@ function LoginCard() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const goNext = () => {
-    const requested = new URLSearchParams(window.location.search).get('next') || '/mypage';
-    window.location.href = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : '/mypage');
+  const goNext = (role = '') => {
+    const explicit = new URLSearchParams(window.location.search).get('next');
+    // next 파라미터가 없으면 관리자는 운영 콘솔로, 그 외는 마이페이지로 보낸다.
+    const fallback = role === 'admin' ? '/admin/console' : '/mypage';
+    const requested = explicit || fallback;
+    window.location.href = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : fallback);
   };
   const submit = async (event) => {
     event.preventDefault();
     setError('');
     setSubmitting(true);
     try {
-      await authRequest('login', { email, password });
-      goNext();
+      const result = await authRequest('login', { email, password });
+      goNext(result?.isAdmin || result?.account?.role === 'admin' ? 'admin' : result?.account?.role || '');
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -578,7 +581,8 @@ function LoginCard() {
         } catch {}
         await new Promise((r) => setTimeout(r, 300));
       }
-      goNext();
+      // 관리자 테스트 계정은 role이 doctor여도 ADMIN_EMAILS로 관리자 인식된다. 콘솔로 보낸다.
+      goNext(acct.key === 'admin' ? 'admin' : acct.role);
     } catch (requestError) {
       setError('테스트 계정 로그인에 실패했습니다: ' + requestError.message);
       setSubmitting(false);

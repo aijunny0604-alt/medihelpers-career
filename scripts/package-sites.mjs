@@ -654,7 +654,7 @@ async function authApi(request, env, pathname) {
     const token = await createAuthSession(env, credential.accountId, { isAdmin: isAdminAccount });
     const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
     const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:token } : {};
-    return json({ signedIn:true, account:{ role:credential.role }, identity:{ email }, ...sessionFallback }, 200, { 'set-cookie':authCookie(token, cookieMaxAge) });
+    return json({ signedIn:true, isAdmin:isAdminAccount, account:{ role:credential.role }, identity:{ email }, ...sessionFallback }, 200, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
 
   if (pathname === '/api/auth/register') {
