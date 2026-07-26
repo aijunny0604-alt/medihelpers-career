@@ -519,6 +519,14 @@ function LoginCard() {
         // 계정이 없으면 가입 후 로그인(가입 성공 시 이미 로그인 상태가 될 수 있음).
         await authRequest('register', { role: acct.role, email: acct.email, password: acct.password, displayName: acct.loginLabel, termsAccepted: true, privacyAcknowledged: true, ageConfirmed: true });
       }
+      // 세션 쿠키가 실제로 붙었는지 확인 후 이동(느린 PC에서 바로 이동하면 마이페이지가 401을 만남).
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const res = await fetch(withBase('/api/account'), { credentials: 'same-origin', headers: { accept: 'application/json' } });
+          if (res.ok && (await res.json()).signedIn) break;
+        } catch {}
+        await new Promise((r) => setTimeout(r, 300));
+      }
       goNext();
     } catch (requestError) {
       setError('테스트 계정 로그인에 실패했습니다: ' + requestError.message);

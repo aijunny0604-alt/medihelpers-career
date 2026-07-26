@@ -393,6 +393,18 @@ function Header({ path, qa, operations, auth }) {
           ageConfirmed:true
         });
       }
+      // [중요] 로그인/가입 직후 세션 쿠키가 실제로 자리잡았는지 확인하고 이동한다.
+      // 예전에는 곧바로 리다이렉트해서, 느린 PC·네트워크에선 쿠키가 반영되기 전에
+      // /mypage가 /api/member-center를 호출 → 401 → '회원 정보를 불러오지 못했습니다'가 떴다.
+      let sessionReady = false;
+      for (let attempt = 0; attempt < 4 && !sessionReady; attempt++) {
+        try {
+          const res = await fetch(withBase('/api/account'), { credentials:'same-origin', headers:{ accept:'application/json' } });
+          const data = res.ok ? await res.json() : {};
+          if (data.signedIn) sessionReady = true;
+        } catch {}
+        if (!sessionReady) await new Promise((r) => setTimeout(r, 300));
+      }
       window.location.href = withBase(account.key === 'admin' ? '/admin/console' : '/mypage');
     } catch (error) {
       window.alert(`테스트 계정 전환에 실패했습니다: ${error.message}`);

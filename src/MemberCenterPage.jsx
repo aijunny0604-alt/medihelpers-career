@@ -115,17 +115,31 @@ export default function MemberCenterPage({ route, qa }) {
 
   useEffect(() => {
     if (qa.active) return;
-    fetch('/api/member-center', { credentials: 'same-origin', headers: { accept: 'application/json' } })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('account unavailable')))
-      .then((data) => {
-        setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
-        if (data.profile) setProfile(data.profile);
-        if (data.notifications) setNotifications(data.notifications);
-        setServerData({ consultations: data.consultations || [], activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
-      })
-      // 불러오기에 실패하면 그 사실을 알린다. 예전에는 전부 signedIn:false로만 처리해서
-      // 서버 오류·정지된 계정도 '로그인하세요' 화면이 떴고, 로그인해도 같은 화면으로 되돌아왔다.
-      .catch(() => setAccountState({ loading: false, signedIn: false, role: '', identity: {}, failed: true }));
+    let cancelled = false;
+    // 로그인 직후 세션 쿠키가 아직 자리잡지 않아 401이 날 수 있다(느린 PC·네트워크).
+    // 한 번의 실패로 바로 '불러오지 못했습니다'를 띄우지 말고, 짧게 몇 번 재시도한다.
+    const load = async () => {
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const response = await fetch('/api/member-center', { credentials: 'same-origin', headers: { accept: 'application/json' } });
+          if (response.ok) {
+            const data = await response.json();
+            if (cancelled) return;
+            setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
+            if (data.profile) setProfile(data.profile);
+            if (data.notifications) setNotifications(data.notifications);
+            setServerData({ consultations: data.consultations || [], activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
+            return;
+          }
+          // 401/403은 아직 세션이 안 붙었을 수 있으니 잠깐 뒤 재시도.
+          if (response.status !== 401 && response.status !== 403) break;
+        } catch {}
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      if (!cancelled) setAccountState({ loading: false, signedIn: false, role: '', identity: {}, failed: true });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [qa.active]);
 
   // 관심공고(저장한 공고). 서버 API는 있었지만 화면에서 한 번도 호출하지 않아 마이페이지에 보이지 않았다.
