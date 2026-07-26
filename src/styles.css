@@ -5351,3 +5351,11 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 /* 관리자가 마이페이지로 진입했을 때 콘솔로 안내하는 게이트 */
 .member-admin-gate .button{margin:6px 6px 0 0}
+
+/* 관리자 대시보드 위젯을 클릭 가능한 버튼으로 (누르면 해당 섹션으로 이동) */
+.admin-metric-grid button.admin-metric-card{min-height:136px;padding:22px;border:1px solid #dce5ef;border-radius:18px;background:#fff;display:flex;gap:16px;align-items:flex-start;text-align:left;box-shadow:0 10px 30px rgba(29,59,92,.05);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .1s;position:relative}
+.admin-metric-grid button.admin-metric-card:hover{border-color:#1263e8;box-shadow:0 14px 34px rgba(18,99,232,.14)}
+.admin-metric-grid button.admin-metric-card:active{transform:translateY(1px)}
+.admin-metric-grid button.admin-metric-card:focus-visible{outline:3px solid rgba(18,99,232,.35);outline-offset:2px}
+.admin-metric-grid .admin-metric-arrow{position:absolute;top:16px;right:16px;width:16px;height:16px;color:#a4b4c6;opacity:.6;transition:opacity .15s,transform .15s}
+.admin-metric-grid button.admin-metric-card:hover .admin-metric-arrow{opacity:1;color:#1263e8;transform:translateX(2px)}

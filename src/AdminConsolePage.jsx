@@ -292,16 +292,17 @@ export default function AdminConsolePage({ qa = false }) {
 }
 
 function Dashboard({ data, select }) {
+  // 각 위젯을 클릭하면 해당 관리 섹션으로 바로 이동하도록 target 섹션을 지정한다.
   const cards = [
-    ['전체 회원', data.metrics.accounts, UserRoundCog, `의사 ${data.metrics.doctors} · 병원 ${data.metrics.hospitals}`],
-    ['결제 요청', data.metrics.payments || 0, CreditCard, `처리 대기 ${data.metrics.pendingPayments || 0}건`],
-    ['누적 결제', `${(data.metrics.paidRevenue || 0).toLocaleString()}원`, ReceiptText, `환불 주문 ${data.metrics.refundedPayments || 0}건`],
-    ['상담 접수', data.metrics.consultations, UsersRound, '신규·처리 대기 포함'],
-    ['진행 채용', data.metrics.activeCases, BriefcaseBusiness, `입사 확정 ${data.metrics.hiredCases}건`],
-    ['운영 콘텐츠', data.metrics.contents || 0, PencilLine, '공고·인재·게시글'],
+    ['전체 회원', data.metrics.accounts, UserRoundCog, `의사 ${data.metrics.doctors} · 병원 ${data.metrics.hospitals}`, 'members'],
+    ['결제 요청', data.metrics.payments || 0, CreditCard, `처리 대기 ${data.metrics.pendingPayments || 0}건`, 'payments'],
+    ['누적 결제', `${(data.metrics.paidRevenue || 0).toLocaleString()}원`, ReceiptText, `환불 주문 ${data.metrics.refundedPayments || 0}건`, 'payments'],
+    ['상담 접수', data.metrics.consultations, UsersRound, '신규·처리 대기 포함', 'consultations'],
+    ['진행 채용', data.metrics.activeCases, BriefcaseBusiness, `입사 확정 ${data.metrics.hiredCases}건`, 'crm'],
+    ['운영 콘텐츠', data.metrics.contents || 0, PencilLine, '공고·인재·게시글', 'contents'],
   ];
   return <>
-    <div className="admin-metric-grid">{cards.map(([label, value, Icon, copy]) => <article key={label}><span><Icon /></span><div><small>{label}</small><strong>{value.toLocaleString()}</strong><p>{copy}</p></div></article>)}</div>
+    <div className="admin-metric-grid">{cards.map(([label, value, Icon, copy, target]) => <button type="button" key={label} className="admin-metric-card" onClick={() => select(target)} aria-label={`${label} 관리로 이동`}><span><Icon /></span><div><small>{label}</small><strong>{typeof value === 'number' ? value.toLocaleString() : value}</strong><p>{copy}</p></div><ChevronRight className="admin-metric-arrow" /></button>)}</div>
     <div className="admin-dashboard-grid">
       <section className="admin-panel">
         <header><div><small>QUICK MANAGEMENT</small><h2>빠른 관리</h2></div></header>
