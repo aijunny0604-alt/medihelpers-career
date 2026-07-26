@@ -1923,8 +1923,9 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
       "connect-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
-      // 주소 검색 팝업은 postcode.map.daum.net iframe으로 뜬다.
-      "frame-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com https://postcode.map.daum.net",
+      // 카카오 우편번호 스크립트의 현재 운영 iframe은 postcode.map.kakao.com을 사용한다.
+      // 이전 daum.net 주소도 호환성을 위해 유지한다.
+      "frame-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com https://postcode.map.kakao.com https://postcode.map.daum.net",
       "form-action 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
       "base-uri 'self'",
       "object-src 'none'",

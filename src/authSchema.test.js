@@ -35,3 +35,9 @@ test('등록되지 않은 API 경로는 SPA HTML이 아닌 JSON 404로 종료한
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   assert.match(serverSource, /pathname\.startsWith\('\/api\/'\).*json\(\{ error:'API 경로를 찾을 수 없습니다\.' \}, 404\)/);
 });
+
+test('병원 주소 검색용 카카오 우편번호 iframe 도메인을 CSP에서 허용한다', async () => {
+  const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  assert.match(serverSource, /frame-src[^"]*https:\/\/postcode\.map\.kakao\.com/);
+  assert.match(serverSource, /frame-src[^"]*https:\/\/postcode\.map\.daum\.net/);
+});
