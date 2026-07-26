@@ -1732,6 +1732,8 @@ async function adminConsoleApi(request, env) {
     const status = String(payload.status || 'draft');
     const visibility = String(payload.visibility || 'public');
     const details = payload.payload && typeof payload.payload === 'object' ? payload.payload : {};
+    // 저장 크기 상한(결제 metadata와 동일 정책). 관리자 전용이지만 비정상적으로 큰 payload를 막는다.
+    const detailsJson = JSON.stringify(details).slice(0, 16000);
     if (!allowedTypes.includes(contentType) || !title || !allowedStatuses.includes(status) || !allowedVisibility.includes(visibility)) return json({ error:'콘텐츠 입력값을 확인해주세요.' }, 400);
     // 상단 고정(pin): 최대 5개까지. sort_order를 고정 순서로 사용(고정=100 이상, 일반=0).
     const PIN_LIMIT = 5;
@@ -1744,12 +1746,12 @@ async function adminConsoleApi(request, env) {
     const sortOrder = wantPinned ? 100 : 0;
     if (action === 'content_create') {
       const id = crypto.randomUUID();
-      await env.DB.prepare('INSERT INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, sort_order, created_by, updated_by, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, contentType, title, subtitle, status, visibility, JSON.stringify(details), sortOrder, admin.email, admin.email, status === 'published' ? new Date().toISOString() : null).run();
+      await env.DB.prepare('INSERT INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, sort_order, created_by, updated_by, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, contentType, title, subtitle, status, visibility, detailsJson, sortOrder, admin.email, admin.email, status === 'published' ? new Date().toISOString() : null).run();
       await writeAdminAudit(env, admin, 'content_create', title, { id, contentType, status, pinned: wantPinned });
     } else {
       const id = editingId;
       if (!id) return json({ error:'수정할 콘텐츠를 확인해주세요.' }, 400);
-      await env.DB.prepare("UPDATE admin_content_records SET content_type=?, title=?, subtitle=?, status=?, visibility=?, payload_json=?, sort_order=?, updated_by=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(contentType, title, subtitle, status, visibility, JSON.stringify(details), sortOrder, admin.email, status, id).run();
+      await env.DB.prepare("UPDATE admin_content_records SET content_type=?, title=?, subtitle=?, status=?, visibility=?, payload_json=?, sort_order=?, updated_by=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(contentType, title, subtitle, status, visibility, detailsJson, sortOrder, admin.email, status, id).run();
       await writeAdminAudit(env, admin, 'content_update', title, { id, contentType, status, pinned: wantPinned });
     }
   } else if (action === 'content_delete') {

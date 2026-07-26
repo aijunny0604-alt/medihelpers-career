@@ -819,10 +819,10 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
       title: "보수·계약",
       icon: Banknote,
       rows: [
-        ["공개 급여", job.pay],
+        ["공개 급여", job.pay || "협의"],
         [
           "급여 기준",
-          job.pay.includes("협의")
+          String(job.pay || "협의").includes("협의")
             ? "경력·진료범위에 따라 협의"
             : "공고 기준 · Net/세전 여부 최종 확인",
         ],
@@ -1077,10 +1077,10 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
             <div className="job-detail-copy">
               <div><h4>근무조건</h4><p>급여조건은 {job.pay}이며, 근무시간은 {job.workHours || job.schedule}입니다. {job.daysOff || "휴무일은 상담을 통해 조율합니다."}</p></div>
               <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 헤드헌터가 병원과 확인해 안내합니다.</p></div>
-              <div><h4>복리후생·협의사항</h4><p>{job.benefits.join(" · ")} 조건을 제공하며 경력과 담당 진료범위에 따라 세부 내용을 조율합니다.</p></div>
+              <div><h4>복리후생·협의사항</h4><p>{(job.benefits || []).join(" · ")} 조건을 제공하며 경력과 담당 진료범위에 따라 세부 내용을 조율합니다.</p></div>
             </div>
             <div className="benefit-list">
-              {job.benefits.map((item) => (
+              {(job.benefits || []).map((item) => (
                 <span key={item}>
                   <Check size={15} />
                   {item}
