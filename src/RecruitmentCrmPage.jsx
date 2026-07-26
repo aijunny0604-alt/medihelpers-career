@@ -21,11 +21,26 @@ export default function RecruitmentCrmPage({ qa }) {
   const [filter, setFilter] = useState('active');
   useEffect(() => {
     if (qa?.active) return;
-    fetch('/api/recruitment-crm', { headers:{ accept:'application/json' } }).then(async (response) => {
-      if (!response.ok) throw new Error('unauthorized');
-      const data = await response.json();
-      setCases(data.cases || []); setSelectedId(data.cases?.[0]?.id || ''); setStatus('ready');
-    }).catch(() => setStatus('denied'));
+    let cancelled = false;
+    const load = async () => {
+      // 로그인 직후 세션 쿠키가 아직 안 붙어 403/401이 날 수 있다(느린 PC). 몇 번 재시도한다.
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const response = await fetch('/api/recruitment-crm', { credentials:'same-origin', headers:{ accept:'application/json' } });
+          if (response.ok) {
+            const data = await response.json();
+            if (cancelled) return;
+            setCases(data.cases || []); setSelectedId(data.cases?.[0]?.id || ''); setStatus('ready');
+            return;
+          }
+          if (response.status !== 401 && response.status !== 403) break;
+        } catch {}
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      if (!cancelled) setStatus('denied');
+    };
+    load();
+    return () => { cancelled = true; };
   }, [qa?.active]);
   const visible = useMemo(() => cases.filter((item) => filter === 'all' || (filter === 'active' ? !['hired','closed'].includes(item.stage) : item.stage === filter)), [cases, filter]);
   const selected = cases.find((item) => item.id === selectedId) || visible[0];

@@ -44,17 +44,29 @@ export default function ConsultationAdminPage() {
 
   const load = async () => {
     setLoading(true); setError("");
-    try {
-      const [accountResponse, consultationResponse] = await Promise.all([
-        fetch("/api/account", { credentials: "same-origin", headers: { accept: "application/json" } }),
-        fetch("/api/consultations", { credentials: "same-origin", headers: { accept: "application/json" } }),
-      ]);
-      const accountResult = await accountResponse.json().catch(() => ({}));
-      setAccount({ signedIn: Boolean(accountResult.signedIn), isAdmin: Boolean(accountResult.isAdmin) });
-      const result = await consultationResponse.json().catch(() => ({}));
-      if (!consultationResponse.ok) throw new Error(result.error || "상담함을 불러오지 못했습니다.");
-      setRequests(result.requests || []); setSelectedId((current) => current || result.requests?.[0]?.id || "");
-    } catch (caught) { setError(caught.message); } finally { setLoading(false); }
+    // 로그인 직후 세션 쿠키가 아직 안 붙어 403/401이 날 수 있다(느린 PC). 몇 번 재시도한다.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const [accountResponse, consultationResponse] = await Promise.all([
+          fetch("/api/account", { credentials: "same-origin", headers: { accept: "application/json" } }),
+          fetch("/api/consultations", { credentials: "same-origin", headers: { accept: "application/json" } }),
+        ]);
+        const accountResult = await accountResponse.json().catch(() => ({}));
+        setAccount({ signedIn: Boolean(accountResult.signedIn), isAdmin: Boolean(accountResult.isAdmin) });
+        const result = await consultationResponse.json().catch(() => ({}));
+        if (consultationResponse.ok) {
+          setRequests(result.requests || []); setSelectedId((current) => current || result.requests?.[0]?.id || "");
+          setLoading(false); return;
+        }
+        if (consultationResponse.status !== 401 && consultationResponse.status !== 403) {
+          setError(result.error || "상담함을 불러오지 못했습니다."); setLoading(false); return;
+        }
+      } catch (caught) {
+        if (attempt === 3) { setError(caught.message || "상담함을 불러오지 못했습니다."); }
+      }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    setError((current) => current || "관리자 권한이 필요합니다. 다시 로그인해 주세요."); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
