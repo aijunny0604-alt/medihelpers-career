@@ -63,8 +63,10 @@ export default function JobPostBoardPage() {
       const jobs = (data.contents || []).filter((c) => c.contentType === 'doctor_job' || c.contentType === 'medical_job');
       setContents(jobs);
       setAuthorized(true);
+      return jobs;
     } catch {
       setAuthorized(false);
+      return [];
     } finally {
       setReady(true);
     }
@@ -72,7 +74,20 @@ export default function JobPostBoardPage() {
 
   useEffect(() => {
     document.title = '공고 올리기 | 메디헬퍼스 관리자';
-    refresh();
+    // 공개 사이트의 관리자 바에서 ?new=1 / ?edit=<id> 로 넘어오면 해당 편집 폼을 바로 연다.
+    const params = new URLSearchParams(window.location.search);
+    const wantNew = params.get('new') === '1';
+    const editId = params.get('edit') || '';
+    refresh().then((jobs) => {
+      if (wantNew) setEditing(emptyPost());
+      else if (editId) {
+        const target = (jobs || []).find((c) => String(c.id) === String(editId));
+        if (target) setEditing({ ...target, payload: { ...emptyPost().payload, ...(target.payload || {}) } });
+        else setMessage('해당 공고를 찾지 못했습니다. 목록에서 선택해 주세요.');
+      }
+      // 딥링크 파라미터는 한 번 쓰고 URL에서 지운다(새로고침 시 재실행 방지).
+      if (wantNew || editId) window.history.replaceState({}, '', withBase('/admin/post'));
+    });
     return () => { document.title = '메디헬퍼스 | 의사 구인구직·전문 헤드헌팅'; };
   }, []);
 

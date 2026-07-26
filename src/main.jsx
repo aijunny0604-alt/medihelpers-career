@@ -4,7 +4,7 @@ import {
   Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
   CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, Eye, FileCheck2, FileText, Heart, HeartPulse, LockKeyhole, LogOut, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
-  ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, TriangleAlert, Upload, UserRound,
+  PencilLine, Plus, ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, Trash2, TrendingUp, TriangleAlert, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
 } from 'lucide-react';
 import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
@@ -528,8 +528,11 @@ function JobCard({
   preview = false,
   qa,
   variant = "",
+  manageJob = null,
 }) {
   const isAd = Boolean(job.adTier);
+  // 관리자가 등록한 DB 공고(id가 admin- 접두)만 카드에서 직접 수정·삭제 가능.
+  const adminManageable = Boolean(manageJob) && String(job.id).startsWith("admin-");
   // 채용 목록에서는 장식 배너보다 병원 로고를 우선해 브랜드를 또렷하게 보여준다.
   const brandSource = job.logo || job.cardBanner || job.banner;
   const brandUrl = brandSource ? withBase(brandSource) : "";
@@ -705,6 +708,23 @@ function JobCard({
         {preview ? "이 디자인으로 광고하기" : "공고 자세히 보기"}{" "}
         <ArrowRight size={16} />
       </button>
+      {adminManageable && (
+        <div className="job-card-admin-actions">
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); manageJob.edit(job); }}
+          >
+            <PencilLine size={15} /> 수정
+          </button>
+          <button
+            type="button"
+            className="danger"
+            onClick={(event) => { event.stopPropagation(); manageJob.remove(job); }}
+          >
+            <Trash2 size={15} /> 삭제
+          </button>
+        </div>
+      )}
     </article>
   );
 }
@@ -1546,8 +1566,21 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
     setStandardVisible(STANDARD_STEP);
   };
   const openJob = (job) => { trackConversion('job_detail_open', { jobId: job.id }); navigate(`/jobs/${job.id}`); };
-  const renderPortalCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} />;
-  const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} />;
+  // 관리자면 관리자가 등록한(DB) 공고에 한해 카드에서 바로 수정·삭제할 수 있게 한다.
+  const isAdmin = Boolean(adAuth.isAdmin);
+  const manageJob = isAdmin ? {
+    edit: (job) => navigate(`/admin/post?edit=${encodeURIComponent(job.sourceId || String(job.id).replace(/^admin-/, ''))}`),
+    remove: async (job) => {
+      if (!window.confirm(`‘${job.title}’ 공고를 삭제할까요? 삭제 후 사이트에서 즉시 사라집니다.`)) return;
+      try {
+        const response = await fetch('/api/admin-console', { method:'PATCH', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ action:'content_delete', payload:{ id: job.sourceId || String(job.id).replace(/^admin-/, '') } }) });
+        if (!response.ok) throw new Error();
+        window.location.reload();
+      } catch { window.alert('삭제하지 못했습니다. 관리자 로그인 상태인지 확인해 주세요.'); }
+    }
+  } : null;
+  const renderPortalCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} manageJob={manageJob} />;
+  const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} manageJob={manageJob} />;
 
   const visibleStandard = standardDisplayOrder.slice(0, standardVisible);
   const standardRemaining = standardDisplayOrder.length - visibleStandard.length;
@@ -1560,6 +1593,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
       description={<><span className="jobs-description-part">봉직의·원장·검진·비임상 포지션을</span>{' '}<span className="jobs-description-part">진료과와 지역, 근무조건으로 찾고</span>{' '}<span className="jobs-description-part">비공개 조건은 의사 전담 헤드헌터에게 확인하세요.</span></>}
     ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
     <nav className="job-hub-nav" aria-label="채용정보 메뉴"><div><strong className="job-hub-title">채용정보</strong><Link className="active" to="/jobs">전체 채용</Link><Link to="/medical-staff">의료인 구인구직</Link><Link to="/headhunting">맞춤 초빙</Link><Link to="/account">내 활동</Link><Link className="job-hub-register" to={canRegisterAds ? '/advertise' : '/signup?next=/advertise'}>{canRegisterAds ? '공고 등록' : '회원가입'}</Link></div></nav>
+    {isAdmin && <div className="admin-inline-bar"><div className="admin-inline-bar-label"><ShieldCheck /> 관리자 모드 · 공고 관리</div><div className="admin-inline-bar-actions"><button type="button" className="admin-inline-primary" onClick={() => navigate('/admin/post?new=1')}><Plus /> 새 공고 올리기</button><button type="button" onClick={() => navigate('/admin/post')}><PencilLine /> 내 공고 전체 관리</button><button type="button" onClick={() => navigate('/admin/console')}>관리자 콘솔</button></div><p className="admin-inline-bar-hint">관리자가 등록한 공고 카드에는 <b>수정·삭제</b> 버튼이 표시됩니다.</p></div>}
     <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={siteCategories.departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={siteCategories.regions} /></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
       <div className="doctor-condition-filter" role="group" aria-label="의사 초빙 상세조건">{doctorConditions.map((item) => <button key={item} type="button" className={condition === item ? 'active' : ''} aria-pressed={condition === item} onClick={() => setCondition(item)}>{item}</button>)}</div>
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>

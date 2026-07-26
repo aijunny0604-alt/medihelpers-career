@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BellRing, Building2, CheckCircle2, Clock3, LogIn, Mail, MessageSquareText, Phone, RefreshCw, Search, ShieldCheck, Stethoscope } from "lucide-react";
+import { ArrowLeft, ArrowRight, BellRing, Building2, CheckCircle2, Clock3, LogIn, Mail, MessageSquareText, Phone, RefreshCw, Search, ShieldCheck, Stethoscope } from "lucide-react";
 import { withBase } from "./basePath.js";
 import { getQaStateInfo, QA_PREVIEW_STORAGE_KEY } from "./qaPreview.js";
 
@@ -84,8 +84,10 @@ export default function ConsultationAdminPage() {
     setRequests((current) => current.map((item) => item.id === id ? { ...item, status, adminNote } : item));
   };
 
+  const goConsole = () => { window.history.pushState({}, "", withBase("/admin/console")); window.dispatchEvent(new PopStateEvent("popstate")); window.scrollTo({ top: 0, behavior: "auto" }); };
   if (!loading && error && !requests.length) return <AdminAccessGate error={error} account={account} />;
   return <section className="consult-admin-page">
+    <button type="button" className="admin-subpage-back" onClick={goConsole}><ArrowLeft /> 관리자 콘솔로 돌아가기</button>
     <header className="consult-admin-hero"><div><span><BellRing /> CONSULTATION INBOX</span><h1>상담 신청 관리</h1><p>의사 구직희망과 병원 구인희망을 한곳에서 확인하고 연락 진행 상태를 관리합니다.</p></div><button type="button" onClick={load}><RefreshCw /> 새로고침</button></header>
     <div className="consult-admin-metrics"><article><span><MessageSquareText /></span><small>전체 상담</small><strong>{requests.length}</strong></article><article className="new"><span><BellRing /></span><small>신규 접수</small><strong>{counts.new || 0}</strong></article><article><span><Clock3 /></span><small>진행 중</small><strong>{(counts.contacted || 0) + (counts.in_progress || 0)}</strong></article><article><span><CheckCircle2 /></span><small>상담 종료</small><strong>{counts.closed || 0}</strong></article></div>
     <div className="consult-admin-toolbar"><div className="consult-admin-tabs"><button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>전체</button>{statusOptions.map(([value, label]) => <button key={value} className={filter === value ? "active" : ""} onClick={() => setFilter(value)}>{label} <b>{counts[value] || 0}</b></button>)}</div><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름·병원·진료과 검색" /></label></div>

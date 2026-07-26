@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, CircleAlert, Clock3, FileCheck2, Search, ShieldCheck, UserRoundSearch, UsersRound } from 'lucide-react';
+import { withBase } from './basePath.js';
 
 const stages = [
   ['new_request','신규 의뢰'], ['condition_review','조건 확인'], ['candidate_search','후보 탐색'], ['candidate_consent','후보 동의'], ['hospital_submitted','병원 제안'], ['interview','면접 예정'], ['negotiation','조건 협상'], ['hired','입사 확정'], ['closed','종료']
@@ -49,7 +50,7 @@ export default function RecruitmentCrmPage({ qa }) {
     setCases((items) => items.map((item) => item.id === selected.id ? { ...item, stage:next } : item));
     if (!qa?.active) await fetch(`/api/recruitment-crm/${encodeURIComponent(selected.id)}`, { method:'PATCH', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ stage:next, assignedRecruiter:selected.assignedRecruiter || '' }) });
   };
-  const goBack = () => window.location.assign('/admin/console');
+  const goBack = () => { window.history.pushState({}, '', withBase('/admin/console')); window.dispatchEvent(new PopStateEvent('popstate')); window.scrollTo({ top: 0, behavior: 'auto' }); };
   if (status === 'denied') return <section className="crm-access-denied"><ShieldCheck /><h1>관리자 권한이 필요합니다</h1><p>채용 CRM은 메디헬퍼스 관리자만 이용할 수 있습니다.</p><a href="/">홈으로 돌아가기</a></section>;
   return <div className="recruitment-crm">
     <section className="crm-hero"><div><button type="button" className="crm-back-button" onClick={goBack}><ArrowLeft /> 관리자 페이지로 돌아가기</button><span><BadgeCheck /> MEDIHELPERS RECRUITMENT CRM</span><h1>상담부터 입사·성공보수까지<br />한 흐름으로 관리합니다</h1><p>병원 의뢰, 후보 동의, 추천, 면접, 조건 협상과 청구 상태가 한 채용 건에 누적됩니다.</p></div><aside><small>현재 진행</small><strong>{cases.filter((item) => !['hired','closed'].includes(item.stage)).length}건</strong><span>입사 확정 {cases.filter((item) => item.stage === 'hired').length}건</span></aside></section>
