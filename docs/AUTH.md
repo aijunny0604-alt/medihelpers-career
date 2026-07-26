@@ -87,7 +87,8 @@
 - 기본 이동: 의료인 채용(채용공고 + 구직 의료인 인재 통합)
 - **가입 필드(2026-07-25 정리)**: 담당자 성명·직책, 휴대폰, 이메일, 비밀번호, 병원·기관명, 대표자명, **사업자등록번호(필수·숫자 10자리)**, 병원 주소. 선택: 부서명·상세주소·홈페이지·팩스.
   - **기관 유형·병원 대표 전화·우편번호 필드는 제거**(요청).
-  - **병원 주소는 다음(카카오) 우편번호 검색으로 입력**한다('주소 검색' 버튼 → 팝업 → 실주소). CSP에 `t1.daumcdn.net`·`ssl.daumcdn.net`(script)·`postcode.map.daum.net`(frame)을 허용해야 동작한다(빼면 검색 팝업이 조용히 안 뜬다).
+  - **병원 주소는 다음(카카오) 우편번호 검색으로 입력**한다('주소 검색' 버튼 → **페이지 안 인라인 모달**(iframe embed) → 실주소). CSP에 `t1.daumcdn.net`·`ssl.daumcdn.net`(script)·`postcode.map.daum.net`(frame)을 허용해야 동작한다.
+    - ⚠️ `.open()`(팝업 창)이 아니라 `.embed()`(인라인 iframe)를 쓴다. 팝업 창은 `about:blank`가 우리 CSP를 물려받아 카카오 콘텐츠가 '콘텐츠 차단'으로 막혔다(2026-07-26 수정).
 
 ## 권한 정책
 
@@ -132,7 +133,7 @@ CSP는 허용 목록에 없는 외부 리소스를 **조용히** 차단한다. �
 | `https://fonts.gstatic.com` | `font-src` | 위와 동일(폰트 파일 자체가 차단) |
 | `https://stdpay.inicis.com`<br>`https://stgstdpay.inicis.com` | `script-src`·`connect-src`·`frame-src`·`form-action` | 결제창이 뜨지 않음 |
 | `https://t1.daumcdn.net`<br>`https://ssl.daumcdn.net` | `script-src` | 병원 가입 주소 검색 스크립트 로드 실패 |
-| `https://postcode.map.daum.net` | `frame-src` | 주소 검색 팝업(iframe)이 뜨지 않음 |
+| `https://postcode.map.daum.net` | `frame-src` | 주소 검색 인라인 iframe이 뜨지 않음 |
 
 이니시스 결제창의 경우 사용자에게는 스크립트 로드 실패 안내가 표시되지만(`src/inicisPay.js`),
 글꼴 차단은 아무 안내 없이 화면만 바뀌므로 더 늦게 발견된다. CSP를 조이는 작업을 할 때 위 표를 반드시 확인할 것.
