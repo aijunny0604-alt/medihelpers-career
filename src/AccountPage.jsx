@@ -19,6 +19,7 @@ import {
   validateField
 } from './signupFields.js';
 import { withBase } from './basePath.js';
+import { clearSessionToken, storeSessionToken } from './authTransport.js';
 
 const initialForm = (role = '') => ({
   role,
@@ -114,10 +115,15 @@ export async function authRequest(action, body = {}) {
   const response = await fetch(`/api/auth/${action}`, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'x-mh-session-fallback': 'session-storage'
+    },
     body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
+  if (data.sessionToken) storeSessionToken(data.sessionToken);
+  if (action === 'logout') clearSessionToken();
   if (!response.ok) throw new Error(data.error || '로그인 요청을 처리하지 못했습니다.');
   return data;
 }

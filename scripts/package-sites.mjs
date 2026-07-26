@@ -132,6 +132,14 @@ function cookieValue(request, name) {
   }
   return '';
 }
+function bearerToken(request) {
+  const authorization = String(request.headers.get('authorization') || '');
+  const match = authorization.match(/^Bearer ([a-f0-9]{64})$/i);
+  return match ? match[1] : '';
+}
+function requestAuthToken(request) {
+  return cookieValue(request, authCookieName) || bearerToken(request);
+}
 function authCookie(token, maxAge = authSessionSeconds) {
   return authCookieName + '=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + maxAge;
 }
@@ -161,7 +169,7 @@ function constantTimeEqual(left, right) {
   return difference === 0;
 }
 async function authenticatedUser(request, env) {
-  const token = cookieValue(request, authCookieName);
+  const token = requestAuthToken(request);
   if (!token || !env || !env.DB) return null;
   try {
     await ensureAccountSchema(env);
@@ -594,7 +602,7 @@ async function authApi(request, env, pathname) {
     return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }
   if (request.method === 'POST' && pathname === '/api/auth/logout') {
-    const token = cookieValue(request, authCookieName);
+    const token = requestAuthToken(request);
     if (token) {
       const tokenHash = await authSha256Hex(token);
       await env.DB.prepare('DELETE FROM auth_sessions WHERE token_hash=?').bind(tokenHash).run();
@@ -645,7 +653,8 @@ async function authApi(request, env, pathname) {
     const isAdminAccount = String(env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(email);
     const token = await createAuthSession(env, credential.accountId, { isAdmin: isAdminAccount });
     const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
-    return json({ signedIn:true, account:{ role:credential.role }, identity:{ email } }, 200, { 'set-cookie':authCookie(token, cookieMaxAge) });
+    const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:token } : {};
+    return json({ signedIn:true, account:{ role:credential.role }, identity:{ email }, ...sessionFallback }, 200, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
 
   if (pathname === '/api/auth/register') {
@@ -698,7 +707,8 @@ async function authApi(request, env, pathname) {
     const isAdminAccount = String(env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(email);
     const token = await createAuthSession(env, account.id, { isAdmin: isAdminAccount });
     const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName } }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
+    const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:token } : {};
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName }, ...sessionFallback }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
   return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
 }

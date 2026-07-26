@@ -37,6 +37,9 @@ import {
 import { appBase, withBase } from './basePath.js';
 import { useAccountProfile } from './useAccountProfile.js';
 import { balancedOrder, countByDept } from './jobExposure.js';
+import { installAuthenticatedFetch } from './authTransport.js';
+
+installAuthenticatedFetch();
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
