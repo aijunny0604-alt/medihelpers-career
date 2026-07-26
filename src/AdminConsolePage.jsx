@@ -450,7 +450,8 @@ function MonitorDetail({ item, onClose, onManage }) {
 function Categories({ data, setData, mutate, qa }) {
   const [groupKey, setGroupKey] = useState('doctor_specialty');
   const [name, setName] = useState('');
-  const visible = data.categories.filter((item) => item.groupKey === groupKey);
+  // 서버 응답에 categories가 빠져도 섹션이 빈 화면이 되지 않게 방어한다.
+  const visible = (data.categories || []).filter((item) => item.groupKey === groupKey);
   const create = async () => {
     const clean = name.trim();
     if (!clean) return;

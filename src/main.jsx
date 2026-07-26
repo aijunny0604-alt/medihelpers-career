@@ -1367,7 +1367,7 @@ function getRecruitmentType(job) {
 
 function matchesDoctorCondition(job, condition) {
   if (condition === '전체 조건') return true;
-  const text = `${job.title} ${job.summary} ${job.schedule} ${job.focus} ${job.benefits.join(' ')}`;
+  const text = `${job.title} ${job.summary} ${job.schedule} ${job.focus} ${(Array.isArray(job.benefits) ? job.benefits : []).join(' ')}`;
   if (condition === '주 4일') return /주 4일|주 4\.5일/.test(text);
   if (condition === '당직 협의') return /당직/.test(text);
   if (condition === '숙소 지원') return /숙소|기숙사/.test(text);
@@ -1380,7 +1380,7 @@ function matchesJob(job, { dept, region, keyword, recruitmentType = '전체 초�
   const regionOk = region === '전국' || job.region === region;
   const recruitmentOk = recruitmentType === '전체 초빙' || getRecruitmentType(job) === recruitmentType;
   const conditionOk = matchesDoctorCondition(job, condition);
-  const keywordOk = !keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${job.benefits.join(' ')}`.toLowerCase().includes(keyword.toLowerCase());
+  const keywordOk = !keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${(Array.isArray(job.benefits) ? job.benefits : []).join(' ')}`.toLowerCase().includes(keyword.toLowerCase());
   return deptOk && regionOk && recruitmentOk && conditionOk && keywordOk;
 }
 

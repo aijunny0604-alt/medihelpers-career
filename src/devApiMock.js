@@ -236,10 +236,38 @@ async function handle(method, path, bodyText) {
       const contents = read(LS.adminContents, [
         { id: 'c1', contentType: 'doctor_job', title: '소화기내과 전문의 추천채용', subtitle: '김해좋은내과병원', status: 'published', visibility: 'public', sortOrder: 100, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-18 10:00' },
         { id: 'c2', contentType: 'medical_job', title: '병동 간호사 모집', subtitle: '서울○○병원', status: 'published', visibility: 'public', sortOrder: 0, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-17 09:00' },
+        // 병원이 유료 광고를 결제하면 생기는 '검수 대기' 공고. 승인/반려 버튼이 이 조건에서만
+        // 렌더되므로, 목 데이터에 반드시 남겨둔다(예전에 이게 없어서 관리자 콘솔 크래시를 놓쳤다).
+        { id: 'ad-order-mock1', contentType: 'doctor_job', title: '정형외과 전문의 초빙(유료광고)', subtitle: '해운대바른척추병원', status: 'draft', visibility: 'public', sortOrder: 0, payload: { fromHospital: true, adProductName: '추천 공고', department: '정형외과', region: '부산' }, createdBy: 'hr@hospital.co.kr', updatedBy: 'hr@hospital.co.kr', updatedAt: '2026-07-26 09:00' },
       ]);
+      // 목 데이터는 '비어 있지 않게' 유지한다. 빈 배열이면 상세·승인·환불 등 조건부 UI가
+      // 로컬에서 아예 렌더되지 않아 배포본에서만 터지는 크래시를 놓친다.
+      const mockConsultations = [
+        { id: 'con-mock-1', requestType: 'hospital', requesterName: '박정호', phone: '010-9876-5432', email: 'hr@hospital.co.kr', specialty: '정형외과', status: 'new', adminNote: '', emailNotificationStatus: 'sent', smsNotificationStatus: 'sent', createdAt: '2026-07-26 09:10', updatedAt: '2026-07-26 09:10', payload: { hospital: '해운대바른척추병원', purpose: '의사 추천', message: '정형외과 전문의 채용 상담 요청' } },
+        { id: 'con-mock-2', requestType: 'doctor', requesterName: '김현우', phone: '010-1234-5678', email: 'doctor@example.com', specialty: '소화기내과', status: 'in_progress', adminNote: '희망 조건 확인 중', emailNotificationStatus: 'sent', smsNotificationStatus: 'skipped', createdAt: '2026-07-25 13:20', updatedAt: '2026-07-25 14:05', payload: { region: '부산·경남', workType: '외래 중심', message: '비공개 이직 상담' } },
+      ];
+      const mockCases = [
+        { id: 'CASE-mock-1', consultationId: 'con-mock-1', hospitalName: '해운대바른척추병원', specialty: '정형외과', positionTitle: '정형외과 전문의', stage: 'candidate_search', assignedRecruiter: '김혜원 헤드헌터', estimatedFee: 18000000, nextAction: '후보 2명 의사 확인', billingStatus: 'success_fee', candidateCount: 2, createdAt: '2026-07-26 09:20', updatedAt: '2026-07-26 09:40' },
+      ];
+      const mockPayments = [
+        { id: 'o-mock-1', orderNumber: 'MH-20260726-MOCK0001', accountId: 'm2', accountRole: 'hospital', productType: 'doctor_ad', productName: '추천 공고', totalAmount: 149000, supplyAmount: 135455, taxAmount: 13545, status: 'paid', paymentMethod: 'card', customerName: '박정호', customerEmail: 'hr@hospital.co.kr', customerPhone: '010-9876-5432', createdAt: '2026-07-26 09:00', paidAt: '2026-07-26 09:05', adminNote: '', exposure: { start: '2026-07-26', end: '2026-08-25', days: 30 } },
+        { id: 'o-mock-2', orderNumber: 'MH-20260725-MOCK0002', accountId: 'm2', accountRole: 'hospital', productType: 'talent_search', productName: '인재 열람권 (10명 팩)', totalAmount: 29000, supplyAmount: 26364, taxAmount: 2636, status: 'awaiting_payment', paymentMethod: 'card', customerName: '박정호', customerEmail: 'hr@hospital.co.kr', customerPhone: '010-9876-5432', createdAt: '2026-07-25 10:05', adminNote: '' },
+      ];
+      const mockMembers = [
+        { id: 'm1', role: 'doctor', email: 'doctor@example.com', fullName: '김현우', status: 'active', verificationStatus: 'verified', phone: '010-1234-5678', organization: '', jobTitle: '정형외과 전문의', consentCount: 3, orderCount: 0, lifetimeValue: 0, createdAt: '2026-07-16 09:30', lastLoginAt: '2026-07-26 08:40' },
+        { id: 'm2', role: 'hospital', email: 'hr@hospital.co.kr', fullName: '박정호', status: 'active', verificationStatus: 'pending', phone: '010-9876-5432', organization: '해운대바른척추병원', jobTitle: '채용팀장', consentCount: 3, orderCount: 2, lifetimeValue: 178000, createdAt: '2026-07-15 11:20', lastLoginAt: '2026-07-26 09:00' },
+      ];
       return jsonRes({
-        metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: contents.length, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0 },
-        contents, categories: [], features: {}, settings: {}, audit: [], consultations: [], cases: [], members: [], payments: [], transactions: [], refunds: [], resumes: [],
+        metrics: { accounts: mockMembers.length, doctors: 1, hospitals: 1, consultations: mockConsultations.length, activeCases: 1, hiredCases: 0, categories: 16, contents: contents.length, auditLogs: 2, payments: mockPayments.length, pendingPayments: 1, paidRevenue: 149000, refundedPayments: 0 },
+        contents, categories: [], features: {}, settings: {},
+        audit: [
+          { id: 'a1', subject: '의사 초빙공고', action: '기능 공개 설정', actor: 'admin@medihelpers.co.kr', createdAt: '2026-07-26 09:20' },
+        ],
+        consultations: mockConsultations, cases: mockCases, members: mockMembers,
+        payments: mockPayments,
+        transactions: [{ id: 't-mock-1', orderId: 'o-mock-1', transactionType: 'capture', provider: 'manual', providerTransactionId: 'mock-tx-001', amount: 149000, status: 'succeeded', processedAt: '2026-07-26 09:05' }],
+        refunds: [],
+        resumes: [{ id: 'r-mock-1', profession: '의사', specialty: '소화기내과', visibility: 'public', completion: 80, updatedAt: '2026-07-25 12:00' }],
       });
     }
     return jsonRes({ mock: true });

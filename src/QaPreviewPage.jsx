@@ -10,7 +10,9 @@ const quickRoutes = [
   { path: '/medical-staff', label: '인재 열람권', description: '병원 열람권 결제·잠금 확인', icon: Crown }
 ];
 
-const stateIcons = { guest: UserRound, admin: ShieldCheck, hospital: Building2, doctor: Stethoscope, 'doctor-member': Crown };
+// qaPreview.js의 상태 id와 반드시 일치시킨다(불일치하면 Icon이 undefined가 되어 페이지 전체가 깨진다).
+// 누락 시에도 안전하도록 아래 렌더에서 기본 아이콘으로 폴백한다.
+const stateIcons = { guest: UserRound, admin: ShieldCheck, hospital: Building2, doctor: Stethoscope, 'hospital-unlocked': Crown };
 
 export default function QaPreviewPage({ qa }) {
   const current = qa.info;
@@ -23,7 +25,8 @@ export default function QaPreviewPage({ qa }) {
       <div className="qa-section-head"><div><small>STEP 01</small><h2>확인할 로그인 상태를 선택하세요</h2><p>선택 후 다른 페이지로 이동해도 테스트 상태가 유지됩니다.</p></div><span className={`qa-current-chip tone-${current.tone}`}>{current.label}</span></div>
       <div className="qa-state-grid">
         {QA_STATE_OPTIONS.map((option) => {
-          const Icon = stateIcons[option.id];
+          // 매핑에 없는 상태가 추가돼도 페이지가 깨지지 않게 폴백을 둔다.
+          const Icon = stateIcons[option.id] || UserRound;
           const selected = qa.state === option.id;
           return <button type="button" key={option.id} className={`qa-state-card tone-${option.tone} ${selected ? 'selected' : ''}`} aria-pressed={selected} onClick={() => qa.select(option.id)}>
             <span><Icon /></span><div><strong>{option.label}</strong><p>{option.description}</p></div>{selected && <Check />}
