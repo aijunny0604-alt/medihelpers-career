@@ -23,6 +23,9 @@ test('배포 서버는 보안 쿠키와 PBKDF2를 사용하고 OpenAI 로그인 
   assert.match(serverSource, /function bearerToken\(request\)/);
   assert.match(serverSource, /bearerToken\(request\) \|\| cookieValue\(request, authCookieName\)/);
   assert.match(serverSource, /x-mh-session-fallback/);
+  assert.match(serverSource, /pathname === '\/api\/auth\/test-switch'/);
+  assert.match(serverSource, /createTestAccountSession\(env, body\.key\)/);
+  assert.doesNotMatch(mainSource + accountSource, /account\.password|acct\.password/);
   assert.match(mainSource, /className="header-logout"/);
   assert.match(mainSource, /className="mobile-logout-button"/);
   assert.match(memberCenterSource, /className="member-side-logout"/);

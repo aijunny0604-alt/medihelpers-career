@@ -115,6 +115,12 @@ function signupEnabled(env) {
 const authCookieName = 'mh_session';
 const authSessionSeconds = 60 * 60 * 24 * 7;
 const passwordIterations = 100000;
+const testAccountPassword = 'medihelpers1234';
+const testAccountDefinitions = Object.freeze({
+  doctor: { email:'doctor-test@medihelpers.co.kr', role:'doctor', displayName:'의료인 회원' },
+  admin: { email:'admin@medihelpers.co.kr', role:'doctor', displayName:'관리자' },
+  hospital: { email:'hospital-test@medihelpers.co.kr', role:'hospital', displayName:'병원 회원' }
+});
 function bytesToHex(bytes) {
   return [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
 }
@@ -594,6 +600,45 @@ async function createAuthSession(env, accountId, options = {}) {
   await env.DB.prepare('INSERT INTO auth_sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)').bind(tokenHash, accountId, expiresAt).run();
   return token;
 }
+async function createTestAccountSession(env, accountKey) {
+  const definition = testAccountDefinitions[String(accountKey || '')];
+  if (!definition) throw new Error('UNKNOWN_TEST_ACCOUNT');
+  const key = await userKey(definition.email, env.ACCOUNT_HASH_SECRET);
+  let account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key=? LIMIT 1').bind(key).first();
+  if (!account) {
+    const accountId = crypto.randomUUID();
+    await env.DB.prepare('INSERT INTO accounts (id, user_key, role) VALUES (?, ?, ?)').bind(accountId, key, definition.role).run();
+    account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE id=?').bind(accountId).first();
+  } else if (account.role !== definition.role) {
+    await env.DB.batch([
+      env.DB.prepare('UPDATE accounts SET role=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(definition.role, account.id),
+      env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id)
+    ]);
+    account.role = definition.role;
+  }
+  const salt = randomHex(16);
+  const hash = await passwordHash(testAccountPassword, salt);
+  const credential = await env.DB.prepare('SELECT account_id AS accountId FROM auth_credentials WHERE email_normalized=? LIMIT 1').bind(definition.email).first();
+  if (credential) {
+    if (credential.accountId !== account.id) throw new Error('TEST_ACCOUNT_CONFLICT');
+    await env.DB.prepare('UPDATE auth_credentials SET password_hash=?, password_salt=?, password_iterations=?, failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(hash, salt, passwordIterations, account.id).run();
+  } else {
+    await env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, definition.email, hash, salt, passwordIterations).run();
+  }
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
+    env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, last_login_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.email, definition.displayName),
+    env.DB.prepare("INSERT INTO member_profiles (account_id, display_name) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.displayName),
+    env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'terms', termsVersion),
+    env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'age_confirmation', termsVersion),
+    env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'privacy_notice_ack', privacyNoticeVersion)
+  ]);
+  const adminEmails = String(env.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+  const isAdmin = adminEmails.includes(definition.email);
+  if (accountKey === 'admin' && !isAdmin) throw new Error('ADMIN_TEST_ACCOUNT_NOT_CONFIGURED');
+  const token = await createAuthSession(env, account.id, { isAdmin });
+  return { token, definition, account, isAdmin };
+}
 async function authApi(request, env, pathname) {
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   if (!env || !env.DB) return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503);
@@ -617,6 +662,18 @@ async function authApi(request, env, pathname) {
   if (length > 32768) return json({ error:'요청 크기가 너무 큽니다.' }, 413);
   let body;
   try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  if (pathname === '/api/auth/test-switch') {
+    let session;
+    try {
+      session = await createTestAccountSession(env, body.key);
+    } catch (error) {
+      const knownInputError = error instanceof Error && error.message === 'UNKNOWN_TEST_ACCOUNT';
+      return json({ error:knownInputError ? '테스트 계정 유형을 확인해주세요.' : '테스트 계정 전환을 준비하지 못했습니다.' }, knownInputError ? 400 : 503);
+    }
+    const cookieMaxAge = session.isAdmin ? adminSessionSeconds : authSessionSeconds;
+    const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:session.token } : {};
+    return json({ signedIn:true, isAdmin:session.isAdmin, account:{ role:session.account.role }, identity:{ email:session.definition.email, displayName:session.definition.displayName }, ...sessionFallback }, 200, { 'set-cookie':authCookie(session.token, cookieMaxAge) });
+  }
   const email = normalizeEmail(body.email);
   const password = String(body.password || '');
   if (!email || !validPassword(password)) return json({ error:'이메일과 영문·숫자를 포함한 8자 이상의 비밀번호를 확인해주세요.' }, 400);
@@ -1887,7 +1944,7 @@ async function responseFor(request, env) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
-  if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout') return authApi(request, env, pathname);
+  if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout' || pathname === '/api/auth/test-switch') return authApi(request, env, pathname);
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);

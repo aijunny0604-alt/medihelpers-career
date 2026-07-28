@@ -393,19 +393,7 @@ function Header({ path, qa, operations, auth }) {
     if (switchingRole) return;
     setSwitchingRole(account.key);
     try {
-      try {
-        await authRequest('login', { email:account.email, password:account.password });
-      } catch {
-        await authRequest('register', {
-          role:account.role,
-          email:account.email,
-          password:account.password,
-          displayName:account.loginLabel,
-          termsAccepted:true,
-          privacyAcknowledged:true,
-          ageConfirmed:true
-        });
-      }
+      await authRequest('test-switch', { key:account.key });
       // [중요] 로그인/가입 직후 세션 쿠키가 실제로 자리잡았는지 확인하고 이동한다.
       // 예전에는 곧바로 리다이렉트해서, 느린 PC·네트워크에선 쿠키가 반영되기 전에
       // /mypage가 /api/member-center를 호출 → 401 → '회원 정보를 불러오지 못했습니다'가 떴다.

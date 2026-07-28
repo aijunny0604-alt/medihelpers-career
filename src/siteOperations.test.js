@@ -24,7 +24,14 @@ test('콘텐츠 유형이 다른 레코드는 각 공개 목록에 섞이지 않
   assert.equal(operationalTalent(records).length, 1);
 });
 
-const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+const isoDay = (offsetDays) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 test('노출 종료일(exposureEnd)이 지난 기간제 공고는 목록에서 자동으로 제외된다', () => {
   const timed = [

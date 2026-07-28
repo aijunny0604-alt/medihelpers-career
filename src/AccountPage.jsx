@@ -532,9 +532,9 @@ function SignedOutCard({ memberType }) {
 
 // 테스트용 계정. 관리자 판별은 서버 ADMIN_EMAILS와 일치해야 하므로 admin@medihelpers.co.kr 사용.
 export const TEST_ACCOUNTS = [
-  { key: 'doctor', label: '일반회원', loginLabel: '의료인 회원', role: 'doctor', email: 'doctor-test@medihelpers.co.kr', password: 'medihelpers1234' },
-  { key: 'admin', label: '관리자', loginLabel: '관리자', role: 'doctor', email: 'admin@medihelpers.co.kr', password: 'medihelpers1234' },
-  { key: 'hospital', label: '병원회원', loginLabel: '병원 회원', role: 'hospital', email: 'hospital-test@medihelpers.co.kr', password: 'medihelpers1234' }
+  { key: 'doctor', label: '일반회원', loginLabel: '의료인 회원', role: 'doctor' },
+  { key: 'admin', label: '관리자', loginLabel: '관리자', role: 'doctor' },
+  { key: 'hospital', label: '병원회원', loginLabel: '병원 회원', role: 'hospital' }
 ];
 
 function LoginCard() {
@@ -562,17 +562,12 @@ function LoginCard() {
       setSubmitting(false);
     }
   };
-  // 테스트 계정으로 바로 로그인. 서버에 계정이 없으면 먼저 만든 뒤 로그인한다.
+  // 테스트 계정은 서버가 계정 상태와 세션을 복구한 뒤 바로 전환한다.
   const loginTest = async (acct) => {
     setError('');
     setSubmitting(true);
     try {
-      try {
-        await authRequest('login', { email: acct.email, password: acct.password });
-      } catch {
-        // 계정이 없으면 가입 후 로그인(가입 성공 시 이미 로그인 상태가 될 수 있음).
-        await authRequest('register', { role: acct.role, email: acct.email, password: acct.password, displayName: acct.loginLabel, termsAccepted: true, privacyAcknowledged: true, ageConfirmed: true });
-      }
+      await authRequest('test-switch', { key: acct.key });
       // 세션 쿠키가 실제로 붙었는지 확인 후 이동(느린 PC에서 바로 이동하면 마이페이지가 401을 만남).
       for (let attempt = 0; attempt < 4; attempt++) {
         try {
