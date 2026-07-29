@@ -547,7 +547,11 @@ function LoginCard() {
     // next 파라미터가 없으면 관리자는 운영 콘솔로, 그 외는 마이페이지로 보낸다.
     const fallback = role === 'admin' ? '/admin/console' : '/mypage';
     const requested = explicit || fallback;
-    window.location.href = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : fallback);
+    const target = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : fallback);
+    // Keep the in-memory fallback session alive when browser storage is restricted.
+    window.history.replaceState({}, '', target);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
   const submit = async (event) => {
     event.preventDefault();

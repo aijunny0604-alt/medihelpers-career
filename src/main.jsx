@@ -406,7 +406,8 @@ function Header({ path, qa, operations, auth }) {
         } catch {}
         if (!sessionReady) await new Promise((r) => setTimeout(r, 300));
       }
-      window.location.href = withBase(account.key === 'admin' ? '/admin/console' : '/mypage');
+      // Preserve the in-memory fallback token by navigating inside the SPA.
+      navigate(account.key === 'admin' ? '/admin/console' : '/mypage');
     } catch (error) {
       window.alert(`테스트 계정 전환에 실패했습니다: ${error.message}`);
       setSwitchingRole('');
