@@ -7,6 +7,7 @@
 ## Current State
 
 - `STATUS.md`: 마지막 작업일, 배포 상태, 구현·미구현 범위
+- `HANDOFF_2026-07-29.md`: Sites 배포·검증 인수인계(최신 변경, R2 업로드 한계, 배포 후 체크리스트)
 - `QUICK_REF.md`: 한눈에 보는 제품 정의
 - `ROADMAP.md`: 단계별 출시 계획
 - `DESIGN.md`: 브랜드·화면·사용자 흐름
