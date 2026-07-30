@@ -4,6 +4,7 @@ import {
   FileText, MapPin, PencilLine, Plus, Save, Stethoscope, Trash2, UsersRound, X
 } from 'lucide-react';
 import { withBase } from './basePath.js';
+import ImageUpload from './ImageUpload.jsx';
 
 // 아빠(헤드헌터·관리자) 전용 공고 게시판.
 // 관리자 콘솔의 복잡한 통합 관리 대신, "공고 올리기 + 내가 올린 공고 관리"만 담은 간편 전용 페이지.
@@ -207,6 +208,11 @@ export default function JobPostBoardPage() {
         <label><span>마감일</span><input value={editing.payload.deadline || ''} onChange={(e) => changePayload('deadline', e.target.value)} placeholder="예: 2026.08.31, 상시채용" /></label>
         <label className="wide"><span>근무 일정</span><input value={editing.payload.schedule || ''} onChange={(e) => changePayload('schedule', e.target.value)} placeholder="예: 평일 09:00~18:00 · 토요일 격주 오전" /></label>
         <label className="wide"><span>상세 설명</span><textarea rows={5} value={editing.payload.description} onChange={(e) => changePayload('description', e.target.value)} placeholder="근무조건, 복리후생, 우대사항, 지원 방법 등 병원·의사에게 알리고 싶은 내용을 자유롭게 적어주세요." /></label>
+        <div className="post-form-uploads wide">
+          <ImageUpload label="병원 로고" hint="정사각형 권장 · 카드에 표시" purpose="logo" aspect="1 / 1" value={editing.payload.logo || ''} onChange={(url) => changePayload('logo', url)} />
+          <ImageUpload label="채용 배너" hint="가로형 · 공고 카드 상단 배너" purpose="banner" aspect="16 / 9" value={editing.payload.banner || ''} onChange={(url) => changePayload('banner', url)} />
+          <ImageUpload label="병원·시설 사진" hint="진료실·건물 등 (선택)" purpose="facility" aspect="4 / 3" value={editing.payload.facility || ''} onChange={(url) => changePayload('facility', url)} />
+        </div>
       </div>
 
       <footer>

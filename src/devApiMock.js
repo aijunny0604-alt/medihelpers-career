@@ -292,6 +292,28 @@ export function installDevApiMock() {
     let pathname = '';
     try { pathname = new URL(url, window.location.origin).pathname; } catch { pathname = url; }
     if (!pathname.startsWith('/api/')) return realFetch(input, init);
+    // 이미지 업로드 목: 실제 R2가 없으므로 업로드한 파일을 data URL로 변환해 돌려준다.
+    // 배포 서버는 /api/uploads/<key>를 돌려주지만, 로컬에선 data URL이 미리보기·저장에 그대로 쓰인다.
+    if (pathname === '/api/uploads' && method === 'POST') {
+      try {
+        const raw = init?.body;
+        const blob = raw instanceof Blob ? raw : new Blob([raw || '']);
+        const contentType = (typeof input !== 'string' && input?.headers?.get?.('content-type')) || init?.headers?.['content-type'] || init?.headers?.['Content-Type'] || blob.type || 'image/png';
+        if (blob.size > 5 * 1024 * 1024) return jsonRes({ error: '이미지는 5MB 이하만 업로드할 수 있습니다.' }, 413);
+        const dataUrl = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(String(fr.result));
+          fr.onerror = () => reject(new Error('read fail'));
+          fr.readAsDataURL(blob);
+        });
+        const purpose = (init?.headers?.['x-upload-purpose']) || 'photo';
+        // eslint-disable-next-line no-console
+        console.info('[devApiMock] POST /api/uploads →', contentType, blob.size, 'bytes (data URL 반환)');
+        return jsonRes({ uploaded: true, url: dataUrl, key: 'mock/' + Date.now(), purpose }, 201);
+      } catch (e) {
+        return jsonRes({ error: '목 업로드 실패', detail: String(e) }, 500);
+      }
+    }
     try {
       const bodyText = init?.body ? (typeof init.body === 'string' ? init.body : '') : '';
       const res = await handle(method, pathname, bodyText);
