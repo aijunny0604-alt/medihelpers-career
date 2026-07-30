@@ -1305,6 +1305,14 @@ function HomePage({ liveJobs = jobs }) {
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
+  const toggleSaved = (id) => setSaved((current) => {
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+    writeStoredValue('medihelpers_saved_jobs', next);
+    syncSavedToServer(id, 'job');
+    return next;
+  });
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
     <section className="home-video-hero" aria-label="메디헬퍼스 소개">
@@ -1337,7 +1345,8 @@ function HomePage({ liveJobs = jobs }) {
         </div>
       </div>
     </section>
-    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">LATEST DOCTOR POSITIONS</span><h2>진행 중인 의사 초빙공고</h2><p>병원과 근무조건을 같은 기준으로 비교하고 상세 공고를 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{prioritizeJobs(liveJobs).slice(0, 8).map((job) => <JobCard key={job.id} job={job} variant="compact" saved={false} onSave={() => {}} onOpen={() => navigate(`/jobs/${job.id}`)} />)}</div></section>
+    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">LATEST DOCTOR POSITIONS</span><h2>진행 중인 의사 초빙공고</h2><p>병원과 근무조건을 같은 기준으로 비교하고 상세 공고를 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{prioritizeJobs(liveJobs).slice(0, 8).map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => setSelectedJob(job)} />)}</div></section>
+    {selectedJob && <JobDetail job={selectedJob} saved={saved.includes(selectedJob.id)} onSave={() => toggleSaved(selectedJob.id)} onClose={() => setSelectedJob(null)} />}
   </>;
 }
 
@@ -1501,6 +1510,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const [condition, setCondition] = useState(params.get('condition') || '전체 조건');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
+  const [selectedJob, setSelectedJob] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
@@ -1554,7 +1564,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
     setKeyword('');
     setStandardVisible(STANDARD_STEP);
   };
-  const openJob = (job) => { trackConversion('job_detail_open', { jobId: job.id }); navigate(`/jobs/${job.id}`); };
+  const openJob = (job) => { trackConversion('job_detail_open', { jobId: job.id }); setSelectedJob(job); };
   // 관리자면 관리자가 등록한(DB) 공고에 한해 카드에서 바로 수정·삭제할 수 있게 한다.
   const isAdmin = Boolean(adAuth.isAdmin);
   const manageJob = isAdmin ? {
@@ -1588,13 +1598,14 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong><small>병원 로고와 핵심 조건을 같은 규격으로 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button spotlight" onClick={() => requestAdPlan(adPlans[2])}>{canRegisterAds ? '플래티넘 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button></div></div><div className="job-grid portal-premium-grid unified-job-grid">{orderedPromoted.map(renderPortalCard)}</div></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong><small>병원 로고와 핵심 조건을 같은 규격으로 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button spotlight" onClick={() => requestAdPlan(adPlans[2])}>{canRegisterAds ? '플래티넘 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button></div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button></div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> HEADHUNTING</span><h3>{saved.length ? `찜한 ${saved.length}개 공고, 조건을 헤드헌터와 정리해보세요` : '원하는 조건을 헤드헌터에게 바로 상담하세요'}</h3><p>근무·보수·거리·진료 범위 등 중요하게 보는 조건을 전문 헤드헌터가 함께 맞춰드립니다.</p></div><Link className="button dark" to="/headhunting" onClick={() => trackConversion('jobs_headhunting_nudge', { savedCount: saved.length })}>헤드헌터에게 상담하기 <ArrowRight /></Link></div>
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
     <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
+    {selectedJob && <JobDetail job={selectedJob} qa={qa} saved={saved.includes(selectedJob.id)} onSave={() => toggleSaved(selectedJob.id)} onClose={() => setSelectedJob(null)} />}
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
   </>;
 }
@@ -3523,7 +3534,7 @@ export function App() {
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} route={route} />} /></AuthGate>;
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
-    : <MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} />;
+    : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="의료인 채용 상세정보는 로그인 후 안전하게 확인할 수 있습니다."><MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} /></AuthGate>;
   else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} />;
   // /advertise/post(무료 직접게시)는 폐지 — 상단 ROUTE_ALIASES에서 /advertise로 정규화됨(도달 불가).
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;

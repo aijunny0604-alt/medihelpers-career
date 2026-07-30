@@ -5426,3 +5426,6 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .hb-admin-actions button.danger{color:#c0392f}
 .hb-admin-actions button.danger:hover{border-color:#e59a93;background:#fdf3f2}
 @media(max-width:720px){.headhunt-board-table.admin-manage .hb-admin-actions{justify-content:flex-start;margin-top:8px;padding:8px 0 0!important}}
+
+/* Mobile navigation keeps a full-size touch target across display scales. */
+@media(max-width:1020px){.menu-btn{min-width:44px;min-height:44px;padding:10px;display:flex;align-items:center;justify-content:center;border-radius:12px}}

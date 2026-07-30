@@ -892,12 +892,13 @@ function cleanMemberProfile(profile) {
 const UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 const UPLOAD_EXT = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'image/gif':'gif' };
 async function uploadApi(request, env, pathname) {
-  if (!env.UPLOADS) return json({ error:'이미지 업로드 저장소가 설정되지 않았습니다. 관리자에게 문의해주세요.' }, 503);
+  const uploadStorage = env.UPLOADS || env.BACKUPS;
+  if (!uploadStorage) return json({ error:'이미지 업로드 저장소가 설정되지 않았습니다. 관리자에게 문의해주세요.' }, 503);
   if (request.method === 'GET') {
     const key = decodeURIComponent(pathname.slice('/api/uploads/'.length));
     // [보안] 경로 이탈 방지. 우리가 발급한 키(hospitals/로 시작)만 서빙한다.
     if (!key || key.indexOf('..') !== -1 || key.indexOf('hospitals/') !== 0) return json({ error:'잘못된 요청입니다.' }, 400);
-    const object = await env.UPLOADS.get(key);
+    const object = await uploadStorage.get(key);
     if (!object) return new Response('Not Found', { status: 404 });
     const headers = new Headers();
     headers.set('content-type', (object.httpMetadata && object.httpMetadata.contentType) || 'application/octet-stream');
@@ -928,7 +929,7 @@ async function uploadApi(request, env, pathname) {
     if (!buffer || buffer.byteLength === 0) return json({ error:'빈 파일입니다. 이미지를 다시 선택해주세요.' }, 400);
     if (buffer.byteLength > UPLOAD_MAX_BYTES) return json({ error:'이미지는 5MB 이하만 업로드할 수 있습니다.' }, 413);
     const objectKey = 'hospitals/' + ownerId + '/' + purpose + '/' + crypto.randomUUID() + '.' + ext;
-    await env.UPLOADS.put(objectKey, buffer, { httpMetadata: { contentType: contentType }, customMetadata: { uploadedBy: ownerId, purpose: purpose } });
+    await uploadStorage.put(objectKey, buffer, { httpMetadata: { contentType: contentType }, customMetadata: { uploadedBy: ownerId, purpose: purpose } });
     // 병원 회원이면 활동 기록에 남겨 마이페이지에서 업로드 이력을 확인할 수 있게 한다(실패해도 업로드는 성공 처리).
     if (account) { try { await ensureMemberCenterSchema(env); await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'asset_upload', ?, ?)").bind(crypto.randomUUID(), account.id, ('이미지 업로드 · ' + purpose).slice(0,200), objectKey.slice(0,300)).run(); } catch {} }
     return json({ uploaded:true, url:'/api/uploads/' + objectKey, key:objectKey, purpose:purpose }, 201);
