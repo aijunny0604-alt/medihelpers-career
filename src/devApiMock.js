@@ -11,6 +11,7 @@ const LS = {
   authAccounts: 'devmock_auth_accounts', // { [email]: { role, password } }
   authSession: 'devmock_auth_session', // { email, role } | null
   adminContents: 'devmock_admin_contents', // 관리자가 올린 공고·콘텐츠 (로컬에서도 실제 저장·노출)
+  savedServer: 'devmock_saved_server', // 서버(D1) 관심공고 목록 흉내 — 카드 로컬키(medihelpers_saved_jobs)와 분리해 기기 간 동기화를 검증
 };
 const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k) || '') ?? fallback; } catch { return fallback; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -204,9 +205,21 @@ async function handle(method, path, bodyText) {
     return jsonRes({ requested: true, orderNumber: target.orderNumber });
   }
 
+  // 관심공고(찜) 서버 저장 흉내 — POST는 토글, GET은 목록 반환(기기 간 동기화 검증용).
+  if (path === '/api/saved-jobs' && method === 'POST') {
+    const jobId = String(body.jobId || '');
+    const kind = body.kind === 'talent' ? 'talent' : 'job';
+    if (!jobId) return jsonRes({ error: 'jobId 필요' }, 400);
+    const list = read(LS.savedServer, []);
+    const idx = list.findIndex((x) => x.jobId === jobId && x.kind === kind);
+    if (idx >= 0) list.splice(idx, 1); else list.push({ jobId, kind });
+    write(LS.savedServer, list);
+    return jsonRes({ ok: true, saved: list });
+  }
+
   // 그 외 GET은 빈 기본값으로 응답해 콘솔 404를 줄인다.
   if (method === 'GET') {
-    if (path === '/api/saved-jobs') return jsonRes({ saved: [] });
+    if (path === '/api/saved-jobs') return jsonRes({ saved: read(LS.savedServer, []) });
     if (path === '/api/member-center') {
       // 저장된 주문을 서버(member-center)와 같은 형태로 내려 결제 이력에 열람권이 뜨게 한다.
       const orders = Object.values(read(LS.orders, {})).map((o) => {
