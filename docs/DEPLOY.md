@@ -19,6 +19,7 @@
 ## Current State
 
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career` (**테스트 전용 — 실결제 불가**)
+- 현재 공개 버전: Sites v227 · 소스 커밋 `69f27e7` (2026-08-02)
 - 보조 공개본: GitHub Pages `aijunny0604-alt.github.io/medihelpers-career`
 - 소스 저장소: GitHub `aijunny0604-alt/medihelpers-career`
 - 현재 Sites 작업 브랜치: `agent/medihelpers-ui-stability`

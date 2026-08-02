@@ -7,7 +7,7 @@
 - [OpenAI Sites 운영본](https://medihelpers-career.junnyai.chatgpt.site)
 - [GitHub 저장소](https://github.com/aijunny0604-alt/medihelpers-career)
 - [GitHub Pages 미러](https://aijunny0604-alt.github.io/medihelpers-career/)
-- 문서 기준일: 2026-07-30
+- 문서 기준일: 2026-08-02
 
 ## 현재 구현
 

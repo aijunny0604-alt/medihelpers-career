@@ -16,7 +16,7 @@
 | 배포처 | 주소 | 기준 | 상태 |
 | --- | --- | --- | --- |
 | GitHub Pages (테스트 미러) | https://aijunny0604-alt.github.io/medihelpers-career/ | `main` 푸시 시 자동 배포(`.github/workflows/pages.yml`) | **최신**(2026-07-22 반영). 정식 오픈 전 테스트용이라 검색엔진 색인 차단 |
-| OpenAI Sites (공개본) | https://medihelpers-career.junnyai.chatgpt.site | Codex에서 수동 배포 | **최신** — Sites v224, 커밋 `c73b28d`(2026-07-30) |
+| OpenAI Sites (공개본) | https://medihelpers-career.junnyai.chatgpt.site | Codex에서 수동 배포 | **최신** — Sites v227, 커밋 `69f27e7`(2026-08-02) |
 
 ⚠️ 두 배포처가 **서로 다른 파이프라인**이라 한쪽만 반영되는 사고가 실제로 발생했다(히어로 영상이 Sites에는 있고 GitHub에는 없던 건). 변경 후 **양쪽 반영 여부를 각각 확인**할 것. `docs/CLOUDFLARE_MIGRATION.md`의 이전이 끝나면 배포처 단일화로 해소된다.
 
@@ -51,7 +51,7 @@
 
 | 영역 | 현재 동작 | 운영 전 남은 작업 |
 |---|---|---|
-| 배포 | OpenAI Sites v224에 커밋 `c73b28d` 반영. GitHub `main`도 같은 기능 커밋이며 Pages는 서버 API가 없는 정적 미러 | Cloudflare 이전으로 배포처 단일화 |
+| 배포 | OpenAI Sites v227에 커밋 `69f27e7` 반영. GitHub 작업 브랜치 `agent/medihelpers-ui-stability`와 동기화했으며 Pages는 서버 API가 없는 정적 미러 | Cloudflare 이전으로 배포처 단일화 |
 | 결제 | 이니시스 연동 완료(승인·금액검증·멱등성·SSRF·소유자 인증). 팩=크레딧 방식. 키 미설정이라 테스트(가상) 결제 | **이니시스 MID/키 설정**, 웹훅 수신, Cloudflare 이전(Sites는 실결제 불가) |
 | 알림 | 메일·문자 코드 완성 | **Resend/Solapi 키 환경변수 설정**(docs/NOTIFICATION_SETUP.md) |
 | 회원가입 | 역할·동의 기록 | 승인된 약관 버전, 본인확인, 면허·병원 인증 |
