@@ -7,6 +7,7 @@
 | `/api/categories` | GET | 공개 | 활성 진료과·지역·의료인 직군 |
 | `/api/site-operations` | GET | 공개/역할별 | 사이트 설정·기능 플래그·게시 콘텐츠 |
 | `/api/account` | GET·POST·DELETE | 인증 | 가입 가능 상태, 계정 생성·탈퇴 |
+| `/api/account-recovery` | POST | 공개 | 가입 이메일 확인·비밀번호 재설정 본인 확인 요청을 D1에 접수하고 접수번호 반환 |
 | `/api/auth/register` | POST | 공개 | 자체 이메일·비밀번호 계정 생성 및 로그인. 요청 헤더가 보조 세션을 명시하면 탭 토큰도 반환 |
 | `/api/auth/login` | POST | 공개 | 자체 계정 로그인 및 보안 세션 쿠키 발급. 요청 헤더가 보조 세션을 명시하면 탭 토큰도 반환 |
 | `/api/auth/logout` | POST | 로그인 | 현재 D1 세션 폐기 및 보안 쿠키 삭제. 클라이언트는 탭 보조 토큰도 함께 삭제 |

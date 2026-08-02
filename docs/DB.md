@@ -9,6 +9,7 @@
 - `accounts`: 인증 이메일의 HMAC-SHA-256 키, 최소 역할, 가입·변경 시각
 - `auth_credentials`: 자체 로그인 이메일, PBKDF2 비밀번호 해시·salt·반복 횟수, 실패 횟수·잠금 시각
 - `auth_sessions`: 브라우저 세션 토큰의 SHA-256 해시, 계정 연결, 생성·만료 시각
+- `account_recovery_requests`: 가입 이메일 확인·비밀번호 재설정 도움 요청, 연락 정보, 처리 상태, 접수·수정 시각
 - `consent_records`: 이용약관·연령 확인·개인정보 처리 안내 확인 유형과 문서 버전
 - `profiles`: 공통 회원 정보와 역할
 - `professions`: 보건의료 직군과 직군별 검색 스키마
@@ -37,7 +38,7 @@
 
 ## 데이터 규칙
 
-- 최소 회원가입 DB에는 이메일 원문·전화번호·이름·면허번호를 저장하지 않습니다.
+- `accounts`에는 HMAC 계정 키와 역할만 저장하고, 자체 로그인 이메일은 `auth_credentials`, 이름·전화번호·기관 정보는 접근이 통제된 회원 프로필에 분리 저장합니다. 면허번호는 현재 회원가입에서 수집하지 않습니다.
 - 계정 생성·조회·삭제는 자체 로그인 세션 쿠키(`mh_session`, D1 세션)로 인증된 서버 API로만 처리하고 클라이언트 역할 값을 권한으로 신뢰하지 않습니다.
 - 동의·확인은 유형과 문서 버전을 분리하여 기록하고 마케팅 동의는 기본 생성하지 않습니다.
 - 개인정보와 공개 검색용 데이터를 분리합니다.
@@ -46,11 +47,11 @@
 - 후보자 동의 전에는 병원 응답에 직접 식별정보를 포함하지 않습니다.
 - 권한 만료, 환불, 소개 완료는 원본 거래 기록을 지우지 않고 상태 이력으로 남깁니다.
 
-## 실제 런타임 테이블 (2026-07-25 기준)
+## 실제 런타임 테이블 (2026-08-02 기준)
 
 `scripts/package-sites.mjs`가 요청 시 자동 생성하는 D1 테이블. 스키마 원본은 `db/schema.js`.
 
-**인증·회원**: `accounts`, `auth_credentials`, `auth_sessions`, `account_admin_profiles`, `member_profiles`, `member_preferences`, `member_activity`, `consent_records`, `consent_grants`, `withdrawn_members`
+**인증·회원**: `accounts`, `auth_credentials`, `auth_sessions`, `account_recovery_requests`, `account_admin_profiles`, `member_profiles`, `member_preferences`, `member_activity`, `consent_records`, `consent_grants`, `withdrawn_members`
 
 **공고·인재**: `admin_content_records`(관리자 게시 공고·콘텐츠), `admin_categories`, `resumes`(의료인 이력서, `visibility`: public/proposal/private), `saved_jobs`(관심공고)
 
@@ -69,6 +70,7 @@
 
 ### 백업·보존
 
+- `account_recovery_requests`는 백업 스키마 v0007부터 D1→R2 일일 백업 대상에 포함합니다.
 - `data_protection_runs`: 일일·수동 백업과 보존기간 정리의 성공·실패, R2 객체 키, SHA-256 체크섬, 테이블별 행 수를 기록합니다.
 - 전체 D1 스냅샷은 별도 R2 `BACKUPS`에 저장하며 로그인 세션은 제외합니다.
 - 탈퇴·상담·채용·거래·감사 로그의 만료 정리는 `docs/DATA_PROTECTION.md`의 기준을 따릅니다.
