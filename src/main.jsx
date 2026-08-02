@@ -1317,7 +1317,7 @@ function HomePage({ liveJobs = jobs }) {
       <div className="home-video-hero-overlay" />
       <div className="home-video-hero-inner">
         <span className="home-video-hero-eyebrow">MEDIHELPERS · 의사 헤드헌팅</span>
-        <h1>메디헬퍼스가<br /><em>연결합니다</em></h1>
+        <h1>의사·의료인 채용,<br /><em>메디헬퍼스가 함께합니다</em></h1>
         <p>초빙정보부터 비공개 이직상담, 전담 헤드헌팅까지. 병원과 의료진을 가장 잘 맞는 조건으로 잇습니다.</p>
         <div className="home-video-hero-actions">
           <Link className="button primary" to="/jobs">의사 초빙정보 보기 <ArrowRight /></Link>
