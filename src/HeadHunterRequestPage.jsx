@@ -9,7 +9,6 @@ import {
   LogIn,
   ShieldCheck,
   Stethoscope,
-  Upload,
   UserRoundSearch,
 } from "lucide-react";
 import { appendStoredRecord } from "./browserStorage.js";
@@ -54,7 +53,6 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
           : qa.info.capabilities.hospital)),
   );
   const [done, setDone] = useState("");
-  const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const accountProfile = useAccountProfile();
@@ -88,12 +86,11 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
     setSubmitting(true);
     setSubmitError("");
     const form = new FormData(event.currentTarget);
-    form.delete("attachment");
     form.delete("privacy");
     const fields = Object.fromEntries(form.entries());
     // 등록 이력서가 있고 '내 이력서로 지원'을 켜면 이력서를 연동(파일 재첨부 불필요).
     const linkedResume = isDoctor && myResume && useMyResume ? { resumeId: myResume.id, resumeTitle: myResume.title } : {};
-    const payload = { attachmentName: file?.name || "", ...(appliedJobId ? { jobId: appliedJobId } : {}), ...linkedResume, ...fields };
+    const payload = { ...(appliedJobId ? { jobId: appliedJobId } : {}), ...linkedResume, ...fields };
     try {
       if (qaAllowed) {
         const previewId = `QA-${isDoctor ? "D" : "H"}-${String(Date.now()).slice(-6)}`;
@@ -423,26 +420,6 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
             </span>
             <a href={withBase("/resume")} onClick={(e) => e.stopPropagation()} className="quick-resume-edit">수정</a>
           </label>
-        )}
-        {isDoctor && !myResume && (
-          <div className="quick-file-upload">
-            <div>
-              <Upload />
-              <span>
-                <strong>기존 이력서 첨부 <i>선택</i></strong>
-                <small>등록된 이력서가 없어요. 지원하면 입력 내용이 내 이력서로 저장돼 다음부터 자동 연동됩니다. (파일 첨부도 가능 · PDF·DOC·DOCX·HWP·HWPX, 최대 10MB)</small>
-              </span>
-            </div>
-            <label>
-              <input
-                name="attachment"
-                type="file"
-                accept=".pdf,.doc,.docx,.hwp,.hwpx"
-                onChange={(event) => setFile(event.target.files?.[0] || null)}
-              />
-              {file?.name || "파일 선택"}
-            </label>
-          </div>
         )}
         <label className="quick-message">
           <span>{isDoctor ? "헤드헌터에게 전하실 말씀" : "기타 전하실 말씀"}</span>

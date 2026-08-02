@@ -44,7 +44,19 @@ export const accountSchemaStatements = [
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
   )`,
   `CREATE INDEX IF NOT EXISTS auth_sessions_account_idx ON auth_sessions(account_id, expires_at DESC)`,
-  `CREATE INDEX IF NOT EXISTS auth_sessions_expiry_idx ON auth_sessions(expires_at)`
+  `CREATE INDEX IF NOT EXISTS auth_sessions_expiry_idx ON auth_sessions(expires_at)`,
+  `CREATE TABLE IF NOT EXISTS account_recovery_requests (
+    id TEXT PRIMARY KEY,
+    request_type TEXT NOT NULL CHECK (request_type IN ('id','password')),
+    requester_name TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    email_normalized TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','contacted','resolved','closed')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS account_recovery_requests_created_idx ON account_recovery_requests(created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS account_recovery_requests_status_idx ON account_recovery_requests(status, created_at DESC)`
 ];
 
 export const consultationSchemaStatements = [

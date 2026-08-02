@@ -259,10 +259,10 @@ async function ensureAdminConsoleSchema(env) {
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
-const backupSchemaVersion = '0006';
+const backupSchemaVersion = '0007';
 const backupRetentionDays = 35;
 const backupTables = [
-  'accounts','auth_credentials','consent_records','withdrawn_members',
+  'accounts','auth_credentials','consent_records','withdrawn_members','account_recovery_requests',
   'consultation_requests','member_profiles','member_preferences','member_activity',
   'resumes','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
   'payment_transactions','payment_refunds','payment_receipts','payment_events',
@@ -801,6 +801,31 @@ async function authApi(request, env, pathname) {
     return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName }, ...sessionFallback }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
   return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
+}
+async function accountRecoveryApi(request, env) {
+  if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+  const length = Number(request.headers.get('content-length') || 0);
+  if (length > 16384) return json({ error:'요청 크기가 너무 큽니다.' }, 413);
+  try { await ensureAccountSchema(env); } catch { return json({ error:'계정 도움 요청 저장소를 사용할 수 없습니다.' }, 503); }
+  let body;
+  try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  const requestType = body.requestType === 'password' ? 'password' : body.requestType === 'id' ? 'id' : '';
+  const requesterName = String(body.name || '').trim().slice(0, 80);
+  const phone = String(body.phone || '').replace(/[^0-9+]/g, '').slice(0, 24);
+  const email = normalizeEmail(body.email);
+  if (!requestType || (requestType === 'id' && (!requesterName || phone.length < 9)) || (requestType === 'password' && !email)) {
+    return json({ error:'계정 확인에 필요한 정보를 입력해주세요.' }, 400);
+  }
+  const recent = await env.DB.prepare("SELECT id FROM account_recovery_requests WHERE request_type=? AND requester_name=? AND phone=? AND email_normalized=? AND created_at >= datetime('now','-5 minutes') ORDER BY created_at DESC LIMIT 1")
+    .bind(requestType, requesterName, phone, email).first();
+  const id = recent?.id || ('AR-' + Date.now().toString(36).toUpperCase() + '-' + randomHex(3).toUpperCase());
+  if (!recent) {
+    await env.DB.prepare('INSERT INTO account_recovery_requests (id, request_type, requester_name, phone, email_normalized) VALUES (?, ?, ?, ?, ?)')
+      .bind(id, requestType, requesterName, phone, email).run();
+  }
+  // 계정 존재 여부는 공개 응답으로 노출하지 않는다. 담당자가 관리자 화면에서 본인 확인 후 처리한다.
+  return json({ accepted:true, requestId:id }, 202);
 }
 async function accountApi(request, env) {
   const enabled = signupEnabled(env);
@@ -1831,7 +1856,7 @@ async function adminConsoleApi(request, env) {
     return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }
   if (request.method === 'GET') {
-    const [accounts, consultations, cases, categories, contentCount, auditCount, paymentMetrics, settingsResult, featuresResult, categoryResult, contentResult, memberResult, paymentResult, transactionResult, refundResult, auditResult, consultationResult, caseResult, resumeResult] = await Promise.all([
+    const [accounts, consultations, cases, categories, contentCount, auditCount, paymentMetrics, settingsResult, featuresResult, categoryResult, contentResult, memberResult, paymentResult, transactionResult, refundResult, auditResult, consultationResult, caseResult, resumeResult, recoveryResult] = await Promise.all([
       env.DB.prepare("SELECT COUNT(*) total, SUM(CASE WHEN role='doctor' THEN 1 ELSE 0 END) doctors, SUM(CASE WHEN role='hospital' THEN 1 ELSE 0 END) hospitals FROM accounts").first(),
       env.DB.prepare('SELECT COUNT(*) total FROM consultation_requests').first(),
       env.DB.prepare("SELECT SUM(CASE WHEN stage NOT IN ('hired','closed') THEN 1 ELSE 0 END) active, SUM(CASE WHEN stage='hired' THEN 1 ELSE 0 END) hired FROM recruitment_cases").first(),
@@ -1850,7 +1875,8 @@ async function adminConsoleApi(request, env) {
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all(),
       env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests ORDER BY created_at DESC LIMIT 300').all(),
       env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all(),
-      env.DB.prepare("SELECT r.id, r.title, r.profession, r.specialty, r.name, r.phone, r.email, r.desired_regions AS desiredRegions, r.completion, r.visibility, r.status, r.created_at AS createdAt, r.updated_at AS updatedAt, a.role accountRole FROM resumes r JOIN accounts a ON a.id=r.account_id ORDER BY r.updated_at DESC LIMIT 300").all().catch(() => ({ results: [] }))
+      env.DB.prepare("SELECT r.id, r.title, r.profession, r.specialty, r.name, r.phone, r.email, r.desired_regions AS desiredRegions, r.completion, r.visibility, r.status, r.created_at AS createdAt, r.updated_at AS updatedAt, a.role accountRole FROM resumes r JOIN accounts a ON a.id=r.account_id ORDER BY r.updated_at DESC LIMIT 300").all().catch(() => ({ results: [] })),
+      env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email_normalized AS email, status, created_at AS createdAt, updated_at AS updatedAt FROM account_recovery_requests ORDER BY created_at DESC LIMIT 300").all().catch(() => ({ results: [] }))
     ]);
     const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
     const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
@@ -1877,7 +1903,8 @@ async function adminConsoleApi(request, env) {
         return { ...record, payload };
       }),
       cases:caseResult.results || [],
-      resumes:resumeResult.results || []
+      resumes:resumeResult.results || [],
+      recoveryRequests:recoveryResult.results || []
     });
   }
   if (request.method !== 'PATCH') return json({ error:'지원하지 않는 요청입니다.' }, 405);
@@ -2075,6 +2102,7 @@ async function responseFor(request, env) {
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
   if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout' || pathname === '/api/auth/test-switch') return authApi(request, env, pathname);
+  if (pathname === '/api/account-recovery') return accountRecoveryApi(request, env);
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);

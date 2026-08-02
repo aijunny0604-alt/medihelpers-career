@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ArrowRight, Check, ChevronLeft, ChevronRight, CircleCheck, FileText,
-  LockKeyhole, ShieldCheck, Upload, UserRound
+  LockKeyhole, ShieldCheck, UserRound
 } from 'lucide-react';
 import { appendStoredRecord } from './browserStorage.js';
 import { withBase } from './basePath.js';
@@ -19,9 +19,6 @@ export default function ResumePage() {
   const [completed, setCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [resumeFile, setResumeFile] = useState(null);
-  const [resumeFileError, setResumeFileError] = useState('');
-  const [dragTarget, setDragTarget] = useState('');
   const [form, setForm] = useState({
     title: '', profession: '', name: '', phone: '', email: '', region: '',
     specialty: '', desiredRegions: '', salary: '',
@@ -29,27 +26,6 @@ export default function ResumePage() {
   });
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-
-  const chooseResumeFile = (file) => {
-    if (!file) return;
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (!['pdf', 'doc', 'docx', 'hwp', 'hwpx'].includes(extension || '')) {
-      setResumeFileError('PDF·DOC·DOCX·HWP·HWPX 파일만 등록할 수 있습니다.');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setResumeFileError('이력서 파일은 10MB 이하로 등록해주세요.');
-      return;
-    }
-    setResumeFileError('');
-    setResumeFile(file);
-  };
-  const dropZoneProps = (target, onFiles) => ({
-    onDragEnter: (event) => { event.preventDefault(); setDragTarget(target); },
-    onDragOver: (event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragTarget(target); },
-    onDragLeave: (event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragTarget(''); },
-    onDrop: (event) => { event.preventDefault(); setDragTarget(''); onFiles(event.dataTransfer.files); }
-  });
 
   const completion = useMemo(() => {
     // 본인이 직접 채우는 핵심 항목만으로 완성도 계산(초간편이라 필수 최소화).
@@ -64,8 +40,7 @@ export default function ResumePage() {
       id: `RES-${Date.now()}`,
       createdAt: new Date().toISOString(),
       status: 'draft-review',
-      ...form,
-      resumeFileName: resumeFile?.name || ''
+      ...form
     };
     // 서버(D1)에 저장해 아빠(관리자)가 열람할 수 있게 한다.
     // 예전에는 서버가 401·403·413을 돌려줘도 catch에서 조용히 삼키고 무조건 완료 화면을 띄웠다.
@@ -138,7 +113,6 @@ export default function ResumePage() {
             <label><span>희망 근무지역</span><input value={form.desiredRegions} onChange={(e) => update('desiredRegions', e.target.value)} placeholder="예: 부산 전 지역, 경남 양산·김해" /></label>
             <label><span>희망 보수</span><input value={form.salary} onChange={(e) => update('salary', e.target.value)} placeholder="예: 협의 · 월 400만원 이상" /></label>
           </div>
-          <div className={`resume-file-box ${dragTarget === 'resume' ? 'is-dragging' : ''}`} {...dropZoneProps('resume', (files) => chooseResumeFile(files?.[0]))}><div><Upload /><span><strong>기존 이력서 첨부 <i>선택</i></strong><small>있으면 그대로 첨부하세요 · PDF·DOC·DOCX·HWP·HWPX · 최대 10MB</small></span></div><label><input type="file" accept=".pdf,.doc,.docx,.hwp,.hwpx" onChange={(e) => chooseResumeFile(e.target.files?.[0])} />{resumeFile?.name || '파일 선택'}</label>{resumeFileError && <em>{resumeFileError}</em>}</div>
         </div>}
         {activeStep === 'visibility' && <div className="resume-step-panel">
           <div className="resume-panel-head"><small>STEP 03</small><h2>공개설정</h2><p>이 이력서를 어디까지 공개할지 직접 정하세요.</p></div>

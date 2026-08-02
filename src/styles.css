@@ -5436,3 +5436,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 /* Mobile navigation keeps a full-size touch target across display scales. */
 @media(max-width:1020px){.menu-btn{min-width:44px;min-height:44px;padding:10px;display:flex;align-items:center;justify-content:center;border-radius:12px}}
+
+/* Account recovery is a fifth operations stream; keep all monitor cards balanced. */
+.admin-monitor-summary{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.monitor-kind.recovery{background:#fff0e4;color:#a85517}

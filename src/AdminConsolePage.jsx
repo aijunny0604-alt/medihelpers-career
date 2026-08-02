@@ -144,6 +144,7 @@ const demoData = {
     { id:'con-demo-1', requestType:'hospital', requesterName:'박정호', phone:'010-9876-5432', email:'hr@samplehospital.co.kr', specialty:'정형외과', status:'new', adminNote:'', emailNotificationStatus:'sent', smsNotificationStatus:'sent', createdAt:'2026-07-17 15:10', updatedAt:'2026-07-17 15:10', payload:{ hospital:'샘플메디컬센터', purpose:'의사 추천', message:'정형외과 전문의 채용 상담 요청' } },
     { id:'con-demo-2', requestType:'doctor', requesterName:'김현우', phone:'010-1234-5678', email:'doctor@example.com', specialty:'소화기내과', status:'in_progress', adminNote:'희망 조건 확인 중', emailNotificationStatus:'sent', smsNotificationStatus:'skipped', createdAt:'2026-07-17 13:20', updatedAt:'2026-07-17 14:05', payload:{ region:'부산·경남', workType:'외래 중심', message:'비공개 이직 상담' } },
   ],
+  recoveryRequests: [],
   cases: [
     { id:'case-demo-1', consultationId:'con-demo-1', hospitalName:'샘플메디컬센터', specialty:'정형외과', positionTitle:'정형외과 전문의', stage:'candidate_search', assignedRecruiter:'김혜원 헤드헌터', estimatedFee:18000000, nextAction:'후보 2명 의사 확인', billingStatus:'success_fee', candidateCount:2, createdAt:'2026-07-17 15:20', updatedAt:'2026-07-17 15:40' },
   ],
@@ -378,6 +379,7 @@ function Dashboard({ data, select }) {
 }
 
 const monitorLabels = {
+  recovery: '계정 도움',
   consultation: '상담·문의',
   case: '채용 진행',
   content: '공고·콘텐츠',
@@ -385,6 +387,7 @@ const monitorLabels = {
 };
 
 const consultationStatus = { new:'신규 접수', contacted:'연락 완료', in_progress:'처리 중', closed:'종료' };
+const recoveryStatus = { new:'신규 접수', contacted:'본인 확인 중', resolved:'처리 완료', closed:'종료' };
 const caseStatus = { new_request:'신규 의뢰', condition_review:'조건 확인', candidate_search:'후보 탐색', candidate_consent:'후보 동의', hospital_submitted:'병원 제안', interview:'면접 예정', negotiation:'조건 협상', hired:'입사 확정', closed:'종료' };
 const contentStatus = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감' };
 const paymentStatus = { pending_review:'검토 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패', cancelled:'취소', partially_refunded:'부분 환불', refunded:'환불 완료' };
@@ -394,6 +397,7 @@ function OperationsMonitor({ data, select }) {
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState(null);
   const records = useMemo(() => [
+    ...(data.recoveryRequests || []).map((item) => ({ ...item, monitorType:'recovery', monitorTitle:item.requestType === 'password' ? '비밀번호 재설정 요청' : '가입 이메일 확인 요청', monitorSubtitle:item.requesterName || item.email || item.phone || '본인 확인 정보', monitorStatus:recoveryStatus[item.status] || item.status, monitorDate:item.updatedAt || item.createdAt })),
     ...(data.consultations || []).map((item) => ({ ...item, monitorType:'consultation', monitorTitle:`${item.requesterName || '이름 미입력'} ${item.requestType === 'hospital' ? '병원 채용 문의' : '의사 이직 상담'}`, monitorSubtitle:item.specialty || item.email || '상담 내용 확인', monitorStatus:consultationStatus[item.status] || item.status, monitorDate:item.updatedAt || item.createdAt })),
     ...(data.cases || []).map((item) => ({ ...item, monitorType:'case', monitorTitle:item.hospitalName || item.positionTitle || '채용 건', monitorSubtitle:`${item.specialty || '진료과 미정'} · ${item.assignedRecruiter || '담당자 미배정'}`, monitorStatus:caseStatus[item.stage] || item.stage, monitorDate:item.updatedAt || item.createdAt })),
     ...(data.contents || []).map((item) => ({ ...item, monitorType:'content', monitorTitle:item.title, monitorSubtitle:item.subtitle || contentTypeLabels[item.contentType] || '운영 콘텐츠', monitorStatus:contentStatus[item.status] || item.status, monitorDate:item.updatedAt || item.createdAt })),
@@ -408,6 +412,7 @@ function OperationsMonitor({ data, select }) {
   });
   const openManager = (item) => {
     setSelected(null);
+    if (item.monitorType === 'recovery') return select('monitoring');
     if (item.monitorType === 'consultation') return go('/admin/consultations');
     if (item.monitorType === 'case') return go('/admin/recruitment-crm');
     if (item.monitorType === 'content') return select('contents');
@@ -416,7 +421,7 @@ function OperationsMonitor({ data, select }) {
   return <section className="admin-panel admin-monitor">
     <header><div><small>REAL-TIME OPERATIONS MONITOR</small><h2>공고·상담·채용·결제 통합 모니터링</h2><p>새로 접수되거나 상태가 바뀐 운영 데이터를 시간순으로 확인하고 담당 관리 화면으로 바로 이동합니다.</p></div><button className="admin-primary" onClick={() => window.location.reload()}><RotateCcw />새로고침</button></header>
     <div className="admin-monitor-summary">
-      {Object.entries(monitorLabels).map(([key, label]) => <button key={key} onClick={() => setKind(key)} className={kind === key ? 'active' : ''}><span>{label}</span><strong>{counts[key] || 0}</strong><small>{key === 'consultation' ? '신규 문의와 알림 결과' : key === 'case' ? '후보·면접·입사 단계' : key === 'content' ? '공개·마감·수정 상태' : '주문·승인·환불 상태'}</small></button>)}
+      {Object.entries(monitorLabels).map(([key, label]) => <button key={key} onClick={() => setKind(key)} className={kind === key ? 'active' : ''}><span>{label}</span><strong>{counts[key] || 0}</strong><small>{key === 'recovery' ? '아이디·비밀번호 확인 요청' : key === 'consultation' ? '신규 문의와 알림 결과' : key === 'case' ? '후보·면접·입사 단계' : key === 'content' ? '공개·마감·수정 상태' : '주문·승인·환불 상태'}</small></button>)}
     </div>
     <div className="admin-monitor-toolbar">
       <div><button className={kind === 'all' ? 'active' : ''} onClick={() => setKind('all')}>전체 <b>{records.length}</b></button>{Object.entries(monitorLabels).map(([key,label]) => <button className={kind === key ? 'active' : ''} key={key} onClick={() => setKind(key)}>{label} <b>{counts[key] || 0}</b></button>)}</div>
@@ -445,7 +450,9 @@ function MonitorDetail({ item, onClose, onManage }) {
     ['최초 등록', item.createdAt],
     ['최근 변경', item.updatedAt || item.monitorDate],
   ];
-  const details = item.monitorType === 'consultation' ? [
+  const details = item.monitorType === 'recovery' ? [
+    ['요청 구분', item.requestType === 'password' ? '비밀번호 재설정' : '가입 이메일 확인'], ['요청자', item.requesterName], ['휴대전화', item.phone], ['가입 이메일', item.email],
+  ] : item.monitorType === 'consultation' ? [
     ['신청자', item.requesterName], ['구분', item.requestType === 'hospital' ? '병원 구인희망' : '의사 구직희망'], ['전화번호', item.phone], ['이메일', item.email], ['진료과', item.specialty], ['관리자 메모', item.adminNote || '작성된 메모 없음'], ['메일 알림', item.emailNotificationStatus], ['문자 알림', item.smsNotificationStatus], ...Object.entries(item.payload || {}).map(([key,value]) => [key, value]),
   ] : item.monitorType === 'case' ? [
     ['병원', item.hospitalName], ['포지션', item.positionTitle], ['진료과', item.specialty], ['담당 헤드헌터', item.assignedRecruiter || '미배정'], ['다음 업무', item.nextAction || '미지정'], ['후보 수', `${item.candidateCount || 0}명`], ['예상 성공보수', `${(Number(item.estimatedFee) || 0).toLocaleString()}원`], ['청구 기준', item.billingStatus],
@@ -459,7 +466,7 @@ function MonitorDetail({ item, onClose, onManage }) {
       <header><div><small>OPERATION RECORD DETAIL</small><span className={`monitor-kind ${item.monitorType}`}>{monitorLabels[item.monitorType]}</span><h2 id="admin-monitor-detail-title">{item.monitorTitle}</h2><p>{item.monitorSubtitle}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
       <div className="admin-content-detail-meta">{common.map(([label,value], index) => <div key={label}>{index === 1 ? <Activity /> : index === 0 ? <Database /> : <FileText />}<span><small>{label}</small><strong>{String(value || '-').slice(0,40).replace('T',' ')}</strong></span></div>)}</div>
       <div className="admin-monitor-detail-body"><h3>접수·처리 상세정보</h3><dl>{details.filter(([,value]) => value !== undefined && value !== null && value !== '').map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></div>
-      <footer><button className="button outline" onClick={onClose}>닫기</button><button className="admin-primary" onClick={onManage}>담당 관리 화면 열기 <ChevronRight /></button></footer>
+      <footer><button className="button outline" onClick={onClose}>닫기</button>{item.monitorType !== 'recovery' && <button className="admin-primary" onClick={onManage}>담당 관리 화면 열기 <ChevronRight /></button>}</footer>
     </section>
   </div>;
 }
