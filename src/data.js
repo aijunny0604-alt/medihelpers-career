@@ -164,7 +164,7 @@ export const adPlans = [
 // group은 드롭다운/구분선 등 향후 그룹 표기에 사용(현재는 순서 정렬 기준).
 export const navItems = [
   // 구직자(의사·의료인)용 — 일자리·이력서
-  { path: '/jobs', label: '의사 채용', group: 'seeker' },
+  { path: '/jobs', label: '병원 채용', group: 'seeker' },
   { path: '/medical-staff', label: '의료인 구인구직', group: 'seeker' },
   { path: '/resume', label: '이력서 등록', group: 'seeker' },
   // 헤드헌팅 서비스 — 맞춤 헤드헌팅은 강조(highlight)
