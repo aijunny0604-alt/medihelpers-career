@@ -3286,6 +3286,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .ad-apply-page .secure-note{font-size:12px!important}
 .ad-apply-success{max-width:800px;margin:60px auto;padding:72px 45px;border:1px solid #dce6f2;border-radius:25px;background:#fff;box-shadow:0 24px 60px rgba(35,64,100,.1)}
 .ad-apply-success h2{font-size:32px}.ad-apply-success-actions{display:flex;justify-content:center;gap:10px}
+.ad-apply-success-receipt{width:min(520px,100%);margin:0 auto 24px;padding:8px 20px;border:1px solid #dce7f2;border-radius:16px;background:#f7faff;text-align:left}.ad-apply-success-receipt>div{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-top:1px solid #e2eaf3}.ad-apply-success-receipt>div:first-child{border-top:0}.ad-apply-success-receipt dt{color:#75869a;font-size:12px;font-weight:750}.ad-apply-success-receipt dd{margin:0;color:#17375d;font-size:13px;font-weight:900}
 .ad-apply-gate{display:grid;place-items:center}.ad-apply-gate-card{width:min(590px,100%);padding:52px 50px;border:1px solid #dce6f2;border-radius:26px;background:#fff;text-align:center;box-shadow:0 25px 65px rgba(35,64,100,.11)}
 .ad-apply-gate-card>span{width:72px;height:72px;margin:0 auto 18px;border-radius:22px;background:#eaf2ff;color:var(--blue);display:grid;place-items:center}.ad-apply-gate-card>span svg{width:34px}
 .ad-apply-gate-card small{font:800 12px 'Manrope';letter-spacing:1px;color:var(--blue)}.ad-apply-gate-card h1{margin:9px 0 15px;color:#122746;font-size:35px;line-height:1.25;letter-spacing:-1.5px}

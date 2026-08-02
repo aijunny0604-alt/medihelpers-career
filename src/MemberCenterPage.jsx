@@ -215,15 +215,27 @@ export default function MemberCenterPage({ route, qa }) {
   // 병원 '내 공고'(이용현황) = 광고 상품 결제 주문. 결제 완료 건은 노출기간(exposure)을 함께 표시.
   const ads = qa.active ? demo.ads : serverData.orders
     .filter((item) => item.productType === 'doctor_ad' || item.productType === 'medical_staff_ad')
-    .map((item) => ({
+    .map((item) => {
+      const adStatus = item.adStatus || '';
+      const status = adStatus === 'published' && item.status === 'paid'
+        ? '노출 중'
+        : adStatus === 'draft'
+          ? (item.status === 'paid' ? '결제 완료 · 검수 대기' : '검수 대기')
+          : adStatus === 'hidden'
+            ? '반려·숨김'
+            : adStatus === 'closed'
+              ? '마감'
+              : ({ pending_review:'검수 대기', awaiting_payment:'결제 대기', failed:'결제 실패', cancelled:'취소', refunded:'환불' })[item.status] || '공고 확인 필요';
+      return {
       id: item.orderNumber,
-      title: item.productName,
+      title: item.adTitle || item.productName,
       plan: `${item.productName} · ${Number(item.totalAmount || 0).toLocaleString('ko-KR')}원`,
-      status: ({ paid: '노출 중', pending_review: '검수 대기', awaiting_payment: '결제 대기', failed: '결제 실패', cancelled: '취소', refunded: '환불' })[item.status] || item.status,
-      period: item.exposure ? `${item.exposure.start} ~ ${item.exposure.end}` : (item.status === 'paid' ? '기간 산정 중' : '결제 후 시작'),
+      status,
+      period: adStatus === 'published' && item.exposure ? `${item.exposure.start} ~ ${item.exposure.end}` : '관리자 검수 후 게시',
       views: '-',
       inquiries: '-'
-    }));
+      };
+    });
   // 의사 '이력서·구직활동' 카드. 예전에는 병원용 ads(광고 주문)를 그대로 써서
   // 의사는 이력서를 등록해도 항상 '등록한 이력서가 없습니다'만 보였다(serverData.resume를 안 읽음).
   const resumeCards = qa.active ? demo.ads : (serverData.resume ? [{

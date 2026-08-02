@@ -1003,7 +1003,28 @@ async function memberCenterApi(request, env) {
         recommendedCandidates = rows.results || [];
       } catch { recommendedCandidates = []; }
     }
-    const orderList = (orders.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure: meta.exposure || null }; });
+    // 병원 마이페이지는 결제 상태만으로 공고 노출 여부를 판단하면 안 된다.
+    // 결제 완료(paid)여도 관리자 검수 공고가 draft이면 아직 공개 전이다.
+    let ownedAdContents = [];
+    if (account.role === 'hospital') {
+      try {
+        const result = await env.DB.prepare("SELECT id, title, status, updated_at AS updatedAt FROM admin_content_records WHERE lower(created_by)=? ORDER BY updated_at DESC LIMIT 200").bind(identity.email.toLowerCase()).all();
+        ownedAdContents = result.results || [];
+      } catch { ownedAdContents = []; }
+    }
+    const ownedAdContentById = new Map(ownedAdContents.map(record => [record.id, record]));
+    const orderList = (orders.results || []).map(row => {
+      const { metadataJson, ...rest } = row;
+      const meta = parseJsonObject(metadataJson) || {};
+      const content = ownedAdContentById.get(String(meta.contentRecordId || '')) || null;
+      return {
+        ...rest,
+        exposure:meta.exposure || null,
+        contentRecordId:content?.id || '',
+        adTitle:content?.title || cleanOrderValue(meta.title || meta.hospital, 180),
+        adStatus:content?.status || ''
+      };
+    });
     return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
   }
   if (request.method === 'POST') {
@@ -1332,7 +1353,7 @@ async function paymentOrderApi(request, env) {
   const identity = await authenticatedUser(request, env);
   if (!identity) return json({ error:'로그인한 회원만 결제를 신청할 수 있습니다.' }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
-  try { await ensureAccountSchema(env); await ensureCommerceSchema(env); } catch { return json({ error:'결제 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  try { await ensureAccountSchema(env); await ensureCommerceSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'결제 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare("SELECT a.id, a.role, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   if (!account) return json({ error:'회원가입을 완료한 뒤 이용해주세요.' }, 403);
@@ -1375,11 +1396,16 @@ async function paymentOrderApi(request, env) {
     env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, storedProductType, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'pending_review', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
   ];
-  if (adContentRecord) orderStatements.push(insertAdOrderContentStatement(env, adContentRecord));
+  if (adContentRecord) {
+    orderStatements.push(
+      insertAdOrderContentStatement(env, adContentRecord),
+      env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_submission', '채용공고를 검수 요청했습니다.', ?)").bind(crypto.randomUUID(), account.id, (adContentRecord.title + ' · ' + orderNumber).slice(0,300))
+    );
+  }
   await env.DB.batch(orderStatements);
   // 이니시스 웹표준결제 파라미터(키 설정 시). 결제창은 이 값으로 호출한다.
   const inicis = await buildInicisPaymentParams(env, { orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone });
-  return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'pending_review' }, inicis }, 201);
+  return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'pending_review', contentRecordId:adContentRecord?.id || '' }, inicis }, 201);
 }
 async function sha256Hex(value) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));

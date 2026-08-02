@@ -35,6 +35,9 @@ test('병원 광고 주문은 관리자 검수용 공고와 같은 트랜잭션�
   assert.match(source, /insertAdOrderContentStatement/);
   assert.match(source, /syncAdOrderContentRecords/);
   assert.match(source, /fromHospital:true/);
+  assert.match(source, /job_submission/);
+  assert.match(source, /contentRecordId:adContentRecord\?\.id/);
+  assert.match(source, /ownedAdContentById/);
 });
 
 test('관리자 콘텐츠와 공개 초빙 게시판의 관리 버튼은 전용 열에서 한 줄로 표시된다', async () => {

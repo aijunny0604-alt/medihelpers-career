@@ -2677,7 +2677,7 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
 }
 
 function Checkout({ plan }) {
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [method, setMethod] = useState("card");
@@ -2843,7 +2843,7 @@ function Checkout({ plan }) {
         createdAt: new Date().toISOString(),
         ...data,
       });
-      setDone(true);
+      setDone(result.order || { status: "pending_review" });
     } catch (error) {
       setSubmitError(error.message);
     } finally {
@@ -2866,11 +2866,14 @@ function Checkout({ plan }) {
           </span>
           <h2>광고 결제 요청이 접수되었습니다</h2>
           <p>
-            초빙공고 내용과 병원 브랜드 정보를 확인한 뒤 결제 안내를
-            보내드립니다.
+            공고가 관리자 검수함에 안전하게 저장되었습니다.
             <br />
-            PG 연동 전까지는 이 단계에서 실제 금액이 청구되지 않습니다.
+            공개 채용목록에는 관리자 검수·승인 후 게시됩니다.
           </p>
+          <dl className="ad-apply-success-receipt">
+            <div><dt>주문번호</dt><dd>{done.orderNumber || "확인 중"}</dd></div>
+            <div><dt>현재 상태</dt><dd>관리자 검수 대기</dd></div>
+          </dl>
           <div className="ad-apply-success-actions">
             <Link className="button outline" to="/advertise">광고센터로 돌아가기</Link>
             <Link className="button primary" to="/mypage">내 공고 관리</Link>
