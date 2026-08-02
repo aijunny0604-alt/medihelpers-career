@@ -1249,6 +1249,12 @@ function adOrderContentRecord({ id, productName, metadata, ownerEmail, createdAt
   const address = cleanOrderValue(meta.address, 300);
   const salaryBasis = cleanOrderValue(meta.salaryBasis, 300);
   const description = cleanOrderValue(meta.introduction || meta.verifiedNote, 4000);
+  const logo = cleanOrderValue(meta.logo || meta.brandImageUrl, 800);
+  const banner = cleanOrderValue(meta.banner, 800);
+  const facilityPhotos = Array.isArray(meta.hospitalPhotoUrls)
+    ? meta.hospitalPhotoUrls.map(value => cleanOrderValue(value, 800)).filter(Boolean).slice(0, 6)
+    : [];
+  const facility = cleanOrderValue(meta.facility || facilityPhotos[0], 800);
   return {
     id:'ad-order-' + id,
     contentType:'doctor_job',
@@ -1262,6 +1268,10 @@ function adOrderContentRecord({ id, productName, metadata, ownerEmail, createdAt
       primary:address,
       secondary:salaryBasis || department,
       description,
+      logo,
+      banner,
+      facility,
+      facilityPhotos,
       hospital,
       facilityType:cleanOrderValue(meta.facilityType, 100),
       address,

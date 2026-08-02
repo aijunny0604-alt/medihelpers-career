@@ -38,6 +38,7 @@ import { appBase, withBase } from './basePath.js';
 import { useAccountProfile } from './useAccountProfile.js';
 import { balancedOrder, countByDept } from './jobExposure.js';
 import { installAuthenticatedFetch } from './authTransport.js';
+import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
 
 installAuthenticatedFetch();
 
@@ -2702,11 +2703,11 @@ function Checkout({ plan }) {
       setBrandError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
+    if (file.size > JOB_IMAGE_MAX_BYTES) {
       if (input) input.value = "";
       setBrandName("");
       setBrandFile(null);
-      setBrandError("8MB 이하 파일을 선택해주세요.");
+      setBrandError("5MB 이하 파일을 선택해주세요.");
       return;
     }
     if (brandPreview) URL.revokeObjectURL(brandPreview);
@@ -2728,18 +2729,20 @@ function Checkout({ plan }) {
     const valid = selected
       .filter(
         (file) =>
-          file.type.startsWith("image/") && file.size <= 8 * 1024 * 1024,
+          ["image/png", "image/jpeg", "image/webp"].includes(file.type) &&
+          file.size <= JOB_IMAGE_MAX_BYTES,
       )
       .slice(0, available);
     if (valid.length !== selected.length)
       setPhotoError(
-        "이미지 파일만 장당 8MB 이하로, 최대 6장까지 등록해주세요.",
+        "PNG·JPG·WEBP 이미지만 장당 5MB 이하로, 최대 6장까지 등록해주세요.",
       );
     setFacilityPhotos((current) => [
       ...current,
       ...valid.map((file) => ({
         name: file.name,
         url: URL.createObjectURL(file),
+        file,
       })),
     ]);
     if (input) input.value = "";
@@ -2773,8 +2776,13 @@ function Checkout({ plan }) {
   };
   const submit = async (event) => {
     event.preventDefault();
+    setSubmitError("");
     if (!facilityType) {
       setFacilityError("기관 유형을 선택해주세요.");
+      setSubmitError("기관 유형을 선택한 뒤 다시 요청해주세요.");
+      window.requestAnimationFrame(() => {
+        document.querySelector('[data-field="facility-type"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
       return;
     }
     const formData = new FormData(event.currentTarget);
@@ -2787,10 +2795,17 @@ function Checkout({ plan }) {
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
       premiumBrandMode: brandFile ? "single-brand-image" : "auto-wordmark",
     };
-    setSubmitError("");
     setSubmitting(true);
     let paymentWindowOpened = false;
     try {
+      const brandImageUrl = await uploadJobImage(brandFile, "logo");
+      const hospitalPhotoUrls = await Promise.all(
+        facilityPhotos.map((photo) => uploadJobImage(photo.file, "facility")),
+      );
+      data.brandImageUrl = brandImageUrl;
+      data.logo = brandImageUrl;
+      data.hospitalPhotoUrls = hospitalPhotoUrls;
+      data.facility = hospitalPhotoUrls[0] || "";
       const response = await fetch("/api/payment-orders", {
         method: "POST",
         credentials: "same-origin",
@@ -2913,7 +2928,7 @@ function Checkout({ plan }) {
                     <Upload />
                     <div>
                       <strong>{brandName || "클릭하거나 이미지를 끌어 놓으세요"}</strong>
-                      <small>권장 1200×400px 가로형 · PNG·JPG·WEBP · 최대 8MB</small>
+                      <small>권장 1200×400px 가로형 · PNG·JPG·WEBP · 최대 5MB</small>
                     </div>
                   </div>
                   {brandError && <em>{brandError}</em>}
@@ -2936,7 +2951,7 @@ function Checkout({ plan }) {
                 <div className="facility-upload-head">
                   <div>
                     <strong>병원 사진</strong>
-                    <span>선택사항 · 예: 1600×1000px 가로형 · PNG·JPG·WEBP · 장당 8MB · 최대 6장</span>
+                    <span>선택사항 · 예: 1600×1000px 가로형 · PNG·JPG·WEBP · 장당 5MB · 최대 6장</span>
                   </div>
                   <label>
                     <input
@@ -2997,7 +3012,7 @@ function Checkout({ plan }) {
                     placeholder="병원명을 입력해주세요"
                   />
                 </label>
-                <label>
+                <label data-field="facility-type">
                   <span>기관 유형 *</span>
                   <HeroSelect
                     label="기관 유형"
@@ -3197,7 +3212,7 @@ function Checkout({ plan }) {
               </div>
               {/* disabled 누락 시 더블클릭으로 payment_orders 행이 2건 생기고 결제창도 2번 뜬다(다른 결제 모달과 동일하게 맞춤). */}
               <button className="button primary full" type="submit" disabled={submitting}>
-                {submitting ? "DB에 안전하게 저장 중…" : "결제 안내 요청하기"} <ArrowRight size={17} />
+                {submitting ? "공고와 이미지를 안전하게 저장 중…" : "결제 안내 요청하기"} <ArrowRight size={17} />
               </button>
               <p className="secure-note">
                 <ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.
