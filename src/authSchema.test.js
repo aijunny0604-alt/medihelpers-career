@@ -18,6 +18,7 @@ test('배포 서버는 보안 쿠키와 PBKDF2를 사용하고 OpenAI 로그인 
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   const accountSource = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
   const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const adminSource = await readFile(new URL('./AdminConsolePage.jsx', import.meta.url), 'utf8');
   const memberCenterSource = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
   assert.match(serverSource, /HttpOnly; Secure; SameSite=Lax/);
   assert.match(serverSource, /function bearerToken\(request\)/);
@@ -34,6 +35,8 @@ test('배포 서버는 보안 쿠키와 PBKDF2를 사용하고 OpenAI 로그인 
   assert.match(mainSource, /className="header-logout"/);
   assert.match(mainSource, /className="mobile-logout-button"/);
   assert.match(memberCenterSource, /className="member-side-logout"/);
+  assert.match(adminSource, /className="admin-console-logout"/);
+  assert.match(adminSource, /await authRequest\('logout'\)/);
   assert.match(serverSource, /name:'PBKDF2'/);
   assert.match(serverSource, /passwordIterations = 100000/);
   assert.doesNotMatch(serverSource + accountSource, /signin-with-chatgpt|signout-with-chatgpt|auth\.openai\.com/);

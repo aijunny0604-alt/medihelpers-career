@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, Archive, BriefcaseBusiness, Building2, Check, ChevronRight, CreditCard, Database, Download,
-  Eye, FileText, FolderKanban, LayoutDashboard, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
+  Eye, FileText, FolderKanban, LayoutDashboard, LogOut, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';
 import { jobs, talent } from './data.js';
 import { sampleJobs as medicalStaffJobs } from './MedicalStaffPage.jsx';
 import { ReceiptModal } from './MemberCenterPage.jsx';
 import { withBase } from './basePath.js';
+import { authRequest } from './AccountPage.jsx';
 
 const catalogContents = [
   ...jobs.map((job) => ({
@@ -191,6 +192,7 @@ export default function AdminConsolePage({ qa = false }) {
   const [data, setData] = useState(demoData);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(!qa);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // 관리자 데이터를 못 불러왔는지(권한 실패 등) 상태. true면 빈 콘솔 대신 안내 화면을 띄운다.
   const [loadError, setLoadError] = useState('');
@@ -246,6 +248,18 @@ export default function AdminConsolePage({ qa = false }) {
     setSection(key);
   };
 
+  const logout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await authRequest('logout');
+      window.location.assign(withBase('/'));
+    } catch (error) {
+      setMessage(error.message || '로그아웃하지 못했습니다. 다시 시도해 주세요.');
+      setLoggingOut(false);
+    }
+  };
+
   // 관리자 데이터를 끝내 못 불러오면(권한 없음·세션 만료 등) 빈 콘솔 대신 안내 화면을 띄운다.
   // 예전에는 이 경우 데모 데이터가 섞인 채로 섹션이 비어 보여 '빈 페이지'처럼 느껴졌다.
   if (loadError && !qa) {
@@ -295,6 +309,9 @@ export default function AdminConsolePage({ qa = false }) {
               ))}
             </section>
           ))}
+          <button className="admin-console-logout" type="button" onClick={logout} disabled={loggingOut}>
+            <LogOut /><span>{loggingOut ? '로그아웃 중…' : '로그아웃'}</span>
+          </button>
           <div className="admin-security-note"><ShieldCheck /><p><strong>안전한 운영 원칙</strong><br />직접 SQL 대신 검증된 관리 기능과 변경 이력을 사용합니다.</p></div>
         </aside>
         <main className="admin-workspace">
