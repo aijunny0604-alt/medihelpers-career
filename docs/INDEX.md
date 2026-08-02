@@ -30,6 +30,7 @@
 - `CLOUDFLARE_MIGRATION.md`: Cloudflare Workers 이전 절차(실결제 필수 조건)
 - `INICIS_SETUP_GUIDE.md`: 이니시스 키 발급·설정 가이드
 - `TEST.md`: 검증 기준
+- `RELEASE_READINESS.md`: 정식 출시 전 완료 조건과 외부 계약·설정 체크리스트
 - `../CHANGELOG.md`: 버전별 변경과 배포 기록
 - `PROFESSION_NETWORK.md`: 의료직군별 허브와 커뮤니티 확장 전략
 - `ref/README.md`: 참고자료 기록 규칙

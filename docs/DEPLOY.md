@@ -21,19 +21,21 @@
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career` (**테스트 전용 — 실결제 불가**)
 - 보조 공개본: GitHub Pages `aijunny0604-alt.github.io/medihelpers-career`
 - 소스 저장소: GitHub `aijunny0604-alt/medihelpers-career`
-- 현재 운영 소스 브랜치: GitHub `main`
+- 현재 Sites 작업 브랜치: `agent/medihelpers-ui-stability`
 - 운영 목표 도메인: `medihelpers.co.kr` (Cloudflare 이전 시 연결)
 - 이니시스 키: 미발급 → 결제 비활성 상태
 
 ## Current Rules
 
 - 배포 전 `npm run build`(Sites) 또는 `npm run build:cf`(Cloudflare) 성공을 확인합니다.
-- `npm test` 통과를 확인합니다(현재 70건).
+- `npm test` 통과를 확인합니다(현재 74건).
 - 기존 `.openai/hosting.json`의 프로젝트 연결을 유지합니다.
 - D1 바인딩 `DB`는 재생성·재연결하지 않고 R2 바인딩 `BACKUPS`를 유지합니다. Sites의 병원 이미지 업로드는 이 저장소의 `hospitals/` 경로를 사용하며, Cloudflare는 전용 `UPLOADS` 바인딩을 우선 사용합니다.
 - 배포 후 `/api/data-protection-health`에서 `configured:true`와 최근 성공 시각을 확인합니다.
 - 비밀값은 저장소가 아닌 호스팅 환경변수에 저장합니다.
 - 공개 배포 전 샘플 데이터와 개인정보를 재검토합니다.
+- 정식 공개 직전 `TEST_ACCOUNT_SWITCH_ENABLED=false`를 설정해 테스트 역할 전환 UI와 API를 함께 닫습니다.
+- 검색 노출 전 `/robots.txt`, `/sitemap.xml`, canonical URL, `/manifest.webmanifest`의 실제 도메인을 확인합니다.
 - 검증된 변경과 문서를 GitHub `main`과 Sites 소스 `main`에 같은 커밋으로 푸시합니다.
 - GitHub Pages 미러의 배포 브랜치는 별도 워크플로 설정을 확인한 뒤 동기화합니다.
 - Sites는 GitHub와 동일한 커밋을 소스 저장소에 반영한 뒤 버전을 저장하고 공개 배포합니다.

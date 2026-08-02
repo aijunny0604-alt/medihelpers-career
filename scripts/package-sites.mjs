@@ -69,6 +69,30 @@ const recruitmentCrmSchemaStatements = ${JSON.stringify(recruitmentCrmSchemaStat
 const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatements)};
 const termsVersion = 'terms-v1.0-2026-07-18';
 const privacyNoticeVersion = 'privacy-v1.0-2026-07-18';
+const defaultPublicOrigin = 'https://medihelpers-career.junnyai.chatgpt.site';
+const publicSitemapRoutes = ['/', '/jobs', '/medical-staff', '/headhunting', '/advertise', '/terms', '/privacy', '/refund', '/withdrawal'];
+function publicOrigin(request) {
+  try { return new URL(request.url).origin; } catch { return defaultPublicOrigin; }
+}
+function htmlDocument(request) {
+  const url = new URL(request.url);
+  const origin = url.origin;
+  const canonical = origin + (url.pathname === '/' ? '/' : url.pathname.replace(/\\\/$/, ''));
+  return html
+    .replace('href="' + defaultPublicOrigin + '/"', 'href="' + canonical + '"')
+    .replace('property="og:url" content="' + defaultPublicOrigin + '/"', 'property="og:url" content="' + canonical + '"')
+    .split(defaultPublicOrigin + '/og-medihelpers-v2.jpg').join(origin + '/og-medihelpers-v2.jpg');
+}
+function robotsText(request) {
+  const origin = publicOrigin(request);
+  return ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /mypage', 'Disallow: /api/', 'Disallow: /signup', 'Disallow: /login', 'Disallow: /resume', 'Disallow: /request/', 'Sitemap: ' + origin + '/sitemap.xml', ''].join('\\n');
+}
+function sitemapXml(request) {
+  const origin = publicOrigin(request);
+  const urls = publicSitemapRoutes.map(route => '<url><loc>' + origin + route + '</loc><changefreq>' + (route === '/' ? 'daily' : 'weekly') + '</changefreq><priority>' + (route === '/' ? '1.0' : '0.8') + '</priority></url>').join('');
+  return '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + '</urlset>';
+}
+const webManifest = JSON.stringify({ name:'메디헬퍼스', short_name:'메디헬퍼스', description:'의사·의료인 채용과 병원 헤드헌팅 서비스', start_url:'/', display:'standalone', background_color:'#ffffff', theme_color:'#0b63f6', icons:[{ src:'/favicon.png', sizes:'any', type:'image/png' }] });
 function binary(base64) { return Uint8Array.from(atob(base64), value => value.charCodeAt(0)); }
 function binaryAsset(request, base64, contentType, cacheControl = 'public, max-age=31536000, immutable') {
   const bytes = binary(base64);
@@ -111,6 +135,9 @@ function signupEnabled(env) {
   const approvedCopyEmbedded = !termsVersion.includes('draft') && !privacyNoticeVersion.includes('draft');
   const accountSecretReady = env && typeof env.ACCOUNT_HASH_SECRET === 'string' && env.ACCOUNT_HASH_SECRET.length >= 32;
   return approvedCopyEmbedded && accountSecretReady && env.SIGNUP_ENABLED === 'true' && env.LEGAL_DOCUMENT_STATUS === 'approved';
+}
+function testAccountSwitchEnabled(env) {
+  return !env || env.TEST_ACCOUNT_SWITCH_ENABLED !== 'false';
 }
 const authCookieName = 'mh_session';
 const authSessionSeconds = 60 * 60 * 24 * 7;
@@ -616,13 +643,15 @@ async function createTestAccountSession(env, accountKey) {
     ]);
     account.role = definition.role;
   }
-  const salt = randomHex(16);
-  const hash = await passwordHash(testAccountPassword, salt);
   const credential = await env.DB.prepare('SELECT account_id AS accountId FROM auth_credentials WHERE email_normalized=? LIMIT 1').bind(definition.email).first();
   if (credential) {
     if (credential.accountId !== account.id) throw new Error('TEST_ACCOUNT_CONFLICT');
-    await env.DB.prepare('UPDATE auth_credentials SET password_hash=?, password_salt=?, password_iterations=?, failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(hash, salt, passwordIterations, account.id).run();
+    // 테스트 전환은 비밀번호 로그인이 아니다. 기존 계정마다 PBKDF2 10만 회를 다시
+    // 계산하면 전환이 수십 초 멈출 수 있으므로 잠금 상태만 복구한다.
+    await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(account.id).run();
   } else {
+    const salt = randomHex(16);
+    const hash = await passwordHash(testAccountPassword, salt);
     await env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, definition.email, hash, salt, passwordIterations).run();
   }
   await env.DB.batch([
@@ -663,6 +692,7 @@ async function authApi(request, env, pathname) {
   let body;
   try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
   if (pathname === '/api/auth/test-switch') {
+    if (!testAccountSwitchEnabled(env)) return json({ error:'테스트 계정 전환이 비활성화되어 있습니다.' }, 404);
     let session;
     try {
       session = await createTestAccountSession(env, body.key);
@@ -777,8 +807,8 @@ async function accountApi(request, env) {
   const identity = await authenticatedUser(request, env);
   const isAdmin = Boolean(await adminIdentity(request, env));
   if (request.method === 'GET') {
-    if (!enabled) return json({ signupEnabled: false, signedIn: Boolean(identity), account: null, identity: identity || {}, isAdmin });
-    if (!identity) return json({ signupEnabled: true, signedIn: false, account: null, identity: {}, isAdmin: false });
+    if (!enabled) return json({ signupEnabled: false, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: Boolean(identity), account: null, identity: identity || {}, isAdmin });
+    if (!identity) return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: false, account: null, identity: {}, isAdmin: false });
     try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const row = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
@@ -788,7 +818,7 @@ async function accountApi(request, env) {
     if (row) {
       try { profile = await env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id = ?').bind(row.id).first(); } catch { profile = null; }
     }
-    return json({ signupEnabled: true, signedIn: true, account: row || null, identity, isAdmin, profile: profile || null, email: identity.email });
+    return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity, isAdmin, profile: profile || null, email: identity.email });
   }
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
   if (!enabled) return json({ error: '회원가입은 법무 검토 완료 후 열립니다.' }, 503);
@@ -2026,6 +2056,9 @@ async function responseFor(request, env) {
   // 알려지지 않은 API 경로를 SPA로 넘기면 HTML 200이 반환되어 연동 실패를
   // 성공 응답으로 오인할 수 있다. API 네임스페이스는 항상 JSON 404로 끝낸다.
   if (pathname.startsWith('/api/')) return json({ error:'API 경로를 찾을 수 없습니다.' }, 404);
+  if (pathname === '/robots.txt') return new Response(robotsText(request), { status:200, headers:{ 'content-type':'text/plain; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
+  if (pathname === '/sitemap.xml') return new Response(sitemapXml(request), { status:200, headers:{ 'content-type':'application/xml; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
+  if (pathname === '/manifest.webmanifest') return new Response(webManifest, { status:200, headers:{ 'content-type':'application/manifest+json; charset=utf-8', 'cache-control':'public, max-age=86400', 'x-content-type-options':'nosniff' } });
   if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
@@ -2044,7 +2077,7 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
     const assetResponse = await env.ASSETS.fetch(request);
     if (assetResponse && assetResponse.status !== 404) return assetResponse;
   }`}
-  if (!pathname.includes('.')) return new Response(html, { status: 200, headers: {
+  if (!pathname.includes('.')) return new Response(htmlDocument(request), { status: 200, headers: {
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'public, max-age=60',
     // [보안] 기본 보안 헤더. 이니시스 결제창(stdpay/stgstdpay)은 반드시 허용해야 결제가 동작한다.

@@ -215,7 +215,7 @@ function trackConversion(event, detail = {}) {
 
 // 로그인 여부를 서버(/api/account)로 확인하는 공용 훅. QA 프리뷰 모드는 미리보기 권한을 그대로 사용한다.
 function useAuthGate(qa) {
-  const [state, setState] = useState({ status: 'loading', role: '', isAdmin: false, isHospital: false });
+  const [state, setState] = useState({ status: 'loading', role: '', isAdmin: false, isHospital: false, testAccountsEnabled:true });
   useEffect(() => {
     if (qa?.active) {
       const caps = qa.info.capabilities;
@@ -228,21 +228,27 @@ function useAuthGate(qa) {
       return undefined;
     }
     let active = true;
-    fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } })
-      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('account lookup failed'))))
-      .then((result) => {
-        if (!active) return;
-        const signedIn = Boolean(result.signedIn || result.account);
-        const role = result.account?.role || '';
-        setState({
-          status: signedIn ? 'member' : 'guest',
-          role,
-          isAdmin: Boolean(result.isAdmin),
-          isHospital: role === 'hospital' || Boolean(result.isAdmin),
-        });
-      })
-      .catch(() => active && setState({ status: 'guest', role: '', isAdmin: false, isHospital: false }));
-    return () => { active = false; };
+    const load = () => {
+      setState((current) => ({ ...current, status:'loading' }));
+      fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } })
+        .then((response) => (response.ok ? response.json() : Promise.reject(new Error('account lookup failed'))))
+        .then((result) => {
+          if (!active) return;
+          const signedIn = Boolean(result.signedIn || result.account);
+          const role = result.account?.role || '';
+          setState({
+            status: signedIn ? 'member' : 'guest',
+            role,
+            isAdmin: Boolean(result.isAdmin),
+            isHospital: role === 'hospital' || Boolean(result.isAdmin),
+            testAccountsEnabled:result.testAccountsEnabled !== false,
+          });
+        })
+        .catch(() => active && setState({ status: 'guest', role: '', isAdmin: false, isHospital: false, testAccountsEnabled:true }));
+    };
+    load();
+    window.addEventListener('medihelpers:auth-changed', load);
+    return () => { active = false; window.removeEventListener('medihelpers:auth-changed', load); };
   }, [qa?.active, qa?.state]);
   return state;
 }
@@ -394,26 +400,14 @@ function Header({ path, qa, operations, auth }) {
     setSwitchingRole(account.key);
     try {
       await authRequest('test-switch', { key:account.key });
-      // [중요] 로그인/가입 직후 세션 쿠키가 실제로 자리잡았는지 확인하고 이동한다.
-      // 예전에는 곧바로 리다이렉트해서, 느린 PC·네트워크에선 쿠키가 반영되기 전에
-      // /mypage가 /api/member-center를 호출 → 401 → '회원 정보를 불러오지 못했습니다'가 떴다.
-      let sessionReady = false;
-      for (let attempt = 0; attempt < 4 && !sessionReady; attempt++) {
-        try {
-          const res = await fetch(withBase('/api/account'), { credentials:'same-origin', headers:{ accept:'application/json' } });
-          const data = res.ok ? await res.json() : {};
-          if (data.signedIn) sessionReady = true;
-        } catch {}
-        if (!sessionReady) await new Promise((r) => setTimeout(r, 300));
-      }
-      // Preserve the in-memory fallback token by navigating inside the SPA.
-      navigate(account.key === 'admin' ? '/admin/console' : '/mypage');
+      // 보조 토큰은 sessionStorage에 남으므로 전체 문서를 다시 읽어 모든 권한 훅을 동기화한다.
+      window.location.assign(withBase(account.key === 'admin' ? '/admin/console' : '/mypage'));
     } catch (error) {
       window.alert(`테스트 계정 전환에 실패했습니다: ${error.message}`);
       setSwitchingRole('');
     }
   };
-  const testSwitcher = (mobile = false) => <div className={`${mobile ? 'mobile-' : ''}header-test-switcher`} aria-label="테스트 계정 바로 전환">
+  const testSwitcher = (mobile = false) => auth.testAccountsEnabled !== false && <div className={`${mobile ? 'mobile-' : ''}header-test-switcher`} aria-label="테스트 계정 바로 전환">
     <span>TEST</span>
     {TEST_ACCOUNTS.map((account) => <button
       key={account.key}
@@ -3282,6 +3276,7 @@ function TalentUnlockPage({ route, qa }) {
   // 실제 로그인 세션 기준으로 판단해야 한다. qa.active만 보면 QA 프리뷰가 아닌
   // 진짜 병원 계정은 영영 열람권을 못 사서 결제가 막힌다(실제로 그런 버그였음).
   const auth = useAuthGate(qa);
+  if (auth.status === 'loading') return <section className="section auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
   const canUnlock = Boolean((auth.role === 'hospital' || auth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
   return <>
     <PageHero tone="membership" eyebrow="TALENT RESUME UNLOCK" title="인재 이력서 열람권" description="구직 공개에 동의한 의사·의료인 후보의 연락처와 이력서 상세를 병원 회원이 열람합니다." />
@@ -3294,14 +3289,16 @@ function TalentUnlockPage({ route, qa }) {
 function AdvertisePage({ qa }) {
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청을 못 한다.
   const adAuth = useAuthGate(qa);
+  const authLoading = adAuth.status === 'loading';
   const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
   const requestPlan = (nextPlan) => {
+    if (authLoading) return;
     const target = `/advertise/apply?plan=${nextPlan.id}`;
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
   };
   return <>
     <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 광고 상품(베이직·추천·집중) 결제로 게시됩니다. 상품을 선택하면 담당자가 조건을 확인한 뒤 결제·게시를 진행합니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a><Link className="button glass" to="/headhunting?role=hospital">헤드헌터 채용 상담</Link></PageHero>
-    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
+    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button disabled={authLoading} className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{authLoading ? '회원 상태 확인 중…' : canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
   </>;
 }
@@ -3311,6 +3308,7 @@ function AdvertiseApplyPage({ route, qa }) {
   const plan = adPlans.find((item) => item.id === params.get("plan")) || adPlans[1];
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청 페이지에서 막힌다.
   const adAuth = useAuthGate(qa);
+  if (adAuth.status === 'loading') return <section className="ad-apply-page auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
   const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
   if (!canRegisterAds) {
     const next = `/advertise/apply?plan=${plan.id}`;

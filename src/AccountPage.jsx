@@ -125,6 +125,7 @@ export async function authRequest(action, body = {}) {
   if (data.sessionToken) storeSessionToken(data.sessionToken);
   if (action === 'logout') clearSessionToken();
   if (!response.ok) throw new Error(data.error || '로그인 요청을 처리하지 못했습니다.');
+  try { window.dispatchEvent(new CustomEvent('medihelpers:auth-changed', { detail:{ action } })); } catch {}
   return data;
 }
 
@@ -537,7 +538,7 @@ export const TEST_ACCOUNTS = [
   { key: 'hospital', label: '병원회원', loginLabel: '병원 회원', role: 'hospital' }
 ];
 
-function LoginCard() {
+function LoginCard({ testAccountsEnabled = true }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -548,10 +549,9 @@ function LoginCard() {
     const fallback = role === 'admin' ? '/admin/console' : '/mypage';
     const requested = explicit || fallback;
     const target = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : fallback);
-    // Keep the in-memory fallback session alive when browser storage is restricted.
-    window.history.replaceState({}, '', target);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    // sessionStorage 보조 토큰은 새 문서에서도 유지된다. 전체 문서를 다시 읽어
+    // 헤더·마이페이지·권한 게이트가 모두 같은 최신 세션을 보게 한다.
+    window.location.replace(target);
   };
   const submit = async (event) => {
     event.preventDefault();
@@ -572,14 +572,6 @@ function LoginCard() {
     setSubmitting(true);
     try {
       await authRequest('test-switch', { key: acct.key });
-      // 세션 쿠키가 실제로 붙었는지 확인 후 이동(느린 PC에서 바로 이동하면 마이페이지가 401을 만남).
-      for (let attempt = 0; attempt < 4; attempt++) {
-        try {
-          const res = await fetch(withBase('/api/account'), { credentials: 'same-origin', headers: { accept: 'application/json' } });
-          if (res.ok && (await res.json()).signedIn) break;
-        } catch {}
-        await new Promise((r) => setTimeout(r, 300));
-      }
       // 관리자 테스트 계정은 role이 doctor여도 ADMIN_EMAILS로 관리자 인식된다. 콘솔로 보낸다.
       goNext(acct.key === 'admin' ? 'admin' : acct.role);
     } catch (requestError) {
@@ -607,13 +599,13 @@ function LoginCard() {
       <a className="signup-login-join-button" href={withBase('/signup')}><UserRound /> 회원가입하기 <ArrowRight /></a>
     </div>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>비밀번호를 잊으셨나요?</a>
-    <div className="login-test-accounts">
+    {testAccountsEnabled && <div className="login-test-accounts">
       <small>테스트 계정으로 바로 로그인</small>
       <div className="login-test-buttons">
         {TEST_ACCOUNTS.map((acct) => <button key={acct.key} type="button" className="button outline" disabled={submitting} onClick={() => loginTest(acct)}>{acct.loginLabel}</button>)}
       </div>
       <p className="login-test-note">테스트/데모 용도입니다. 계정이 없으면 자동 생성됩니다.</p>
-    </div>
+    </div>}
   </section>;
 }
 
@@ -754,7 +746,7 @@ export default function AccountPage({ memberType = '', loginOnly = false }) {
   let content;
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;
-  else if (loginOnly) content = <LoginCard />;
+  else if (loginOnly) content = <LoginCard testAccountsEnabled={state.testAccountsEnabled !== false} />;
   else if (!memberType) content = <MemberTypeChooser />;
   else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={(account, identity) => setState((current) => ({ ...current, account, identity:identity || current.identity, signedIn:true }))} />;
   return <div className="signup-page">
