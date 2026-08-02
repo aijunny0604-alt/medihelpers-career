@@ -953,7 +953,7 @@ async function memberCenterApi(request, env) {
     const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
     const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
     // refundPending: 이 주문에 처리 대기(requested/processing) 환불 요청이 있으면 1 → 마이페이지에 '환불 요청 중' 표시.
-    const orders = await env.DB.prepare("SELECT o.order_number AS orderNumber, o.product_type AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
+    const orders = await env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
     // 의사 회원의 이력서 요약(완성도·공개범위)을 함께 내려 마이페이지 지표에 사용.
     let resume = null;
     if (account.role === 'doctor') {
@@ -1197,6 +1197,18 @@ const paymentProductCatalog = {
   'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (10명 팩)', amount:29000, unlockDays:30, unlockCount:10 },
   'talent-unlock-pack30':{ type:'talent_search', name:'인재 열람권 (30명 팩)', amount:69000, unlockDays:30, unlockCount:30 }
 };
+// payment_orders가 열람권 도입 전에 만들어진 Sites D1이면 기존 CHECK 제약에
+// talent_search가 없다. CREATE TABLE IF NOT EXISTS만으로는 기존 제약이 갱신되지
+// 않으므로, 그 DB에서만 폐지된 membership 값을 저장 호환 키로 사용한다.
+// 외부 응답은 product_id를 기준으로 항상 talent_search로 정규화한다.
+async function paymentStorageType(env, product) {
+  if (product?.type !== 'talent_search') return product?.type || '';
+  try {
+    const row = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='payment_orders' LIMIT 1").first();
+    if (/\btalent_search\b/.test(String(row?.sql || ''))) return 'talent_search';
+  } catch {}
+  return 'membership';
+}
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -1286,7 +1298,7 @@ async function paymentOrderApi(request, env) {
   if (!account) return json({ error:'회원가입을 완료한 뒤 이용해주세요.' }, 403);
   if (account.status !== 'active') return json({ error:'이용할 수 없는 회원 계정입니다.' }, 403);
   if (request.method === 'GET') {
-    const result = await env.DB.prepare('SELECT order_number AS orderNumber, product_type AS productType, product_name AS productName, total_amount AS totalAmount, status, payment_method AS paymentMethod, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
+    const result = await env.DB.prepare("SELECT order_number AS orderNumber, CASE WHEN product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE product_type END AS productType, product_name AS productName, total_amount AS totalAmount, status, payment_method AS paymentMethod, paid_at AS paidAt, created_at AS createdAt FROM payment_orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 100").bind(account.id).all();
     return json({ orders:result.results || [] });
   }
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
@@ -1318,8 +1330,9 @@ async function paymentOrderApi(request, env) {
     metadata.contentRecordId = adContentRecord.id;
   }
   const metadataJson = JSON.stringify(metadata).slice(0,12000);
+  const storedProductType = await paymentStorageType(env, product);
   const orderStatements = [
-    env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, product.type, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
+    env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, storedProductType, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'pending_review', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
   ];
   if (adContentRecord) orderStatements.push(insertAdOrderContentStatement(env, adContentRecord));
@@ -1765,7 +1778,7 @@ async function adminConsoleApi(request, env) {
       env.DB.prepare('SELECT id, group_key AS groupKey, name, slug, sort_order AS sortOrder, enabled FROM admin_categories ORDER BY group_key, sort_order, name').all(),
       env.DB.prepare('SELECT id, content_type AS contentType, title, subtitle, status, visibility, payload_json AS payloadJson, sort_order AS sortOrder, created_by AS createdBy, updated_by AS updatedBy, published_at AS publishedAt, created_at AS createdAt, updated_at AS updatedAt FROM admin_content_records ORDER BY sort_order DESC, updated_at DESC LIMIT 500').all(),
       env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, a.updated_at AS updatedAt, COALESCE(ap.email,'') email, COALESCE(ap.full_name,'') fullName, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus, ap.last_login_at AS lastLoginAt, COALESCE(mp.phone,'') phone, COALESCE(mp.organization,'') organization, COALESCE(mp.job_title,'') jobTitle, (SELECT COUNT(*) FROM consent_records cr WHERE cr.account_id=a.id) consentCount, (SELECT COUNT(*) FROM payment_orders po WHERE po.account_id=a.id) orderCount, COALESCE((SELECT SUM(po.total_amount) FROM payment_orders po WHERE po.account_id=a.id AND po.status='paid'),0) lifetimeValue FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id LEFT JOIN member_profiles mp ON mp.account_id=a.id ORDER BY a.created_at DESC LIMIT 500").all(),
-      env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.account_id AS accountId, po.product_type AS productType, po.product_id AS productId, po.product_name AS productName, po.supply_amount AS supplyAmount, po.tax_amount AS taxAmount, po.total_amount AS totalAmount, po.status, po.payment_method AS paymentMethod, po.customer_name AS customerName, po.customer_email AS customerEmail, po.customer_phone AS customerPhone, po.metadata_json AS metadataJson, po.admin_note AS adminNote, po.paid_at AS paidAt, po.cancelled_at AS cancelledAt, po.created_at AS createdAt, po.updated_at AS updatedAt, a.role accountRole FROM payment_orders po JOIN accounts a ON a.id=po.account_id ORDER BY po.created_at DESC LIMIT 500").all(),
+      env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.account_id AS accountId, CASE WHEN po.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE po.product_type END AS productType, po.product_id AS productId, po.product_name AS productName, po.supply_amount AS supplyAmount, po.tax_amount AS taxAmount, po.total_amount AS totalAmount, po.status, po.payment_method AS paymentMethod, po.customer_name AS customerName, po.customer_email AS customerEmail, po.customer_phone AS customerPhone, po.metadata_json AS metadataJson, po.admin_note AS adminNote, po.paid_at AS paidAt, po.cancelled_at AS cancelledAt, po.created_at AS createdAt, po.updated_at AS updatedAt, a.role accountRole FROM payment_orders po JOIN accounts a ON a.id=po.account_id ORDER BY po.created_at DESC LIMIT 500").all(),
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_type AS transactionType, provider, provider_transaction_id AS providerTransactionId, amount, status, failure_code AS failureCode, failure_message AS failureMessage, processed_at AS processedAt FROM payment_transactions ORDER BY created_at DESC LIMIT 1000").all(),
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_id AS transactionId, amount, reason, status, requested_by AS requestedBy, provider_refund_id AS providerRefundId, processed_at AS processedAt, created_at AS createdAt FROM payment_refunds ORDER BY created_at DESC LIMIT 500").all(),
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all(),

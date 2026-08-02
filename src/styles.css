@@ -4666,6 +4666,9 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .talent-unlock-checkout>small{color:#149e7f;font-size:12px;font-weight:800;letter-spacing:.08em}
 .talent-unlock-checkout h2{margin:6px 0 4px;font-size:23px;color:#16233a;letter-spacing:-.02em}
 .talent-unlock-checkout>p{color:#5a6a80;font-size:14.5px;line-height:1.6}
+.talent-unlock-test-notice{display:flex;align-items:flex-start;gap:10px;margin:16px 0;padding:13px 14px;border:1px solid #a9dfd1;border-radius:12px;background:#effbf7;color:#176b58}
+.talent-unlock-test-notice>svg{width:20px;flex:0 0 20px;margin-top:1px;color:#159e7f}
+.talent-unlock-test-notice>div{display:grid;gap:3px}.talent-unlock-test-notice strong{font-size:13.5px}.talent-unlock-test-notice span{font-size:12.5px;line-height:1.5;color:#4d776d}
 .talent-unlock-features{list-style:none;margin:16px 0;padding:0;display:grid;gap:9px}
 .talent-unlock-features li{display:flex;align-items:center;gap:8px;color:#33445c;font-size:14px}
 .talent-unlock-features li svg{width:16px;color:#0f9f7d;flex-shrink:0}
