@@ -19,7 +19,7 @@
 ## Current State
 
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career` (**테스트 전용 — 실결제 불가**)
-- 현재 공개 버전: Sites v230 · 소스 커밋 `d5a61ec` (2026-08-02)
+- 현재 공개 버전: Sites v233 · 소스 커밋 `ae95268` (2026-08-03)
 - 보조 공개본: GitHub Pages `aijunny0604-alt.github.io/medihelpers-career`
 - 소스 저장소: GitHub `aijunny0604-alt/medihelpers-career`
 - 현재 Sites 작업 브랜치: `agent/medihelpers-ui-stability`
@@ -29,7 +29,7 @@
 ## Current Rules
 
 - 배포 전 `npm run build`(Sites) 또는 `npm run build:cf`(Cloudflare) 성공을 확인합니다.
-- `npm test` 통과를 확인합니다(현재 78건).
+- `npm test` 통과를 확인합니다(현재 79건).
 - 기존 `.openai/hosting.json`의 프로젝트 연결을 유지합니다.
 - D1 바인딩 `DB`는 재생성·재연결하지 않고 R2 바인딩 `BACKUPS`를 유지합니다. Sites의 병원 이미지 업로드는 이 저장소의 `hospitals/` 경로를 사용하며, Cloudflare는 전용 `UPLOADS` 바인딩을 우선 사용합니다.
 - 배포 후 `/api/data-protection-health`에서 `configured:true`와 최근 성공 시각을 확인합니다.

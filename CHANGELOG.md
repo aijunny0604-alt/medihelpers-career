@@ -1,5 +1,16 @@
 # 업데이트 기록
 
+## 2026-08-03 · 병원 광고 승인·프리미엄 노출 연동
+
+- 병원 광고 결제가 `paid`여도 관리자 공고가 `draft`이면 공개되지 않는 2단계 운영 규칙을 운영 DB와 문서에 명확히 반영
+- `집중 채용`을 `spotlight`, `추천 공고`를 `featured`로 공개 공고 payload에 자동 매핑해 구매 등급대로 프리미엄 영역에 배치
+- 결제 metadata의 노출 시작일·종료일을 공고 payload에 동기화해 서버·클라이언트 만료 필터가 동일한 값을 사용하도록 수정
+- 기존 결제 공고도 관리자 콘솔 조회 시 등급·노출기간을 보정하도록 호환 처리
+- 운영 공고 `124124 아무 의사나 초빙`을 `published`로 게시하고 한글 제목·병원 형태·지역·진료과를 복원한 뒤 프리미엄 첫 묶음 노출 확인
+- 병원회원의 `/api/member-center`, `/api/payment-orders`, `/api/saved-jobs` HTTP 200과 최신 집중 채용 주문 `paid` 확인
+- Node 자동 테스트 79건과 프로덕션 빌드 통과, GitHub 커밋 `ae95268`, OpenAI Sites v233 배포
+- `.openai/hosting.json`의 기존 프로젝트 ID와 D1 `DB`·R2 `BACKUPS` 바인딩 유지
+
 ## 2026-08-02 · 제출 성공·운영 데이터 전수조사
 
 - 계정 찾기·비밀번호 재설정 화면이 서버 저장 없이 성공을 표시하던 문제를 수정하고 `POST /api/account-recovery`와 D1 `account_recovery_requests`를 추가
