@@ -1288,7 +1288,14 @@ async function paymentStorageType(env, product) {
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
-function adOrderContentRecord({ id, productName, metadata, ownerEmail, createdAt }) {
+function adTierForProduct(productId, productName) {
+  const id = String(productId || '');
+  const name = String(productName || '');
+  if (id === 'intensive' || name === '집중 채용') return 'spotlight';
+  if (id === 'featured' || name === '추천 공고') return 'featured';
+  return '';
+}
+function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail, createdAt }) {
   const meta = metadata && typeof metadata === 'object' ? metadata : {};
   const hospital = cleanOrderValue(meta.hospital || '병원명 확인 필요', 180);
   const department = cleanOrderValue(meta.department || meta.specialties || '진료과 확인 필요', 180);
@@ -1311,6 +1318,7 @@ function adOrderContentRecord({ id, productName, metadata, ownerEmail, createdAt
     payload:{
       fromHospital:true,
       adProductName:cleanOrderValue(productName, 180),
+      adTier:adTierForProduct(productId, productName) || undefined,
       primary:address,
       secondary:salaryBasis || department,
       description,
@@ -1356,17 +1364,25 @@ function insertAdOrderContentStatement(env, record) {
 // 이전 광고 신청은 결제 원장에만 저장됐다. 관리자 콘솔 조회 시 한 번만 복구하고
 // contentRecordId를 주문 metadata에 기록해 관리자가 삭제한 공고가 되살아나지 않게 한다.
 async function syncAdOrderContentRecords(env) {
-  const rows = await env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.product_id AS productId, po.product_name AS productName, po.metadata_json AS metadataJson, po.created_at AS createdAt, COALESCE(ac.email_normalized, po.customer_email, '') AS ownerEmail FROM payment_orders po LEFT JOIN auth_credentials ac ON ac.account_id=po.account_id WHERE po.product_type='doctor_ad' ORDER BY po.created_at DESC LIMIT 500").all();
+  const rows = await env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.product_id AS productId, po.product_name AS productName, po.status, po.metadata_json AS metadataJson, po.created_at AS createdAt, COALESCE(ac.email_normalized, po.customer_email, '') AS ownerEmail FROM payment_orders po LEFT JOIN auth_credentials ac ON ac.account_id=po.account_id WHERE po.product_type='doctor_ad' ORDER BY po.created_at DESC LIMIT 500").all();
   const pending = [];
   for (const row of rows.results || []) {
     const meta = parseJsonObject(row.metadataJson) || {};
-    if (meta.contentRecordId) continue;
     const record = adOrderContentRecord({ ...row, metadata:meta });
-    meta.contentRecordId = record.id;
-    pending.push(
-      insertAdOrderContentStatement(env, record),
-      env.DB.prepare("UPDATE payment_orders SET metadata_json=?, updated_at=updated_at WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), row.id)
-    );
+    const contentRecordId = cleanOrderValue(meta.contentRecordId || record.id, 180);
+    const exposure = row.status === 'paid' && meta.exposure && typeof meta.exposure === 'object' ? meta.exposure : null;
+    const exposureEnd = cleanOrderValue(exposure?.end, 10);
+    if (!meta.contentRecordId) {
+      meta.contentRecordId = contentRecordId;
+      pending.push(
+        insertAdOrderContentStatement(env, record),
+        env.DB.prepare("UPDATE payment_orders SET metadata_json=?, updated_at=updated_at WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), row.id)
+      );
+    }
+    // 결제 상품 등급과 노출기간은 공고 레코드에도 동기화해야 공개 목록이
+    // 집중/추천 광고를 프리미엄 영역에 배치하고 기간 만료를 적용할 수 있다.
+    pending.push(env.DB.prepare("UPDATE admin_content_records SET payload_json=json_set(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END, '$.adProductName', ?, '$.adTier', ?, '$.exposureEnd', ?, '$.exposure', json(?)), updated_at=updated_at WHERE id=?")
+      .bind(cleanOrderValue(row.productName, 180), adTierForProduct(row.productId, row.productName) || null, exposureEnd || null, JSON.stringify(exposure), contentRecordId));
   }
   for (let index = 0; index < pending.length; index += 50) await env.DB.batch(pending.slice(index, index + 50));
 }

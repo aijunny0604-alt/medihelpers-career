@@ -40,6 +40,15 @@ test('병원 광고 주문은 관리자 검수용 공고와 같은 트랜잭션�
   assert.match(source, /ownedAdContentById/);
 });
 
+test('유료 광고 상품 등급과 노출기간을 공개 공고 레코드에 동기화한다', async () => {
+  const source = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  assert.match(source, /function adTierForProduct/);
+  assert.match(source, /id === 'intensive'.*return 'spotlight'/);
+  assert.match(source, /id === 'featured'.*return 'featured'/);
+  assert.match(source, /\$\.exposureEnd/);
+  assert.match(source, /json_set\(/);
+});
+
 test('관리자 콘텐츠와 공개 초빙 게시판의 관리 버튼은 전용 열에서 한 줄로 표시된다', async () => {
   const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
   const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
