@@ -37,3 +37,19 @@ test('every premium recruitment fixture uses a real 3:1 card banner', async () =
   }
 });
 
+test('sample banner picker offers six production-ready 3:1 JPEG templates', async () => {
+  const templates = [
+    'medical-blue-v1.jpg',
+    'wellness-mint-v1.jpg',
+    'diagnostic-navy-v1.jpg',
+    'care-lavender-v1.jpg',
+    'rehab-coral-v1.jpg',
+    'surgical-teal-v1.jpg',
+  ];
+
+  for (const name of templates) {
+    const file = await readFile(path.join('public', 'banners', 'templates', name));
+    assert.deepEqual(jpegDimensions(file), { width: 1500, height: 500 });
+    assert.ok(file.length < 8 * 1024 * 1024, `${name} exceeds 8MB`);
+  }
+});

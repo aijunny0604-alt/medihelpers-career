@@ -5515,6 +5515,23 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   font-weight:700!important;
   line-height:1.35!important;
 }
+
+/* Selectable 3:1 recruitment banner templates */
+.sample-banner-picker{margin-top:18px;padding:18px;border:1px solid #dbe6f3;border-radius:18px;background:#f7faff}
+.sample-banner-picker-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.sample-banner-picker-head>div{display:flex;flex-direction:column;gap:4px}.sample-banner-picker-head strong{color:#183353;font-size:15px}.sample-banner-picker-head small{color:#75869d;font-size:12px;line-height:1.5}.sample-banner-picker-head button{flex:0 0 auto;padding:7px 10px;border:1px solid #d4dfec;border-radius:9px;background:#fff;color:#61748c;font-size:11px;font-weight:800;cursor:pointer}
+.sample-banner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sample-banner-grid>button{min-width:0;padding:7px 7px 10px;border:2px solid transparent;border-radius:13px;background:#fff;color:#29445f;text-align:left;cursor:pointer;box-shadow:0 5px 16px rgba(24,60,101,.06);transition:border-color .16s,transform .16s,box-shadow .16s}
+.sample-banner-grid>button:hover{transform:translateY(-2px);box-shadow:0 9px 22px rgba(24,60,101,.11)}.sample-banner-grid>button.active{border-color:#1263e8;box-shadow:0 0 0 3px rgba(18,99,232,.1)}
+.sample-banner-grid>button>span{display:block;aspect-ratio:3/1;overflow:hidden;border-radius:8px;background:#eaf1f8}.sample-banner-grid img{width:100%;height:100%;object-fit:cover;display:block}.sample-banner-grid strong,.sample-banner-grid small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sample-banner-grid strong{margin-top:8px;font-size:12px}.sample-banner-grid small{margin-top:2px;color:#8795a7;font-size:10px}
+@media(max-width:760px){.sample-banner-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sample-banner-picker{padding:14px}}
+
+/* Paid recruitment banner in the upper-right area of the job detail hero */
+.detail-heading.has-detail-banner{min-height:228px;padding-right:min(43vw,430px)}
+.detail-hero-banner{position:absolute;z-index:1;top:58px;right:38px;width:min(37%,360px);aspect-ratio:3/1;overflow:hidden;border:1px solid #d5e2f1;border-radius:15px;background:#eef4fa;box-shadow:0 12px 30px rgba(24,58,100,.13)}
+.detail-hero-banner>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.detail-hero-banner>div{position:absolute;left:11px;right:38%;bottom:10px;min-width:0;padding:8px 10px;border:1px solid rgba(255,255,255,.75);border-radius:10px;background:rgba(255,255,255,.9);box-shadow:0 4px 14px rgba(18,44,78,.11);backdrop-filter:blur(7px);display:flex;flex-direction:column}.detail-hero-banner small{color:#2870bf;font:800 8px 'Manrope';letter-spacing:.65px}.detail-hero-banner strong{margin-top:2px;overflow:hidden;color:#173455;font-size:14px;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}.detail-hero-banner span{margin-top:1px;overflow:hidden;color:#6c7d91;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:780px){.detail-heading.has-detail-banner{min-height:0;padding-right:24px}.detail-hero-banner{position:relative;top:auto;right:auto;width:100%;margin-top:20px}.detail-hero-banner>div{right:42%}}
+@media(max-width:460px){.detail-heading.has-detail-banner{padding-right:20px}.detail-hero-banner{border-radius:12px}.detail-hero-banner>div{left:8px;right:35%;bottom:7px;padding:6px 8px}.detail-hero-banner small{font-size:7px}.detail-hero-banner strong{font-size:12px}}
 @media(max-width:560px){
   :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner{min-height:0!important;aspect-ratio:3/1!important}
   :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption{width:72%!important;padding:14px 15px!important}

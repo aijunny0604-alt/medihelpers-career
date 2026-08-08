@@ -777,6 +777,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   const locked = restricted && !qaUnlocked;
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   const hospitalPhotos = job.hospitalPhotos || [];
+  const detailBanner = job.banner || job.cardBanner;
   const institutionFacts = [
     ["기관명", job.institutionName || job.hospital],
     ["주소", job.fullAddress || job.location],
@@ -865,7 +866,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
       label={`${job.hospital} 채용공고 상세 정보`}
     >
       {page && <nav className="detail-page-nav" aria-label="공고 상세 위치"><Link to="/jobs"><ArrowLeft /> 전체 채용정보</Link><span>채용정보</span><b>{job.hospital}</b></nav>}
-      <div className="detail-heading" style={{ "--job-color": job.color }}>
+      <div className={`detail-heading ${detailBanner ? "has-detail-banner" : ""}`} style={{ "--job-color": job.color }}>
         <div className="detail-brand">
           <HospitalLogo job={job} prominent />
           <div>
@@ -904,6 +905,16 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
             {job.deadline} 마감
           </span>
         </div>
+        {detailBanner && (
+          <div className="detail-hero-banner" aria-label={`${job.hospital} 채용 배너`}>
+            <img src={detailBanner} alt="" />
+            <div>
+              <small>MEDIHELPERS RECRUIT</small>
+              <strong>{job.hospital}</strong>
+              <span>{job.dept} 채용</span>
+            </div>
+          </div>
+        )}
       </div>
       <div className="detail-grid">
         <div className="detail-content">
@@ -2681,6 +2692,15 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
   );
 }
 
+const SAMPLE_BANNER_TEMPLATES = [
+  { id: "medical-blue", name: "메디컬 블루", tone: "신뢰·종합병원", src: "/banners/templates/medical-blue-v1.jpg" },
+  { id: "wellness-mint", name: "웰니스 민트", tone: "검진·요양·웰니스", src: "/banners/templates/wellness-mint-v1.jpg" },
+  { id: "diagnostic-navy", name: "진단 네이비", tone: "영상·검진·대학병원", src: "/banners/templates/diagnostic-navy-v1.jpg" },
+  { id: "care-lavender", name: "케어 라벤더", tone: "소아·여성·가족진료", src: "/banners/templates/care-lavender-v1.jpg" },
+  { id: "rehab-coral", name: "리햅 코랄", tone: "재활·통증·회복", src: "/banners/templates/rehab-coral-v1.jpg" },
+  { id: "surgical-teal", name: "서지컬 티얼", tone: "수술·정형·전문병원", src: "/banners/templates/surgical-teal-v1.jpg" },
+];
+
 function Checkout({ plan }) {
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
@@ -2691,12 +2711,13 @@ function Checkout({ plan }) {
   const [brandPreview, setBrandPreview] = useState("");
   const [brandName, setBrandName] = useState("");
   const [brandFile, setBrandFile] = useState(null);
+  const [brandTemplate, setBrandTemplate] = useState("");
   const [brandError, setBrandError] = useState("");
   const [facilityPhotos, setFacilityPhotos] = useState([]);
   const [photoError, setPhotoError] = useState("");
   const [activeDrop, setActiveDrop] = useState("");
   useEffect(() => () => {
-    if (brandPreview) URL.revokeObjectURL(brandPreview);
+    if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
   }, [brandPreview]);
   const chooseBrand = (file, input) => {
     setBrandError("");
@@ -2715,10 +2736,19 @@ function Checkout({ plan }) {
       setBrandError("5MB 이하 파일을 선택해주세요.");
       return;
     }
-    if (brandPreview) URL.revokeObjectURL(brandPreview);
+    if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
     setBrandName(file.name);
     setBrandFile(file);
+    setBrandTemplate("");
     setBrandPreview(URL.createObjectURL(file));
+  };
+  const chooseBrandTemplate = (template) => {
+    if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
+    setBrandError("");
+    setBrandName("");
+    setBrandFile(null);
+    setBrandTemplate(template.src);
+    setBrandPreview(template.src);
   };
   const selectBrand = (event) =>
     chooseBrand(event.currentTarget.files?.[0], event.currentTarget);
@@ -2796,9 +2826,9 @@ function Checkout({ plan }) {
       ...Object.fromEntries(formData.entries()),
       brandImageName: brandFile?.name || "",
       logoName: brandFile?.name || "",
-      bannerName: "",
+      bannerName: brandTemplate ? brandTemplate.split("/").pop() : "",
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
-      premiumBrandMode: brandFile ? "single-brand-image" : "auto-wordmark",
+      premiumBrandMode: brandFile ? "single-brand-image" : brandTemplate ? "sample-banner" : "auto-wordmark",
     };
     setSubmitting(true);
     let paymentWindowOpened = false;
@@ -2809,6 +2839,7 @@ function Checkout({ plan }) {
       );
       data.brandImageUrl = brandImageUrl;
       data.logo = brandImageUrl;
+      data.banner = brandTemplate;
       data.hospitalPhotoUrls = hospitalPhotoUrls;
       data.facility = hospitalPhotoUrls[0] || "";
       const response = await fetch("/api/payment-orders", {
@@ -2936,11 +2967,26 @@ function Checkout({ plan }) {
                     <Upload />
                     <div>
                       <strong>{brandName || "클릭하거나 이미지를 끌어 놓으세요"}</strong>
-                      <small>권장 1200×400px 가로형 · PNG·JPG·WEBP · 최대 5MB</small>
+                      <small>권장 1500×500px 가로형 · PNG·JPG·WEBP · 최대 5MB</small>
                     </div>
                   </div>
                   {brandError && <em>{brandError}</em>}
                 </label>
+                <div className="sample-banner-picker">
+                  <div className="sample-banner-picker-head">
+                    <div><strong>이미지가 없다면 샘플 배너 선택</strong><small>병원명과 진료과는 공고 화면에서 자동으로 표시됩니다.</small></div>
+                    {brandTemplate && <button type="button" onClick={() => { setBrandTemplate(""); setBrandPreview(""); }}>선택 해제</button>}
+                  </div>
+                  <div className="sample-banner-grid">
+                    {SAMPLE_BANNER_TEMPLATES.map((template) => (
+                      <button key={template.id} type="button" className={brandTemplate === template.src ? "active" : ""} onClick={() => chooseBrandTemplate(template)} aria-pressed={brandTemplate === template.src}>
+                        <span><img src={template.src} alt="" /></span>
+                        <strong>{template.name}</strong>
+                        <small>{template.tone}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="single-brand-guide">
                   <strong>어떤 이미지를 올리면 되나요?</strong>
                   <span><Check /> 병원 로고 또는 병원명 워드마크가 들어간 가로형 이미지 1장</span>

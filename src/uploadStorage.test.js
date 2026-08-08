@@ -35,3 +35,28 @@ test('hospital job records retain uploaded image URLs for public cards', () => {
   assert.match(serverSource, /facilityPhotos,/);
   assert.match(serverSource, /facility,/);
 });
+
+test('hospital job checkout can persist a selected sample banner', () => {
+  assert.match(mainSource, /const SAMPLE_BANNER_TEMPLATES = \[/);
+  assert.match(mainSource, /data\.banner = brandTemplate/);
+  assert.match(mainSource, /premiumBrandMode: brandFile \? "single-brand-image" : brandTemplate \? "sample-banner"/);
+  assert.match(serverSource, /const banner = cleanOrderValue\(meta\.banner/);
+});
+
+test('job detail displays the selected banner in its hero heading', () => {
+  assert.match(mainSource, /const detailBanner = job\.banner \|\| job\.cardBanner/);
+  assert.match(mainSource, /className="detail-hero-banner"/);
+});
+
+test('Sites package serves all sample banner templates', () => {
+  for (const name of [
+    'medical-blue-v1.jpg',
+    'wellness-mint-v1.jpg',
+    'diagnostic-navy-v1.jpg',
+    'care-lavender-v1.jpg',
+    'rehab-coral-v1.jpg',
+    'surgical-teal-v1.jpg',
+  ]) {
+    assert.ok(serverSource.includes(`/banners/templates/${name}`), `${name} route is missing`);
+  }
+});

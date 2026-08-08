@@ -37,6 +37,12 @@ const recruitWomenBannerBase64 = await readBase64('banners', 'recruit-women-v1.j
 const recruitDiagnosticsBannerBase64 = await readBase64('banners', 'recruit-diagnostics-v1.jpg');
 const recruitPediatricBannerBase64 = await readBase64('banners', 'recruit-pediatric-v1.jpg');
 const recruitWellnessBannerBase64 = await readBase64('banners', 'recruit-wellness-v1.jpg');
+const medicalBlueTemplateBase64 = await readBase64('banners', 'templates', 'medical-blue-v1.jpg');
+const wellnessMintTemplateBase64 = await readBase64('banners', 'templates', 'wellness-mint-v1.jpg');
+const diagnosticNavyTemplateBase64 = await readBase64('banners', 'templates', 'diagnostic-navy-v1.jpg');
+const careLavenderTemplateBase64 = await readBase64('banners', 'templates', 'care-lavender-v1.jpg');
+const rehabCoralTemplateBase64 = await readBase64('banners', 'templates', 'rehab-coral-v1.jpg');
+const surgicalTealTemplateBase64 = await readBase64('banners', 'templates', 'surgical-teal-v1.jpg');
 const mediAngelBase64 = await readBase64('assets', 'medi-angel-assistant-v2.png');
 const heroPosterBase64 = await readBase64('hero-medihelpers-poster.jpg');
 const heroVideoBase64 = await readBase64('hero-medihelpers.mp4');
@@ -70,6 +76,12 @@ const recruitWomenBannerBase64 = ${JSON.stringify(recruitWomenBannerBase64)};
 const recruitDiagnosticsBannerBase64 = ${JSON.stringify(recruitDiagnosticsBannerBase64)};
 const recruitPediatricBannerBase64 = ${JSON.stringify(recruitPediatricBannerBase64)};
 const recruitWellnessBannerBase64 = ${JSON.stringify(recruitWellnessBannerBase64)};
+const medicalBlueTemplateBase64 = ${JSON.stringify(medicalBlueTemplateBase64)};
+const wellnessMintTemplateBase64 = ${JSON.stringify(wellnessMintTemplateBase64)};
+const diagnosticNavyTemplateBase64 = ${JSON.stringify(diagnosticNavyTemplateBase64)};
+const careLavenderTemplateBase64 = ${JSON.stringify(careLavenderTemplateBase64)};
+const rehabCoralTemplateBase64 = ${JSON.stringify(rehabCoralTemplateBase64)};
+const surgicalTealTemplateBase64 = ${JSON.stringify(surgicalTealTemplateBase64)};
 const mediAngelBase64 = ${JSON.stringify(mediAngelBase64)};
 const heroPosterBase64 = ${JSON.stringify(heroPosterBase64)};
 const heroVideoBase64 = ${JSON.stringify(heroVideoBase64)};
@@ -2171,6 +2183,12 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
   if (pathname === '/banners/recruit-diagnostics-v1.jpg') return new Response(binary(recruitDiagnosticsBannerBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/banners/recruit-pediatric-v1.jpg') return new Response(binary(recruitPediatricBannerBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/banners/recruit-wellness-v1.jpg') return new Response(binary(recruitWellnessBannerBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/banners/templates/medical-blue-v1.jpg') return new Response(binary(medicalBlueTemplateBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/banners/templates/wellness-mint-v1.jpg') return new Response(binary(wellnessMintTemplateBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/banners/templates/diagnostic-navy-v1.jpg') return new Response(binary(diagnosticNavyTemplateBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/banners/templates/care-lavender-v1.jpg') return new Response(binary(careLavenderTemplateBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/banners/templates/rehab-coral-v1.jpg') return new Response(binary(rehabCoralTemplateBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (pathname === '/banners/templates/surgical-teal-v1.jpg') return new Response(binary(surgicalTealTemplateBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/assets/medi-angel-assistant-v2.png') return new Response(binary(mediAngelBase64), { status: 200, headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
   if (pathname === '/hero-medihelpers-poster.jpg') return binaryAsset(request, heroPosterBase64, 'image/jpeg');
   if (pathname === '/hero-medihelpers.mp4') return binaryAsset(request, heroVideoBase64, 'video/mp4');` : `  // [Cloudflare] 정적 파일은 Static Assets 바인딩이 서빙한다(Worker 번들에 인라인하지 않음).
