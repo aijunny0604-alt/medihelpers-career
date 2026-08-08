@@ -513,7 +513,7 @@ async function adminIdentity(request, env) {
   return identity && allowed.includes(identity.email) ? identity : null;
 }
 function cleanConsultationPayload(payload) {
-  const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message','jobId','resumeId','resumeTitle'];
+  const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message','jobId','headhuntPostId','headhuntPostTitle','headhuntPostHospital','resumeId','resumeTitle'];
   return Object.fromEntries(allowed.filter(key => typeof payload[key] === 'string').map(key => [key, payload[key].trim().slice(0, key === 'message' ? 3000 : 300)]));
 }
 function escapeHtml(value) {
@@ -564,6 +564,10 @@ async function consultationApi(request, env, pathname) {
     try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
     const requestType = body.requestType;
     const payload = cleanConsultationPayload(body.payload || {});
+    if (payload.jobId && payload.headhuntPostId) return json({ error:'지원 공고 유형을 하나만 선택해 주세요.' }, 400);
+    if (requestType !== 'doctor' && (payload.jobId || payload.headhuntPostId)) return json({ error:'공고 지원·문의는 의료인 회원만 이용할 수 있습니다.' }, 403);
+    // 병원 유료광고 지원과 의사 헤드헌터 상담은 저장·알림 대상을 명확히 분리한다.
+    payload.submissionChannel = payload.headhuntPostId ? 'headhunt_board' : payload.jobId ? 'paid_job_direct' : 'general_headhunting';
     const requesterName = requestType === 'doctor' ? payload.name : payload.hospital;
     if (!['doctor','hospital'].includes(requestType) || !requesterName || !payload.phone || !payload.specialty) return json({ error:'필수 정보를 모두 입력해 주세요.' }, 400);
     // [보안] 다른 민감 API와 동일하게 fail-closed. 예전에는 시크릿이 약하면 이 블록을 통째로
@@ -599,6 +603,23 @@ async function consultationApi(request, env, pathname) {
         return json({ error:'선택한 이력서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
       }
     }
+    let directJobRow = null;
+    if (requestType === 'doctor' && payload.submissionChannel === 'paid_job_direct') {
+      try {
+        const realJobId = String(payload.jobId).replace(/^admin-/, '');
+        directJobRow = await env.DB.prepare(
+          "SELECT c.title, c.subtitle, c.status, c.created_by AS createdBy, a.id AS ownerAccountId, a.role AS ownerRole " +
+          "FROM admin_content_records c LEFT JOIN account_admin_profiles ap ON lower(ap.email)=lower(c.created_by) " +
+          "LEFT JOIN accounts a ON a.id=ap.account_id WHERE c.id=? AND c.content_type='doctor_job' AND c.status='published' LIMIT 1"
+        ).bind(realJobId).first();
+      } catch { directJobRow = null; }
+      // 성공 문구만 표시되고 실제 수신 병원이 없는 유실 접수를 허용하지 않는다.
+      if (!directJobRow || directJobRow.ownerRole !== 'hospital' || !directJobRow.ownerAccountId) {
+        return json({ error:'이 공고의 등록 병원 계정을 확인할 수 없어 지원서를 전달하지 못했습니다. 다른 공고를 선택하거나 병원에 직접 문의해 주세요.' }, 409);
+      }
+      payload.jobTitle = String(directJobRow.title || '').slice(0,300);
+      payload.jobHospital = String(directJobRow.subtitle || '').slice(0,300);
+    }
     const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
     await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload)).run();
     if (requestType === 'hospital') {
@@ -608,38 +629,27 @@ async function consultationApi(request, env, pathname) {
         await env.DB.prepare('INSERT INTO recruitment_cases (id, consultation_id, hospital_name, specialty, position_title, next_action) VALUES (?, ?, ?, ?, ?, ?)').bind(caseId, id, payload.hospital, payload.specialty, payload.specialty + ' 의사 초빙', '병원 채용조건 확인').run();
       } catch {}
     }
-    // 공고 지원 알림 라우팅: 일반 병원이 올린 공고면 그 병원 계정에 알림, 아빠(admin) 인증공고면 관리자에게(기존).
-    // payload.jobId로 공고를 찾아 등록자(created_by)가 병원 계정이면 그 계정의 활동(알림)에 지원자를 남긴다.
-    if (requestType === 'doctor' && payload.jobId) {
+    // 병원 유료광고 지원은 공고를 등록한 병원에만 연결하고 헤드헌터 상담 알림으로 보내지 않는다.
+    if (requestType === 'doctor' && payload.submissionChannel === 'paid_job_direct' && directJobRow?.createdBy) {
       try {
         await ensureMemberCenterSchema(env);
-        // 공개 목록의 공고 id는 operationalDoctorJobs에서 'admin-<uuid>' 형태 → 접두사 제거해 실제 레코드 id로 조회.
-        const realJobId = String(payload.jobId).replace(/^admin-/, '');
-        const jobRow = await env.DB.prepare("SELECT title, created_by AS createdBy FROM admin_content_records WHERE id=?").bind(realJobId).first();
-        if (jobRow && jobRow.createdBy) {
-          // 등록자가 관리자(아빠)면 병원 직접 알림 대상 아님(헤드헌터 경유). 병원 계정이면 그 병원에 알림.
-          const adminList = String(env.ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
-          const ownerEmail = String(jobRow.createdBy).toLowerCase();
-          if (!adminList.includes(ownerEmail)) {
-            const ownerAccount = await env.DB.prepare('SELECT a.id FROM accounts a JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE lower(ap.email)=? LIMIT 1').bind(ownerEmail).first();
-            if (ownerAccount) {
-              await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_application', ?, ?)").bind(crypto.randomUUID(), ownerAccount.id, ('새 지원자 · ' + (jobRow.title || '공고')).slice(0,200), (requesterName + ' · ' + payload.specialty).slice(0,300)).run();
-            }
-          }
-        }
+        await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_application', ?, ?)").bind(crypto.randomUUID(), directJobRow.ownerAccountId, ('새 지원자 · ' + (directJobRow.title || '공고')).slice(0,200), (requesterName + ' · ' + payload.specialty).slice(0,300)).run();
       } catch {}
     }
     const record = { id, requestType, requesterName, phone:payload.phone, payload };
-    let emailStatus = 'failed'; let smsStatus = 'failed';
-    try { emailStatus = await sendConsultationEmail(env, record); } catch { emailStatus = 'failed'; }
-    try { smsStatus = await sendConsultationSms(env, record); } catch { smsStatus = 'failed'; }
+    let emailStatus = payload.submissionChannel === 'paid_job_direct' ? 'not_applicable' : 'failed';
+    let smsStatus = payload.submissionChannel === 'paid_job_direct' ? 'not_applicable' : 'failed';
+    if (payload.submissionChannel !== 'paid_job_direct') {
+      try { emailStatus = await sendConsultationEmail(env, record); } catch { emailStatus = 'failed'; }
+      try { smsStatus = await sendConsultationSms(env, record); } catch { smsStatus = 'failed'; }
+    }
     await env.DB.prepare('UPDATE consultation_requests SET email_notification_status = ?, sms_notification_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(emailStatus, smsStatus, id).run();
     return json({ id, saved:true, notifications:{ email:emailStatus, sms:smsStatus } }, 201);
   }
   const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 로그인이 필요합니다.' }, 401);
   if (request.method === 'GET' && pathname === '/api/consultations') {
-    const result = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests ORDER BY created_at DESC LIMIT 200').all();
+    const result = await env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE json_extract(payload_json,'$.jobId') IS NULL AND COALESCE(json_extract(payload_json,'$.submissionChannel'),'') <> 'paid_job_direct' ORDER BY created_at DESC LIMIT 200").all();
     const requests = (result.results || []).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...rest } = row; return { ...rest, payload }; });
     return json({ admin, requests });
   }
@@ -1073,6 +1083,19 @@ async function memberCenterApi(request, env) {
     const preferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
     const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
     const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
+    let consultationRows = consultations.results || [];
+    // 병원 마이페이지에는 해당 병원이 결제·등록한 공고로 들어온 직접 지원만 추가한다.
+    // 이 지원서는 헤드헌터 상담함과 분리되지만 병원은 문의·후보 화면에서 확인할 수 있다.
+    if (account.role === 'hospital') {
+      try {
+        const received = await env.DB.prepare(
+          "SELECT cr.id, cr.request_type AS requestType, cr.requester_name AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
+          "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
+          "WHERE lower(c.created_by)=? AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'paid_job_direct')='paid_job_direct' ORDER BY cr.created_at DESC LIMIT 100"
+        ).bind(identity.email.toLowerCase()).all();
+        consultationRows = [...(received.results || []), ...consultationRows];
+      } catch {}
+    }
     // refundPending: 이 주문에 처리 대기(requested/processing) 환불 요청이 있으면 1 → 마이페이지에 '환불 요청 중' 표시.
     const orders = await env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
     // 의사 회원의 이력서 요약(완성도·공개범위)을 함께 내려 마이페이지 지표에 사용.
@@ -1116,7 +1139,7 @@ async function memberCenterApi(request, env) {
         adStatus:content?.status || ''
       };
     });
-    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:(consultations.results || []).map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -1947,7 +1970,7 @@ async function adminConsoleApi(request, env) {
   if (request.method === 'GET') {
     const [accounts, consultations, cases, categories, contentCount, auditCount, paymentMetrics, settingsResult, featuresResult, categoryResult, contentResult, memberResult, paymentResult, transactionResult, refundResult, auditResult, consultationResult, caseResult, resumeResult, recoveryResult] = await Promise.all([
       env.DB.prepare("SELECT COUNT(*) total, SUM(CASE WHEN role='doctor' THEN 1 ELSE 0 END) doctors, SUM(CASE WHEN role='hospital' THEN 1 ELSE 0 END) hospitals FROM accounts").first(),
-      env.DB.prepare('SELECT COUNT(*) total FROM consultation_requests').first(),
+      env.DB.prepare("SELECT COUNT(*) total FROM consultation_requests WHERE json_extract(payload_json,'$.jobId') IS NULL AND COALESCE(json_extract(payload_json,'$.submissionChannel'),'') <> 'paid_job_direct'").first(),
       env.DB.prepare("SELECT SUM(CASE WHEN stage NOT IN ('hired','closed') THEN 1 ELSE 0 END) active, SUM(CASE WHEN stage='hired' THEN 1 ELSE 0 END) hired FROM recruitment_cases").first(),
       env.DB.prepare('SELECT COUNT(*) total FROM admin_categories').first(),
       env.DB.prepare('SELECT COUNT(*) total FROM admin_content_records').first(),
@@ -1962,7 +1985,7 @@ async function adminConsoleApi(request, env) {
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_type AS transactionType, provider, provider_transaction_id AS providerTransactionId, amount, status, failure_code AS failureCode, failure_message AS failureMessage, processed_at AS processedAt FROM payment_transactions ORDER BY created_at DESC LIMIT 1000").all(),
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_id AS transactionId, amount, reason, status, requested_by AS requestedBy, provider_refund_id AS providerRefundId, processed_at AS processedAt, created_at AS createdAt FROM payment_refunds ORDER BY created_at DESC LIMIT 500").all(),
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all(),
-      env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests ORDER BY created_at DESC LIMIT 300').all(),
+      env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE json_extract(payload_json,'$.jobId') IS NULL AND COALESCE(json_extract(payload_json,'$.submissionChannel'),'') <> 'paid_job_direct' ORDER BY created_at DESC LIMIT 300").all(),
       env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all(),
       env.DB.prepare("SELECT r.id, r.title, r.profession, r.specialty, r.name, r.phone, r.email, r.desired_regions AS desiredRegions, r.completion, r.visibility, r.status, r.created_at AS createdAt, r.updated_at AS updatedAt, a.role accountRole FROM resumes r JOIN accounts a ON a.id=r.account_id ORDER BY r.updated_at DESC LIMIT 300").all().catch(() => ({ results: [] })),
       env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email_normalized AS email, status, created_at AS createdAt, updated_at AS updatedAt FROM account_recovery_requests ORDER BY created_at DESC LIMIT 300").all().catch(() => ({ results: [] }))

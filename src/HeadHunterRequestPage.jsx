@@ -44,8 +44,26 @@ const copy = {
 export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
   const isDoctor = mode === "doctor";
   const content = copy[mode];
-  // 어느 공고에 지원했는지(URL ?job=id). 공고 소유 병원에게 지원 알림을 연결하는 데 사용.
-  const appliedJobId = (() => { try { return new URLSearchParams(window.location.search).get("job") || ""; } catch { return ""; } })();
+  const requestContext = (() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        appliedJobId: params.get("job") || "",
+        headhuntPostId: params.get("headhuntPost") || "",
+        headhuntPostTitle: params.get("title") || "",
+        headhuntPostHospital: params.get("hospital") || "",
+        headhuntPostSpecialty: params.get("specialty") || "",
+      };
+    } catch { return { appliedJobId:"", headhuntPostId:"", headhuntPostTitle:"", headhuntPostHospital:"", headhuntPostSpecialty:"" }; }
+  })();
+  const { appliedJobId, headhuntPostId, headhuntPostTitle, headhuntPostHospital, headhuntPostSpecialty } = requestContext;
+  const isDirectApplication = Boolean(isDoctor && appliedJobId);
+  const isHeadhuntPostInquiry = Boolean(isDoctor && headhuntPostId);
+  const processSteps = isDirectApplication ? [
+    ["지원서 제출", "저장한 이력서와 지원 내용을 선택"],
+    ["병원 확인", "공고를 등록한 병원 채용담당자가 확인"],
+    ["직접 연락", "면접과 근무조건을 병원과 직접 협의"],
+  ] : content.steps;
   const qaAllowed = Boolean(
     qa?.active &&
       (qa.info.capabilities.admin ||
@@ -80,7 +98,10 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
     form.delete("privacy");
     const fields = Object.fromEntries(form.entries());
     const linkedResume = isDoctor && selectedResumeId ? { resumeId: selectedResumeId } : {};
-    const payload = { ...(appliedJobId ? { jobId: appliedJobId } : {}), ...linkedResume, ...fields };
+    const sourceContext = isHeadhuntPostInquiry
+      ? { headhuntPostId, headhuntPostTitle, headhuntPostHospital }
+      : isDirectApplication ? { jobId: appliedJobId } : {};
+    const payload = { ...sourceContext, ...linkedResume, ...fields };
     try {
       if (qaAllowed) {
         const previewId = `QA-${isDoctor ? "D" : "H"}-${String(Date.now()).slice(-6)}`;
@@ -103,7 +124,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
       }
       // 공고 지원인데 저장 이력서가 하나도 없으면 현재 입력값으로 비공개 기본 이력서를 먼저 만들고,
       // 생성된 ID를 같은 지원 요청에 즉시 연결한다.
-      if (isDoctor && appliedJobId && !payload.resumeId && resumes.length === 0) {
+      if (isDoctor && (appliedJobId || headhuntPostId) && !payload.resumeId && resumes.length === 0) {
         const savedResponse = await fetch("/api/resumes", {
           method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -139,19 +160,19 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
     }
   };
   if (access !== "allowed") {
-    const returnTo = `/request/${isDoctor ? "job-seeker" : "hiring"}`;
+    const returnTo = `${window.location.pathname}${window.location.search}`;
     return <main className="quick-request-auth-page">
       <div className="quick-auth-backdrop" aria-hidden="true"><span /><span /><span /></div>
       <section className="quick-auth-dialog" role="dialog" aria-modal="true" aria-labelledby="consultation-login-title">
         <div className={`quick-auth-icon ${isDoctor ? "doctor" : "hospital"}`}>{isDoctor ? <Stethoscope /> : <BriefcaseBusiness />}</div>
         <small>MEMBERS ONLY CONSULTATION</small>
-        <h1 id="consultation-login-title">상담 신청은 로그인 후<br />이용할 수 있어요</h1>
-        <p>{isDoctor ? "이직 조건과 경력 정보" : "병원 채용 조건과 담당자 정보"}를 안전하게 보호하기 위해 로그인한 회원만 상담을 접수할 수 있습니다.</p>
+          <h1 id="consultation-login-title">{isDirectApplication ? "공고 지원" : "상담 신청"}은 로그인 후<br />이용할 수 있어요</h1>
+        <p>{isDirectApplication ? "지원 이력과 연락처" : isDoctor ? "이직 조건과 경력 정보" : "병원 채용 조건과 담당자 정보"}를 안전하게 보호하기 위해 로그인한 회원만 접수할 수 있습니다.</p>
         {access === "checking" ? <div className="quick-auth-checking">회원 상태를 확인하고 있습니다…</div> : <>
           <a className="quick-auth-login" href={withBase(`/login?next=${encodeURIComponent(returnTo)}`)}><LogIn /> 로그인하고 상담 계속하기 <ArrowRight /></a>
           <a className="quick-auth-signup" href={withBase(`/signup/${isDoctor ? "doctor" : "hospital"}?next=${encodeURIComponent(returnTo)}`)}>{isDoctor ? "의료인 회원가입" : "병원 회원가입"} 안내 보기</a>
         </>}
-        <div className="quick-auth-safe"><ShieldCheck /><span><strong>상담 내용은 공개되지 않습니다</strong><small>회원 확인 후 메디헬퍼스 담당 헤드헌터에게만 안전하게 전달됩니다.</small></span></div>
+        <div className="quick-auth-safe"><ShieldCheck /><span><strong>{isDirectApplication ? "지원 내용은 해당 병원에만 전달됩니다" : "상담 내용은 공개되지 않습니다"}</strong><small>{isDirectApplication ? "유료 채용광고 지원은 메디헬퍼스 헤드헌터 상담함으로 전달되지 않습니다." : "회원 확인 후 메디헬퍼스 담당 헤드헌터에게만 안전하게 전달됩니다."}</small></span></div>
       </section>
     </main>;
   }
@@ -163,10 +184,9 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
             <CircleCheck />
           </span>
           <small>접수번호 {done}</small>
-          <h1>무료 상담 신청이 접수되었습니다</h1>
+          <h1>{isDirectApplication ? "병원 지원이 접수되었습니다" : "무료 상담 신청이 접수되었습니다"}</h1>
           <p>
-            메디헬퍼스 헤드헌터가 입력하신 조건을 먼저 검토한 뒤<br />
-            선택하신 시간에 연락드리겠습니다.
+            {isDirectApplication ? <>해당 병원 채용담당자가 지원 내용을 확인한 뒤<br />직접 연락드릴 예정입니다.</> : <>메디헬퍼스 헤드헌터가 입력하신 조건을 먼저 검토한 뒤<br />선택하신 시간에 연락드리겠습니다.</>}
           </p>
           <div>
             <a
@@ -193,21 +213,23 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
             {isDoctor ? <Stethoscope /> : <BriefcaseBusiness />}{" "}
             {content.eyebrow}
           </span>
-          <h1>{content.title}</h1>
-          <p>{content.description}</p>
-          <strong>상담 접수 무료 · 결제 없음</strong>
+          <h1>{isDirectApplication ? "병원 채용공고 지원서" : isHeadhuntPostInquiry ? "맞춤 헤드헌팅 공고 상담" : content.title}</h1>
+          <p>{isDirectApplication ? "공고를 등록한 병원 채용담당자에게 이력서와 지원 내용을 직접 전달합니다." : isHeadhuntPostInquiry ? "담당 의사 헤드헌터가 직접 검증해 등록한 공고의 조건을 확인하고 비공개로 상담합니다." : content.description}</p>
+          <strong>{isDirectApplication ? "병원 직접 지원 · 헤드헌터 미개입" : "상담 접수 무료 · 결제 없음"}</strong>
         </div>
       </header>
+      {isHeadhuntPostInquiry && <section className="quick-linked-post" aria-label="문의할 맞춤 헤드헌팅 공고"><span><Handshake /></span><div><small>HEADHUNTER VERIFIED POST</small><strong>{headhuntPostTitle || "맞춤 헤드헌팅 공고"}</strong><p>{[headhuntPostHospital, headhuntPostSpecialty].filter(Boolean).join(" · ")} · 이 문의는 담당 의사 헤드헌터에게 전달됩니다.</p></div></section>}
+      {isDirectApplication && <section className="quick-linked-post direct" aria-label="지원할 병원 유료 채용광고"><span><BriefcaseBusiness /></span><div><small>DIRECT HOSPITAL APPLICATION</small><strong>병원 유료 채용광고 직접 지원</strong><p>지원 내용은 공고를 등록한 병원에 전달되며 헤드헌터 상담과 분리됩니다.</p></div></section>}
       <section className="quick-request-process">
         <div>
           <small>{isDoctor ? "구직희망" : "구인희망"}</small>
           <h2>
             {isDoctor
-              ? "조건을 남기면 제안과 협상까지"
+              ? isDirectApplication ? "병원에 지원서를 안전하게 전달" : "조건을 남기면 제안과 협상까지"
               : "채용조건을 남기면 후보 확인과 면접까지"}
           </h2>
         </div>
-        {content.steps.map(([title, description], index) => (
+        {processSteps.map(([title, description], index) => (
           <article key={title}>
             <span>STEP {String(index + 1).padStart(2, "0")}</span>
             <div>
@@ -232,19 +254,30 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
         <header>
           <div>
             <small>MEDIHELPERS CONSULTATION</small>
-            <h2>{isDoctor ? "의사 선생님 간편 이력서" : "의사 초빙 의뢰서"}</h2>
+            <h2>{isDirectApplication ? "병원 채용공고 지원서" : isHeadhuntPostInquiry ? "맞춤 헤드헌팅 공고 문의서" : isDoctor ? "의사 선생님 간편 이력서" : "의사 초빙 의뢰서"}</h2>
           </div>
           <p>
             {isDoctor
-              ? "간단한 정보와 희망 조건을 작성하면 담당 헤드헌터가 빠르게 연락드립니다."
+              ? isDirectApplication ? "저장된 이력서를 선택하면 공고를 등록한 병원에 지원 내용이 전달됩니다." : "간단한 정보와 희망 조건을 작성하면 담당 헤드헌터가 빠르게 연락드립니다."
               : "아래 양식을 작성하면 담당 헤드헌터가 채용조건을 확인하고 최적의 의사를 매칭해드립니다."}
           </p>
         </header>
-        <div className="quick-request-contact-card">
-          <div><span>전화 상담</span><a href="tel:01024355463">010-2435-5463</a></div>
-          <div><span>이메일</span><a href="mailto:hr@medihelpers.co.kr">hr@medihelpers.co.kr</a></div>
-          <small><b>*</b> 표시는 필수 입력 항목입니다.</small>
-        </div>
+        {isDirectApplication ? (
+          <div className="quick-request-contact-card direct-routing">
+            <div>
+              <span>지원서 전달 대상</span>
+              <strong>이 채용공고를 등록한 병원</strong>
+            </div>
+            <p>병원 유료 채용광고의 지원서는 의사 헤드헌터 상담함이나 연락처로 전달되지 않습니다.</p>
+            <small><b>*</b> 표시는 필수 입력 항목입니다.</small>
+          </div>
+        ) : (
+          <div className="quick-request-contact-card">
+            <div><span>전화 상담</span><a href="tel:01024355463">010-2435-5463</a></div>
+            <div><span>이메일</span><a href="mailto:hr@medihelpers.co.kr">hr@medihelpers.co.kr</a></div>
+            <small><b>*</b> 표시는 필수 입력 항목입니다.</small>
+          </div>
+        )}
         <div className="quick-request-grid">
           {isDoctor ? (
             <>
@@ -266,7 +299,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
               </label>
               <label>
                 <span>전문과목·주요업무 *</span>
-                <input required name="specialty" placeholder="예: 소화기내과, 검진, 외래" />
+                <input required name="specialty" placeholder="예: 소화기내과, 검진, 외래" defaultValue={headhuntPostSpecialty} />
               </label>
               <label>
                 <span>성별 <i>선택</i></span>
@@ -400,7 +433,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
           </div>
         </div>
         </div>
-        {isDoctor && <ResumeSubmitPicker selectedId={selectedResumeId} onSelect={setSelectedResumeId} onLoaded={setResumes} optional={!appliedJobId} />}
+        {isDoctor && <ResumeSubmitPicker selectedId={selectedResumeId} onSelect={setSelectedResumeId} onLoaded={setResumes} optional={!(appliedJobId || headhuntPostId)} />}
         <label className="quick-message">
           <span>{isDoctor ? "헤드헌터에게 전하실 말씀" : "기타 전하실 말씀"}</span>
           <textarea
@@ -408,7 +441,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
             rows="6"
             placeholder={
               isDoctor
-                ? "근무조건, 희망 페이, 이직 시 중요하게 보는 사항을 자유롭게 작성해주세요."
+                ? isHeadhuntPostInquiry ? "이 맞춤 헤드헌팅 공고에서 확인하고 싶은 조건이나 담당 헤드헌터에게 전할 말씀을 작성해주세요." : isDirectApplication ? "병원 채용담당자에게 전달할 지원 동기와 확인할 사항을 작성해주세요." : "근무조건, 희망 페이, 이직 시 중요하게 보는 사항을 자유롭게 작성해주세요."
                 : "근무조건, 진료범위, 휴무·당직, 숙소 지원 등 희망사항을 자유롭게 작성해주세요."
             }
           />
@@ -423,14 +456,14 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
         {submitError && <p className="quick-submit-error" role="alert">{submitError}</p>}
         <button className="quick-submit" type="submit" disabled={submitting}>
           <span className="quick-submit-label">
-          {isDoctor ? "간편 이력서 제출하기" : "의사 초빙 의뢰하기"} <ArrowRight />
+          {isDirectApplication ? "이 병원에 지원하기" : isHeadhuntPostInquiry ? "이 공고 헤드헌터에게 문의하기" : isDoctor ? "간편 이력서 제출하기" : "의사 초빙 의뢰하기"} <ArrowRight />
           </span>
           {submitting && <span>안전하게 접수 중입니다…</span>}
         </button>
         <p className="quick-security">
           <ShieldCheck />{" "}
           {isDoctor
-            ? "본인의 동의 없이 이직 의사와 이력서를 병원에 공개하지 않습니다."
+            ? isDirectApplication ? "선택한 이력서는 지원한 병원의 채용 확인 목적으로만 전달됩니다." : "본인의 동의 없이 이직 의사와 이력서를 병원에 공개하지 않습니다."
             : "후보자의 동의를 확인한 뒤 필요한 정보만 병원에 전달합니다."}
         </p>
       </form>

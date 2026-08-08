@@ -190,23 +190,26 @@ export default function MemberCenterPage({ route, qa }) {
   const roleLabel = role === 'hospital' ? '병원 회원' : '의료인 회원';
   const inquiries = qa.active ? demo.inquiries : serverData.consultations.map((item) => {
     const payload = item.payload || {};
+    const directApplication = payload.submissionChannel === 'paid_job_direct' || Boolean(payload.jobId);
+    const headhuntInquiry = payload.submissionChannel === 'headhunt_board' || Boolean(payload.headhuntPostId);
     return {
       id: item.id,
       name: item.requesterName || '메디헬퍼스 상담',
-      subject: `${item.specialty || payload.professionalType || '채용'} 상담 신청`,
+      subject: directApplication ? `${payload.jobTitle || item.specialty || '채용공고'} 지원` : headhuntInquiry ? `${payload.headhuntPostTitle || item.specialty || '맞춤 공고'} 헤드헌터 문의` : `${item.specialty || payload.professionalType || '채용'} 상담 신청`,
       source: item.id,
       time: String(item.createdAt || '').slice(0, 10),
       status: ({ new:'답변 대기', contacted:'연락 완료', in_progress:'상담 연결', closed:'종료' })[item.status] || item.status,
-      message: payload.message || payload.note || '접수한 상담 내용을 담당 헤드헌터가 확인하고 있습니다.',
+      message: payload.message || payload.note || (directApplication ? '지원 내용이 공고를 등록한 병원에 전달되었습니다.' : '접수한 상담 내용을 담당 헤드헌터가 확인하고 있습니다.'),
       details: {
-        접수유형: item.requestType === 'hospital' ? '병원 구인희망' : '의사 구직희망',
+        접수유형: directApplication ? '병원 유료광고 직접 지원' : headhuntInquiry ? '맞춤 헤드헌팅 공고 문의' : item.requestType === 'hospital' ? '병원 구인희망' : '의사 구직희망',
+        대상공고: payload.jobTitle || payload.headhuntPostTitle || '-',
         전문과목: item.specialty || payload.specialty || payload.professionalType || '-',
         희망지역: payload.region || payload.address || '-',
         연락희망: payload.contactTime || payload.preferredContactTime || '-'
       },
-      response: item.adminNote || '담당 헤드헌터가 내용을 확인 중입니다. 답변이 등록되면 이 화면에서 확인할 수 있습니다.',
+      response: item.adminNote || (directApplication ? '공고를 등록한 병원 채용담당자가 지원 내용을 확인 중입니다.' : '담당 헤드헌터가 내용을 확인 중입니다. 답변이 등록되면 이 화면에서 확인할 수 있습니다.'),
       history: [
-        [String(item.createdAt || '').slice(0, 16), '상담 접수'],
+        [String(item.createdAt || '').slice(0, 16), directApplication ? '병원 직접 지원' : '상담 접수'],
         ...(item.updatedAt && item.updatedAt !== item.createdAt ? [[String(item.updatedAt).slice(0, 16), '처리 상태 변경']] : [])
       ]
     };

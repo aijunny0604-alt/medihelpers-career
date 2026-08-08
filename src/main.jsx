@@ -943,7 +943,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
               <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
-            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span><Link to={`/request/job-seeker?job=${job.id}`}>무료 구직상담 신청 <ArrowRight /></Link></div>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span><Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link></div>
           </section>
           <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
             <div className="decision-sheet-head">
@@ -982,7 +982,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                 </div>
               )}
             </div>
-            {memberUnlocked && (
+            {memberUnlocked && job.badge === "비공개" && (
               <div className="headhunter-verified-note">
                 <span><BadgeCheck /></span>
                 <div>
@@ -1079,7 +1079,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
             <p>{job.summary}</p>
             <div className="job-detail-copy">
               <div><h4>근무조건</h4><p>급여조건은 {job.pay}이며, 근무시간은 {job.workHours || job.schedule}입니다. {job.daysOff || "휴무일은 상담을 통해 조율합니다."}</p></div>
-              <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 헤드헌터가 병원과 확인해 안내합니다.</p></div>
+              <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 지원 후 병원 채용담당자와 직접 확인합니다.</p></div>
               <div><h4>복리후생·협의사항</h4><p>{(job.benefits || []).join(" · ")} 조건을 제공하며 경력과 담당 진료범위에 따라 세부 내용을 조율합니다.</p></div>
             </div>
             <div className="benefit-list">
@@ -2296,7 +2296,7 @@ function HeadhuntPostDetailPage({ post }) {
           </div>
           <div className="hp-cta-actions">
             <a className="button primary" href="tel:01024355463"><Phone /> 전화 상담 010-2435-5463</a>
-            <Link className="button outline" to={`/request/hiring?post=${encodeURIComponent(post.id)}`}>온라인 초빙 의뢰</Link>
+            <Link className="button outline" to={`/request/job-seeker?headhuntPost=${encodeURIComponent(post.id)}&title=${encodeURIComponent(post.title)}&hospital=${encodeURIComponent(post.hospital || '')}&specialty=${encodeURIComponent(post.dept || '')}`}>이 공고 헤드헌터에게 문의</Link>
           </div>
         </section>
         </article>

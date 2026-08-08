@@ -11,7 +11,8 @@ const fieldLabels = {
   workType: "근무 형태", startTiming: "이직 희망시기", salary: "예상 페이", preferredAge: "희망 연령",
   preferredGender: "희망 성별", fellowship: "세부전공", experienceRequired: "경력", schedule: "근무시간",
   scale: "병상·환자 규모", contactTime: "연락 희망시간", message: "전달사항", attachmentName: "첨부파일명",
-  gender: "성별", birthYear: "생년",
+  gender: "성별", birthYear: "생년", submissionChannel: "접수 경로", headhuntPostId: "헤드헌팅 공고 ID",
+  headhuntPostTitle: "문의 공고", headhuntPostHospital: "공고 병원", resumeTitle: "제출 이력서",
 };
 
 function readQaAdminPreview() {
