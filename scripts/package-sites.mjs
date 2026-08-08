@@ -248,21 +248,33 @@ async function userKey(email, secret) {
   const digest = await crypto.subtle.sign('HMAC', key, encoder.encode(email));
   return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
 }
+// 기존에는 API를 호출할 때마다 모든 CREATE TABLE/INDEX를 다시 D1에 전송했다.
+// 이미 생성된 운영 DB는 대표 테이블 1개만 확인하고, Worker 인스턴스 안에서는 그 결과를 재사용한다.
+// 새 환경/누락 스키마에서는 기존 ensure*Schema 동작대로 전체 스키마를 자동 생성한다.
+const schemaReadyPromises = new Map();
+async function ensureSchemaGroup(env, key, probeSql, statements, unavailableCode) {
+  if (!env || !env.DB) throw new Error(unavailableCode);
+  if (!schemaReadyPromises.has(key)) {
+    const task = (async () => {
+      try { await env.DB.prepare(probeSql).first(); return; } catch {}
+      await env.DB.batch(statements.map(statement => env.DB.prepare(statement)));
+    })();
+    schemaReadyPromises.set(key, task);
+  }
+  try { await schemaReadyPromises.get(key); }
+  catch (error) { schemaReadyPromises.delete(key); throw error; }
+}
 async function ensureAccountSchema(env) {
-  if (!env || !env.DB) throw new Error('ACCOUNT_DB_UNAVAILABLE');
-  await env.DB.batch(accountSchemaStatements.map(statement => env.DB.prepare(statement)));
+  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM auth_sessions LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
 }
 async function ensureConsultationSchema(env) {
-  if (!env || !env.DB) throw new Error('CONSULTATION_DB_UNAVAILABLE');
-  await env.DB.batch(consultationSchemaStatements.map(statement => env.DB.prepare(statement)));
+  return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
 }
 async function ensureMemberCenterSchema(env) {
-  if (!env || !env.DB) throw new Error('MEMBER_CENTER_DB_UNAVAILABLE');
-  await env.DB.batch(memberCenterSchemaStatements.map(statement => env.DB.prepare(statement)));
+  return ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM inquiry_messages LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
 }
 async function ensureCommerceSchema(env) {
-  if (!env || !env.DB) throw new Error('COMMERCE_DB_UNAVAILABLE');
-  await env.DB.batch(commerceSchemaStatements.map(statement => env.DB.prepare(statement)));
+  return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
 }
 // 열람권 '묶음(팩)' 크레딧 풀. 병원이 팩을 사면 크레딧 N개가 적립되고,
 // 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권(talent_unlocks)을 발급한다.
@@ -1105,7 +1117,7 @@ async function memberCenterApi(request, env) {
   const identity = await authenticatedUser(request, env);
   if (!identity) return json({ signedIn:false, account:null, identity:{} }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
-  try { await ensureAccountSchema(env); await ensureConsultationSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  try { await Promise.all([ensureAccountSchema(env), ensureConsultationSchema(env), ensureMemberCenterSchema(env), ensureCommerceSchema(env)]); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   // 관리자 여부를 함께 내려준다(마이페이지가 관리자를 운영 콘솔로 안내하도록).
@@ -1117,34 +1129,51 @@ async function memberCenterApi(request, env) {
     const alerts = alertRows.results || [];
     const unreadCount = alerts.reduce((count, item) => count + (item.readAt ? 0 : 1), 0);
     if (new URL(request.url).searchParams.get('notificationsOnly') === '1') return json({ signedIn:true, alerts, unreadCount });
-    const profile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id).first();
-    const preferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
-    const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
-    const consultations = await env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
+    // 서로 의존하지 않는 회원 데이터 조회를 동시에 시작한다. 예전에는 8~10개 D1 조회를
+    // 하나씩 기다려서 각 왕복 시간이 모두 더해졌고 로그인 직후 3초 이상 로딩됐다.
+    const profileRequest = env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id).first();
+    const preferencesRequest = env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
+    const activityRequest = env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
+    const consultationsRequest = env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
+    const ordersRequest = env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
+    const messagesRequest = env.DB.prepare(
+      "SELECT id, consultation_id AS consultationId, sender_name AS senderName, sender_role AS senderRole, body, created_at AS createdAt, CASE WHEN sender_account_id=? THEN 'sent' ELSE 'received' END AS direction " +
+      "FROM inquiry_messages WHERE sender_account_id=? OR recipient_account_id=? ORDER BY created_at ASC LIMIT 500"
+    ).bind(account.id, account.id, account.id).all();
+    const resumeRequest = account.role === 'doctor'
+      ? env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first()
+      : Promise.resolve(null);
+    const receivedRequest = account.role === 'hospital' ? env.DB.prepare(
+      "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
+      "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
+      "LEFT JOIN account_admin_profiles applicant_account ON lower(applicant_account.email)=lower(cr.email) " +
+      "LEFT JOIN member_profiles applicant_member ON applicant_member.account_id=applicant_account.account_id " +
+      "WHERE lower(c.created_by)=? AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'paid_job_direct')='paid_job_direct' ORDER BY cr.created_at DESC LIMIT 100"
+    ).bind(identity.email.toLowerCase()).all() : Promise.resolve({ results:[] });
+    const recommendedRequest = account.role === 'hospital' ? env.DB.prepare(
+      "SELECT s.candidate_public_id AS code, s.consent_status AS consentStatus, s.submission_status AS submissionStatus, c.specialty, c.position_title AS positionTitle, c.stage, s.updated_at AS updatedAt " +
+      "FROM candidate_submissions s JOIN recruitment_cases c ON c.id = s.case_id JOIN consultation_requests cr ON cr.id = c.consultation_id " +
+      "WHERE lower(cr.email) = ? AND s.consent_status = 'granted' ORDER BY s.updated_at DESC LIMIT 50"
+    ).bind(identity.email.toLowerCase()).all() : Promise.resolve({ results:[] });
+    const ownedAdsRequest = account.role === 'hospital'
+      ? env.DB.prepare("SELECT id, title, status, updated_at AS updatedAt FROM admin_content_records WHERE lower(created_by)=? ORDER BY updated_at DESC LIMIT 200").bind(identity.email.toLowerCase()).all()
+      : Promise.resolve({ results:[] });
+    const [profile, preferences, activity, consultations, orders, resumeResult, messageResult, receivedResult, recommendedResult, ownedAdsResult] = await Promise.all([
+      profileRequest, preferencesRequest, activityRequest, consultationsRequest, ordersRequest, resumeRequest, messagesRequest, receivedRequest, recommendedRequest, ownedAdsRequest
+    ]);
     let consultationRows = consultations.results || [];
     // 병원 마이페이지에는 해당 병원이 결제·등록한 공고로 들어온 직접 지원만 추가한다.
     // 이 지원서는 헤드헌터 상담함과 분리되지만 병원은 문의·후보 화면에서 확인할 수 있다.
     if (account.role === 'hospital') {
       try {
-        const received = await env.DB.prepare(
-          "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
-          "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
-          "LEFT JOIN account_admin_profiles applicant_account ON lower(applicant_account.email)=lower(cr.email) " +
-          "LEFT JOIN member_profiles applicant_member ON applicant_member.account_id=applicant_account.account_id " +
-          "WHERE lower(c.created_by)=? AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'paid_job_direct')='paid_job_direct' ORDER BY cr.created_at DESC LIMIT 100"
-        ).bind(identity.email.toLowerCase()).all();
-        consultationRows = [...(received.results || []), ...consultationRows];
+        consultationRows = [...(receivedResult.results || []), ...consultationRows];
       } catch {}
     }
     // 알림 본문과 문의 상세를 분리해 저장하면 알림을 눌렀을 때 실제 메시지가 사라진다.
     // 정식 대화 원장과 기존 inquiry_reply 알림을 합쳐 과거 메시지도 상세 화면에서 복원한다.
     let inquiryMessageRows = [];
     try {
-      const result = await env.DB.prepare(
-        "SELECT id, consultation_id AS consultationId, sender_name AS senderName, sender_role AS senderRole, body, created_at AS createdAt, CASE WHEN sender_account_id=? THEN 'sent' ELSE 'received' END AS direction " +
-        "FROM inquiry_messages WHERE sender_account_id=? OR recipient_account_id=? ORDER BY created_at ASC LIMIT 500"
-      ).bind(account.id, account.id, account.id).all();
-      inquiryMessageRows = result.results || [];
+      inquiryMessageRows = messageResult.results || [];
     } catch { inquiryMessageRows = []; }
     const messagesByConsultation = new Map();
     for (const messageRow of inquiryMessageRows) {
@@ -1169,24 +1198,14 @@ async function memberCenterApi(request, env) {
       }
     }
     // refundPending: 이 주문에 처리 대기(requested/processing) 환불 요청이 있으면 1 → 마이페이지에 '환불 요청 중' 표시.
-    const orders = await env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
     // 의사 회원의 이력서 요약(완성도·공개범위)을 함께 내려 마이페이지 지표에 사용.
-    let resume = null;
-    if (account.role === 'doctor') {
-      try { resume = await env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first(); } catch { resume = null; }
-    }
+    const resume = resumeResult || null;
     // 병원 회원의 추천 후보: 내 이메일의 상담 → CRM 케이스 → 후보. 실명·연락처는 제외(익명 표시).
     let recommendedCandidates = [];
     if (account.role === 'hospital') {
       try {
-        const rows = await env.DB.prepare(
-          // [보안] 후보 동의(consent_status='granted')가 확인된 건만 병원에 노출한다.
-          // 예전에는 필터가 없어 pending·revoked·declined 후보의 존재·진행단계까지 병원이 보게 됐다.
-          "SELECT s.candidate_public_id AS code, s.consent_status AS consentStatus, s.submission_status AS submissionStatus, c.specialty, c.position_title AS positionTitle, c.stage, s.updated_at AS updatedAt " +
-          "FROM candidate_submissions s JOIN recruitment_cases c ON c.id = s.case_id JOIN consultation_requests cr ON cr.id = c.consultation_id " +
-          "WHERE lower(cr.email) = ? AND s.consent_status = 'granted' ORDER BY s.updated_at DESC LIMIT 50"
-        ).bind(identity.email.toLowerCase()).all();
-        recommendedCandidates = rows.results || [];
+        // [보안] 후보 동의(consent_status='granted')가 확인된 건만 병원에 노출한다.
+        recommendedCandidates = recommendedResult.results || [];
       } catch { recommendedCandidates = []; }
     }
     // 병원 마이페이지는 결제 상태만으로 공고 노출 여부를 판단하면 안 된다.
@@ -1194,8 +1213,7 @@ async function memberCenterApi(request, env) {
     let ownedAdContents = [];
     if (account.role === 'hospital') {
       try {
-        const result = await env.DB.prepare("SELECT id, title, status, updated_at AS updatedAt FROM admin_content_records WHERE lower(created_by)=? ORDER BY updated_at DESC LIMIT 200").bind(identity.email.toLowerCase()).all();
-        ownedAdContents = result.results || [];
+        ownedAdContents = ownedAdsResult.results || [];
       } catch { ownedAdContents = []; }
     }
     const ownedAdContentById = new Map(ownedAdContents.map(record => [record.id, record]));
