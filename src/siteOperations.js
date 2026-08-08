@@ -68,6 +68,7 @@ export function operationalTalent(contents = []) {
       preference: p.preference || p.description || '조건 협의',
       available: p.available || '협의',
       verified: p.fromResume ? true : Boolean(p.verified),
+      ownerView: Boolean(p.ownerView),
       staffType: p.staffType || 'doctor',
       profession: p.profession || '',
     };

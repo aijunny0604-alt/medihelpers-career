@@ -1343,9 +1343,14 @@ async function talentDetailApi(request, env, pathname) {
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
   const isAdmin = await adminIdentity(request, env);
-  // 병원·관리자만 열람 가능. 병원은 열람권(유효기간 내) 보유 시에만.
+  const resumeId = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
+  const resumeMeta = resumeId
+    ? await env.DB.prepare('SELECT account_id AS accountId, visibility FROM resumes WHERE id = ? LIMIT 1').bind(resumeId).first()
+    : null;
+  const isOwner = Boolean(account?.id && resumeMeta?.accountId === account.id);
+  // 작성자 본인은 자신의 구직글을 무료 열람한다. 그 외에는 관리자 또는 병원 열람권이 필요하다.
   if (!account && !isAdmin) return json({ unlocked:false, detail:null });
-  let hasUnlock = Boolean(isAdmin);
+  let hasUnlock = Boolean(isAdmin || isOwner);
   if (!hasUnlock && account?.role === 'hospital') {
     const now = new Date().toISOString();
     const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? AND (expires_at IS NULL OR expires_at > ?) LIMIT 1").bind(account.id, talentId, now).first();
@@ -1355,7 +1360,7 @@ async function talentDetailApi(request, env, pathname) {
     // 크레딧만 낭비되고, 공개 안 한 의사를 열람 시도하는 것 자체를 막는다.
     if (!hasUnlock) {
       let spendable = true;
-      const rid = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
+      const rid = resumeId;
       if (rid) {
         try {
           const vis = await env.DB.prepare("SELECT visibility FROM resumes WHERE id = ? LIMIT 1").bind(rid).first();
@@ -1385,7 +1390,7 @@ async function talentDetailApi(request, env, pathname) {
   const BURST_WINDOW_MIN = 10;
   const BURST_LIMIT = Number(env.TALENT_VIEW_BURST_LIMIT || 15);
   let dailyCount = 0;
-  if (!isAdmin && account) {
+  if (!isAdmin && !isOwner && account) {
     try {
       const dayAgo = new Date(Date.now() - 86400000).toISOString();
       const burstAgo = new Date(Date.now() - BURST_WINDOW_MIN * 60000).toISOString();
@@ -1410,13 +1415,12 @@ async function talentDetailApi(request, env, pathname) {
   // [보안] visibility가 공개(public)·헤드헌터 제안(proposal)인 이력서만 실명·연락처를 내려준다.
   // 기본값이 private이라, 이 필터가 없으면 '구직 공개'를 선택하지 않은 의사의 연락처까지
   // 열람권만 있으면 resume-<id>로 긁어갈 수 있다(본인이 공개하지 않은 정보 유출).
-  const resumeId = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
   if (resumeId) {
-    const r = await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND visibility IN ('public','proposal')").bind(resumeId).first();
+    const r = await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND (account_id = ? OR visibility IN ('public','proposal'))").bind(resumeId, account?.id || '').first();
     if (r) {
-      try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
+      if (!isOwner) try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
       const { detailJson, ...rest } = r;
-      return json({ unlocked:true, detail:{ ...rest, detail:parseJsonObject(detailJson) } });
+      return json({ unlocked:true, accessReason:isOwner ? 'owner' : (isAdmin ? 'admin' : 'ticket'), detail:{ ...rest, detail:parseJsonObject(detailJson) } });
     }
   }
   // 실제 이력서가 없더라도(정적 샘플 등) 열람 사실은 기록해 빈도 집계에 반영.
@@ -1951,13 +1955,14 @@ async function publicSiteOperationsApi(request, env) {
   await seedAdminConsole(env);
   const allowedVisibility = new Set(['public']);
   const identity = await authenticatedUser(request, env);
+  let viewerAccount = null;
   if (await adminIdentity(request, env)) ['doctor','hospital','admin'].forEach(value => allowedVisibility.add(value));
   else if (identity && env.ACCOUNT_HASH_SECRET) {
     try {
       await ensureAccountSchema(env);
       const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
-      const account = await env.DB.prepare('SELECT role FROM accounts WHERE user_key=?').bind(key).first();
-      if (account?.role) allowedVisibility.add(account.role);
+      viewerAccount = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key=?').bind(key).first();
+      if (viewerAccount?.role) allowedVisibility.add(viewerAccount.role);
     } catch {}
   }
   const [settingsResult, featuresResult, contentResult] = await Promise.all([
@@ -1994,9 +1999,9 @@ async function publicSiteOperationsApi(request, env) {
   const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload), rawPayload:payload }; }).filter(record => !isExpired(record.rawPayload)).map(({ rawPayload, ...record }) => record);
   // 구직 등록 = 이력서 등록 시 의사가 '인재정보에 구직 공개(visibility=public)'를 직접 선택한 경우에만
   // 인재정보에 익명으로 노출한다(본인 선택, 자동 아님). 실명·연락처·이메일은 절대 미포함.
-  // 연락처·이력서 상세는 병원의 열람권 결제 후 별도 API로만 제공한다.
+  // 연락처·이력서 상세는 작성자 본인 또는 열람권을 가진 병원에 별도 API로만 제공한다.
   try {
-    const resumeRows = await env.DB.prepare("SELECT id, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson, updated_at AS updatedAt FROM resumes WHERE visibility='public' ORDER BY updated_at DESC LIMIT 200").all();
+    const resumeRows = await env.DB.prepare("SELECT id, account_id AS accountId, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson, updated_at AS updatedAt FROM resumes WHERE visibility='public' ORDER BY updated_at DESC LIMIT 200").all();
     for (const r of (resumeRows.results || [])) {
       const detail = parseJsonObject(r.detailJson) || {};
       const career = detail.experienceYears ? String(detail.experienceYears) : (detail.career || '');
@@ -2012,6 +2017,7 @@ async function publicSiteOperationsApi(request, env) {
           region: r.desiredRegions || '',
           preference: detail.workTypes ? (Array.isArray(detail.workTypes) ? detail.workTypes.join('·') : String(detail.workTypes)) : '',
           available: detail.available || '협의', identityConsent: false, fromResume: true,
+          ownerView: Boolean(viewerAccount?.id && viewerAccount.id === r.accountId),
         },
       });
     }

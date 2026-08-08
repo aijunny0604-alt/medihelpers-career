@@ -2060,14 +2060,14 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
     strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
   };
   // 열람권 보유 시 서버가 연락처·상세를 내려준다. 없으면 unlocked:false.
-  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, detail: null, limited: false, message: "" });
+  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, accessReason: "", detail: null, limited: false, message: "" });
   useEffect(() => {
     let active = true;
     fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.detailId || person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
       // 429(열람 한도 초과)는 응답 본문(limited/message)을 읽어 사용자에게 안내한다.
       .then((r) => r.json().catch(() => ({})).then((body) => ({ ok: r.ok, status: r.status, body })))
-      .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
-      .catch(() => active && setUnlock({ loading: false, unlocked: false, detail: null, limited: false, message: "" }));
+      .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), accessReason: body.accessReason || "", detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
+      .catch(() => active && setUnlock({ loading: false, unlocked: false, accessReason: "", detail: null, limited: false, message: "" }));
     return () => { active = false; };
   }, [person.code]);
   // 서버 상세(실제 이력서)가 있으면 그것, 없으면(정적 데모 인재) person 자체의 상세 필드로 폴백.
@@ -2091,6 +2091,7 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
     },
   } : null;
   const d = unlock.detail || (unlock.unlocked ? demoDetail : null) || {};
+  const ownerAccess = unlock.accessReason === 'owner' || Boolean(person.ownerView);
   return (
     <Modal
       wide
@@ -2144,7 +2145,7 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           <section className="talent-detail-unlocked">
             <div className="talent-detail-title">
               <span><BadgeCheck /></span>
-              <div><small>UNLOCKED · 열람권 확인</small><h3>연락처·이력서 상세</h3></div>
+              <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : '연락처·이력서 상세'}</h3></div>
             </div>
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
@@ -2189,7 +2190,9 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
 
         <div className="talent-detail-actions">
           <button type="button" className="button outline" onClick={onClose}>목록 계속 보기</button>
-          {unlock.unlocked ? (
+          {ownerAccess ? (
+            <Link className="button primary" to="/resume">내 구직글 수정 <ArrowRight /></Link>
+          ) : unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
           ) : unlock.limited ? (
             <a className="button primary" href="tel:0513425463"><Phone /> 담당자 문의</a>
@@ -2541,8 +2544,8 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' })
                 </div>
                 <span className="medical-staff-career">{person.region || '전국'}</span>
                 <strong className="jobseeker-availability">{person.availability || '협의'}</strong>
-                <span className={`medical-staff-deadline js-lock ${canViewIdentity ? 'open' : ''}`}>{canViewIdentity ? <><Eye size={14} /> 열람 가능</> : <><LockKeyhole size={14} /> 열람권</>}</span>
-                <span className="medical-staff-row-action">상세 보기 <ArrowRight /></span>
+                <span className={`medical-staff-deadline js-lock ${(canViewIdentity || person.ownerView) ? 'open' : ''}`}>{person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : canViewIdentity ? <><Eye size={14} /> 열람 가능</> : <><LockKeyhole size={14} /> 열람권</>}</span>
+                <span className="medical-staff-row-action">{person.ownerView ? '내 글 보기' : '상세 보기'} <ArrowRight /></span>
               </article>
             );
           })}</div>
