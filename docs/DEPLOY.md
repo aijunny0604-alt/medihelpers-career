@@ -18,6 +18,9 @@
 
 ## Current State
 
+- 2026-08-08 최신 공개본: OpenAI Sites v234 · 소스 커밋 `eaa90ff`
+- 공개 URL: https://medihelpers-career.junnyai.chatgpt.site
+
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career` (**테스트 전용 — 실결제 불가**)
 - 현재 공개 버전: Sites v233 · 소스 커밋 `ae95268` (2026-08-03)
 - 보조 공개본: GitHub Pages `aijunny0604-alt.github.io/medihelpers-career`
