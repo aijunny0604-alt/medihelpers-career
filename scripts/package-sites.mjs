@@ -1125,42 +1125,58 @@ async function memberCenterApi(request, env) {
   if (!account) return json({ signedIn:true, account:null, identity, isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
-    const alertRows = await env.DB.prepare('SELECT id, kind, title, body, action_url AS actionUrl, read_at AS readAt, created_at AS createdAt FROM member_notifications WHERE account_id=? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
-    const alerts = alertRows.results || [];
-    const unreadCount = alerts.reduce((count, item) => count + (item.readAt ? 0 : 1), 0);
-    if (new URL(request.url).searchParams.get('notificationsOnly') === '1') return json({ signedIn:true, alerts, unreadCount });
-    // 서로 의존하지 않는 회원 데이터 조회를 동시에 시작한다. 예전에는 8~10개 D1 조회를
-    // 하나씩 기다려서 각 왕복 시간이 모두 더해졌고 로그인 직후 3초 이상 로딩됐다.
-    const profileRequest = env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id).first();
-    const preferencesRequest = env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
-    const activityRequest = env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
-    const consultationsRequest = env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email).all();
-    const ordersRequest = env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
-    const messagesRequest = env.DB.prepare(
+    const alertStatement = env.DB.prepare('SELECT id, kind, title, body, action_url AS actionUrl, read_at AS readAt, created_at AS createdAt FROM member_notifications WHERE account_id=? ORDER BY created_at DESC LIMIT 100').bind(account.id);
+    if (new URL(request.url).searchParams.get('notificationsOnly') === '1') {
+      const alertRows = await alertStatement.all();
+      const alerts = alertRows.results || [];
+      return json({ signedIn:true, alerts, unreadCount:alerts.reduce((count, item) => count + (item.readAt ? 0 : 1), 0) });
+    }
+    // 전체 마이페이지는 모든 SELECT를 D1 batch 한 번으로 전송한다. 개별 Promise를 여러 개
+    // 보내는 것보다 왕복 횟수와 네트워크 편차가 줄고, 결과 순서는 이름 맵으로 안전하게 복원한다.
+    const queryNames = [];
+    const queryStatements = [];
+    const addQuery = (name, statement) => { queryNames.push(name); queryStatements.push(statement); };
+    addQuery('alerts', alertStatement);
+    addQuery('profile', env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id));
+    addQuery('preferences', env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id));
+    addQuery('activity', env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id));
+    addQuery('consultations', env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email));
+    addQuery('orders', env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id));
+    addQuery('messages', env.DB.prepare(
       "SELECT id, consultation_id AS consultationId, sender_name AS senderName, sender_role AS senderRole, body, created_at AS createdAt, CASE WHEN sender_account_id=? THEN 'sent' ELSE 'received' END AS direction " +
       "FROM inquiry_messages WHERE sender_account_id=? OR recipient_account_id=? ORDER BY created_at ASC LIMIT 500"
-    ).bind(account.id, account.id, account.id).all();
-    const resumeRequest = account.role === 'doctor'
-      ? env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first()
-      : Promise.resolve(null);
-    const receivedRequest = account.role === 'hospital' ? env.DB.prepare(
-      "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
-      "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
-      "LEFT JOIN account_admin_profiles applicant_account ON lower(applicant_account.email)=lower(cr.email) " +
-      "LEFT JOIN member_profiles applicant_member ON applicant_member.account_id=applicant_account.account_id " +
-      "WHERE lower(c.created_by)=? AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'paid_job_direct')='paid_job_direct' ORDER BY cr.created_at DESC LIMIT 100"
-    ).bind(identity.email.toLowerCase()).all() : Promise.resolve({ results:[] });
-    const recommendedRequest = account.role === 'hospital' ? env.DB.prepare(
-      "SELECT s.candidate_public_id AS code, s.consent_status AS consentStatus, s.submission_status AS submissionStatus, c.specialty, c.position_title AS positionTitle, c.stage, s.updated_at AS updatedAt " +
-      "FROM candidate_submissions s JOIN recruitment_cases c ON c.id = s.case_id JOIN consultation_requests cr ON cr.id = c.consultation_id " +
-      "WHERE lower(cr.email) = ? AND s.consent_status = 'granted' ORDER BY s.updated_at DESC LIMIT 50"
-    ).bind(identity.email.toLowerCase()).all() : Promise.resolve({ results:[] });
-    const ownedAdsRequest = account.role === 'hospital'
-      ? env.DB.prepare("SELECT id, title, status, updated_at AS updatedAt FROM admin_content_records WHERE lower(created_by)=? ORDER BY updated_at DESC LIMIT 200").bind(identity.email.toLowerCase()).all()
-      : Promise.resolve({ results:[] });
-    const [profile, preferences, activity, consultations, orders, resumeResult, messageResult, receivedResult, recommendedResult, ownedAdsResult] = await Promise.all([
-      profileRequest, preferencesRequest, activityRequest, consultationsRequest, ordersRequest, resumeRequest, messagesRequest, receivedRequest, recommendedRequest, ownedAdsRequest
-    ]);
+    ).bind(account.id, account.id, account.id));
+    if (account.role === 'doctor') addQuery('resume', env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id));
+    if (account.role === 'hospital') {
+      addQuery('received', env.DB.prepare(
+        "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
+        "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
+        "LEFT JOIN account_admin_profiles applicant_account ON lower(applicant_account.email)=lower(cr.email) " +
+        "LEFT JOIN member_profiles applicant_member ON applicant_member.account_id=applicant_account.account_id " +
+        "WHERE lower(c.created_by)=? AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'paid_job_direct')='paid_job_direct' ORDER BY cr.created_at DESC LIMIT 100"
+      ).bind(identity.email.toLowerCase()));
+      addQuery('recommended', env.DB.prepare(
+        "SELECT s.candidate_public_id AS code, s.consent_status AS consentStatus, s.submission_status AS submissionStatus, c.specialty, c.position_title AS positionTitle, c.stage, s.updated_at AS updatedAt " +
+        "FROM candidate_submissions s JOIN recruitment_cases c ON c.id = s.case_id JOIN consultation_requests cr ON cr.id = c.consultation_id " +
+        "WHERE lower(cr.email) = ? AND s.consent_status = 'granted' ORDER BY s.updated_at DESC LIMIT 50"
+      ).bind(identity.email.toLowerCase()));
+      addQuery('ownedAds', env.DB.prepare("SELECT id, title, status, updated_at AS updatedAt FROM admin_content_records WHERE lower(created_by)=? ORDER BY updated_at DESC LIMIT 200").bind(identity.email.toLowerCase()));
+    }
+    const queryResults = await env.DB.batch(queryStatements);
+    const resultsByName = new Map(queryNames.map((name, index) => [name, queryResults[index] || { results:[] }]));
+    const rows = name => resultsByName.get(name)?.results || [];
+    const alerts = rows('alerts');
+    const unreadCount = alerts.reduce((count, item) => count + (item.readAt ? 0 : 1), 0);
+    const profile = rows('profile')[0] || null;
+    const preferences = rows('preferences')[0] || null;
+    const activity = resultsByName.get('activity') || { results:[] };
+    const consultations = resultsByName.get('consultations') || { results:[] };
+    const orders = resultsByName.get('orders') || { results:[] };
+    const resumeResult = rows('resume')[0] || null;
+    const messageResult = resultsByName.get('messages') || { results:[] };
+    const receivedResult = resultsByName.get('received') || { results:[] };
+    const recommendedResult = resultsByName.get('recommended') || { results:[] };
+    const ownedAdsResult = resultsByName.get('ownedAds') || { results:[] };
     let consultationRows = consultations.results || [];
     // 병원 마이페이지에는 해당 병원이 결제·등록한 공고로 들어온 직접 지원만 추가한다.
     // 이 지원서는 헤드헌터 상담함과 분리되지만 병원은 문의·후보 화면에서 확인할 수 있다.
