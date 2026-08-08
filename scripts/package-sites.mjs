@@ -986,7 +986,7 @@ function cleanMemberProfile(profile) {
   const clean = key => typeof source[key] === 'string' ? source[key].trim().slice(0, 160) : '';
   return { displayName: clean('displayName'), phone: clean('phone'), organization: clean('organization'), jobTitle: clean('jobTitle') };
 }
-// 병원 배너·로고·시설 사진 업로드 API. 로그인한 병원 회원만 업로드하고, R2(env.UPLOADS)에 저장한다.
+// 병원 배너·로고·시설 사진과 의료인 이력서 프로필 사진 업로드 API.
 // - POST /api/uploads         : 이미지 원본(바이너리)을 body로 받아 저장하고 공개 URL을 돌려준다.
 // - GET  /api/uploads/<key>   : 저장된 이미지를 서빙(공개 읽기 — 배너·로고는 공개 자산).
 // 이 파일은 템플릿 리터럴로 서버 코드를 생성하므로 백틱과 치환표현을 쓰지 않고 문자열 연결로만 작성한다.
@@ -997,13 +997,30 @@ async function uploadApi(request, env, pathname) {
   if (!uploadStorage) return json({ error:'이미지 업로드 저장소가 설정되지 않았습니다. 관리자에게 문의해주세요.' }, 503);
   if (request.method === 'GET') {
     const key = decodeURIComponent(pathname.slice('/api/uploads/'.length));
-    // [보안] 경로 이탈 방지. 우리가 발급한 키(hospitals/로 시작)만 서빙한다.
-    if (!key || key.indexOf('..') !== -1 || key.indexOf('hospitals/') !== 0) return json({ error:'잘못된 요청입니다.' }, 400);
+    // [보안] 경로 이탈 방지. 우리가 발급한 병원·프로필 키만 서빙한다.
+    if (!key || key.indexOf('..') !== -1 || (key.indexOf('hospitals/') !== 0 && key.indexOf('profiles/') !== 0)) return json({ error:'잘못된 요청입니다.' }, 400);
+    // 증명사진은 배너처럼 공개 자산이 아니다. 본인·관리자 또는 해당 후보 열람권을 가진 병원만 본다.
+    if (key.indexOf('profiles/') === 0) {
+      const identity = await authenticatedUser(request, env);
+      if (!identity || !env.ACCOUNT_HASH_SECRET) return json({ error:'프로필 사진을 볼 권한이 없습니다.' }, 401);
+      try {
+        await ensureAccountSchema(env); await ensureMemberCenterSchema(env);
+        const accountKey = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+        const viewer = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(accountKey).first();
+        const ownerId = key.split('/')[1] || '';
+        let allowed = Boolean(viewer && viewer.id === ownerId) || Boolean(await adminIdentity(request, env));
+        if (!allowed && viewer?.role === 'hospital') {
+          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON tu.talent_id = 'resume-' || r.id WHERE tu.hospital_account_id = ? AND r.account_id = ? AND (tu.expires_at IS NULL OR tu.expires_at > CURRENT_TIMESTAMP) LIMIT 1").bind(viewer.id, ownerId).first();
+          allowed = Boolean(grant);
+        }
+        if (!allowed) return json({ error:'프로필 사진을 볼 권한이 없습니다.' }, 403);
+      } catch { return json({ error:'프로필 사진 권한을 확인할 수 없습니다.' }, 503); }
+    }
     const object = await uploadStorage.get(key);
     if (!object) return new Response('Not Found', { status: 404 });
     const headers = new Headers();
     headers.set('content-type', (object.httpMetadata && object.httpMetadata.contentType) || 'application/octet-stream');
-    headers.set('cache-control', 'public, max-age=31536000, immutable');
+    headers.set('cache-control', key.indexOf('profiles/') === 0 ? 'private, no-store' : 'public, max-age=31536000, immutable');
     headers.set('x-content-type-options', 'nosniff');
     // [보안] 업로드 이미지가 스크립트로 해석되지 않도록.
     headers.set('content-security-policy', "default-src 'none'; sandbox");
@@ -1017,19 +1034,22 @@ async function uploadApi(request, env, pathname) {
     try { await ensureAccountSchema(env); } catch { return json({ error:'저장소를 사용할 수 없습니다.' }, 503); }
     const accountKey = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(accountKey).first();
-    // [정책] 배너·로고·시설 사진은 병원(광고주) 자산이다. 병원 회원 또는 관리자(대행 게시)만 업로드한다.
+    const purposeRaw = String(request.headers.get('x-upload-purpose') || 'photo').toLowerCase();
+    const purpose = (purposeRaw === 'banner' || purposeRaw === 'logo' || purposeRaw === 'facility' || purposeRaw === 'resume-profile') ? purposeRaw : 'photo';
+    const isResumeProfile = purpose === 'resume-profile';
+    // 병원 광고 이미지는 병원·관리자, 이력서 증명사진은 의료인 본인만 업로드한다.
     const isAdmin = Boolean(await adminIdentity(request, env));
-    if (!isAdmin && (!account || account.role !== 'hospital')) return json({ error:'병원 회원 또는 관리자만 이미지를 업로드할 수 있습니다.' }, 403);
+    if (isResumeProfile) {
+      if (!account || account.role !== 'doctor') return json({ error:'이력서 사진은 의료인 회원 본인만 업로드할 수 있습니다.' }, 403);
+    } else if (!isAdmin && (!account || account.role !== 'hospital')) return json({ error:'병원 회원 또는 관리자만 이미지를 업로드할 수 있습니다.' }, 403);
     const ownerId = account ? account.id : 'admin';
     const contentType = String(request.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     const ext = UPLOAD_EXT[contentType];
     if (!ext) return json({ error:'JPG·PNG·WEBP·GIF 이미지 파일만 업로드할 수 있습니다.' }, 415);
-    const purposeRaw = String(request.headers.get('x-upload-purpose') || 'photo').toLowerCase();
-    const purpose = (purposeRaw === 'banner' || purposeRaw === 'logo' || purposeRaw === 'facility') ? purposeRaw : 'photo';
     const buffer = await request.arrayBuffer();
     if (!buffer || buffer.byteLength === 0) return json({ error:'빈 파일입니다. 이미지를 다시 선택해주세요.' }, 400);
     if (buffer.byteLength > UPLOAD_MAX_BYTES) return json({ error:'이미지는 5MB 이하만 업로드할 수 있습니다.' }, 413);
-    const objectKey = 'hospitals/' + ownerId + '/' + purpose + '/' + crypto.randomUUID() + '.' + ext;
+    const objectKey = (isResumeProfile ? 'profiles/' : 'hospitals/') + ownerId + '/' + purpose + '/' + crypto.randomUUID() + '.' + ext;
     await uploadStorage.put(objectKey, buffer, { httpMetadata: { contentType: contentType }, customMetadata: { uploadedBy: ownerId, purpose: purpose } });
     // 병원 회원이면 활동 기록에 남겨 마이페이지에서 업로드 이력을 확인할 수 있게 한다(실패해도 업로드는 성공 처리).
     if (account) { try { await ensureMemberCenterSchema(env); await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'asset_upload', ?, ?)").bind(crypto.randomUUID(), account.id, ('이미지 업로드 · ' + purpose).slice(0,200), objectKey.slice(0,300)).run(); } catch {} }

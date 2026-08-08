@@ -17,8 +17,10 @@ test('계정 도움 요청은 성공 화면 전에 D1 API 저장 결과를 확�
   assert.doesNotMatch(recoveryPage, /setDone\(true\)/);
 });
 
-test('실제 업로드되지 않는 이력서 파일 선택 UI를 노출하지 않는다', () => {
-  assert.doesNotMatch(resumePage, /type="file"/);
+test('이력서 문서 첨부를 가장하지 않고 실제 업로드되는 프로필 사진만 받는다', () => {
+  assert.match(resumePage, /accept="image\/jpeg,image\/png,image\/webp"/);
+  assert.match(resumePage, /uploadResumePhoto\(photoFile\)/);
+  assert.doesNotMatch(resumePage, /accept="[^"]*(pdf|docx)/i);
   assert.doesNotMatch(requestPage, /name="attachment"/);
   assert.doesNotMatch(requestPage, /attachmentName:\s*file/);
 });

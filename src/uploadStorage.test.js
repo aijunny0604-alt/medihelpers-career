@@ -7,6 +7,8 @@ const mainSource = readFileSync(new URL('./main.jsx', import.meta.url), 'utf8');
 const uploadSource = readFileSync(new URL('./jobPostingUpload.js', import.meta.url), 'utf8');
 const resumePickerSource = readFileSync(new URL('./ResumeSubmitPicker.jsx', import.meta.url), 'utf8');
 const requestPageSource = readFileSync(new URL('./HeadHunterRequestPage.jsx', import.meta.url), 'utf8');
+const resumePageSource = readFileSync(new URL('./ResumePage.jsx', import.meta.url), 'utf8');
+const resumePhotoSource = readFileSync(new URL('./resumePhotoUpload.js', import.meta.url), 'utf8');
 
 test('Sites uses the existing R2 binding as an upload fallback', () => {
   assert.match(serverSource, /const uploadStorage = env\.UPLOADS \|\| env\.BACKUPS/);
@@ -86,4 +88,14 @@ test('doctor consultation and job application can select a saved resume', () => 
   assert.match(resumePickerSource, /result\?\.resumes/);
   assert.match(requestPageSource, /<ResumeSubmitPicker selectedId=\{selectedResumeId\}/);
   assert.match(mainSource, /role === 'doctor' && <ResumeSubmitPicker selectedId=\{selectedResumeId\}/);
+});
+
+test('doctor resume photo uploads to protected profile storage', () => {
+  assert.match(resumePhotoSource, /'x-upload-purpose':'resume-profile'/);
+  assert.match(resumePhotoSource, /RESUME_PHOTO_MAX_BYTES = 5 \* 1024 \* 1024/);
+  assert.match(resumePageSource, /await uploadResumePhoto\(photoFile\)/);
+  assert.match(resumePageSource, /detail: \{ \.\.\.form, photoUrl \}/);
+  assert.match(serverSource, /isResumeProfile \? 'profiles\/' : 'hospitals\/'/);
+  assert.match(serverSource, /이력서 사진은 의료인 회원 본인만 업로드/);
+  assert.match(serverSource, /key\.indexOf\('profiles\/'\) === 0 \? 'private, no-store'/);
 });

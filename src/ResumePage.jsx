@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Check, ChevronLeft, ChevronRight, CircleCheck, FileText,
-  LockKeyhole, ShieldCheck, UserRound
+  ArrowRight, Camera, Check, ChevronLeft, ChevronRight, CircleCheck, FileText,
+  ImagePlus, LockKeyhole, ShieldCheck, Trash2, UserRound
 } from 'lucide-react';
 import { appendStoredRecord } from './browserStorage.js';
 import { withBase } from './basePath.js';
+import { uploadResumePhoto, validateResumePhoto } from './resumePhotoUpload.js';
 
 // 초간편 이력서 — 의료인 누구나(의사·간호·의료기사·약무·행정) 자유롭게 몇 줄로 작성.
 // 직군도 자유 텍스트, 면허번호·술기·근무형태 선택지 없이 본인이 원하는 만큼만 적는다.
@@ -21,13 +22,32 @@ export default function ResumePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [savedResumeId, setSavedResumeId] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [form, setForm] = useState({
-    title: '', profession: '', name: '', phone: '', email: '', region: '',
+    title: '', profession: '', name: '', phone: '', email: '', region: '', photoUrl: '',
     specialty: '', desiredRegions: '', salary: '',
     introduction: '', visibility: 'proposal', consent: false
   });
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
+  useEffect(() => () => { if (photoPreview && photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
+
+  const choosePhoto = (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+    const error = validateResumePhoto(file);
+    if (error) { setSubmitError(error); event.target.value = ''; return; }
+    if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setSubmitError('');
+  };
+  const removePhoto = () => {
+    if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(null); setPhotoPreview(''); update('photoUrl', '');
+  };
 
   const completion = useMemo(() => {
     // 본인이 직접 채우는 핵심 항목만으로 완성도 계산(초간편이라 필수 최소화).
@@ -50,6 +70,7 @@ export default function ResumePage() {
     setSubmitting(true);
     setSubmitError('');
     try {
+      const photoUrl = photoFile ? await uploadResumePhoto(photoFile) : form.photoUrl;
       const response = await fetch(withBase('/api/resumes'), {
         method: 'POST',
         credentials: 'same-origin',
@@ -65,7 +86,7 @@ export default function ResumePage() {
           completion,
           visibility: form.visibility,
           ...(savedResumeId ? { resumeId:savedResumeId } : createNew ? { createNew:true } : {}),
-          detail: { ...form }
+          detail: { ...form, photoUrl }
         })
       });
       if (!response.ok) {
@@ -78,10 +99,11 @@ export default function ResumePage() {
       }
       const result = await response.json().catch(() => ({}));
       if (result.id) setSavedResumeId(result.id);
-    } catch {
-      // 네트워크 자체가 안 되는 경우에만 localStorage로 임시 보관하고, 그 사실을 알린다.
-      appendStoredRecord('medihelpers_resumes', snapshot);
-      setSubmitError('네트워크 연결이 불안정해 임시 저장했습니다. 연결 후 다시 등록해 주세요.');
+      if (photoUrl) update('photoUrl', photoUrl);
+    } catch (error) {
+      // 실제 네트워크 단절일 때만 임시 보관한다. 사진 형식·권한 오류를 저장 성공처럼 처리하지 않는다.
+      if (error instanceof TypeError) appendStoredRecord('medihelpers_resumes', snapshot);
+      setSubmitError(error?.message || '이력서와 프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
       setSubmitting(false);
       return;
     }
@@ -100,6 +122,10 @@ export default function ResumePage() {
       <section className="resume-editor">
         {activeStep === 'basic' && <div className="resume-step-panel">
           <div className="resume-panel-head"><small>STEP 01</small><h2>기본정보</h2><p>채용기관이 가장 먼저 확인하는 정보입니다. 몇 줄이면 충분합니다.</p></div>
+          <div className="resume-photo-upload-card">
+            <div className={`resume-photo-preview ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="이력서 프로필 사진 미리보기" /> : <UserRound />}</div>
+            <div className="resume-photo-copy"><span><Camera /> 증명사진·프로필 사진 <i>선택</i></span><strong>얼굴이 잘 보이는 단정한 사진을 등록해 주세요</strong><small>JPG·PNG·WEBP · 최대 5MB · 정사각형 또는 세로 사진 권장</small><div><label><ImagePlus /> 사진 선택<input type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} /></label>{(photoPreview || form.photoUrl) && <button type="button" onClick={removePhoto}><Trash2 /> 삭제</button>}</div></div>
+          </div>
           <div className="resume-form-grid">
             <label className="wide"><span>이력서 제목 *</span><input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="예: 병동 간호사 · 부산경남 이직 희망" /></label>
             <label><span>의료 직군 *</span><input required value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 간호사, 의사, 방사선사, 약사, 원무" /></label>
@@ -127,7 +153,7 @@ export default function ResumePage() {
         <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={!form.consent || submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
         {submitError && <p className="form-error" role="alert">{submitError}</p>}
       </section>
-      <aside className="resume-preview"><small>LIVE PREVIEW</small><div className="resume-preview-avatar"><UserRound /></div><h3>{form.title || '이력서 제목을 입력해주세요'}</h3><span className="resume-preview-role">{form.profession || '직군 미입력'}{form.specialty ? ` · ${form.specialty}` : ''}</span><dl><div><dt>희망 지역</dt><dd>{form.desiredRegions || form.region || '미입력'}</dd></div><div><dt>희망 보수</dt><dd>{form.salary || '협의'}</dd></div></dl><div className="resume-preview-privacy"><LockKeyhole /><span><strong>이름·연락처 비공개</strong><small>병원이 열람권을 결제한 경우에만 공개됩니다.</small></span></div></aside>
+      <aside className="resume-preview"><small>LIVE PREVIEW</small><div className={`resume-preview-avatar ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="프로필 사진" /> : <UserRound />}</div><h3>{form.title || '이력서 제목을 입력해주세요'}</h3><span className="resume-preview-role">{form.profession || '직군 미입력'}{form.specialty ? ` · ${form.specialty}` : ''}</span><dl><div><dt>희망 지역</dt><dd>{form.desiredRegions || form.region || '미입력'}</dd></div><div><dt>희망 보수</dt><dd>{form.salary || '협의'}</dd></div></dl><div className="resume-preview-privacy"><LockKeyhole /><span><strong>사진·이름·연락처 보호</strong><small>본인과 관리자, 열람권을 가진 병원에만 공개됩니다.</small></span></div></aside>
     </form>
   </main>;
 }
