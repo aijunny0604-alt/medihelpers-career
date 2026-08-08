@@ -40,6 +40,13 @@ test('inquiry details use a standalone member-center page and sanitize corrupted
   assert.match(memberCenter, /지원 내용이 병원 채용담당자에게 전달되었습니다\./);
   assert.match(memberCenter, /const safeName = cleanInquiryText/);
   assert.match(memberCenter, /const safeSource = cleanInquiryText/);
+  assert.match(memberCenter, /function isInternalReference/);
+  assert.match(memberCenter, /function memberFacingInquiryLabel/);
+  assert.match(memberCenter, /canAdmin && <p>\{inquiry\.id \|\| safeSource\}<\/p>/);
+  assert.match(memberCenter, /canAdmin \? '내부 접수번호' : '관련 내용'/);
+  assert.match(memberCenter, /canAdmin \? safeSource : safeRelatedLabel/);
+  assert.doesNotMatch(memberCenter, /<small>\{item\.source\}<\/small>/);
+  assert.doesNotMatch(memberCenter, /<small>\{candidate\.code\} ·/);
   assert.doesNotMatch(memberCenter, /InquiryDetailModal/);
   assert.doesNotMatch(memberCenter, /setSelectedInquiry/);
   assert.match(main, /path\.startsWith\('\/mypage\/inquiries\/'\)/);
