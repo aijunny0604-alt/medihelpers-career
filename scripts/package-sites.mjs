@@ -568,7 +568,7 @@ async function consultationApi(request, env, pathname) {
     if (requestType !== 'doctor' && (payload.jobId || payload.headhuntPostId)) return json({ error:'공고 지원·문의는 의료인 회원만 이용할 수 있습니다.' }, 403);
     // 병원 유료광고 지원과 의사 헤드헌터 상담은 저장·알림 대상을 명확히 분리한다.
     payload.submissionChannel = payload.headhuntPostId ? 'headhunt_board' : payload.jobId ? 'paid_job_direct' : 'general_headhunting';
-    const requesterName = requestType === 'doctor' ? payload.name : payload.hospital;
+    let requesterName = requestType === 'doctor' ? payload.name : payload.hospital;
     if (!['doctor','hospital'].includes(requestType) || !requesterName || !payload.phone || !payload.specialty) return json({ error:'필수 정보를 모두 입력해 주세요.' }, 400);
     // [보안] 다른 민감 API와 동일하게 fail-closed. 예전에는 시크릿이 약하면 이 블록을 통째로
     // 건너뛰어 아무나 requestType:'hospital' 상담을 넣어 CRM 케이스를 생성할 수 있었다.
@@ -581,6 +581,14 @@ async function consultationApi(request, env, pathname) {
       const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
       account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
       if (account && account.role !== requestType) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
+      if (requestType === 'doctor' && account?.id) {
+        const memberProfile = await env.DB.prepare('SELECT display_name AS displayName FROM member_profiles WHERE account_id = ? LIMIT 1').bind(account.id).first();
+        const registeredName = String(memberProfile?.displayName || '').trim().slice(0, 80);
+        if (registeredName) {
+          requesterName = registeredName;
+          payload.name = registeredName;
+        }
+      }
     } catch {
       return json({ error:'회원 권한을 확인할 수 없습니다.' }, 503);
     }
@@ -1117,8 +1125,10 @@ async function memberCenterApi(request, env) {
     if (account.role === 'hospital') {
       try {
         const received = await env.DB.prepare(
-          "SELECT cr.id, cr.request_type AS requestType, cr.requester_name AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
+          "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
           "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
+          "LEFT JOIN account_admin_profiles applicant_account ON lower(applicant_account.email)=lower(cr.email) " +
+          "LEFT JOIN member_profiles applicant_member ON applicant_member.account_id=applicant_account.account_id " +
           "WHERE lower(c.created_by)=? AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'paid_job_direct')='paid_job_direct' ORDER BY cr.created_at DESC LIMIT 100"
         ).bind(identity.email.toLowerCase()).all();
         consultationRows = [...(received.results || []), ...consultationRows];
