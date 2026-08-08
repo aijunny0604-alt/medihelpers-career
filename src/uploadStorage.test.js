@@ -17,9 +17,10 @@ test('premium cards use the expanded responsive grid rotation component', () => 
   assert.match(mainSource, /PREMIUM_GRID_SLOTS = \{ mobile: 2, tablet: 4, desktop: 6 \}/);
 });
 
-test('home and jobs cards open JobDetail without route navigation', () => {
-  assert.match(mainSource, /onOpen=\{\(\) => setSelectedJob\(job\)\}/);
-  assert.match(mainSource, /setSelectedJob\(job\); \}/);
+test('home and jobs cards open a shareable full-page JobDetail route', () => {
+  assert.match(mainSource, /navigate\(`\/jobs\/\$\{encodeURIComponent\(job\.id\)\}`\)/);
+  assert.match(mainSource, /page = job \? <JobDetailRoute job=\{job\} qa=\{qa\} \/>/);
+  assert.doesNotMatch(mainSource, /setSelectedJob\(job\)/);
 });
 
 test('hospital job checkout uploads selected images before creating its payment order', () => {

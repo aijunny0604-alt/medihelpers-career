@@ -1318,7 +1318,6 @@ function HomePage({ liveJobs = jobs }) {
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
-  const [selectedJob, setSelectedJob] = useState(null);
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
   const toggleSaved = (id) => setSaved((current) => {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
@@ -1326,6 +1325,10 @@ function HomePage({ liveJobs = jobs }) {
     syncSavedToServer(id, 'job');
     return next;
   });
+  const openJobPage = (job) => {
+    trackConversion('job_detail_open', { jobId: job.id, source: 'home' });
+    navigate(`/jobs/${encodeURIComponent(job.id)}`);
+  };
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
     <section className="home-video-hero" aria-label="메디헬퍼스 소개">
@@ -1358,8 +1361,7 @@ function HomePage({ liveJobs = jobs }) {
         </div>
       </div>
     </section>
-    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">LATEST DOCTOR POSITIONS</span><h2>진행 중인 의사 초빙공고</h2><p>병원과 근무조건을 같은 기준으로 비교하고 상세 공고를 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{prioritizeJobs(liveJobs).slice(0, 8).map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => setSelectedJob(job)} />)}</div></section>
-    {selectedJob && <JobDetail job={selectedJob} saved={saved.includes(selectedJob.id)} onSave={() => toggleSaved(selectedJob.id)} onClose={() => setSelectedJob(null)} />}
+    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">LATEST DOCTOR POSITIONS</span><h2>진행 중인 의사 초빙공고</h2><p>병원과 근무조건을 같은 기준으로 비교하고 상세 공고를 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{prioritizeJobs(liveJobs).slice(0, 8).map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div></section>
   </>;
 }
 
@@ -1532,7 +1534,6 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const [condition, setCondition] = useState(params.get('condition') || '전체 조건');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
-  const [selectedJob, setSelectedJob] = useState(null);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
@@ -1586,7 +1587,10 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
     setKeyword('');
     setStandardVisible(STANDARD_STEP);
   };
-  const openJob = (job) => { trackConversion('job_detail_open', { jobId: job.id }); setSelectedJob(job); };
+  const openJob = (job) => {
+    trackConversion('job_detail_open', { jobId: job.id, source: 'jobs' });
+    navigate(`/jobs/${encodeURIComponent(job.id)}`);
+  };
   // 관리자면 관리자가 등록한(DB) 공고에 한해 카드에서 바로 수정·삭제할 수 있게 한다.
   const isAdmin = Boolean(adAuth.isAdmin);
   const manageJob = isAdmin ? {
@@ -1627,7 +1631,6 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
     <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
-    {selectedJob && <JobDetail job={selectedJob} qa={qa} saved={saved.includes(selectedJob.id)} onSave={() => toggleSaved(selectedJob.id)} onClose={() => setSelectedJob(null)} />}
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
   </>;
 }
