@@ -12,3 +12,18 @@ test('마이페이지 활동 요약 위젯은 역할별 상세 화면으로 이�
   assert.match(source, /관심 공고.*member-saved-jobs/s);
   assert.match(source, /추천 후보 상세/);
 });
+
+test('의료인 이력서 관리 동선은 저장된 서버 이력서를 불러와 수정한다', async () => {
+  const [memberCenter, resumePage] = await Promise.all([
+    readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('./ResumePage.jsx', import.meta.url), 'utf8')
+  ]);
+
+  assert.match(memberCenter, /role === 'hospital' \? '\/request\/hiring' : '\/resume'/);
+  assert.match(memberCenter, /저장된 이력서 수정/);
+  assert.match(resumePage, /fetch\(withBase\('\/api\/resumes'\)/);
+  assert.match(resumePage, /const resume = result\?\.resume \|\| result\?\.resumes\?\.\[0\]/);
+  assert.match(resumePage, /setSavedResumeId\(resume\.id \|\| ''\)/);
+  assert.match(resumePage, /photoUrl: detail\.photoUrl \|\| ''/);
+  assert.match(resumePage, /if \(createNew\)/);
+});

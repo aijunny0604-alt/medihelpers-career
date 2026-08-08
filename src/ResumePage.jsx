@@ -21,6 +21,7 @@ export default function ResumePage() {
   const [step, setStep] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingResume, setLoadingResume] = useState(!createNew);
   const [submitError, setSubmitError] = useState('');
   const [savedResumeId, setSavedResumeId] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
@@ -33,6 +34,53 @@ export default function ResumePage() {
   });
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
+  useEffect(() => {
+    if (createNew) {
+      setLoadingResume(false);
+      return undefined;
+    }
+    let active = true;
+    fetch(withBase('/api/resumes'), {
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' }
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result?.error || '저장된 이력서를 불러오지 못했습니다.');
+        }
+        return response.json();
+      })
+      .then((result) => {
+        if (!active) return;
+        const resume = result?.resume || result?.resumes?.[0];
+        if (!resume) return;
+        const detail = resume.detail && typeof resume.detail === 'object' ? resume.detail : {};
+        setSavedResumeId(resume.id || '');
+        setForm((current) => ({
+          ...current,
+          title: resume.title || '',
+          profession: resume.profession || '',
+          specialty: resume.specialty || '',
+          name: resume.name || '',
+          phone: resume.phone || '',
+          email: resume.email || '',
+          desiredRegions: resume.desiredRegions || '',
+          visibility: resume.visibility || 'proposal',
+          region: detail.region || '',
+          salary: detail.salary || '',
+          introduction: detail.introduction || '',
+          photoUrl: detail.photoUrl || '',
+          consent: false
+        }));
+      })
+      .catch((error) => {
+        if (active) setSubmitError(error?.message || '저장된 이력서를 불러오지 못했습니다.');
+      })
+      .finally(() => { if (active) setLoadingResume(false); });
+    return () => { active = false; };
+  }, [createNew]);
 
   useEffect(() => () => { if (photoPreview && photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
 
@@ -115,6 +163,8 @@ export default function ResumePage() {
   };
 
   if (completed) return <main className="resume-page"><section className="resume-complete"><span><CircleCheck /></span><small>MEDICAL RESUME REGISTERED</small><h1>의료인 이력서가 등록되었습니다</h1><p>공개 범위는 <strong>{form.visibility === 'public' ? '채용기관 공개' : form.visibility === 'proposal' ? '제안 요청 시 공개' : '비공개 보관'}</strong>로 설정했습니다.<br />이름·연락처는 병원이 열람권을 결제한 경우에만 전달됩니다.</p><div><a className="button primary" href={withBase('/jobs')}>맞춤 채용정보 보기 <ArrowRight /></a><button className="button outline" onClick={() => setCompleted(false)}>이력서 수정</button></div></section></main>;
+
+  if (loadingResume) return <main className="resume-page"><section className="resume-complete"><span><FileText /></span><small>MY RESUME</small><h1>저장된 이력서를 불러오는 중입니다</h1><p>다른 기기에서 등록한 최신 이력서를 안전하게 확인하고 있습니다.</p></section></main>;
 
   const activeStep = steps[step].id;
   return <main className="resume-page">
