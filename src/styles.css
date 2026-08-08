@@ -5202,8 +5202,14 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 }
 
 /* ── 초빙 상세 모달 (넓고 고급스럽게, 아빠 양식) ── */
-.modal-card.headhunt-post{width:min(1040px,96vw)}
-.modal-card.headhunt-post .modal-scroll{padding:clamp(28px,3.5vw,44px)}
+.headhunt-detail-page{min-height:calc(100vh - 78px);padding:126px 24px 88px;background:radial-gradient(circle at 85% 5%,rgba(18,99,232,.12),transparent 32%),linear-gradient(180deg,#f3f7fc 0%,#f8fafc 52%,#fff 100%)}
+.headhunt-detail-shell{width:min(1120px,100%);margin:0 auto}
+.headhunt-detail-back{width:max-content;margin:0 0 18px;display:inline-flex;align-items:center;gap:8px;color:#405674;font-size:14px;font-weight:800;text-decoration:none}
+.headhunt-detail-back svg{width:18px;transition:transform .18s}
+.headhunt-detail-back:hover{color:#1263e8}
+.headhunt-detail-back:hover svg{transform:translateX(-3px)}
+.headhunt-detail-back:focus-visible{outline:3px solid rgba(18,99,232,.25);outline-offset:5px;border-radius:5px}
+.headhunt-detail-page .hp-detail{padding:clamp(28px,4vw,52px);border:1px solid #dce6f2;border-radius:28px;background:#fff;box-shadow:0 28px 70px rgba(26,55,94,.12);display:flex;flex-direction:column}
 .hp-detail{display:flex;flex-direction:column}
 .hp-detail-hero{padding:8px 44px 22px 2px;border-bottom:1px solid #eef1f6}
 .hp-detail-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
@@ -5248,6 +5254,11 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .hp-cta-actions .button.outline{border-color:rgba(255,255,255,.55);color:#fff;background:transparent}
 
 @media(max-width:640px){
+  .headhunt-detail-page{padding:92px 14px 56px}
+  .headhunt-detail-page .hp-detail{padding:22px 18px;border-radius:20px}
+  .hp-detail-hero{padding-right:0}
+  .hp-detail-hero h1{font-size:25px}
+  .hp-key-strip{grid-template-columns:1fr}
   .hp-spec dl{grid-template-columns:1fr}
   .hp-spec dl>div{grid-template-columns:100px 1fr}
   .hp-spec dl>div:nth-child(odd){border-right:0}

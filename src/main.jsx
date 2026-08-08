@@ -2234,7 +2234,7 @@ function buildHeadhuntPosts(operations) {
   return [...posts, ...SAMPLE_HEADHUNT_POSTS];
 }
 
-function HeadhuntPostModal({ post, onClose }) {
+function HeadhuntPostDetailPage({ post }) {
   // 예전 메디헬퍼스 아빠 초빙글 양식을 넓고 고급스러운 레이아웃으로 재구성.
   const rows = [
     ['병원 소개', post.facilityIntro],
@@ -2247,8 +2247,10 @@ function HeadhuntPostModal({ post, onClose }) {
     ['근무 일정', post.schedule || post.employmentType],
   ].filter(([, v]) => v);
   return (
-    <Modal onClose={onClose} wide label={`${post.title} 초빙 상세`} variant="headhunt-post">
-      <article className="hp-detail">
+    <section className="headhunt-detail-page">
+      <div className="headhunt-detail-shell">
+        <Link className="headhunt-detail-back" to="/headhunting#recruitment-board"><ArrowLeft /> 맞춤 헤드헌팅 목록으로</Link>
+        <article className="hp-detail">
         <header className="hp-detail-hero">
           <div className="hp-detail-tags">
             <span className={`hp-kind-pill ${post.kind === '의료인' ? 'medical' : 'doctor'}`}>{post.kind} 초빙</span>
@@ -2294,11 +2296,12 @@ function HeadhuntPostModal({ post, onClose }) {
           </div>
           <div className="hp-cta-actions">
             <a className="button primary" href="tel:01024355463"><Phone /> 전화 상담 010-2435-5463</a>
-            <Link className="button outline" to="/request/hiring" onClick={onClose}>온라인 초빙 의뢰</Link>
+            <Link className="button outline" to={`/request/hiring?post=${encodeURIComponent(post.id)}`}>온라인 초빙 의뢰</Link>
           </div>
         </section>
-      </article>
-    </Modal>
+        </article>
+      </div>
+    </section>
   );
 }
 
@@ -2320,7 +2323,6 @@ function HeadhuntBoard({ operations, qa }) {
   const [region, setRegion] = useState('전체');
   const [dept, setDept] = useState('전체');
   const [keyword, setKeyword] = useState('');
-  const [selected, setSelected] = useState(null);
   const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(posts.map((p) => p.region).filter(Boolean)))], [posts]);
   const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(posts.map((p) => p.dept).filter(Boolean)))], [posts]);
   const visible = posts.filter((p) =>
@@ -2333,7 +2335,7 @@ function HeadhuntBoard({ operations, qa }) {
   const hasFilter = region !== '전체' || dept !== '전체' || keyword;
 
   return (
-    <section className="section headhunt-board-section">
+    <section className="section headhunt-board-section" id="recruitment-board">
       <div className="section-head centered">
         <div>
           <span className="section-kicker">DOCTOR RECRUITING BOARD</span>
@@ -2379,8 +2381,8 @@ function HeadhuntBoard({ operations, qa }) {
                 role="button"
                 tabIndex={0}
                 key={post.id}
-                onClick={() => setSelected(post)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(post); } }}
+                onClick={() => navigate(`/headhunting/posts/${encodeURIComponent(post.id)}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/headhunting/posts/${encodeURIComponent(post.id)}`); } }}
               >
                 <span className="hb-no">{total - index}</span>
                 <span className="hb-title">
@@ -2411,7 +2413,6 @@ function HeadhuntBoard({ operations, qa }) {
         )}
       </div>
 
-      {selected && <HeadhuntPostModal post={selected} onClose={() => setSelected(null)} />}
     </section>
   );
 }
@@ -3570,6 +3571,7 @@ export function App() {
     }
   }, [rawPath, path, search]);
   const operations = useSiteOperations();
+  const headhuntPosts = useMemo(() => buildHeadhuntPosts(operations), [operations.contents]);
   const liveJobs = useMemo(() => [...operationalDoctorJobs(operations.contents), ...jobs], [operations.contents]);
   const allTalent = useMemo(() => [...operationalTalent(operations.contents), ...talent], [operations.contents]);
   // 인재정보(/talent)는 의사만, 의료인 채용은 의료인만. 정적 talent는 의사로 간주.
@@ -3616,6 +3618,10 @@ export function App() {
   }
   // /professions·/talent 별칭은 상단 ROUTE_ALIASES에서 동기 정규화되므로 여기 분기는 불필요(도달 불가).
   else if (path === '/headhunting') page = <HeadhuntingPage route={route} operations={operations} liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} />;
+  else if (path.startsWith('/headhunting/posts/')) {
+    const post = headhuntPosts.find((item) => item.id === decodeURIComponent(path.slice('/headhunting/posts/'.length)));
+    page = post ? <HeadhuntPostDetailPage post={post} /> : <NotFoundPage />;
+  }
   // 의료인 채용 = 채용공고 + 구직 의료인 인재(열람권). 로그인 회원 전용(비회원·경쟁사 정보 수집 차단).
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} route={route} />} /></AuthGate>;
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
