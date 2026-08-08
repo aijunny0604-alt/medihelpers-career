@@ -778,6 +778,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   const hospitalPhotos = job.hospitalPhotos || [];
   const detailBanner = job.banner || job.cardBanner;
+  const detailLogo = job.logo && job.logo !== detailBanner ? job.logo : "";
   const institutionFacts = [
     ["기관명", job.institutionName || job.hospital],
     ["주소", job.fullAddress || job.location],
@@ -869,7 +870,14 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
       <div className={`detail-heading ${detailBanner ? "has-detail-banner" : ""}`} style={{ "--job-color": job.color }}>
         <div className="detail-heading-copy">
           <div className="detail-brand">
-            <HospitalLogo job={job} prominent />
+            {detailLogo ? (
+              <HospitalLogo job={job} prominent source={detailLogo} fit="mark" />
+            ) : (
+              <span className="detail-institution-mark" aria-hidden="true">
+                <Building2 />
+                <i><HeartPulse /></i>
+              </span>
+            )}
             <div>
               <div className="detail-brand-label">
                 <span

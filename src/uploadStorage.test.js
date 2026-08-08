@@ -48,6 +48,12 @@ test('job detail displays the selected banner in its hero heading', () => {
   assert.match(mainSource, /className="detail-hero-banner"/);
 });
 
+test('job detail never shrinks its wide banner into the square institution mark', () => {
+  assert.match(mainSource, /const detailLogo = job\.logo && job\.logo !== detailBanner \? job\.logo : ""/);
+  assert.match(mainSource, /className="detail-institution-mark"/);
+  assert.match(mainSource, /source=\{detailLogo\} fit="mark"/);
+});
+
 test('Sites package serves all sample banner templates', () => {
   for (const name of [
     'medical-blue-v1.jpg',
