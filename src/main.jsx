@@ -22,7 +22,7 @@ import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
 import AdminConsolePage from './AdminConsolePage.jsx';
 import JobPostBoardPage from './JobPostBoardPage.jsx';
 import { PrivacyPolicyPage, RefundPolicyPage, TermsPage, WithdrawalPolicyPage } from './LegalPages.jsx';
-import { operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
+import { isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment } from './inicisPay.js';
@@ -2167,7 +2167,7 @@ const SAMPLE_HEADHUNT_POSTS = [
 function buildHeadhuntPosts(operations) {
   const contents = operations?.contents || [];
   const posts = contents
-    .filter((item) => (item.contentType === 'doctor_job' || item.contentType === 'medical_job') && item.status !== 'hidden' && item.status !== 'closed')
+    .filter((item) => isHeadhuntBoardContent(item) && item.status !== 'hidden' && item.status !== 'closed')
     .map((item) => {
       const p = item.payload || {};
       const region = p.region || String(p.primary || '').split(/[ ·]/)[0] || '';

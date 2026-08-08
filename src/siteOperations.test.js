@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { operationalDoctorJobs, operationalMedicalJobs, operationalTalent } from './siteOperations.js';
+import {
+  HEADHUNT_BOARD_CHANNEL,
+  isHeadhuntBoardContent,
+  operationalDoctorJobs,
+  operationalMedicalJobs,
+  operationalTalent,
+} from './siteOperations.js';
 
 const records = [
   { id:'j1', contentType:'doctor_job', title:'정형외과 전문의 초빙', subtitle:'테스트병원', payload:{ department:'정형외과', region:'부산', pay:'월 1,500만원', deadline:'2026.08.31' } },
@@ -74,4 +80,16 @@ test('자산이 없는 공고는 로고·배너 필드가 undefined 로 남는�
   assert.equal(job.logo, undefined);
   assert.equal(job.banner, undefined);
   assert.equal(job.brandFit, undefined);
+});
+
+test('paid recruitment ads and headhunting board content stay separated', () => {
+  const paidJob = { id:'paid', contentType:'doctor_job', title:'Paid hospital ad', payload:{} };
+  const headhuntDoctor = { id:'hd', contentType:'doctor_job', title:'Doctor headhunt', payload:{ publicationChannel: HEADHUNT_BOARD_CHANNEL } };
+  const headhuntMedical = { id:'hm', contentType:'medical_job', title:'Medical headhunt', payload:{ publicationChannel: HEADHUNT_BOARD_CHANNEL } };
+
+  assert.equal(isHeadhuntBoardContent(paidJob), false);
+  assert.equal(isHeadhuntBoardContent(headhuntDoctor), true);
+  assert.equal(isHeadhuntBoardContent(headhuntMedical), true);
+  assert.deepEqual(operationalDoctorJobs([paidJob, headhuntDoctor]).map((item) => item.sourceId), ['paid']);
+  assert.equal(operationalMedicalJobs([headhuntMedical]).length, 0);
 });

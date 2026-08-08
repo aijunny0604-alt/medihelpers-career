@@ -1,5 +1,12 @@
 # TEST
 
+## 2026-08-08 채용공고 채널 분리 검증
+
+- 일반 병원 채용광고는 `operationalDoctorJobs`에 남고 헤드헌팅 콘텐츠로 판정되지 않는지 검사합니다.
+- `publicationChannel='headhunt_board'`인 의사·의료인 콘텐츠는 헤드헌팅 전용으로 판정되고 일반 채용 목록에서는 제외되는지 검사합니다.
+- `npm test`: 81/81 통과
+- `npm run build`: 통과
+
 ## 2026-08-08 채용 배너 검사
 
 - `src/recruitmentBanners.test.js`가 프리미엄 fixture 전체의 `cardBanner` 존재 여부를 확인합니다.

@@ -23,6 +23,15 @@ export function useSiteOperations() {
   return operations;
 }
 
+// Keep the dedicated headhunting board separate from paid hospital ads while
+// retaining the existing D1 schema and bindings.
+export const HEADHUNT_BOARD_CHANNEL = 'headhunt_board';
+
+export function isHeadhuntBoardContent(item) {
+  return (item?.contentType === 'doctor_job' || item?.contentType === 'medical_job')
+    && item?.payload?.publicationChannel === HEADHUNT_BOARD_CHANNEL;
+}
+
 // 기간제 유료 공고: 노출 종료일(payload.exposureEnd, YYYY-MM-DD)이 지나면 목록에서 내린다.
 // 종료일이 없는 공고(관리자 무료 게시물 등)는 만료 대상이 아니다.
 function isExposureExpired(payload = {}) {
@@ -35,7 +44,7 @@ function isExposureExpired(payload = {}) {
 }
 
 export function operationalDoctorJobs(contents = []) {
-  return contents.filter((item) => item.contentType === 'doctor_job' && !isExposureExpired(item.payload)).map((item) => {
+  return contents.filter((item) => item.contentType === 'doctor_job' && !isHeadhuntBoardContent(item) && !isExposureExpired(item.payload)).map((item) => {
     const p = item.payload || {};
     const region = p.region || String(p.primary || '').split(/[ ·]/)[0] || '전국';
     return { id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title, location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.pay || p.secondary || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:'관리자 등록', color:'#1769d4', summary:p.description || '관리자가 등록한 의사 초빙공고입니다.', benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier || undefined, logo:p.logo || undefined, banner:p.banner || undefined, facility:p.facility || undefined, brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
@@ -66,7 +75,7 @@ export function operationalTalent(contents = []) {
 }
 
 export function operationalMedicalJobs(contents = []) {
-  return contents.filter((item) => item.contentType === 'medical_job' && !isExposureExpired(item.payload)).map((item) => {
+  return contents.filter((item) => item.contentType === 'medical_job' && !isHeadhuntBoardContent(item) && !isExposureExpired(item.payload)).map((item) => {
     const p = item.payload || {};
     const asList = (value, fallback) => Array.isArray(value)
       ? value.filter(Boolean)
