@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 const serverSource = readFileSync(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('./main.jsx', import.meta.url), 'utf8');
 const uploadSource = readFileSync(new URL('./jobPostingUpload.js', import.meta.url), 'utf8');
+const resumePickerSource = readFileSync(new URL('./ResumeSubmitPicker.jsx', import.meta.url), 'utf8');
+const requestPageSource = readFileSync(new URL('./HeadHunterRequestPage.jsx', import.meta.url), 'utf8');
 
 test('Sites uses the existing R2 binding as an upload fallback', () => {
   assert.match(serverSource, /const uploadStorage = env\.UPLOADS \|\| env\.BACKUPS/);
@@ -66,4 +68,22 @@ test('Sites package serves all sample banner templates', () => {
   ]) {
     assert.ok(serverSource.includes(`/banners/templates/${name}`), `${name} route is missing`);
   }
+});
+
+test('resume API returns every account-owned resume for submission choice', () => {
+  assert.match(serverSource, /FROM resumes WHERE account_id = \? ORDER BY updated_at DESC LIMIT 20/);
+  assert.match(serverSource, /return json\(\{ signedIn:true, resumes, resume:resumes\[0\] \|\| null \}\)/);
+});
+
+test('consultation resume attachment is owner checked and snapshotted on the server', () => {
+  assert.match(serverSource, /FROM resumes WHERE id = \? AND account_id = \? LIMIT 1/);
+  assert.match(serverSource, /payload\.resumeSnapshot = \{/);
+  assert.match(serverSource, /payload\.resumeTitle = resume\.title/);
+});
+
+test('doctor consultation and job application can select a saved resume', () => {
+  assert.match(resumePickerSource, /등록 이력서 선택/);
+  assert.match(resumePickerSource, /result\?\.resumes/);
+  assert.match(requestPageSource, /<ResumeSubmitPicker selectedId=\{selectedResumeId\}/);
+  assert.match(mainSource, /role === 'doctor' && <ResumeSubmitPicker selectedId=\{selectedResumeId\}/);
 });

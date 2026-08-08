@@ -15,10 +15,12 @@ const steps = [
 ];
 
 export default function ResumePage() {
+  const createNew = (() => { try { return new URLSearchParams(window.location.search).get('new') === '1'; } catch { return false; } })();
   const [step, setStep] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [savedResumeId, setSavedResumeId] = useState('');
   const [form, setForm] = useState({
     title: '', profession: '', name: '', phone: '', email: '', region: '',
     specialty: '', desiredRegions: '', salary: '',
@@ -62,6 +64,7 @@ export default function ResumePage() {
           desiredRegions: form.desiredRegions,
           completion,
           visibility: form.visibility,
+          ...(savedResumeId ? { resumeId:savedResumeId } : createNew ? { createNew:true } : {}),
           detail: { ...form }
         })
       });
@@ -73,6 +76,8 @@ export default function ResumePage() {
         setSubmitting(false);
         return;
       }
+      const result = await response.json().catch(() => ({}));
+      if (result.id) setSavedResumeId(result.id);
     } catch {
       // 네트워크 자체가 안 되는 경우에만 localStorage로 임시 보관하고, 그 사실을 알린다.
       appendStoredRecord('medihelpers_resumes', snapshot);

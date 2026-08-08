@@ -571,13 +571,33 @@ async function consultationApi(request, env, pathname) {
     if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) {
       return json({ error:'상담 접수 설정이 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.' }, 503);
     }
+    let account = null;
     try {
       await ensureAccountSchema(env);
       const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
-      const account = await env.DB.prepare('SELECT role FROM accounts WHERE user_key = ?').bind(key).first();
+      account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
       if (account && account.role !== requestType) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
     } catch {
       return json({ error:'회원 권한을 확인할 수 없습니다.' }, 503);
+    }
+    // 이력서는 클라이언트가 보낸 제목을 신뢰하지 않고 본인 소유 레코드를 서버에서 다시 조회한다.
+    // 상담 접수 당시 내용을 함께 저장해, 사용자가 나중에 이력서를 수정해도 당시 제출본을 확인할 수 있다.
+    if (requestType === 'doctor' && payload.resumeId) {
+      if (!account?.id) return json({ error:'이력서를 제출할 회원정보를 확인할 수 없습니다.' }, 403);
+      try {
+        await ensureMemberCenterSchema(env);
+        const resume = await env.DB.prepare('SELECT id, title, profession, specialty, name, phone, email, desired_regions AS desiredRegions, completion, visibility, status, detail_json AS detailJson, updated_at AS updatedAt FROM resumes WHERE id = ? AND account_id = ? LIMIT 1').bind(payload.resumeId, account.id).first();
+        if (!resume) return json({ error:'선택한 이력서를 확인할 수 없습니다. 내 이력서에서 다시 선택해 주세요.' }, 400);
+        payload.resumeTitle = resume.title || '내 이력서';
+        payload.resumeSnapshot = {
+          id:resume.id, title:resume.title, profession:resume.profession, specialty:resume.specialty,
+          name:resume.name, phone:resume.phone, email:resume.email, desiredRegions:resume.desiredRegions,
+          completion:Number(resume.completion) || 0, visibility:resume.visibility, status:resume.status,
+          updatedAt:resume.updatedAt, detail:parseJsonObject(resume.detailJson)
+        };
+      } catch {
+        return json({ error:'선택한 이력서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
+      }
     }
     const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
     await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload)).run();
@@ -1134,13 +1154,12 @@ async function resumeApi(request, env) {
   try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'이력서 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
-  if (!account) return json({ signedIn:true, resume:null });
+  if (!account) return json({ signedIn:true, resumes:[], resume:null });
   if (account.role !== 'doctor') return json({ error:'이력서는 일반(의사·의료인) 회원만 등록할 수 있습니다.' }, 403);
   if (request.method === 'GET') {
-    const row = await env.DB.prepare('SELECT id, title, profession, specialty, name, phone, email, desired_regions AS desiredRegions, completion, visibility, status, detail_json AS detailJson, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
-    if (!row) return json({ signedIn:true, resume:null });
-    const { detailJson, ...rest } = row;
-    return json({ signedIn:true, resume:{ ...rest, detail:parseJsonObject(detailJson) } });
+    const result = await env.DB.prepare('SELECT id, title, profession, specialty, name, phone, email, desired_regions AS desiredRegions, completion, visibility, status, detail_json AS detailJson, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 20').bind(account.id).all();
+    const resumes = (result.results || []).map(row => { const { detailJson, ...rest } = row; return { ...rest, detail:parseJsonObject(detailJson) }; });
+    return json({ signedIn:true, resumes, resume:resumes[0] || null });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -1154,7 +1173,15 @@ async function resumeApi(request, env) {
     const completion = Math.max(0, Math.min(100, Number(body.completion) || 0));
     // 구조화 핵심 필드 외 나머지(경력·학력·소개 등)는 detail JSON으로 저장.
     const detail = body.detail && typeof body.detail === 'object' ? body.detail : {};
-    const existing = await env.DB.prepare('SELECT id FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
+    const requestedId = s(body.resumeId, 100);
+    let existing = null;
+    if (requestedId) {
+      existing = await env.DB.prepare('SELECT id FROM resumes WHERE id = ? AND account_id = ? LIMIT 1').bind(requestedId, account.id).first();
+      if (!existing) return json({ error:'수정할 이력서를 찾을 수 없습니다.' }, 404);
+    } else if (body.createNew !== true) {
+      // 기존 화면과의 호환: 별도 지시가 없으면 가장 최근 이력서를 수정한다.
+      existing = await env.DB.prepare('SELECT id FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
+    }
     const id = existing?.id || ('RES-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase());
     const fields = [id, account.id, title, s(body.profession), s(body.specialty), name, phone, s(body.email), s(body.desiredRegions), completion, visibility, 'draft-review', JSON.stringify(detail).slice(0, 120000)];
     if (existing) {

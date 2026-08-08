@@ -14,6 +14,7 @@ import {
 import { appendStoredRecord } from "./browserStorage.js";
 import { withBase } from "./basePath.js";
 import { useAccountProfile } from "./useAccountProfile.js";
+import ResumeSubmitPicker from "./ResumeSubmitPicker.jsx";
 
 const copy = {
   doctor: {
@@ -57,9 +58,8 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
   const [submitError, setSubmitError] = useState("");
   const accountProfile = useAccountProfile();
   const [access, setAccess] = useState(qaAllowed ? "allowed" : "checking");
-  // 의사(구직) 모드: 등록해둔 내 이력서를 불러와 지원 시 자동 연동한다.
-  const [myResume, setMyResume] = useState(null); // {id, title, completion} | null
-  const [useMyResume, setUseMyResume] = useState(true);
+  const [resumes, setResumes] = useState([]);
+  const [selectedResumeId, setSelectedResumeId] = useState("");
   useEffect(() => {
     if (qaAllowed) {
       setAccess("allowed");
@@ -72,15 +72,6 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
       .catch(() => { if (active) setAccess("blocked"); });
     return () => { active = false; };
   }, [qaAllowed]);
-  useEffect(() => {
-    if (!isDoctor || access !== "allowed") return undefined;
-    let active = true;
-    fetch("/api/resumes", { credentials: "same-origin", headers: { accept: "application/json" } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((result) => { if (active && result?.resume) setMyResume(result.resume); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, [isDoctor, access]);
   const submit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -88,8 +79,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
     const form = new FormData(event.currentTarget);
     form.delete("privacy");
     const fields = Object.fromEntries(form.entries());
-    // 등록 이력서가 있고 '내 이력서로 지원'을 켜면 이력서를 연동(파일 재첨부 불필요).
-    const linkedResume = isDoctor && myResume && useMyResume ? { resumeId: myResume.id, resumeTitle: myResume.title } : {};
+    const linkedResume = isDoctor && selectedResumeId ? { resumeId: selectedResumeId } : {};
     const payload = { ...(appliedJobId ? { jobId: appliedJobId } : {}), ...linkedResume, ...fields };
     try {
       if (qaAllowed) {
@@ -111,6 +101,27 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
+      // 공고 지원인데 저장 이력서가 하나도 없으면 현재 입력값으로 비공개 기본 이력서를 먼저 만들고,
+      // 생성된 ID를 같은 지원 요청에 즉시 연결한다.
+      if (isDoctor && appliedJobId && !payload.resumeId && resumes.length === 0) {
+        const savedResponse = await fetch("/api/resumes", {
+          method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title: fields.specialty ? `${fields.specialty} 지원 이력서` : "공고 지원 이력서",
+            name: fields.name || accountProfile.name || "", phone: fields.phone || accountProfile.phone || "",
+            email: fields.email || accountProfile.email || "", profession: fields.professionalType || "의료인",
+            specialty: fields.specialty || "", desiredRegions: fields.region || "", completion: 40,
+            visibility: "private", createNew: true,
+            detail: { workType: fields.workType || "", startTiming: fields.startTiming || "", introduction: fields.message || "" },
+          }),
+        });
+        const saved = await savedResponse.json().catch(() => ({}));
+        if (!savedResponse.ok || !saved.id) throw new Error(saved.error || "지원에 사용할 이력서를 저장하지 못했습니다.");
+        payload.resumeId = saved.id;
+        const createdResume = { id:saved.id, title:fields.specialty ? `${fields.specialty} 지원 이력서` : "공고 지원 이력서", completion:40, visibility:"private" };
+        setResumes([createdResume]);
+        setSelectedResumeId(saved.id);
+      }
       const response = await fetch("/api/consultations", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -118,26 +129,6 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "상담 접수에 실패했습니다.");
-      // 이력서가 없던 의사 회원이면 지원 내용으로 기본 이력서를 자동 생성해 연동한다(다음부터 재작성 불필요).
-      if (isDoctor && !myResume) {
-        try {
-          const saved = await fetch("/api/resumes", {
-            method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              title: fields.specialty ? `${fields.specialty} 이력서` : "내 이력서",
-              name: fields.name || accountProfile.name || "",
-              phone: fields.phone || accountProfile.phone || "",
-              email: fields.email || accountProfile.email || "",
-              profession: fields.professionalType || "",
-              specialty: fields.specialty || "",
-              desiredRegions: fields.region || "",
-              completion: 40, visibility: "private",
-              detail: { workType: fields.workType || "", startTiming: fields.startTiming || "", introduction: fields.message || "" },
-            }),
-          }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-          if (saved?.id) setMyResume({ id: saved.id, title: fields.specialty ? `${fields.specialty} 이력서` : "내 이력서" });
-        } catch {}
-      }
       appendStoredRecord(isDoctor ? "medihelpers_jobseeker_requests" : "medihelpers_hiring_requests", { id: result.id, createdAt: new Date().toISOString(), status: "new", ...payload }, 20);
       setDone(result.id);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -409,18 +400,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
           </div>
         </div>
         </div>
-        {isDoctor && myResume && (
-          // 등록해둔 이력서가 있으면 재작성·재첨부 없이 그대로 연동.
-          <label className={`quick-resume-link ${useMyResume ? "on" : ""}`}>
-            <input type="checkbox" checked={useMyResume} onChange={(e) => setUseMyResume(e.target.checked)} />
-            <span className="quick-resume-link-icon"><FileText /></span>
-            <span className="quick-resume-link-body">
-              <strong>등록한 내 이력서로 지원</strong>
-              <small>{myResume.title || "내 이력서"}{myResume.completion ? ` · 완성도 ${myResume.completion}%` : ""} — 다시 작성할 필요 없이 연동됩니다.</small>
-            </span>
-            <a href={withBase("/resume")} onClick={(e) => e.stopPropagation()} className="quick-resume-edit">수정</a>
-          </label>
-        )}
+        {isDoctor && <ResumeSubmitPicker selectedId={selectedResumeId} onSelect={setSelectedResumeId} onLoaded={setResumes} optional={!appliedJobId} />}
         <label className="quick-message">
           <span>{isDoctor ? "헤드헌터에게 전하실 말씀" : "기타 전하실 말씀"}</span>
           <textarea
