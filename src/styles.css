@@ -5439,4 +5439,85 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 /* Account recovery is a fifth operations stream; keep all monitor cards balanced. */
 .admin-monitor-summary{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+
+/* 3:1 recruitment artwork: preserve the uploaded crop and keep Korean copy as HTML. */
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner{
+  position:relative!important;
+  width:100%!important;
+  min-height:0!important;
+  aspect-ratio:3/1!important;
+  margin:0 0 15px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:14px!important;
+  background:#0d2748!important;
+  overflow:hidden!important;
+  isolation:isolate;
+}
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .hospital-logo.prominent.logo-fit-banner,
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .hospital-logo.prominent.has-image{
+  position:absolute!important;
+  inset:0!important;
+  z-index:1!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:100%!important;
+  min-height:100%!important;
+  max-width:none!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .hospital-logo.prominent img{
+  width:100%!important;
+  height:100%!important;
+  padding:0!important;
+  object-fit:cover!important;
+  object-position:center!important;
+  transform:none!important;
+}
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption{
+  position:absolute!important;
+  inset:0 auto 0 0!important;
+  z-index:3!important;
+  display:flex!important;
+  width:min(68%,280px)!important;
+  max-width:none!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:18px 18px 17px!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:flex-end!important;
+  text-align:left!important;
+  background:linear-gradient(90deg,rgba(5,21,45,.94) 0%,rgba(7,30,61,.74) 66%,rgba(7,30,61,0) 100%)!important;
+  box-shadow:none!important;
+  pointer-events:none;
+}
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption strong{
+  max-width:92%;
+  color:#fff!important;
+  font-size:clamp(17px,1.35vw,22px)!important;
+  font-weight:850!important;
+  line-height:1.22!important;
+  letter-spacing:-.65px!important;
+  text-shadow:0 2px 12px rgba(0,0,0,.28);
+  word-break:keep-all;
+}
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption small{
+  display:block!important;
+  margin-top:5px!important;
+  color:rgba(255,255,255,.78)!important;
+  font-size:9px!important;
+  font-weight:700!important;
+  line-height:1.35!important;
+}
+@media(max-width:560px){
+  :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner{min-height:0!important;aspect-ratio:3/1!important}
+  :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption{width:72%!important;padding:14px 15px!important}
+  :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption strong{font-size:18px!important}
+}
 .monitor-kind.recovery{background:#fff0e4;color:#a85517}

@@ -2,7 +2,7 @@ export const jobs = [
   {
     id: 'samcheonpo-specialists', hospital: '삼천포제일병원', title: '각 과 전문의 의료진 초빙',
     location: '경남 사천시', region: '경남', type: '정규직', dept: '전문의', pay: '협의 후 결정',
-    badge: '집중채용', adTier: 'spotlight', color: '#2367e8', logo: '/samcheonpo-jeil-horizontal-logo-v2.png', brandFit: 'banner', logoDesignSample: true, logoText: '삼제', schedule: '주 5일', updated: '오늘', deadline: '2026.08.31', recruitmentReason: '진료과 확충', workHours: '평일 08:30~18:00 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
+    badge: '집중채용', adTier: 'spotlight', color: '#2367e8', logo: '/samcheonpo-jeil-horizontal-logo-v2.png', cardBanner: '/banners/recruit-general-v1.jpg', brandFit: 'banner', logoDesignSample: true, logoText: '삼제', schedule: '주 5일', updated: '오늘', deadline: '2026.08.31', recruitmentReason: '진료과 확충', workHours: '평일 08:30~18:00 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
     facilityType: '종합병원', focus: '지역 거점 진료·전문의 진료', scale: '병원급 의료기관', access: '주차·숙소 조건 협의 가능',
     summary: '지역 거점 종합병원에서 진료과별 전문의를 모십니다. 진료 여건과 근무 일정은 전문 컨설턴트가 개별 조율합니다.',
     benefits: ['기숙사 협의', '학회 지원', '전담 컨설턴트 협상']
@@ -18,7 +18,7 @@ export const jobs = [
   {
     id: 'isarang-pediatrics', hospital: '아이사랑병원', title: '달빛어린이병원 담당 원장님',
     location: '부산 연제구', region: '부산', type: '주 5일', dept: '소아청소년과', pay: '월 1,400만원+',
-    badge: '추천', adTier: 'featured', color: '#7d57e8', logo: '/isarang-children-brand-mark.png', cardBanner: '/isarang-children-recruitment-banner-v2.png', logoDesignSample: true, logoText: '아이', schedule: '요일 협의', updated: '2일 전', deadline: '2026.08.25', recruitmentReason: '달빛진료 운영 확대', workHours: '요일·시간 협의', daysOff: '근무표에 따라 협의',
+    badge: '추천', adTier: 'featured', color: '#7d57e8', logo: '/isarang-children-brand-mark.png', cardBanner: '/banners/recruit-pediatric-v1.jpg', logoDesignSample: true, logoText: '아이', schedule: '요일 협의', updated: '2일 전', deadline: '2026.08.25', recruitmentReason: '달빛진료 운영 확대', workHours: '요일·시간 협의', daysOff: '근무표에 따라 협의',
     facilityType: '병원', focus: '소아청소년 진료', scale: '팀 기반 진료기관', access: '대중교통·주차 안내 제공',
     summary: '소아 진료에 집중할 수 있는 팀 기반 환경입니다. 야간 진료 일정과 보상은 상담을 통해 안내합니다.',
     benefits: ['팀 진료', '스케줄 협의', '전담 코디네이터']
@@ -66,7 +66,7 @@ export const jobs = [
   {
     id: 'demo-haeundae-spine', hospital: '해운대바른척추병원', title: '정형외과 전문의 집중 초빙',
     location: '부산 해운대구', region: '부산', type: '정규직', dept: '정형외과', pay: '월 1,500만원~',
-    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#1769d4', logoText: '해바', schedule: '주 4.5일', updated: '가상 예시', deadline: '2026.08.30', recruitmentReason: '척추센터 확장', workHours: '평일 08:30~18:00 · 토 격주', daysOff: '일요일·공휴일 휴무',
+    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#1769d4', cardBanner: '/banners/recruit-spine-v1.jpg', logoText: '해바', schedule: '주 4.5일', updated: '가상 예시', deadline: '2026.08.30', recruitmentReason: '척추센터 확장', workHours: '평일 08:30~18:00 · 토 격주', daysOff: '일요일·공휴일 휴무',
     facilityType: '병원', focus: '척추·관절 외래 진료', scale: '전문병원 예시', access: '해운대 생활권·주차 지원',
     // ⚠️ 병원 식별정보(사업자번호·대표명·전체주소·설비 등)는 정적 데이터에 넣지 않는다.
     // 이 값들은 인증·권한 검증이 붙은 서버 상세 API(GET /api/jobs/:id)를 통해서만 내려야 한다.
@@ -84,7 +84,7 @@ export const jobs = [
   {
     id: 'demo-songdo-checkup', hospital: '송도프라임검진센터', title: '검진 내과 전문의 집중채용',
     location: '인천 연수구', region: '인천', type: '정규직', dept: '내과', pay: '월 1,350만원~',
-    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#087fa6', logoText: '송프', schedule: '주 5일', updated: '가상 예시', deadline: '2026.09.05', recruitmentReason: '검진 수요 증가', workHours: '평일 07:30~16:30', daysOff: '주말·공휴일 휴무',
+    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#087fa6', cardBanner: '/banners/recruit-checkup-v1.jpg', logoText: '송프', schedule: '주 5일', updated: '가상 예시', deadline: '2026.09.05', recruitmentReason: '검진 수요 증가', workHours: '평일 07:30~16:30', daysOff: '주말·공휴일 휴무',
     facilityType: '검진센터', focus: '건강검진·결과 상담', scale: '예약제 센터 예시', access: '송도 생활권·대중교통',
     summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 집중채용 공고입니다.',
     benefits: ['야간 진료 없음', '예약제', '검진 인센티브']
@@ -92,7 +92,7 @@ export const jobs = [
   {
     id: 'demo-seoul-women', hospital: '서울온여성의원', title: '여성검진 진료원장 집중채용',
     location: '서울 서초구', region: '서울', type: '주 4일', dept: '가정의학과', pay: '월 1,250만원~',
-    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#bd4a82', logoText: '서울', schedule: '주 4일', updated: '가상 예시', deadline: '2026.08.27', recruitmentReason: '여성검진 확대', workHours: '주 4일 · 예약진료', daysOff: '근무요일 외 휴무',
+    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#bd4a82', cardBanner: '/banners/recruit-women-v1.jpg', logoText: '서울', schedule: '주 4일', updated: '가상 예시', deadline: '2026.08.27', recruitmentReason: '여성검진 확대', workHours: '주 4일 · 예약진료', daysOff: '근무요일 외 휴무',
     facilityType: '의원', focus: '여성검진·외래 상담', scale: '전문 클리닉 예시', access: '서울 서초 생활권',
     summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 집중채용 공고입니다.',
     benefits: ['주 4일', '예약 진료', '근무요일 협의']
@@ -100,7 +100,7 @@ export const jobs = [
   {
     id: 'demo-gimhae-internal', hospital: '김해좋은내과병원', title: '소화기내과 전문의 추천채용',
     location: '경남 김해시', region: '경남', type: '정규직', dept: '내과', pay: '협의 후 결정',
-    badge: '추천', adTier: 'featured', isDemo: true, color: '#6f56d9', logoText: '김좋', schedule: '주 5일', updated: '가상 예시', deadline: '2026.09.10', recruitmentReason: '내시경센터 충원', workHours: '평일 08:30~17:30', daysOff: '일요일·공휴일 휴무',
+    badge: '추천', adTier: 'featured', isDemo: true, color: '#6f56d9', cardBanner: '/banners/recruit-diagnostics-v1.jpg', logoText: '김좋', schedule: '주 5일', updated: '가상 예시', deadline: '2026.09.10', recruitmentReason: '내시경센터 충원', workHours: '평일 08:30~17:30', daysOff: '일요일·공휴일 휴무',
     facilityType: '병원', focus: '내시경·외래 진료', scale: '지역 병원 예시', access: '김해 생활권·주차 가능',
     summary: '추천 광고의 자동 순환과 진료과·지역 균형을 확인하기 위한 가상 공고입니다.',
     benefits: ['내시경 인센티브', '학회 지원', '진료지원 인력']
@@ -108,7 +108,7 @@ export const jobs = [
   {
     id: 'demo-suwon-pain', hospital: '수원더편한통증의학과', title: '마취통증의학과 원장님 추천',
     location: '경기 수원시', region: '경기', type: '정규직', dept: '마취통증의학과', pay: '월 1,400만원~',
-    badge: '추천', adTier: 'featured', isDemo: true, color: '#8055c7', logoText: '더편', schedule: '주 4.5일', updated: '가상 예시', deadline: '2026.08.24', recruitmentReason: '시술 환자 증가', workHours: '주 4.5일 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
+    badge: '추천', adTier: 'featured', isDemo: true, color: '#8055c7', cardBanner: '/banners/recruit-spine-v1.jpg', logoText: '더편', schedule: '주 4.5일', updated: '가상 예시', deadline: '2026.08.24', recruitmentReason: '시술 환자 증가', workHours: '주 4.5일 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
     facilityType: '의원', focus: '통증 시술·외래 진료', scale: '전문 클리닉 예시', access: '수원역 생활권',
     summary: '추천 광고의 자동 순환과 진료과·지역 균형을 확인하기 위한 가상 공고입니다.',
     benefits: ['주 4.5일', '성과 인센티브', '시술실 지원']
@@ -116,7 +116,7 @@ export const jobs = [
   {
     id: 'demo-gangneung-family', hospital: '강릉바다웰니스센터', title: '가정의학과 검진의 추천채용',
     location: '강원 강릉시', region: '강원', type: '주 4일', dept: '가정의학과', pay: '월 1,150만원~',
-    badge: '추천', adTier: 'featured', isDemo: true, color: '#5b63cf', logoText: '바다', schedule: '주 4일', updated: '가상 예시', deadline: '2026.09.12', recruitmentReason: '검진팀 증원', workHours: '주 4일 · 평일 근무', daysOff: '주말·공휴일 휴무',
+    badge: '추천', adTier: 'featured', isDemo: true, color: '#5b63cf', cardBanner: '/banners/recruit-wellness-v1.jpg', logoText: '바다', schedule: '주 4일', updated: '가상 예시', deadline: '2026.09.12', recruitmentReason: '검진팀 증원', workHours: '주 4일 · 평일 근무', daysOff: '주말·공휴일 휴무',
     facilityType: '검진센터', focus: '검진·문진·결과 상담', scale: '웰니스센터 예시', access: '강릉 생활권·숙소 협의',
     summary: '추천 광고의 자동 순환과 진료과·지역 균형을 확인하기 위한 가상 공고입니다.',
     benefits: ['주 4일', '숙소 협의', '야간 진료 없음']

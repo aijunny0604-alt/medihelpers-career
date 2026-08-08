@@ -517,18 +517,14 @@ function JobCard({
   const isAd = Boolean(job.adTier);
   // 관리자가 등록한 DB 공고(id가 admin- 접두)만 카드에서 직접 수정·삭제 가능.
   const adminManageable = Boolean(manageJob) && String(job.id).startsWith("admin-");
-  // 채용 목록에서는 장식 배너보다 병원 로고를 우선해 브랜드를 또렷하게 보여준다.
-  const brandSource = job.logo || job.cardBanner || job.banner;
+  // 프리미엄 광고 카드는 등록 배너를 우선하고, 일반 공고는 병원 로고를 우선한다.
+  const brandSource = isAd
+    ? job.cardBanner || job.banner || job.logo
+    : job.logo || job.cardBanner || job.banner;
   const brandUrl = brandSource ? withBase(brandSource) : "";
-  const brandFit = job.brandFit
-    ? job.brandFit
-    : job.logo
-      ? "mark"
-      : job.cardBanner
-      ? "banner"
-      : job.banner
-        ? "banner"
-        : "mark";
+  const brandFit = job.cardBanner || job.banner
+    ? "banner"
+    : job.brandFit || (job.logo ? "mark" : "mark");
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const mood = getHospitalMood(job);
   const restricted = isAd || job.badge === "비공개";
