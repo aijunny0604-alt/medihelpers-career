@@ -867,47 +867,50 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
     >
       {page && <nav className="detail-page-nav" aria-label="공고 상세 위치"><Link to="/jobs"><ArrowLeft /> 전체 채용정보</Link><span>채용정보</span><b>{job.hospital}</b></nav>}
       <div className={`detail-heading ${detailBanner ? "has-detail-banner" : ""}`} style={{ "--job-color": job.color }}>
-        <div className="detail-brand">
-          <HospitalLogo job={job} prominent />
-          <div>
-            <div className="detail-brand-label">
-              <span
-                className="tag"
-                style={{ color: job.color, background: `${job.color}12` }}
-              >
-                {job.badge}
-              </span>
-              {isAd && <span>AD · 병원 브랜드 채용관</span>}
-              {qaUnlocked && (
-                <span className="qa-unlocked-badge">
-                  <ShieldCheck /> QA 잠금 해제
+        <div className="detail-heading-copy">
+          <div className="detail-brand">
+            <HospitalLogo job={job} prominent />
+            <div>
+              <div className="detail-brand-label">
+                <span
+                  className="tag"
+                  style={{ color: job.color, background: `${job.color}12` }}
+                >
+                  {job.badge}
                 </span>
-              )}
+                {isAd && <span>AD · 병원 브랜드 채용관</span>}
+                {qaUnlocked && (
+                  <span className="qa-unlocked-badge">
+                    <ShieldCheck /> QA 잠금 해제
+                  </span>
+                )}
+              </div>
+              <strong>{job.hospital}</strong>
+              <small>
+                <BadgeCheck /> 등록된 기관 정보
+              </small>
             </div>
-            <strong>{job.hospital}</strong>
-            <small>
-              <BadgeCheck /> 등록된 기관 정보
-            </small>
           </div>
-        </div>
-        <h2>{job.title}</h2>
-        <div className="meta large">
-          <span>
-            <MapPin size={17} />
-            {job.location}
-          </span>
-          <span>
-            <Clock3 size={17} />
-            {job.schedule}
-          </span>
-          <span>
-            <CalendarDays size={17} />
-            {job.deadline} 마감
-          </span>
+          <h2>{job.title}</h2>
+          <div className="meta large">
+            <span>
+              <MapPin size={17} />
+              {job.location}
+            </span>
+            <span>
+              <Clock3 size={17} />
+              {job.schedule}
+            </span>
+            <span>
+              <CalendarDays size={17} />
+              {job.deadline} 마감
+            </span>
+          </div>
         </div>
         {detailBanner && (
           <div className="detail-hero-banner" aria-label={`${job.hospital} 채용 배너`}>
             <img src={detailBanner} alt="" />
+            <span className="detail-banner-chip">PREMIUM</span>
             <div>
               <small>MEDIHELPERS RECRUIT</small>
               <strong>{job.hospital}</strong>
