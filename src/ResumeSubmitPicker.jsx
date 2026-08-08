@@ -30,7 +30,10 @@ export default function ResumeSubmitPicker({ selectedId, onSelect, onLoaded, opt
     <header>
       <span className="resume-picker-icon"><FileText /></span>
       <div><small>MY RESUME</small><h3 id="resume-submit-picker-title">등록 이력서 선택</h3><p>홈페이지에 저장한 이력서 중 이번 상담·지원에 제출할 이력서를 고르세요.</p></div>
-      <a href={withBase('/resume?new=1')}><FilePlus2 /> 새 이력서 작성</a>
+      <div className="resume-picker-actions">
+        <a className="primary" href={withBase('/resume?new=1')}><FilePlus2 /> 새 이력서 작성</a>
+        <a href={withBase('/mypage?tab=resume')}><FileText /> 내 이력서 관리</a>
+      </div>
     </header>
     {loading && <div className="resume-picker-state"><RefreshCw className="spin" /> 등록 이력서를 불러오는 중입니다…</div>}
     {!loading && error && <div className="resume-picker-state error">{error}</div>}
@@ -42,6 +45,6 @@ export default function ResumeSubmitPicker({ selectedId, onSelect, onLoaded, opt
         <div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, resume.desiredRegions].filter(Boolean).join(' · ') || '상세정보 확인'}</small><em>완성도 {Number(resume.completion) || 0}% · {resume.visibility === 'private' ? '직접 제출 시만 공개' : '제안용'}</em></div>
       </button>)}
     </div>}
-    <footer><ShieldCheck /> 선택한 이력서는 로그인한 본인 소유인지 서버에서 확인하며, 접수 당시 내용으로 안전하게 보존됩니다.<a href={withBase('/resume')}>내 이력서 관리</a></footer>
+    <footer><ShieldCheck /> 선택한 이력서는 로그인한 본인 소유인지 서버에서 확인하며, 접수 당시 내용으로 안전하게 보존됩니다.</footer>
   </section>;
 }

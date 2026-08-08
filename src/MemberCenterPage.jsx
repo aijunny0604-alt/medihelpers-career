@@ -8,6 +8,7 @@ import {
 import { withBase } from './basePath.js';
 import { authRequest, WithdrawSection } from './AccountPage.jsx';
 import { jobs } from './data.js';
+import { notify } from './browserStorage.js';
 
 const hospitalDemo = {
   profile: { displayName: '김혜원', email: 'hospital@medihelpers.co.kr', phone: '010-2435-5463', organization: '메디헬퍼스 협력병원', jobTitle: '채용 담당자' },
@@ -77,6 +78,7 @@ function MemberGate({ failed = false }) {
 export default function MemberCenterPage({ route, qa }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const requestedTab = params.get('tab');
+  const requestedInquiryId = params.get('inquiry') || '';
   // 이니시스 결제창에서 돌아온 결과(서버가 /mypage?payment=paid|failed 로 리다이렉트)를 안내한다.
   const paymentResult = params.get('payment') || '';
   const paymentOrder = params.get('order') || '';
@@ -85,7 +87,7 @@ export default function MemberCenterPage({ route, qa }) {
   const [tab, setTab] = useState(requestedTab || 'overview');
   const [accountState, setAccountState] = useState({ loading: !qa.active, signedIn: qa.active && qa.info.capabilities.signedIn, role: qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor || qa.info.capabilities.membership ? 'doctor' : qa.info.capabilities.admin ? 'admin' : '', identity: {} });
   const [profile, setProfile] = useState(null);
-  const [serverData, setServerData] = useState({ consultations: [], activity: [], orders: [], resume: null, recommendedCandidates: [] });
+  const [serverData, setServerData] = useState({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, recommendedCandidates: [] });
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [saved, setSaved] = useState('');
   const [saveBusy, setSaveBusy] = useState(false);
@@ -138,7 +140,7 @@ export default function MemberCenterPage({ route, qa }) {
             setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
             if (data.profile) setProfile(data.profile);
             if (data.notifications) setNotifications(data.notifications);
-            setServerData({ consultations: data.consultations || [], activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
+            setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
             return;
           }
           // 401/403은 아직 세션이 안 붙었을 수 있으니 잠깐 뒤 재시도.
@@ -151,6 +153,27 @@ export default function MemberCenterPage({ route, qa }) {
     load();
     return () => { cancelled = true; };
   }, [qa.active]);
+
+  useEffect(() => {
+    if (qa.active || !accountState.signedIn) return undefined;
+    let active = true;
+    let previousUnread = Number(serverData.unreadCount) || 0;
+    const refresh = async () => {
+      try {
+        const response = await fetch('/api/member-center?notificationsOnly=1', { credentials:'same-origin', headers:{ accept:'application/json' } });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!active) return;
+        const nextUnread = Number(data.unreadCount) || 0;
+        if (nextUnread > previousUnread) notify(`새 알림 ${nextUnread - previousUnread}건이 도착했습니다.`, 'ok');
+        previousUnread = nextUnread;
+        setServerData((current) => ({ ...current, alerts:data.alerts || [], unreadCount:nextUnread }));
+        window.dispatchEvent(new CustomEvent('medihelpers:notifications-changed', { detail:{ unreadCount:nextUnread } }));
+      } catch {}
+    };
+    const timer = window.setInterval(refresh, 30000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [qa.active, accountState.signedIn]);
 
   // 관심공고(저장한 공고). 서버 API는 있었지만 화면에서 한 번도 호출하지 않아 마이페이지에 보이지 않았다.
   // 서버는 saved를 jobId '문자열 배열'로 준다(saved_jobs 테이블에 제목·과·지역 컬럼이 없음).
@@ -194,7 +217,7 @@ export default function MemberCenterPage({ route, qa }) {
     const headhuntInquiry = payload.submissionChannel === 'headhunt_board' || Boolean(payload.headhuntPostId);
     return {
       id: item.id,
-      name: item.requesterName || '메디헬퍼스 상담',
+      name: directApplication && role === 'doctor' ? (payload.jobHospital || '병원 채용담당자') : item.requesterName || '메디헬퍼스 상담',
       subject: directApplication ? `${payload.jobTitle || item.specialty || '채용공고'} 지원` : headhuntInquiry ? `${payload.headhuntPostTitle || item.specialty || '맞춤 공고'} 헤드헌터 문의` : `${item.specialty || payload.professionalType || '채용'} 상담 신청`,
       source: item.id,
       time: String(item.createdAt || '').slice(0, 10),
@@ -208,6 +231,7 @@ export default function MemberCenterPage({ route, qa }) {
         연락희망: payload.contactTime || payload.preferredContactTime || '-'
       },
       response: item.adminNote || (directApplication ? '공고를 등록한 병원 채용담당자가 지원 내용을 확인 중입니다.' : '담당 헤드헌터가 내용을 확인 중입니다. 답변이 등록되면 이 화면에서 확인할 수 있습니다.'),
+      canReply: directApplication,
       history: [
         [String(item.createdAt || '').slice(0, 16), directApplication ? '병원 직접 지원' : '상담 접수'],
         ...(item.updatedAt && item.updatedAt !== item.createdAt ? [[String(item.updatedAt).slice(0, 16), '처리 상태 변경']] : [])
@@ -274,10 +298,31 @@ export default function MemberCenterPage({ route, qa }) {
     ? [['진행 중 공고', `${activeAds}건`, '노출 중 공고'], ['새 문의', `${inquiries.filter((item) => item.status === '답변 대기').length}건`, '확인 필요'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역'], ['추천 후보', `${recommendedCount}명`, '동의 후 연결']]
     : [['이력서 완성도', resumeCompletion, serverData.resume ? '등록 완료' : '등록 후 표시'], ['상담 진행', `${inquiries.length}건`, '전체 상담'], ['관심 공고', `${savedJobs.length}건`, '저장한 공고'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역']];
   const nav = useMemo(() => role === 'hospital' ? [
-    ['overview', '홈', Building2], ['ads', '내 공고', BriefcaseBusiness], ['inquiries', '문의·후보', MessageCircle], ['payments', '결제·사용이력', Receipt], ['profile', '회원정보', Settings]
+    ['overview', '홈', Building2], ['notifications', '알림', Bell], ['ads', '내 공고', BriefcaseBusiness], ['inquiries', '문의·후보', MessageCircle], ['payments', '결제·사용이력', Receipt], ['profile', '회원정보', Settings]
   ] : [
-    ['overview', '홈', UserRound], ['resume', '이력서·구직활동', FileText], ['inquiries', '상담·제안', MessageCircle], ['payments', '결제 내역', CreditCard], ['profile', '회원정보', Settings]
+    ['overview', '홈', UserRound], ['notifications', '알림', Bell], ['resume', '이력서·구직활동', FileText], ['inquiries', '상담·제안', MessageCircle], ['payments', '결제 내역', CreditCard], ['profile', '회원정보', Settings]
   ], [role]);
+
+  useEffect(() => {
+    if (!requestedInquiryId || !inquiries.length) return;
+    const target = inquiries.find((item) => item.id === requestedInquiryId);
+    if (target) { setTab('inquiries'); setSelectedInquiry(target); }
+  }, [requestedInquiryId, inquiries.length]);
+
+  const markAlertRead = async (alert, all = false) => {
+    if (!qa.active) {
+      try {
+        await fetch('/api/member-center', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify(all ? { action:'notifications_read_all' } : { action:'notification_read', notificationId:alert.id }) });
+      } catch {}
+    }
+    setServerData((current) => ({
+      ...current,
+      alerts:current.alerts.map((item) => all || item.id === alert?.id ? { ...item, readAt:item.readAt || new Date().toISOString() } : item),
+      unreadCount:all ? 0 : Math.max(0, current.unreadCount - (alert?.readAt ? 0 : 1))
+    }));
+    window.dispatchEvent(new CustomEvent('medihelpers:notifications-changed'));
+    if (!all && alert.actionUrl) window.location.href = withBase(alert.actionUrl);
+  };
 
   const openMetricDetail = (label) => {
     const target = /진행 중 공고/.test(label) ? { tab:'ads' }
@@ -370,14 +415,17 @@ export default function MemberCenterPage({ route, qa }) {
     )}
     <header className="member-center-hero"><div><small>MY MEDIHELPERS</small><h1>{currentProfile.displayName}님, 반갑습니다</h1><p>{role === 'hospital' ? '공고 반응부터 후보 문의와 결제 내역까지 병원 채용 업무를 한곳에서 관리하세요.' : '이력서와 상담 제안, 관심 공고와 멤버십 이용 내역을 한곳에서 관리하세요.'}</p></div><div className="member-identity"><span>{role === 'hospital' ? <Building2 /> : <Stethoscope />}</span><div><small>현재 로그인</small><strong>{roleLabel}</strong><em><BadgeCheck /> 본인 확인</em></div></div></header>
     <div className="member-center-shell">
-      <aside className="member-side"><div className="member-mini-profile"><span>{role === 'hospital' ? <Building2 /> : <UserRound />}</span><div><strong>{currentProfile.organization}</strong><small>{currentProfile.jobTitle}</small></div></div><nav>{nav.map(([id, label, Icon]) => <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon />{label}<ChevronRight /></button>)}</nav><div className="member-side-help"><MessageCircle /><strong>도움이 필요하신가요?</strong><p>담당 헤드헌터에게 바로 문의하세요.</p><a href="tel:0513425463">051-342-5463</a></div><button type="button" className="member-side-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button></aside>
+      <aside className="member-side"><div className="member-mini-profile"><span>{role === 'hospital' ? <Building2 /> : <UserRound />}</span><div><strong>{currentProfile.organization}</strong><small>{currentProfile.jobTitle}</small></div></div><nav>{nav.map(([id, label, Icon]) => <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon />{label}{id === 'notifications' && serverData.unreadCount > 0 && <b className="member-nav-badge">{serverData.unreadCount > 99 ? '99+' : serverData.unreadCount}</b>}<ChevronRight /></button>)}</nav><div className="member-side-help"><MessageCircle /><strong>도움이 필요하신가요?</strong><p>담당 헤드헌터에게 바로 문의하세요.</p><a href="tel:0513425463">051-342-5463</a></div><button type="button" className="member-side-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button></aside>
       <main className="member-workspace">
         {tab === 'overview' && <>
           <div className="member-page-head"><div><small>{role === 'hospital' ? 'HOSPITAL DASHBOARD' : 'DOCTOR DASHBOARD'}</small><h2>내 활동 요약</h2><p>확인이 필요한 항목을 먼저 모았습니다.</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/jobs')}>{role === 'hospital' ? '새 공고 등록' : '초빙정보 찾기'} <ArrowRight /></a></div>
           <div className="member-metrics">{metrics.map(([label, value, note]) => { const Icon = /결제/.test(label) ? CreditCard : /저장|관심|후보/.test(label) ? Heart : /문의|상담|제안/.test(label) ? MessageCircle : BriefcaseBusiness; return <button type="button" className="member-metric-card" key={label} onClick={() => openMetricDetail(label)} aria-label={`${label} ${value} 상세보기`}><span><Icon /></span><small>{label}</small><strong>{value}</strong><em>{note}</em><ChevronRight className="member-metric-arrow" /></button>; })}</div>
+          {serverData.unreadCount > 0 && <button type="button" className="member-unread-banner" onClick={() => setTab('notifications')}><span><Bell /></span><div><strong>새 알림 {serverData.unreadCount}건이 도착했습니다</strong><p>병원 지원서, 헤드헌터 업데이트와 상대방 메시지를 확인해 주세요.</p></div><em>알림 확인 <ArrowRight /></em></button>}
           <section className="member-panel"><div className="member-panel-head"><div><h3>지금 확인할 항목</h3><p>새로운 문의와 진행 상태를 놓치지 마세요.</p></div><button onClick={() => setTab('inquiries')}>전체 보기 <ArrowRight /></button></div>{inquiries.length ? <div className="member-inquiry-list">{inquiries.slice(0, 3).map((item) => <button type="button" className="member-inquiry-item" key={item.id || item.subject} onClick={() => setSelectedInquiry(item)}><span><MessageCircle /></span><div><small>{item.name} · {item.time}</small><strong>{item.subject}</strong><p>{item.source}</p></div><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></button>)}</div> : <div className="member-empty"><MessageCircle /><strong>아직 접수된 문의가 없습니다</strong><p>새 문의가 들어오면 이곳에 바로 표시됩니다.</p></div>}</section>
           <section className="member-panel"><div className="member-panel-head"><div><h3>최근 활동</h3><p>계정에서 발생한 주요 사용 기록입니다.</p></div><button onClick={() => setTab(role === 'hospital' ? 'ads' : 'resume')}>관리하기 <ArrowRight /></button></div>{activities.length ? <div className="member-timeline">{activities.slice(0, 3).map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>아직 사용 기록이 없습니다</strong><p>회원정보 수정, 상담, 결제 등의 활동이 기록됩니다.</p></div>}</section>
         </>}
+
+        {tab === 'notifications' && <><div className="member-page-head"><div><small>NOTIFICATIONS</small><h2>알림함</h2><p>지원서, 상담 진행과 상대방 메시지를 놓치지 않도록 모았습니다.</p></div>{serverData.unreadCount > 0 && <button type="button" className="button outline" onClick={() => markAlertRead(null, true)}>모두 읽음 처리</button>}</div>{serverData.alerts.length ? <section className="member-panel member-alert-list">{serverData.alerts.map((alert) => <button type="button" key={alert.id} className={alert.readAt ? 'read' : 'unread'} onClick={() => markAlertRead(alert)}><span><Bell /></span><div><small>{String(alert.createdAt || '').slice(0,16).replace('T',' ')}</small><strong>{alert.title}</strong><p>{alert.body}</p></div>{!alert.readAt && <em>NEW</em>}<ChevronRight /></button>)}</section> : <div className="member-empty member-empty-large"><Bell /><strong>아직 도착한 알림이 없습니다</strong><p>새 지원서나 상담 메시지가 오면 이곳과 상단 알림 버튼에 표시됩니다.</p></div>}</>}
 
         {(tab === 'ads' || tab === 'resume') && <><div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '게시 상태, 기간, 조회와 문의 반응을 확인합니다.' : '이력서 공개 범위와 구직 활동 상태를 관리합니다.'}</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/resume')}>{role === 'hospital' ? '공고 등록' : '이력서 수정'} <ArrowRight /></a></div>{recordCards.length ? <div className="member-record-grid">{recordCards.map((item) => <article key={item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl>{/* 예전에는 onClick이 없어 눌러도 아무 일도 안 일어나는 죽은 버튼이었다. 담당자 문의로 연결한다. */}
                   <a className="button outline" href={withBase('/request/hiring')}>담당자에게 문의 <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 공개 범위와 상담 현황을 이곳에서 관리할 수 있습니다.'}</p></div>}<section className="member-panel" id="member-saved-jobs"><div className="member-panel-head"><div><h3>관심 공고</h3><p>하트로 저장한 공고입니다. 로그인하면 다른 기기에서도 동일하게 보입니다.</p></div><a className="button outline" href={withBase('/jobs')}>공고 더 보기 <ArrowRight /></a></div>{savedJobs.length ? <div className="member-saved-jobs">{savedJobs.map((item) => <a key={item.jobId || item.id} href={withBase(`/jobs?open=${encodeURIComponent(item.jobId || item.id)}`)}><span><Heart /></span><div><strong>{item.title || item.jobId || item.id}</strong><small>{[item.dept, item.region].filter(Boolean).join(' · ') || '저장한 공고'}</small></div><ChevronRight /></a>)}</div> : <div className="member-empty"><Heart /><strong>저장한 공고가 없습니다</strong><p>채용 공고에서 하트를 누르면 이곳에 모입니다.</p></div>}</section></>}
@@ -396,6 +444,9 @@ export default function MemberCenterPage({ route, qa }) {
 }
 
 function InquiryDetailModal({ inquiry, role, canAdmin, onClose }) {
+  const [reply, setReply] = useState('');
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [replyResult, setReplyResult] = useState('');
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const handleKey = (event) => { if (event.key === 'Escape') onClose(); };
@@ -409,6 +460,28 @@ function InquiryDetailModal({ inquiry, role, canAdmin, onClose }) {
 
   const details = Object.entries(inquiry.details || {}).filter(([, value]) => value);
   const history = inquiry.history || [[inquiry.time, '문의 접수']];
+  const isDirectApplication = Boolean(inquiry.canReply);
+  const sendReply = async () => {
+    const message = reply.trim();
+    if (!message || replyBusy) return;
+    setReplyBusy(true);
+    setReplyResult('');
+    try {
+      const response = await fetch('/api/member-center', {
+        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
+        body:JSON.stringify({ action:'inquiry_reply', consultationId:inquiry.id, message })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || '메시지를 보내지 못했습니다.');
+      setReply('');
+      setReplyResult('상대방에게 새 알림과 메시지를 보냈습니다.');
+      notify('상대방에게 알림을 보냈습니다.', 'ok');
+    } catch (error) {
+      setReplyResult(error.message || '메시지를 보내지 못했습니다.');
+    } finally {
+      setReplyBusy(false);
+    }
+  };
 
   return <div className="inquiry-detail-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="inquiry-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="inquiry-detail-title">
@@ -429,7 +502,7 @@ function InquiryDetailModal({ inquiry, role, canAdmin, onClose }) {
           <section className="inquiry-detail-section">
             <small>ORIGINAL MESSAGE</small>
             <h3>문의 내용</h3>
-            <p>{inquiry.message || '접수한 문의 내용을 담당 헤드헌터가 확인하고 있습니다.'}</p>
+            <p>{inquiry.message || (isDirectApplication ? '채용공고 지원 내용이 병원 채용담당자에게 전달되었습니다.' : '접수한 문의 내용을 담당 헤드헌터가 확인하고 있습니다.')}</p>
           </section>
 
           {details.length > 0 && <section className="inquiry-detail-section">
@@ -440,20 +513,29 @@ function InquiryDetailModal({ inquiry, role, canAdmin, onClose }) {
 
           <section className="inquiry-detail-response">
             <span><ShieldCheck /></span>
-            <div><small>HEADHUNTER RESPONSE</small><h3>담당자 답변</h3><p>{inquiry.response || '담당 헤드헌터가 내용을 확인 중입니다.'}</p></div>
+            <div><small>{isDirectApplication ? 'DIRECT APPLICATION RESPONSE' : 'HEADHUNTER RESPONSE'}</small><h3>{isDirectApplication ? '병원·지원자 메시지' : '담당자 답변'}</h3><p>{inquiry.response || (isDirectApplication ? '상대방이 지원 내용을 확인 중입니다.' : '담당 헤드헌터가 내용을 확인 중입니다.')}</p></div>
           </section>
+
+          {isDirectApplication && !canAdmin && <section className="inquiry-detail-reply">
+            <small>REPLY</small>
+            <h3>{role === 'hospital' ? '지원 의료인에게 메시지 보내기' : '병원 채용담당자에게 메시지 보내기'}</h3>
+            <p>보낸 메시지는 상대방 마이페이지 알림함에 즉시 표시됩니다.</p>
+            <textarea rows="4" value={reply} onChange={(event) => setReply(event.target.value)} maxLength="1000" placeholder="면접 일정, 추가 서류, 공고 관련 질문 등을 입력해 주세요." />
+            <div><small>{reply.length}/1000</small><button type="button" className="button primary" onClick={sendReply} disabled={replyBusy || !reply.trim()}>{replyBusy ? '보내는 중…' : '메시지·알림 보내기'} <ArrowRight /></button></div>
+            {replyResult && <em role="status">{replyResult}</em>}
+          </section>}
         </div>
 
         <aside className="inquiry-detail-aside">
           <h3>처리 이력</h3>
           <div className="inquiry-detail-history">{history.map(([time, label], index) => <div key={`${time}-${label}`}><i className={index === history.length - 1 ? 'active' : ''} /><span><strong>{label}</strong><small>{time}</small></span></div>)}</div>
-          <div className="inquiry-detail-contact"><Phone /><div><strong>담당 헤드헌터 문의</strong><a href="tel:0513425463">051-342-5463</a><small>평일 09:00~18:00</small></div></div>
+          {!isDirectApplication && <div className="inquiry-detail-contact"><Phone /><div><strong>담당 헤드헌터 문의</strong><a href="tel:0513425463">051-342-5463</a><small>평일 09:00~18:00</small></div></div>}
         </aside>
       </div>
 
       <footer>
         <button type="button" className="button outline" onClick={onClose}>닫기</button>
-        {canAdmin ? <a className="button primary" href={withBase('/admin/consultations')}>관리자 상담함에서 답변·상태 관리 <ArrowRight /></a> : <a className="button primary" href="tel:0513425463">담당 헤드헌터에게 문의 <Phone /></a>}
+        {canAdmin ? <a className="button primary" href={withBase('/admin/consultations')}>관리자 상담함에서 답변·상태 관리 <ArrowRight /></a> : !isDirectApplication && <a className="button primary" href="tel:0513425463">담당 헤드헌터에게 문의 <Phone /></a>}
       </footer>
       <p className="inquiry-detail-privacy"><LockKeyhole /> {role === 'hospital' ? '후보자의 실명과 연락처는 동의된 범위에서만 공개됩니다.' : '회원님의 개인정보는 동의한 병원과 담당 헤드헌터에게만 전달됩니다.'}</p>
     </section>

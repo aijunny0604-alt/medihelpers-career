@@ -285,11 +285,11 @@ async function ensureAdminConsoleSchema(env) {
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
-const backupSchemaVersion = '0007';
+const backupSchemaVersion = '0008';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','consent_records','withdrawn_members','account_recovery_requests',
-  'consultation_requests','member_profiles','member_preferences','member_activity',
+  'consultation_requests','member_profiles','member_preferences','member_activity','member_notifications',
   'resumes','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
   'payment_transactions','payment_refunds','payment_receipts','payment_events',
   'payment_webhook_events','recruitment_cases','candidate_submissions','interview_events',
@@ -621,19 +621,27 @@ async function consultationApi(request, env, pathname) {
       payload.jobHospital = String(directJobRow.subtitle || '').slice(0,300);
     }
     const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
-    await env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload)).run();
+    const consultationInsert = env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload));
+    if (payload.submissionChannel === 'paid_job_direct') {
+      try {
+        await ensureMemberCenterSchema(env);
+        // 상담 원문·병원 활동·안읽은 알림을 한 배치로 저장해 일부만 성공하는 유실 상태를 막는다.
+        await env.DB.batch([
+          consultationInsert,
+          env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_application', ?, ?)").bind(crypto.randomUUID(), directJobRow.ownerAccountId, ('새 지원자 · ' + (directJobRow.title || '공고')).slice(0,200), (requesterName + ' · ' + payload.specialty).slice(0,300)),
+          env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, 'job_application', ?, ?, ?)").bind(crypto.randomUUID(), directJobRow.ownerAccountId, ('새 지원서 · ' + (directJobRow.title || '채용공고')).slice(0,200), (requesterName + '님이 ' + payload.specialty + ' 지원서를 제출했습니다.').slice(0,500), '/mypage?tab=inquiries&inquiry=' + encodeURIComponent(id))
+        ]);
+      } catch {
+        return json({ error:'병원 알림함에 지원서를 전달하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
+      }
+    } else {
+      await consultationInsert.run();
+    }
     if (requestType === 'hospital') {
       try {
         await ensureRecruitmentCrmSchema(env);
         const caseId = 'CASE-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
         await env.DB.prepare('INSERT INTO recruitment_cases (id, consultation_id, hospital_name, specialty, position_title, next_action) VALUES (?, ?, ?, ?, ?, ?)').bind(caseId, id, payload.hospital, payload.specialty, payload.specialty + ' 의사 초빙', '병원 채용조건 확인').run();
-      } catch {}
-    }
-    // 병원 유료광고 지원은 공고를 등록한 병원에만 연결하고 헤드헌터 상담 알림으로 보내지 않는다.
-    if (requestType === 'doctor' && payload.submissionChannel === 'paid_job_direct' && directJobRow?.createdBy) {
-      try {
-        await ensureMemberCenterSchema(env);
-        await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_application', ?, ?)").bind(crypto.randomUUID(), directJobRow.ownerAccountId, ('새 지원자 · ' + (directJobRow.title || '공고')).slice(0,200), (requesterName + ' · ' + payload.specialty).slice(0,300)).run();
       } catch {}
     }
     const record = { id, requestType, requesterName, phone:payload.phone, payload };
@@ -659,7 +667,21 @@ async function consultationApi(request, env, pathname) {
     let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
     if (!['new','contacted','in_progress','closed'].includes(body.status)) return json({ error:'처리 상태를 확인해 주세요.' }, 400);
     const note = typeof body.adminNote === 'string' ? body.adminNote.trim().slice(0,2000) : '';
-    await env.DB.prepare('UPDATE consultation_requests SET status = ?, admin_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, note, decodeURIComponent(match[1])).run();
+    const consultationId = decodeURIComponent(match[1]);
+    const target = await env.DB.prepare('SELECT email, requester_name AS requesterName, status, admin_note AS adminNote FROM consultation_requests WHERE id=? LIMIT 1').bind(consultationId).first();
+    if (!target) return json({ error:'상담 내역을 찾을 수 없습니다.' }, 404);
+    const changed = target.status !== body.status || String(target.adminNote || '') !== note;
+    await env.DB.prepare('UPDATE consultation_requests SET status = ?, admin_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, note, consultationId).run();
+    if (changed && target.email) {
+      try {
+        await ensureAccountSchema(env); await ensureMemberCenterSchema(env);
+        const recipient = await env.DB.prepare('SELECT a.id FROM accounts a JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE lower(ap.email)=lower(?) LIMIT 1').bind(target.email).first();
+        if (recipient?.id) {
+          const statusLabel = ({ new:'신규 접수', contacted:'첫 연락 완료', in_progress:'상담 진행 중', closed:'상담 종료' })[body.status] || body.status;
+          await env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, 'headhunter_update', ?, ?, ?)").bind(crypto.randomUUID(), recipient.id, ('헤드헌터 상담 업데이트 · ' + statusLabel).slice(0,200), (note || '상담 진행 상태가 변경되었습니다.').slice(0,500), '/mypage?tab=inquiries&inquiry=' + encodeURIComponent(consultationId)).run();
+        }
+      } catch {}
+    }
     return json({ updated:true });
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
@@ -965,6 +987,7 @@ async function accountApi(request, env) {
         env.DB.prepare('DELETE FROM resumes WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM saved_jobs WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM member_activity WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM member_notifications WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM member_preferences WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM consent_records WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM talent_unlocks WHERE hospital_account_id=?').bind(account.id),
@@ -981,6 +1004,7 @@ async function accountApi(request, env) {
       env.DB.prepare('DELETE FROM resumes WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM saved_jobs WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM member_activity WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM member_notifications WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM member_preferences WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM talent_unlocks WHERE hospital_account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM talent_credit_pools WHERE hospital_account_id=?').bind(account.id),
@@ -1079,6 +1103,10 @@ async function memberCenterApi(request, env) {
   if (!account) return json({ signedIn:true, account:null, identity, isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
+    const alertRows = await env.DB.prepare('SELECT id, kind, title, body, action_url AS actionUrl, read_at AS readAt, created_at AS createdAt FROM member_notifications WHERE account_id=? ORDER BY created_at DESC LIMIT 100').bind(account.id).all();
+    const alerts = alertRows.results || [];
+    const unreadCount = alerts.reduce((count, item) => count + (item.readAt ? 0 : 1), 0);
+    if (new URL(request.url).searchParams.get('notificationsOnly') === '1') return json({ signedIn:true, alerts, unreadCount });
     const profile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle, updated_at AS updatedAt FROM member_profiles WHERE account_id = ?').bind(account.id).first();
     const preferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id).first();
     const activity = await env.DB.prepare('SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? ORDER BY occurred_at DESC LIMIT 100').bind(account.id).all();
@@ -1139,11 +1167,49 @@ async function memberCenterApi(request, env) {
         adStatus:content?.status || ''
       };
     });
-    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
     let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    if (body.action === 'notification_read' || body.action === 'notifications_read_all') {
+      if (body.action === 'notification_read') {
+        const notificationId = String(body.notificationId || '').trim().slice(0,120);
+        if (!notificationId) return json({ error:'확인할 알림을 선택해 주세요.' }, 400);
+        await env.DB.prepare('UPDATE member_notifications SET read_at=COALESCE(read_at,CURRENT_TIMESTAMP) WHERE id=? AND account_id=?').bind(notificationId, account.id).run();
+      } else {
+        await env.DB.prepare('UPDATE member_notifications SET read_at=COALESCE(read_at,CURRENT_TIMESTAMP) WHERE account_id=? AND read_at IS NULL').bind(account.id).run();
+      }
+      return json({ updated:true });
+    }
+    if (body.action === 'inquiry_reply') {
+      const consultationId = String(body.consultationId || '').trim().slice(0,120);
+      const message = String(body.message || '').trim().slice(0,1000);
+      if (!consultationId || !message) return json({ error:'문의 내역과 보낼 내용을 입력해 주세요.' }, 400);
+      let recipient = null;
+      if (account.role === 'hospital') {
+        recipient = await env.DB.prepare(
+          "SELECT recipient.id AS recipientId, cr.requester_name AS requesterName, c.title AS jobTitle " +
+          "FROM consultation_requests cr JOIN admin_content_records c ON c.id=replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
+          "JOIN account_admin_profiles rap ON lower(rap.email)=lower(cr.email) JOIN accounts recipient ON recipient.id=rap.account_id " +
+          "WHERE cr.id=? AND lower(c.created_by)=lower(?) AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'')='paid_job_direct' LIMIT 1"
+        ).bind(consultationId, identity.email).first();
+      } else if (account.role === 'doctor') {
+        recipient = await env.DB.prepare(
+          "SELECT owner.id AS recipientId, cr.requester_name AS requesterName, c.title AS jobTitle " +
+          "FROM consultation_requests cr JOIN admin_content_records c ON c.id=replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
+          "JOIN account_admin_profiles oap ON lower(oap.email)=lower(c.created_by) JOIN accounts owner ON owner.id=oap.account_id " +
+          "WHERE cr.id=? AND lower(cr.email)=lower(?) AND COALESCE(json_extract(cr.payload_json,'$.submissionChannel'),'')='paid_job_direct' LIMIT 1"
+        ).bind(consultationId, identity.email).first();
+      }
+      if (!recipient?.recipientId) return json({ error:'이 문의의 상대 회원을 확인할 수 없습니다.' }, 403);
+      const senderLabel = account.role === 'hospital' ? '병원 채용담당자' : '지원 의료인';
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, 'inquiry_reply', ?, ?, ?)").bind(crypto.randomUUID(), recipient.recipientId, (senderLabel + ' 메시지 · ' + (recipient.jobTitle || '채용공고')).slice(0,200), message, '/mypage?tab=inquiries&inquiry=' + encodeURIComponent(consultationId)),
+        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'inquiry_reply', ?, ?)").bind(crypto.randomUUID(), recipient.recipientId, (senderLabel + '에게 새 메시지가 왔습니다.').slice(0,200), message.slice(0,300))
+      ]);
+      return json({ sent:true });
+    }
     // 소비자 환불(청약철회) 요청: 회원(병원·의사 공용)이 본인 결제 건에 환불을 신청. 실제 승인·환불은 관리자.
     if (body.action === 'refund_request') {
       const orderNumber = String(body.orderNumber || '').trim().slice(0, 60);

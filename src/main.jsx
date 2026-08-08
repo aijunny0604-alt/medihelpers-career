@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import {
   Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
-  CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
+  Bell, CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, Eye, FileCheck2, FileText, Heart, HeartPulse, LockKeyhole, LogOut, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
   PencilLine, Plus, ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, Trash2, TrendingUp, TriangleAlert, Upload, UserRound,
   UserRoundSearch, UsersRound, WalletCards, X
@@ -40,6 +40,7 @@ import ResumeSubmitPicker from './ResumeSubmitPicker.jsx';
 import { balancedOrder, countByDept } from './jobExposure.js';
 import { installAuthenticatedFetch } from './authTransport.js';
 import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
+import { imageFilesFromTransfer, pasteImageFiles } from './imageInput.js';
 
 installAuthenticatedFetch();
 
@@ -363,6 +364,7 @@ function Header({ path, qa, operations, auth }) {
   const [open, setOpen] = useState(false);
   const [switchingRole, setSwitchingRole] = useState('');
   const [signingOut, setSigningOut] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   // 모바일 메뉴가 열려 있는 동안에는 뒤 페이지 스크롤을 잠근다(모달과 동일한 방식).
   // 경로가 바뀌면(링크 이동) 메뉴를 닫아 잠금이 남지 않게 한다.
   useEffect(() => {
@@ -388,6 +390,21 @@ function Header({ path, qa, operations, auth }) {
   const accountTarget = isAdminUser ? '/admin/console' : isSignedIn ? '/mypage' : '/login';
   const accountLabel = isAdminUser ? '관리자' : isSignedIn ? '마이페이지' : '로그인';
   const activeTestRole = isAdminUser ? 'admin' : auth.role === 'hospital' ? 'hospital' : auth.role === 'doctor' ? 'doctor' : '';
+  useEffect(() => {
+    if (!isSignedIn || isAdminUser) { setUnreadCount(0); return undefined; }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await fetch('/api/member-center?notificationsOnly=1', { credentials:'same-origin', headers:{ accept:'application/json' } });
+        const payload = await response.json().catch(() => ({}));
+        if (active && response.ok) setUnreadCount(Number(payload.unreadCount || 0));
+      } catch {}
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener('medihelpers:notifications-changed', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('medihelpers:notifications-changed', refresh); };
+  }, [isSignedIn, isAdminUser, auth.role]);
   const signOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
@@ -437,12 +454,14 @@ function Header({ path, qa, operations, auth }) {
           if (item.path === '/advertise' && operations.features.adRegistration === false) return false;
           return true;
         }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''} ${item.highlight ? 'nav-highlight' : ''}`}>{item.label}</Link>)}
+        {isSignedIn && !isAdminUser && <Link to="/mypage?tab=notifications" onClick={() => setOpen(false)} className="mobile-notification-link"><Bell /> 알림함 {unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
         <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>
         {isSignedIn && <button type="button" className="mobile-logout-button" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button>}
         {testSwitcher(true)}
       </nav>
       <div className="nav-actions">
         {testSwitcher()}
+        {isSignedIn && !isAdminUser && <Link className="header-notifications" to="/mypage?tab=notifications" aria-label={`알림함${unreadCount > 0 ? `, 읽지 않은 알림 ${unreadCount}개` : ''}`}><Bell />{unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
         <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
         {isSignedIn && <button type="button" className="header-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '처리 중' : '로그아웃'}</button>}
       </div>
@@ -2817,8 +2836,10 @@ function Checkout({ plan }) {
     onDrop: (event) => {
       event.preventDefault();
       setActiveDrop("");
-      onFiles(event.dataTransfer.files);
+      onFiles(imageFilesFromTransfer(event.dataTransfer));
     },
+    onPaste: (event) => pasteImageFiles(event, onFiles),
+    tabIndex: 0,
   });
   const removeFacilityPhoto = (index) => {
     setFacilityPhotos((current) => {
@@ -2983,7 +3004,7 @@ function Checkout({ plan }) {
                   <div className="upload-button">
                     <Upload />
                     <div>
-                      <strong>{brandName || "클릭하거나 이미지를 끌어 놓으세요"}</strong>
+                      <strong>{brandName || "클릭·드래그 또는 Ctrl+V로 붙여넣기"}</strong>
                       <small>권장 1500×500px 가로형 · PNG·JPG·WEBP · 최대 5MB</small>
                     </div>
                   </div>
@@ -3031,7 +3052,7 @@ function Checkout({ plan }) {
                       multiple
                       onChange={selectFacilityPhotos}
                     />
-                    <Upload /> 클릭 또는 드래그
+                    <Upload /> 클릭·드래그·붙여넣기
                   </label>
                 </div>
                 {facilityPhotos.length ? (

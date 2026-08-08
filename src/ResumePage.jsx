@@ -6,6 +6,7 @@ import {
 import { appendStoredRecord } from './browserStorage.js';
 import { withBase } from './basePath.js';
 import { uploadResumePhoto, validateResumePhoto } from './resumePhotoUpload.js';
+import { dropImageFiles, pasteImageFiles } from './imageInput.js';
 
 // 초간편 이력서 — 의료인 누구나(의사·간호·의료기사·약무·행정) 자유롭게 몇 줄로 작성.
 // 직군도 자유 텍스트, 면허번호·술기·근무형태 선택지 없이 본인이 원하는 만큼만 적는다.
@@ -24,6 +25,7 @@ export default function ResumePage() {
   const [savedResumeId, setSavedResumeId] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
+  const [photoDragging, setPhotoDragging] = useState(false);
   const [form, setForm] = useState({
     title: '', profession: '', name: '', phone: '', email: '', region: '', photoUrl: '',
     specialty: '', desiredRegions: '', salary: '',
@@ -34,16 +36,16 @@ export default function ResumePage() {
 
   useEffect(() => () => { if (photoPreview && photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
 
-  const choosePhoto = (event) => {
-    const file = event.target.files?.[0] || null;
+  const choosePhotoFile = (file, input) => {
     if (!file) return;
     const error = validateResumePhoto(file);
-    if (error) { setSubmitError(error); event.target.value = ''; return; }
+    if (error) { setSubmitError(error); if (input) input.value = ''; return; }
     if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
     setSubmitError('');
   };
+  const choosePhoto = (event) => choosePhotoFile(event.target.files?.[0] || null, event.target);
   const removePhoto = () => {
     if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
     setPhotoFile(null); setPhotoPreview(''); update('photoUrl', '');
@@ -122,9 +124,18 @@ export default function ResumePage() {
       <section className="resume-editor">
         {activeStep === 'basic' && <div className="resume-step-panel">
           <div className="resume-panel-head"><small>STEP 01</small><h2>기본정보</h2><p>채용기관이 가장 먼저 확인하는 정보입니다. 몇 줄이면 충분합니다.</p></div>
-          <div className="resume-photo-upload-card">
+          <div
+            className={`resume-photo-upload-card ${photoDragging ? 'is-dragging' : ''}`}
+            tabIndex="0"
+            aria-label="증명사진 업로드: 클릭, 드래그 또는 붙여넣기"
+            onDragEnter={(event) => { event.preventDefault(); setPhotoDragging(true); }}
+            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setPhotoDragging(true); }}
+            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setPhotoDragging(false); }}
+            onDrop={(event) => { setPhotoDragging(false); dropImageFiles(event, (files) => choosePhotoFile(files[0])); }}
+            onPaste={(event) => pasteImageFiles(event, (files) => choosePhotoFile(files[0]))}
+          >
             <div className={`resume-photo-preview ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="이력서 프로필 사진 미리보기" /> : <UserRound />}</div>
-            <div className="resume-photo-copy"><span><Camera /> 증명사진·프로필 사진 <i>선택</i></span><strong>얼굴이 잘 보이는 단정한 사진을 등록해 주세요</strong><small>JPG·PNG·WEBP · 최대 5MB · 정사각형 또는 세로 사진 권장</small><div><label><ImagePlus /> 사진 선택<input type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} /></label>{(photoPreview || form.photoUrl) && <button type="button" onClick={removePhoto}><Trash2 /> 삭제</button>}</div></div>
+            <div className="resume-photo-copy"><span><Camera /> 증명사진·프로필 사진 <i>선택</i></span><strong>클릭하거나 사진을 끌어 놓고, 복사한 이미지는 Ctrl+V로 붙여넣으세요</strong><small>JPG·PNG·WEBP · 최대 5MB · 정사각형 또는 세로 사진 권장</small><div><label><ImagePlus /> 사진 선택<input type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} /></label>{(photoPreview || form.photoUrl) && <button type="button" onClick={removePhoto}><Trash2 /> 삭제</button>}</div></div>
           </div>
           <div className="resume-form-grid">
             <label className="wide"><span>이력서 제목 *</span><input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="예: 병동 간호사 · 부산경남 이직 희망" /></label>
