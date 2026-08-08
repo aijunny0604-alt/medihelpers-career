@@ -1345,6 +1345,7 @@ function HomePage({ liveJobs = jobs }) {
 // (기존 Redirect 컴포넌트는 effect+popstate 재렌더 경쟁으로 빈 화면을 유발해 제거됨)
 const STANDARD_STEP = 12;
 const PREMIUM_ROTATION_MS = 7000;
+const PREMIUM_GRID_SLOTS = { mobile: 2, tablet: 4, desktop: 6 };
 
 function getRecruitmentType(job) {
   const text = `${job.title} ${job.focus} ${job.facilityType}`;
@@ -1374,11 +1375,19 @@ function matchesJob(job, { dept, region, keyword, recruitmentType = '전체 초�
 }
 
 function usePremiumSlotCount() {
-  const [count, setCount] = useState(() => window.matchMedia('(max-width: 780px)').matches ? 1 : window.matchMedia('(max-width: 1180px)').matches ? 2 : 3);
+  const [count, setCount] = useState(() => window.matchMedia('(max-width: 780px)').matches
+    ? PREMIUM_GRID_SLOTS.mobile
+    : window.matchMedia('(max-width: 1180px)').matches
+      ? PREMIUM_GRID_SLOTS.tablet
+      : PREMIUM_GRID_SLOTS.desktop);
   useEffect(() => {
     const mobile = window.matchMedia('(max-width: 780px)');
     const tablet = window.matchMedia('(max-width: 1180px)');
-    const update = () => setCount(mobile.matches ? 1 : tablet.matches ? 2 : 3);
+    const update = () => setCount(mobile.matches
+      ? PREMIUM_GRID_SLOTS.mobile
+      : tablet.matches
+        ? PREMIUM_GRID_SLOTS.tablet
+        : PREMIUM_GRID_SLOTS.desktop);
     update();
     mobile.addEventListener?.('change', update);
     tablet.addEventListener?.('change', update);
@@ -1589,7 +1598,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong><small>병원 로고와 핵심 조건을 같은 규격으로 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button spotlight" onClick={() => requestAdPlan(adPlans[2])}>{canRegisterAds ? '플래티넘 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button></div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong><small>한 화면에서 더 많은 집중채용 공고와 핵심 조건을 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button spotlight" onClick={() => requestAdPlan(adPlans[2])}>{canRegisterAds ? '플래티넘 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button></div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button></div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> HEADHUNTING</span><h3>{saved.length ? `찜한 ${saved.length}개 공고, 조건을 헤드헌터와 정리해보세요` : '원하는 조건을 헤드헌터에게 바로 상담하세요'}</h3><p>근무·보수·거리·진료 범위 등 중요하게 보는 조건을 전문 헤드헌터가 함께 맞춰드립니다.</p></div><Link className="button dark" to="/headhunting" onClick={() => trackConversion('jobs_headhunting_nudge', { savedCount: saved.length })}>헤드헌터에게 상담하기 <ArrowRight /></Link></div>

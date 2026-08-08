@@ -12,8 +12,9 @@ test('Sites uses the existing R2 binding as an upload fallback', () => {
   assert.match(serverSource, /uploadStorage\.put\(objectKey/);
 });
 
-test('premium cards use the mounted rotation component', () => {
+test('premium cards use the expanded responsive grid rotation component', () => {
   assert.match(mainSource, /<PremiumAdCarousel items=\{orderedPromoted\} renderCard=\{renderPortalCard\}/);
+  assert.match(mainSource, /PREMIUM_GRID_SLOTS = \{ mobile: 2, tablet: 4, desktop: 6 \}/);
 });
 
 test('home and jobs cards open JobDetail without route navigation', () => {
