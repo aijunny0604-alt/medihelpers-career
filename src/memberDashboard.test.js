@@ -27,3 +27,18 @@ test('의료인 이력서 관리 동선은 저장된 서버 이력서를 불러�
   assert.match(resumePage, /photoUrl: detail\.photoUrl \|\| ''/);
   assert.match(resumePage, /if \(createNew\)/);
 });
+
+test('inquiry details use a standalone member-center page and sanitize corrupted legacy text', async () => {
+  const [memberCenter, main] = await Promise.all([
+    readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('./main.jsx', import.meta.url), 'utf8')
+  ]);
+
+  assert.match(memberCenter, /routePath\.startsWith\('\/mypage\/inquiries\/'\)/);
+  assert.match(memberCenter, /function InquiryDetailPage/);
+  assert.match(memberCenter, /function cleanInquiryText/);
+  assert.match(memberCenter, /지원 내용이 병원 채용담당자에게 전달되었습니다\./);
+  assert.doesNotMatch(memberCenter, /InquiryDetailModal/);
+  assert.doesNotMatch(memberCenter, /setSelectedInquiry/);
+  assert.match(main, /path\.startsWith\('\/mypage\/inquiries\/'\)/);
+});
