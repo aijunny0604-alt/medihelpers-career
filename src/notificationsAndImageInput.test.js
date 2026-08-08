@@ -40,13 +40,22 @@ test('병원 직접 지원은 상담·병원 활동·읽지 않은 알림을 한
 });
 
 test('병원과 지원 의료인은 지원 건에서 상대방에게 영구 알림 메시지를 보낸다', async () => {
-  const [server, memberCenter, main] = await Promise.all([
-    read('../scripts/package-sites.mjs'), read('./MemberCenterPage.jsx'), read('./main.jsx')
+  const [server, memberCenter, main, schema, migration] = await Promise.all([
+    read('../scripts/package-sites.mjs'), read('./MemberCenterPage.jsx'), read('./main.jsx'),
+    read('../db/schema.js'), read('../drizzle/0009_inquiry_messages.sql')
   ]);
   assert.match(server, /body\.action === 'inquiry_reply'/);
   assert.match(server, /'inquiry_reply'/);
   assert.match(server, /recipient\.recipientId/);
+  assert.match(server, /INSERT INTO inquiry_messages/);
+  assert.match(server, /messagesByConsultation/);
+  assert.match(server, /legacy-.*alert\.id/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS inquiry_messages/);
+  assert.match(migration, /inquiry_messages_consultation_idx/);
   assert.match(memberCenter, /메시지·알림 보내기/);
+  assert.match(memberCenter, /className="inquiry-message-thread"/);
+  assert.match(memberCenter, /MESSAGE HISTORY/);
+  assert.match(memberCenter, /payload\.message.*setThread/s);
   assert.match(memberCenter, /className="member-nav-badge"/);
   assert.match(memberCenter, /className="member-unread-banner"/);
   assert.match(main, /className="header-notifications"/);

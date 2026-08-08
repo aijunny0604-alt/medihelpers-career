@@ -233,6 +233,7 @@ export default function MemberCenterPage({ route, qa }) {
         연락희망: payload.contactTime || payload.preferredContactTime || '-'
       },
       response: item.adminNote || (directApplication ? '공고를 등록한 병원 채용담당자가 지원 내용을 확인 중입니다.' : '담당 헤드헌터가 내용을 확인 중입니다. 답변이 등록되면 이 화면에서 확인할 수 있습니다.'),
+      messages: Array.isArray(item.messages) ? item.messages : [],
       canReply: directApplication,
       history: [
         [String(item.createdAt || '').slice(0, 16), directApplication ? '병원 직접 지원' : '상담 접수'],
@@ -469,6 +470,7 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyResult, setReplyResult] = useState('');
+  const [thread, setThread] = useState(Array.isArray(inquiry.messages) ? inquiry.messages : []);
 
   const details = Object.entries(inquiry.details || {})
     .map(([label, value]) => [cleanInquiryText(label), cleanInquiryText(value)])
@@ -501,6 +503,7 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || '메시지를 보내지 못했습니다.');
+      if (payload.message) setThread((current) => [...current, payload.message]);
       setReply('');
       setReplyResult('상대방에게 새 알림과 메시지를 보냈습니다.');
       notify('상대방에게 알림을 보냈습니다.', 'ok');
@@ -538,9 +541,22 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
             <dl>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
           </section>}
 
+          {isDirectApplication && <section className="inquiry-message-panel">
+            <header><div><span><MessageCircle /></span><div><small>MESSAGE HISTORY</small><h3>메시지 대화</h3></div></div><em>{thread.length}개</em></header>
+            {thread.length > 0 ? <div className="inquiry-message-thread" aria-live="polite">
+              {thread.map((item, index) => {
+                const direction = item.direction === 'sent' ? 'sent' : 'received';
+                const sender = cleanInquiryText(item.senderName, direction === 'sent' ? '내가 보냄' : role === 'hospital' ? '지원 의료인' : '병원 채용담당자');
+                const body = cleanInquiryText(item.body, '메시지 내용을 확인할 수 없습니다.');
+                const time = cleanInquiryText(String(item.createdAt || '').slice(0,16).replace('T',' '), '시간 확인 중');
+                return <article className={direction} key={item.id || `${time}-${index}`}><div><strong>{direction === 'sent' ? `내가 보냄 · ${sender}` : sender}</strong><time>{time}</time></div><p>{body}</p>{direction === 'sent' && <small><Check /> 전송 완료</small>}</article>;
+              })}
+            </div> : <div className="inquiry-message-empty"><MessageCircle /><div><strong>아직 주고받은 메시지가 없습니다</strong><p>아래에서 첫 메시지를 보내면 이곳에 시간순으로 저장됩니다.</p></div></div>}
+          </section>}
+
           <section className="inquiry-detail-response">
             <span><ShieldCheck /></span>
-            <div><small>{isDirectApplication ? 'DIRECT APPLICATION RESPONSE' : 'HEADHUNTER RESPONSE'}</small><h3>{isDirectApplication ? '병원·지원자 메시지' : '담당자 답변'}</h3><p>{safeResponse}</p></div>
+            <div><small>{isDirectApplication ? 'APPLICATION STATUS' : 'HEADHUNTER RESPONSE'}</small><h3>{isDirectApplication ? '현재 진행 안내' : '담당자 답변'}</h3><p>{safeResponse}</p></div>
           </section>
 
           {isDirectApplication && !canAdmin && <section className="inquiry-detail-reply">

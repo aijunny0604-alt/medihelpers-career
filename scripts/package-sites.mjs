@@ -285,11 +285,11 @@ async function ensureAdminConsoleSchema(env) {
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
-const backupSchemaVersion = '0008';
+const backupSchemaVersion = '0009';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','consent_records','withdrawn_members','account_recovery_requests',
-  'consultation_requests','member_profiles','member_preferences','member_activity','member_notifications',
+  'consultation_requests','member_profiles','member_preferences','member_activity','member_notifications','inquiry_messages',
   'resumes','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
   'payment_transactions','payment_refunds','payment_receipts','payment_events',
   'payment_webhook_events','recruitment_cases','candidate_submissions','interview_events',
@@ -996,6 +996,7 @@ async function accountApi(request, env) {
         env.DB.prepare('DELETE FROM saved_jobs WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM member_activity WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM member_notifications WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM inquiry_messages WHERE sender_account_id=? OR recipient_account_id=?').bind(account.id, account.id),
         env.DB.prepare('DELETE FROM member_preferences WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM consent_records WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM talent_unlocks WHERE hospital_account_id=?').bind(account.id),
@@ -1013,6 +1014,7 @@ async function accountApi(request, env) {
       env.DB.prepare('DELETE FROM saved_jobs WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM member_activity WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM member_notifications WHERE account_id=?').bind(account.id),
+      env.DB.prepare('DELETE FROM inquiry_messages WHERE sender_account_id=? OR recipient_account_id=?').bind(account.id, account.id),
       env.DB.prepare('DELETE FROM member_preferences WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM talent_unlocks WHERE hospital_account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM talent_credit_pools WHERE hospital_account_id=?').bind(account.id),
@@ -1134,6 +1136,38 @@ async function memberCenterApi(request, env) {
         consultationRows = [...(received.results || []), ...consultationRows];
       } catch {}
     }
+    // 알림 본문과 문의 상세를 분리해 저장하면 알림을 눌렀을 때 실제 메시지가 사라진다.
+    // 정식 대화 원장과 기존 inquiry_reply 알림을 합쳐 과거 메시지도 상세 화면에서 복원한다.
+    let inquiryMessageRows = [];
+    try {
+      const result = await env.DB.prepare(
+        "SELECT id, consultation_id AS consultationId, sender_name AS senderName, sender_role AS senderRole, body, created_at AS createdAt, CASE WHEN sender_account_id=? THEN 'sent' ELSE 'received' END AS direction " +
+        "FROM inquiry_messages WHERE sender_account_id=? OR recipient_account_id=? ORDER BY created_at ASC LIMIT 500"
+      ).bind(account.id, account.id, account.id).all();
+      inquiryMessageRows = result.results || [];
+    } catch { inquiryMessageRows = []; }
+    const messagesByConsultation = new Map();
+    for (const messageRow of inquiryMessageRows) {
+      const list = messagesByConsultation.get(messageRow.consultationId) || [];
+      list.push(messageRow);
+      messagesByConsultation.set(messageRow.consultationId, list);
+    }
+    for (const alert of alerts) {
+      if (alert.kind !== 'inquiry_reply' || !alert.body) continue;
+      const match = String(alert.actionUrl || '').match(/[?&]inquiry=([^&#]+)/);
+      if (!match) continue;
+      let consultationId = '';
+      try { consultationId = decodeURIComponent(match[1]); } catch { consultationId = match[1]; }
+      if (!consultationId) continue;
+      const list = messagesByConsultation.get(consultationId) || [];
+      const duplicate = list.some(item => item.body === alert.body && String(item.createdAt || '').slice(0,19) === String(alert.createdAt || '').slice(0,19));
+      if (!duplicate) {
+        const senderName = String(alert.title || '').split(' 메시지 · ')[0] || (account.role === 'hospital' ? '지원 의료인' : '병원 채용담당자');
+        list.push({ id:'legacy-' + alert.id, consultationId, senderName, senderRole:account.role === 'hospital' ? 'doctor' : 'hospital', body:alert.body, createdAt:alert.createdAt, direction:'received' });
+        list.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+        messagesByConsultation.set(consultationId, list);
+      }
+    }
     // refundPending: 이 주문에 처리 대기(requested/processing) 환불 요청이 있으면 1 → 마이페이지에 '환불 요청 중' 표시.
     const orders = await env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id).all();
     // 의사 회원의 이력서 요약(완성도·공개범위)을 함께 내려 마이페이지 지표에 사용.
@@ -1177,7 +1211,7 @@ async function memberCenterApi(request, env) {
         adStatus:content?.status || ''
       };
     });
-    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, recommendedCandidates });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson), messages:messagesByConsultation.get(row.id) || [] }; }), orders:orderList, resume:resume || null, recommendedCandidates });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -1213,12 +1247,17 @@ async function memberCenterApi(request, env) {
         ).bind(consultationId, identity.email).first();
       }
       if (!recipient?.recipientId) return json({ error:'이 문의의 상대 회원을 확인할 수 없습니다.' }, 403);
-      const senderLabel = account.role === 'hospital' ? '병원 채용담당자' : '지원 의료인';
+      const senderProfile = await env.DB.prepare('SELECT display_name AS displayName, organization FROM member_profiles WHERE account_id=? LIMIT 1').bind(account.id).first();
+      const senderName = String(account.role === 'hospital' ? (senderProfile?.organization || senderProfile?.displayName || '병원 채용담당자') : (senderProfile?.displayName || '지원 의료인')).trim().slice(0,80);
+      const senderLabel = senderName || (account.role === 'hospital' ? '병원 채용담당자' : '지원 의료인');
+      const messageId = crypto.randomUUID();
       await env.DB.batch([
+        env.DB.prepare("INSERT INTO inquiry_messages (id, consultation_id, sender_account_id, recipient_account_id, sender_role, sender_name, body) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(messageId, consultationId, account.id, recipient.recipientId, account.role, senderLabel, message),
         env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, 'inquiry_reply', ?, ?, ?)").bind(crypto.randomUUID(), recipient.recipientId, (senderLabel + ' 메시지 · ' + (recipient.jobTitle || '채용공고')).slice(0,200), message, '/mypage?tab=inquiries&inquiry=' + encodeURIComponent(consultationId)),
-        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'inquiry_reply', ?, ?)").bind(crypto.randomUUID(), recipient.recipientId, (senderLabel + '에게 새 메시지가 왔습니다.').slice(0,200), message.slice(0,300))
+        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'inquiry_reply', ?, ?)").bind(crypto.randomUUID(), recipient.recipientId, (senderLabel + '에게 새 메시지가 왔습니다.').slice(0,200), message.slice(0,300)),
+        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'inquiry_reply_sent', '메시지를 보냈습니다.', ?)").bind(crypto.randomUUID(), account.id, message.slice(0,300))
       ]);
-      return json({ sent:true });
+      return json({ sent:true, message:{ id:messageId, consultationId, senderName:senderLabel, senderRole:account.role, body:message, createdAt:new Date().toISOString(), direction:'sent' } });
     }
     // 소비자 환불(청약철회) 요청: 회원(병원·의사 공용)이 본인 결제 건에 환불을 신청. 실제 승인·환불은 관리자.
     if (body.action === 'refund_request') {
