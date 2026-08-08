@@ -484,6 +484,11 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
     inquiry.response,
     isDirectApplication ? '상대방이 지원 내용을 확인 중입니다.' : '담당 헤드헌터가 내용을 확인 중입니다.'
   );
+  const safeSubject = cleanInquiryText(inquiry.subject, '문의·지원 상세');
+  const safeName = cleanInquiryText(inquiry.name, role === 'hospital' ? '지원 의료인' : '병원 채용담당자');
+  const safeSource = cleanInquiryText(inquiry.source, inquiry.id || '문의 접수');
+  const safeTime = cleanInquiryText(inquiry.time, '접수일 확인 중');
+  const safeStatus = cleanInquiryText(inquiry.status, '접수');
   const sendReply = async () => {
     const message = reply.trim();
     if (!message || replyBusy) return;
@@ -508,15 +513,15 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
 
   return <article className="inquiry-detail-dialog inquiry-detail-page" aria-labelledby="inquiry-detail-title">
       <header>
-        <div className="inquiry-detail-heading"><span><MessageCircle /></span><div><small>문의·후보 연결 상세</small><h2 id="inquiry-detail-title">{inquiry.subject}</h2><p>{inquiry.id || inquiry.source}</p></div></div>
+        <div className="inquiry-detail-heading"><span><MessageCircle /></span><div><small>문의·후보 연결 상세</small><h2 id="inquiry-detail-title">{safeSubject}</h2><p>{inquiry.id || safeSource}</p></div></div>
         <a className="button outline inquiry-detail-back" href={withBase('/mypage?tab=inquiries')}>문의 목록으로 <ArrowRight /></a>
       </header>
 
       <div className="inquiry-detail-summary">
-        <div><UserRound /><span><small>보낸 사람</small><strong>{inquiry.name}</strong></span></div>
-        <div><FileText /><span><small>관련 항목</small><strong>{inquiry.source}</strong></span></div>
-        <div><Clock3 /><span><small>접수일</small><strong>{inquiry.time}</strong></span></div>
-        <div><BadgeCheck /><span><small>진행 상태</small><strong>{inquiry.status}</strong></span></div>
+        <div><UserRound /><span><small>보낸 사람</small><strong>{safeName}</strong></span></div>
+        <div><FileText /><span><small>관련 항목</small><strong>{safeSource}</strong></span></div>
+        <div><Clock3 /><span><small>접수일</small><strong>{safeTime}</strong></span></div>
+        <div><BadgeCheck /><span><small>진행 상태</small><strong>{safeStatus}</strong></span></div>
       </div>
 
       <div className="inquiry-detail-body">

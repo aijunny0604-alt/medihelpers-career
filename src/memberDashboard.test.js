@@ -38,6 +38,8 @@ test('inquiry details use a standalone member-center page and sanitize corrupted
   assert.match(memberCenter, /function InquiryDetailPage/);
   assert.match(memberCenter, /function cleanInquiryText/);
   assert.match(memberCenter, /지원 내용이 병원 채용담당자에게 전달되었습니다\./);
+  assert.match(memberCenter, /const safeName = cleanInquiryText/);
+  assert.match(memberCenter, /const safeSource = cleanInquiryText/);
   assert.doesNotMatch(memberCenter, /InquiryDetailModal/);
   assert.doesNotMatch(memberCenter, /setSelectedInquiry/);
   assert.match(main, /path\.startsWith\('\/mypage\/inquiries\/'\)/);
