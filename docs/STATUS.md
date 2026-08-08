@@ -124,7 +124,7 @@
 | 배포처 | 주소 | 기준 | 상태 |
 | --- | --- | --- | --- |
 | GitHub Pages (테스트 미러) | https://aijunny0604-alt.github.io/medihelpers-career/ | `main` 푸시 시 자동 배포(`.github/workflows/pages.yml`) | **최신**(2026-07-22 반영). 정식 오픈 전 테스트용이라 검색엔진 색인 차단 |
-| OpenAI Sites (공개본) | https://medihelpers-career.junnyai.chatgpt.site | Codex에서 수동 배포 | 2026-08-08 전수검증 후 최신 커밋 재배포 |
+| OpenAI Sites (공개본) | https://medihelpers-career.junnyai.chatgpt.site | Codex에서 수동 배포 | **Sites v248**, 기능·문서 커밋 `ac7863d` 배포 성공 |
 
 ⚠️ 두 배포처가 **서로 다른 파이프라인**이라 한쪽만 반영되는 사고가 실제로 발생했다(히어로 영상이 Sites에는 있고 GitHub에는 없던 건). 변경 후 **양쪽 반영 여부를 각각 확인**할 것. `docs/CLOUDFLARE_MIGRATION.md`의 이전이 끝나면 배포처 단일화로 해소된다.
 
