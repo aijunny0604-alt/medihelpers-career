@@ -4449,23 +4449,23 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 }
 
 /* Home premium showcase: paid exposure is visually distinct from the full jobs portal. */
-.home-premium-showcase{position:relative;overflow:hidden;padding-top:68px;padding-bottom:72px;background:linear-gradient(125deg,#071a36 0%,#0d315f 55%,#0b5a72 100%);color:#fff}
+.home-premium-showcase{position:relative;overflow:hidden;padding-top:68px;padding-bottom:72px;background:#fff;color:#142b4a;border-top:1px solid #e8edf4;border-bottom:1px solid #e4eaf2}
 .home-premium-showcase:before,.home-premium-showcase:after{content:'';position:absolute;border-radius:50%;pointer-events:none}
-.home-premium-showcase:before{width:420px;height:420px;right:-150px;top:-210px;border:70px solid rgba(107,187,255,.1)}
-.home-premium-showcase:after{width:260px;height:260px;left:-120px;bottom:-160px;background:rgba(38,207,174,.08);filter:blur(2px)}
+.home-premium-showcase:before,.home-premium-showcase:after{display:none}
 .home-premium-inner{position:relative;z-index:1;max-width:1440px;margin:auto}
 .home-premium-head{display:flex;align-items:flex-end;justify-content:space-between;gap:34px;margin-bottom:20px}
-.home-premium-head>div:first-child>span{display:inline-flex;align-items:center;gap:8px;color:#82c9ff;font:850 12px 'Manrope';letter-spacing:.12em}
+.home-premium-head>div:first-child>span{display:inline-flex;align-items:center;gap:8px;color:#1263e8;font:850 12px 'Manrope';letter-spacing:.12em}
 .home-premium-head>div:first-child>span svg{width:17px;color:#ffd66b}
 .home-premium-head h2{margin:10px 0 8px;font-size:clamp(32px,3vw,46px);letter-spacing:-.045em}
-.home-premium-head p{margin:0;color:#bdd0e7;font-size:16px}
+.home-premium-head p{margin:0;color:#6f7f93;font-size:16px}
 .home-premium-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 .home-premium-actions .button{min-height:48px;padding-inline:20px}
-.home-premium-actions .button.glass{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff}
+.home-premium-actions .button.light{border:1px solid #1263e8;background:#1263e8;color:#fff;box-shadow:0 10px 24px rgba(18,99,232,.16)}
+.home-premium-actions .button.glass{border:1px solid #d8e2ee;background:#fff;color:#294765}
 .home-premium-points{display:flex;align-items:center;gap:9px;margin:0 0 22px;flex-wrap:wrap}
-.home-premium-points span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.07);color:#d7e7f6;font-size:12px;font-weight:750;backdrop-filter:blur(7px)}
+.home-premium-points span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #e0e8f1;border-radius:999px;background:#f8fafc;color:#52667f;font-size:12px;font-weight:750}
 .home-premium-points svg{width:14px;color:#6fe0c6}
-.home-premium-showcase .premium-rotator{border-color:rgba(174,211,255,.48);background:linear-gradient(135deg,rgba(245,249,255,.98),rgba(237,246,255,.97));box-shadow:0 28px 70px rgba(0,8,24,.34)}
+.home-premium-showcase .premium-rotator{border-color:#dfe7f0;background:#fff;box-shadow:0 16px 42px rgba(31,65,105,.08)}
 
 /* Home recruitment hub: compact search hands off to the full jobs portal. */
 .home-job-hub{margin-top:76px;padding:30px max(24px,calc((100vw - 1440px)/2)) 34px;background:linear-gradient(135deg,#f6f9ff,#eff6ff 62%,#edf9f6)}
