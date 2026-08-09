@@ -55,6 +55,21 @@ test('홈페이지 하단은 반복 메뉴 열 없이 브랜드·연락처·사�
   assert.doesNotMatch(footer, /footer-column/);
 });
 
+test('공개 화면에는 사전 검수나 확인 후 게시를 암시하는 문구가 없다', async () => {
+  const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  for (const phrase of [
+    '확인된 채용정보',
+    '등록된 기관 정보',
+    '등록 정보 확인',
+    '메디헬퍼스 상담 확인',
+    '담당자가 조건을 확인한 뒤 결제·게시',
+    '담당자가 기간과 조건을 다시 확인',
+    '담당자가 확인한 뒤 결제',
+  ]) assert.doesNotMatch(source, new RegExp(phrase));
+  assert.doesNotMatch(source, /검수/);
+  assert.match(source, /결제를 완료하면 바로 공개됩니다/);
+});
+
 test('유료 광고 상품 등급과 노출기간을 공개 공고 레코드에 동기화한다', async () => {
   const source = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   assert.match(source, /function adTierForProduct/);
