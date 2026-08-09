@@ -10,7 +10,7 @@
 
 const MISSING = '__none__';
 
-export const AD_TIER_ORDER = ['spotlight', 'featured', 'basic'];
+export const AD_TIER_ORDER = ['featured', 'basic'];
 
 export const defaultDeptKey = (item) => {
   const value = item && item.dept;
@@ -85,6 +85,7 @@ export function balancedOrder(items, options = {}) {
 
 const tierOf = (item) => {
   const tier = item && item.adTier;
+  if (tier === 'spotlight') return 'featured';
   return tier == null || tier === '' ? 'basic' : String(tier);
 };
 
@@ -94,7 +95,7 @@ const tierRank = (tier) => {
 };
 
 /**
- * 프리미엄(광고) 항목 정렬: 등급 우선순위(spotlight → featured → basic)를 지키면서
+ * 광고 항목 정렬: 등급 우선순위(featured → basic)를 지키면서
  * 각 등급 내부에서만 진료과·지역 균형을 맞춥니다.
  *
  * @param {Array} items 광고 항목 배열

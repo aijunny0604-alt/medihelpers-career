@@ -129,7 +129,7 @@ const demoData = {
     { id:'m2', role:'hospital', email:'hr@samplehospital.co.kr', fullName:'박지은', status:'active', verificationStatus:'pending', phone:'010-9876-5432', organization:'샘플메디컬센터', jobTitle:'채용팀장', consentCount:3, orderCount:2, lifetimeValue:409000, createdAt:'2026-07-15 11:20', lastLoginAt:'2026-07-17 14:15' },
   ],
   payments: [
-    { id:'o1', orderNumber:'MH-20260717-A1B2C3D4', accountId:'m2', accountRole:'hospital', productType:'doctor_ad', productName:'집중 채용', totalAmount:299000, supplyAmount:271818, taxAmount:27182, status:'awaiting_payment', paymentMethod:'card', customerName:'박지은', customerEmail:'hr@samplehospital.co.kr', customerPhone:'010-9876-5432', createdAt:'2026-07-17 14:30', adminNote:'' },
+    { id:'o1', orderNumber:'MH-20260717-A1B2C3D4', accountId:'m2', accountRole:'hospital', productType:'doctor_ad', productName:'메인 추천 공고', totalAmount:149000, supplyAmount:135455, taxAmount:13545, status:'awaiting_payment', paymentMethod:'card', customerName:'박지은', customerEmail:'hr@samplehospital.co.kr', customerPhone:'010-9876-5432', createdAt:'2026-07-17 14:30', adminNote:'' },
     { id:'o2', orderNumber:'MH-20260716-E5F6G7H8', accountId:'m2', accountRole:'hospital', productType:'talent_search', productName:'인재 열람권 (10명 팩)', totalAmount:29000, supplyAmount:26364, taxAmount:2636, status:'paid', paymentMethod:'card', customerName:'박지은', customerEmail:'hr@samplehospital.co.kr', customerPhone:'010-1234-5678', createdAt:'2026-07-16 10:05', paidAt:'2026-07-16 10:08', adminNote:'카드 승인 확인' },
   ],
   transactions: [

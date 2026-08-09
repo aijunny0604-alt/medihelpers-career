@@ -73,8 +73,9 @@ test('공개 화면에는 사전 검수나 확인 후 게시를 암시하는 문
 test('유료 광고 상품 등급과 노출기간을 공개 공고 레코드에 동기화한다', async () => {
   const source = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   assert.match(source, /function adTierForProduct/);
-  assert.match(source, /id === 'intensive'.*return 'spotlight'/);
+  assert.match(source, /id === 'intensive'.*return 'featured'/);
   assert.match(source, /id === 'featured'.*return 'featured'/);
+  assert.match(source, /product\.legacy.*현재 판매하지 않는 상품/);
   assert.match(source, /\$\.exposureEnd/);
   assert.match(source, /json_set\(/);
 });

@@ -82,6 +82,14 @@ test('자산이 없는 공고는 로고·배너 필드가 undefined 로 남는�
   assert.equal(job.brandFit, undefined);
 });
 
+test('기존 집중채용 등급은 공개 화면에서 메인 추천 등급으로 정규화된다', () => {
+  const [job] = operationalDoctorJobs([{
+    id: 'legacy-spotlight', contentType: 'doctor_job', title: '기존 유료 공고', subtitle: '기존 병원',
+    payload: { adTier: 'spotlight', department: '내과', region: '서울' }
+  }]);
+  assert.equal(job.adTier, 'featured');
+});
+
 test('paid recruitment ads and headhunting board content stay separated', () => {
   const paidJob = { id:'paid', contentType:'doctor_job', title:'Paid hospital ad', payload:{} };
   const headhuntDoctor = { id:'hd', contentType:'doctor_job', title:'Doctor headhunt', payload:{ publicationChannel: HEADHUNT_BOARD_CHANNEL } };

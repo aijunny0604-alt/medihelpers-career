@@ -7,7 +7,7 @@ import {
   countBy,
   countByDept
 } from './jobExposure.js';
-import { jobs as catalogJobs } from './data.js';
+import { adPlans, jobs as catalogJobs } from './data.js';
 
 // 한 진료과(내과)와 한 지역(서울)이 압도적으로 많은 30건 이상의 합성 공고.
 function buildSyntheticJobs() {
@@ -38,8 +38,14 @@ function countDistinctInWindow(list, key, size) {
   return seen.size;
 }
 
-test('AD_TIER_ORDER keeps paid precedence', () => {
-  assert.deepEqual(AD_TIER_ORDER, ['spotlight', 'featured', 'basic']);
+test('AD_TIER_ORDER exposes the simplified two-level catalog', () => {
+  assert.deepEqual(AD_TIER_ORDER, ['featured', 'basic']);
+});
+
+test('the public ad catalog has only basic and main featured plans', () => {
+  assert.deepEqual(adPlans.map((plan) => plan.id), ['basic', 'featured']);
+  assert.deepEqual(adPlans.map((plan) => plan.name), ['베이직 공고', '메인 추천 공고']);
+  assert.doesNotMatch(JSON.stringify(adPlans), /집중 채용|전담 컨설턴트|인재풀/);
 });
 
 test('balancedOrder returns the exact same multiset (no loss, no duplication)', () => {
@@ -93,7 +99,7 @@ test('smallest buckets preserve original registration order', () => {
   assert.deepEqual(os, ['os-busan', 'os-seoul']);
 });
 
-test('orderPremium preserves tier precedence while balancing inside each tier', () => {
+test('orderPremium treats legacy spotlight ads as featured while balancing each tier', () => {
   const ads = [
     { id: 'sp-im-seoul', dept: '내과', region: '서울', adTier: 'spotlight' },
     { id: 'sp-im-seoul2', dept: '내과', region: '서울', adTier: 'spotlight' },
@@ -104,15 +110,14 @@ test('orderPremium preserves tier precedence while balancing inside each tier', 
   ];
   const ordered = orderPremium(ads, { seed: 0 });
   const tiers = ordered.map((j) => j.adTier);
-  // 모든 spotlight → featured → basic 순서 유지.
-  const rank = { spotlight: 0, featured: 1, basic: 2 };
+  // 기존 spotlight와 현재 featured는 같은 추천 등급이며 basic보다 먼저 노출된다.
+  const rank = { spotlight: 0, featured: 0, basic: 1 };
   for (let i = 1; i < tiers.length; i += 1) {
     assert.ok(rank[tiers[i]] >= rank[tiers[i - 1]], `tier precedence broken at ${i}`);
   }
-  // spotlight 3개 중 앞 두 칸에 두 진료과가 등장(등급 내부 균형).
-  const spotlight = ordered.filter((j) => j.adTier === 'spotlight');
-  assert.equal(spotlight.length, 3);
-  assert.notEqual(spotlight[0].dept, spotlight[1].dept);
+  const promoted = ordered.filter((j) => j.adTier === 'spotlight' || j.adTier === 'featured');
+  assert.equal(promoted.length, 5);
+  assert.notEqual(promoted[0].dept, promoted[1].dept);
 });
 
 test('countBy / countByDept aggregate specialty counts in first-appearance order', () => {
@@ -154,14 +159,11 @@ test('handles missing dept/region without throwing or losing items', () => {
 });
 
 test('current premium catalog has enough clearly marked examples for multi-page rotation', () => {
-  const spotlight = catalogJobs.filter((job) => job.adTier === 'spotlight');
   const featured = catalogJobs.filter((job) => job.adTier === 'featured');
   const demos = catalogJobs.filter((job) => job.isDemo);
 
-  assert.equal(spotlight.length, 4);
-  assert.equal(featured.length, 4);
+  assert.equal(featured.length, 8);
   assert.equal(demos.length, 6);
-  assert.ok(spotlight.length / 2 >= 2, 'spotlight needs at least two desktop carousel pages');
   assert.ok(featured.length / 2 >= 2, 'featured needs at least two desktop carousel pages');
 
   const firstSeed = orderPremium(catalogJobs.filter((job) => job.adTier), { seed: 0 });

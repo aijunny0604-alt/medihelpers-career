@@ -510,7 +510,7 @@ function HospitalLogo({ job, prominent = false, source, fit }) {
   </span>;
 }
 
-const adPriority = { spotlight: 0, featured: 1, basic: 2 };
+const adPriority = { spotlight: 0, featured: 0, basic: 1 };
 const prioritizeJobs = (items) => [...items].sort((a, b) => (adPriority[a.adTier] ?? 3) - (adPriority[b.adTier] ?? 3));
 
 function useServerSyncedSavedItems(kind = 'job') {
@@ -552,12 +552,12 @@ function useServerSyncedSavedItems(kind = 'job') {
 }
 
 const advertisementPreviewJob = {
-  id: 'advertisement-design-preview', hospital: '블루케어 메디컬센터', title: '전문의 의료진 집중채용',
+  id: 'advertisement-design-preview', hospital: '블루케어 메디컬센터', title: '전문의 의료진 추천공고',
   location: '서울 · 경기권', schedule: '주 4.5~5일', dept: '전문의', pay: '상담 후 협의',
-  badge: '집중채용', adTier: 'spotlight', color: '#1263e8', brandAsset: 'bluecare',
+  badge: '추천공고', adTier: 'featured', color: '#1263e8', brandAsset: 'bluecare',
   updated: '디자인 예시', facilityType: '가상 의료기관', focus: '광고 디자인 미리보기', scale: '디자인 예시',
-  access: '실제 공고가 아닙니다.', summary: '병원 로고가 등록된 집중채용 광고의 노출 예시입니다.',
-  benefits: ['대형 로고 노출', '최상단 우선 노출', '전담 컨설턴트']
+  access: '실제 공고가 아닙니다.', summary: '병원 로고가 등록된 메인 추천 공고의 노출 예시입니다.',
+  benefits: ['브랜드 이미지 강조', '메인 우선 노출', '목록 상단 강조']
 };
 
 function JobCard({
@@ -618,7 +618,7 @@ function JobCard({
         onClick={onOpen}
         aria-label={
           preview
-            ? "집중채용 광고 디자인 예시 신청하기"
+            ? "메인 추천 공고 디자인 예시 신청하기"
             : `${job.hospital} ${job.title} 상세보기`
         }
       />
@@ -1385,10 +1385,10 @@ function HomePage({ liveJobs = jobs }) {
     {promotedJobs.length > 0 && <section className="section home-premium-showcase" id="premium-recruitment">
       <div className="home-premium-inner">
         <div className="home-premium-head">
-          <div><span><Crown /> PREMIUM RECRUITMENT</span><h2>지금 주목할 집중채용</h2><p>메디헬퍼스가 메인에서 먼저 소개하는 병원 채용광고입니다.</p></div>
+          <div><span><Crown /> PREMIUM RECRUITMENT</span><h2>지금 주목할 추천공고</h2><p>메디헬퍼스가 메인에서 먼저 소개하는 병원 채용광고입니다.</p></div>
           <div className="home-premium-actions"><Link className="button light" to="/jobs">전체 병원채용 보기 <ArrowRight /></Link><Link className="button glass" to="/advertise">병원 광고 안내</Link></div>
         </div>
-        <div className="home-premium-points" aria-label="집중채용 광고 특징"><span><TrendingUp /> 메인 우선 노출</span><span><Sparkles /> 핵심 조건 빠른 비교</span></div>
+        <div className="home-premium-points" aria-label="추천공고 광고 특징"><span><TrendingUp /> 메인 우선 노출</span><span><Sparkles /> 핵심 조건 빠른 비교</span></div>
         <PremiumAdCarousel items={promotedJobs} renderCard={(job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />} />
       </div>
     </section>}
@@ -1664,7 +1664,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 플래티넘 초빙정보</strong><small>한 화면에서 더 많은 집중채용 공고와 핵심 조건을 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button spotlight" onClick={() => requestAdPlan(adPlans[2])}>{canRegisterAds ? '플래티넘 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button></div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 추천 초빙정보</strong><small>메인 추천 공고와 핵심 조건을 한 화면에서 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 추천 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button></div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button></div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> HEADHUNTING</span><h3>{saved.length ? `찜한 ${saved.length}개 공고, 조건을 헤드헌터와 정리해보세요` : '원하는 조건을 헤드헌터에게 바로 상담하세요'}</h3><p>근무·보수·거리·진료 범위 등 중요하게 보는 조건을 전문 헤드헌터가 함께 맞춰드립니다.</p></div><Link className="button dark" to="/headhunting" onClick={() => trackConversion('jobs_headhunting_nudge', { savedCount: saved.length })}>헤드헌터에게 상담하기 <ArrowRight /></Link></div>
@@ -3433,7 +3433,7 @@ function AdvertisePage({ qa }) {
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
   };
   return <>
-    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 광고 상품(베이직·추천·집중) 결제로 게시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a><Link className="button glass" to="/headhunting?role=hospital">헤드헌터 채용 상담</Link></PageHero>
+    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 기본 공고 또는 메인 추천 공고로 게시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a><Link className="button glass" to="/headhunting?role=hospital">헤드헌터 채용 상담</Link></PageHero>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button disabled={authLoading} className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{authLoading ? '회원 상태 확인 중…' : canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시·성과 확인','공고 공개 후 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>광고 운영 안내</strong><br />공고 내용과 이미지 사용 권한에 대한 책임은 등록 병원에 있습니다. 의료법·채용 관련 법령이나 운영정책을 위반한 공고는 게시 후 숨김 또는 삭제될 수 있습니다.</p></div></section>
   </>;

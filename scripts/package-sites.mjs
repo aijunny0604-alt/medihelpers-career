@@ -1511,8 +1511,9 @@ async function talentDetailApi(request, env, pathname) {
 }
 const paymentProductCatalog = {
   basic:{ type:'doctor_ad', name:'베이직 공고', amount:59000, exposureDays:30 },
-  featured:{ type:'doctor_ad', name:'추천 공고', amount:149000, exposureDays:30 },
-  intensive:{ type:'doctor_ad', name:'집중 채용', amount:299000, exposureDays:45 },
+  featured:{ type:'doctor_ad', name:'메인 추천 공고', amount:149000, exposureDays:30 },
+  // 기존 결제·환불·공고 복구 호환용. 신규 신청은 paymentOrderApi에서 차단한다.
+  intensive:{ type:'doctor_ad', name:'집중 채용', amount:299000, exposureDays:45, legacy:true },
   // 의사 대상 유료 멤버십(커리어 체크·컨시어지)은 폐지됐다.
   // 유료 상품은 (1) 병원 채용광고, (2) 병원이 의사 이력서를 볼 때 구매하는 열람권 두 가지뿐이다.
   // 병원용 인재 이력서 열람권. 결제 시 talent_unlocks에 권한 기록 → 연락처·상세 공개.
@@ -1539,8 +1540,8 @@ function cleanOrderValue(value, max = 180) {
 function adTierForProduct(productId, productName) {
   const id = String(productId || '');
   const name = String(productName || '');
-  if (id === 'intensive' || name === '집중 채용') return 'spotlight';
-  if (id === 'featured' || name === '추천 공고') return 'featured';
+  if (id === 'intensive' || name === '집중 채용') return 'featured';
+  if (id === 'featured' || name === '추천 공고' || name === '메인 추천 공고') return 'featured';
   return '';
 }
 function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail, createdAt }) {
@@ -1679,6 +1680,7 @@ async function paymentOrderApi(request, env) {
   const productId = String(body.productId || '');
   const product = Object.hasOwn(paymentProductCatalog, productId) ? paymentProductCatalog[productId] : null;
   if (!product || typeof product.amount !== 'number') return json({ error:'신청 상품을 확인해주세요.' }, 400);
+  if (product.legacy) return json({ error:'현재 판매하지 않는 상품입니다. 메인 추천 공고를 선택해주세요.' }, 400);
   if (product.type === 'doctor_ad' && account.role !== 'hospital') return json({ error:'병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
   // [정책] 인재 열람권은 병원 회원만 구매한다(의사가 결제해도 열람 권한은 병원에만 부여되므로 애초에 막는다).
   if (product.type === 'talent_search' && account.role !== 'hospital') return json({ error:'인재 열람권은 병원 회원만 구매할 수 있습니다.' }, 403);

@@ -20,8 +20,7 @@ const jsonRes = (body, status = 200) => new Response(JSON.stringify(body), { sta
 // 서버 카탈로그와 동일(가격·타입). 열람권만 있으면 되므로 필요한 것만.
 const CATALOG = {
   basic: { type: 'doctor_ad', name: '베이직 공고', amount: 59000 },
-  featured: { type: 'doctor_ad', name: '추천 공고', amount: 149000 },
-  intensive: { type: 'doctor_ad', name: '집중 채용', amount: 299000 },
+  featured: { type: 'doctor_ad', name: '메인 추천 공고', amount: 149000 },
   // 의사 멤버십은 폐지됨. 유료 상품은 병원 광고 + 병원 인재 열람권뿐.
   'talent-unlock-single': { type: 'talent_search', name: '인재 열람권 (1명)', amount: 3900, unlockDays: 30, unlockCount: 1 },
   'talent-unlock-pack': { type: 'talent_search', name: '인재 열람권 (10명 팩)', amount: 29000, unlockDays: 30, unlockCount: 10 },

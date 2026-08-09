@@ -35,7 +35,7 @@ export function getHospitalMood(job = {}) {
   return { ...mood, primary: job.brandColor };
 }
 
-// 광고(집중채용) 공고 카드는 같은 상품이므로 병원별로 색을 다르게 하지 않고 사이트 블루로 통일한다.
+// 메인 추천 광고 카드는 같은 상품이므로 병원별로 색을 다르게 하지 않고 사이트 블루로 통일한다.
 // 프리미엄 표식은 카드 상단의 얇은 골드 라인 하나로만 준다(과한 금색 사용을 피함).
 // (병원 로고 색상 등 다른 용도는 getHospitalMood를 그대로 사용해 병원별 개성을 유지)
 export const AD_MOOD = { id: 'brand', primary: '#1263e8', accent: '#67a0ed', surface: '#f2f7ff', deep: '#123f7a' };

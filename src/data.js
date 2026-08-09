@@ -2,10 +2,10 @@ export const jobs = [
   {
     id: 'samcheonpo-specialists', hospital: '삼천포제일병원', title: '각 과 전문의 의료진 초빙',
     location: '경남 사천시', region: '경남', type: '정규직', dept: '전문의', pay: '협의 후 결정',
-    badge: '집중채용', adTier: 'spotlight', color: '#2367e8', logo: '/samcheonpo-jeil-horizontal-logo-v2.png', cardBanner: '/banners/recruit-general-v1.jpg', brandFit: 'banner', logoDesignSample: true, logoText: '삼제', schedule: '주 5일', updated: '오늘', deadline: '2026.08.31', recruitmentReason: '진료과 확충', workHours: '평일 08:30~18:00 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
+    badge: '추천공고', adTier: 'featured', color: '#2367e8', logo: '/samcheonpo-jeil-horizontal-logo-v2.png', cardBanner: '/banners/recruit-general-v1.jpg', brandFit: 'banner', logoDesignSample: true, logoText: '삼제', schedule: '주 5일', updated: '오늘', deadline: '2026.08.31', recruitmentReason: '진료과 확충', workHours: '평일 08:30~18:00 · 토요일 협의', daysOff: '일요일·공휴일 휴무',
     facilityType: '종합병원', focus: '지역 거점 진료·전문의 진료', scale: '병원급 의료기관', access: '주차·숙소 조건 협의 가능',
-    summary: '지역 거점 종합병원에서 진료과별 전문의를 모십니다. 진료 여건과 근무 일정은 전문 컨설턴트가 개별 조율합니다.',
-    benefits: ['기숙사 협의', '학회 지원', '전담 컨설턴트 협상']
+    summary: '지역 거점 종합병원에서 진료과별 전문의를 모십니다. 진료 여건과 근무 일정은 병원 채용담당자와 직접 협의합니다.',
+    benefits: ['기숙사 협의', '학회 지원', '병원 담당자 직접 문의']
   },
   {
     id: 'cheongju-orthopedic', hospital: '청주첨단한방병원', title: '정형외과·통증의학과 원장님',
@@ -64,9 +64,9 @@ export const jobs = [
     benefits: ['주 4일', '요일 선택', '성과급 협의']
   },
   {
-    id: 'demo-haeundae-spine', hospital: '해운대바른척추병원', title: '정형외과 전문의 집중 초빙',
+    id: 'demo-haeundae-spine', hospital: '해운대바른척추병원', title: '정형외과 전문의 추천 초빙',
     location: '부산 해운대구', region: '부산', type: '정규직', dept: '정형외과', pay: '월 1,500만원~',
-    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#1769d4', cardBanner: '/banners/recruit-spine-v1.jpg', logoText: '해바', schedule: '주 4.5일', updated: '가상 예시', deadline: '2026.08.30', recruitmentReason: '척추센터 확장', workHours: '평일 08:30~18:00 · 토 격주', daysOff: '일요일·공휴일 휴무',
+    badge: '추천공고', adTier: 'featured', isDemo: true, color: '#1769d4', cardBanner: '/banners/recruit-spine-v1.jpg', logoText: '해바', schedule: '주 4.5일', updated: '가상 예시', deadline: '2026.08.30', recruitmentReason: '척추센터 확장', workHours: '평일 08:30~18:00 · 토 격주', daysOff: '일요일·공휴일 휴무',
     facilityType: '병원', focus: '척추·관절 외래 진료', scale: '전문병원 예시', access: '해운대 생활권·주차 지원',
     // ⚠️ 병원 식별정보(사업자번호·대표명·전체주소·설비 등)는 정적 데이터에 넣지 않는다.
     // 이 값들은 인증·권한 검증이 붙은 서버 상세 API(GET /api/jobs/:id)를 통해서만 내려야 한다.
@@ -78,23 +78,23 @@ export const jobs = [
       'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&w=900&q=82',
       'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=900&q=82'
     ],
-    summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 집중채용 공고입니다.',
-    benefits: ['주 4.5일', '학회 지원', '전담 채용 매니저']
+    summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 추천공고입니다.',
+    benefits: ['주 4.5일', '학회 지원', '병원 담당자 직접 문의']
   },
   {
-    id: 'demo-songdo-checkup', hospital: '송도프라임검진센터', title: '검진 내과 전문의 집중채용',
+    id: 'demo-songdo-checkup', hospital: '송도프라임검진센터', title: '검진 내과 전문의 추천공고',
     location: '인천 연수구', region: '인천', type: '정규직', dept: '내과', pay: '월 1,350만원~',
-    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#087fa6', cardBanner: '/banners/recruit-checkup-v1.jpg', logoText: '송프', schedule: '주 5일', updated: '가상 예시', deadline: '2026.09.05', recruitmentReason: '검진 수요 증가', workHours: '평일 07:30~16:30', daysOff: '주말·공휴일 휴무',
+    badge: '추천공고', adTier: 'featured', isDemo: true, color: '#087fa6', cardBanner: '/banners/recruit-checkup-v1.jpg', logoText: '송프', schedule: '주 5일', updated: '가상 예시', deadline: '2026.09.05', recruitmentReason: '검진 수요 증가', workHours: '평일 07:30~16:30', daysOff: '주말·공휴일 휴무',
     facilityType: '검진센터', focus: '건강검진·결과 상담', scale: '예약제 센터 예시', access: '송도 생활권·대중교통',
-    summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 집중채용 공고입니다.',
+    summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 추천공고입니다.',
     benefits: ['야간 진료 없음', '예약제', '검진 인센티브']
   },
   {
-    id: 'demo-seoul-women', hospital: '서울온여성의원', title: '여성검진 진료원장 집중채용',
+    id: 'demo-seoul-women', hospital: '서울온여성의원', title: '여성검진 진료원장 추천공고',
     location: '서울 서초구', region: '서울', type: '주 4일', dept: '가정의학과', pay: '월 1,250만원~',
-    badge: '집중채용', adTier: 'spotlight', isDemo: true, color: '#bd4a82', cardBanner: '/banners/recruit-women-v1.jpg', logoText: '서울', schedule: '주 4일', updated: '가상 예시', deadline: '2026.08.27', recruitmentReason: '여성검진 확대', workHours: '주 4일 · 예약진료', daysOff: '근무요일 외 휴무',
+    badge: '추천공고', adTier: 'featured', isDemo: true, color: '#bd4a82', cardBanner: '/banners/recruit-women-v1.jpg', logoText: '서울', schedule: '주 4일', updated: '가상 예시', deadline: '2026.08.27', recruitmentReason: '여성검진 확대', workHours: '주 4일 · 예약진료', daysOff: '근무요일 외 휴무',
     facilityType: '의원', focus: '여성검진·외래 상담', scale: '전문 클리닉 예시', access: '서울 서초 생활권',
-    summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 집중채용 공고입니다.',
+    summary: '자동 순환과 광고 노출 균형을 확인하기 위한 가상 추천공고입니다.',
     benefits: ['주 4일', '예약 진료', '근무요일 협의']
   },
   {
@@ -149,14 +149,9 @@ export const adPlans = [
     features: ['채용정보 목록 30일 노출', '진료과·지역 검색 노출', '결제 완료 즉시 게시', '지원·상담 연결']
   },
   {
-    id: 'featured', name: '추천 공고', price: 149000, unit: '30일', label: '가장 먼저 검토할 상품', featured: true,
-    description: '추천 영역과 강조 카드로 더 많은 의사에게 먼저 도달합니다.',
-    features: ['베이직 공고의 모든 기능', '병원 브랜드 이미지 강조 노출', '홈 추천 채용 우선 노출', '목록 강조 디자인', '주간 성과 요약', '1회 공고 수정 지원']
-  },
-  {
-    id: 'intensive', name: '집중 채용', price: 299000, unit: '45일', label: '빠른 채용이 필요할 때',
-    description: '광고와 전담 컨설턴트의 후보 발굴을 함께 운영합니다.',
-    features: ['추천 공고의 모든 기능', '대형 병원 브랜드 영역', '최상단 집중채용 영역', '45일 확장 노출', '전담 컨설턴트 배정', '익명 인재풀 우선 추천']
+    id: 'featured', name: '메인 추천 공고', price: 149000, unit: '30일', label: '더 많은 노출이 필요할 때', featured: true,
+    description: '기본 공고에 메인 우선 노출과 브랜드 강조를 더합니다.',
+    features: ['기본 공고의 모든 기능', '병원 브랜드 이미지 강조 노출', '메인 추천 채용 우선 노출', '채용정보 목록 상단 강조', '주간 성과 요약', '1회 공고 수정 지원']
   }
 ];
 
