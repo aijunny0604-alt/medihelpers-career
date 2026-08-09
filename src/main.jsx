@@ -1340,6 +1340,11 @@ function HomePage({ liveJobs = jobs }) {
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
   const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
+  const promotedJobs = useMemo(() => prioritizeJobs(liveJobs.filter((job) => job.adTier)), [liveJobs]);
+  const latestStandardJobs = useMemo(() => {
+    const standardJobs = liveJobs.filter((job) => !job.adTier);
+    return (standardJobs.length ? standardJobs : liveJobs).slice(0, 4);
+  }, [liveJobs]);
   const toggleSaved = (id) => setSaved((current) => {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
     writeStoredValue('medihelpers_saved_jobs', next);
@@ -1367,9 +1372,19 @@ function HomePage({ liveJobs = jobs }) {
         </div>
       </div>
     </section>
+    {promotedJobs.length > 0 && <section className="section home-premium-showcase" id="premium-recruitment">
+      <div className="home-premium-inner">
+        <div className="home-premium-head">
+          <div><span><Crown /> PREMIUM RECRUITMENT</span><h2>지금 주목할 집중채용</h2><p>메디헬퍼스가 메인에서 먼저 소개하는 병원 채용광고입니다.</p></div>
+          <div className="home-premium-actions"><Link className="button light" to="/jobs">전체 병원채용 보기 <ArrowRight /></Link><Link className="button glass" to="/advertise">병원 광고 안내</Link></div>
+        </div>
+        <div className="home-premium-points" aria-label="집중채용 광고 특징"><span><BadgeCheck /> 검수된 채용정보</span><span><TrendingUp /> 메인 우선 노출</span><span><Sparkles /> 핵심 조건 빠른 비교</span></div>
+        <PremiumAdCarousel items={promotedJobs} renderCard={(job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />} />
+      </div>
+    </section>}
     <section className="home-job-hub">
       <div className="home-job-hub-inner">
-        <div className="home-job-hub-head"><div><span className="section-kicker">DOCTOR RECRUITMENT</span><h1>의사 초빙정보</h1></div><p>진료과와 지역, 근무형태를 선택하면 원하는 공고를 바로 확인할 수 있습니다.</p></div>
+        <div className="home-job-hub-head"><div><span className="section-kicker">QUICK JOB FINDER</span><h2>조건으로 빠르게 찾기</h2></div><p>전체 공고 탐색과 상세 비교는 병원채용 페이지에서 이어집니다.</p></div>
         <div className="hero-search-card" role="search" aria-label="의사 초빙정보 검색">
           <div className="hero-search-title"><span><Search /></span><div><strong>의사 초빙정보 바로 찾기</strong><small>초빙유형·진료과·지역을 선택하세요</small></div><em className="hero-search-badge">의사 전용</em></div>
           <div className="hero-search-fields">
@@ -1382,7 +1397,7 @@ function HomePage({ liveJobs = jobs }) {
         </div>
       </div>
     </section>
-    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">LATEST DOCTOR POSITIONS</span><h2>진행 중인 의사 초빙공고</h2><p>병원과 근무조건을 같은 기준으로 비교하고 상세 공고를 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 초빙정보 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{prioritizeJobs(liveJobs).slice(0, 8).map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div></section>
+    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">NEW DOCTOR POSITIONS</span><h2>새로 등록된 채용공고</h2><p>최신 일반 공고만 간결하게 확인하고, 전체 목록에서는 더 자세히 검색·비교할 수 있습니다.</p></div><Link className="button outline" to="/jobs">전체 병원채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{latestStandardJobs.map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div><div className="home-job-feed-more"><Link className="button primary" to="/jobs">모든 채용공고 검색하기 <Search size={17} /></Link></div></section>
   </>;
 }
 

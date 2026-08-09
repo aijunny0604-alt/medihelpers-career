@@ -18,6 +18,10 @@ test('Sites uses the existing R2 binding as an upload fallback', () => {
 
 test('premium cards use the expanded responsive grid rotation component', () => {
   assert.match(mainSource, /<PremiumAdCarousel items=\{orderedPromoted\} renderCard=\{renderPortalCard\}/);
+  assert.match(mainSource, /<PremiumAdCarousel items=\{promotedJobs\}/);
+  assert.match(mainSource, /const latestStandardJobs = useMemo/);
+  assert.match(mainSource, /지금 주목할 집중채용/);
+  assert.match(mainSource, /새로 등록된 채용공고/);
   assert.match(mainSource, /PREMIUM_GRID_SLOTS = \{ mobile: 2, tablet: 4, desktop: 6 \}/);
 });
 
