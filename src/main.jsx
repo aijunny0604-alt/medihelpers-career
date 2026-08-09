@@ -28,6 +28,7 @@ import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment } from './inicisPay.js';
 import {
   appendStoredRecord,
+  loadSavedFromServer,
   readStoredArray,
   readStoredString,
   syncSavedToServer,
@@ -515,6 +516,44 @@ function HospitalLogo({ job, prominent = false, source, fit }) {
 const adPriority = { spotlight: 0, featured: 1, basic: 2 };
 const prioritizeJobs = (items) => [...items].sort((a, b) => (adPriority[a.adTier] ?? 3) - (adPriority[b.adTier] ?? 3));
 
+function useServerSyncedSavedItems(kind = 'job') {
+  const storageKey = kind === 'talent' ? 'medihelpers_saved_talent' : 'medihelpers_saved_jobs';
+  const [saved, setSaved] = useState(() => readStoredArray(storageKey).map(String));
+  const interacted = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    loadSavedFromServer(kind).then((result) => {
+      if (!active || interacted.current || !result.ok || !result.signedIn) return;
+      writeStoredValue(storageKey, result.saved);
+      setSaved(result.saved);
+    });
+    return () => { active = false; };
+  }, [kind, storageKey]);
+
+  const toggleSaved = useCallback((id) => {
+    const itemId = String(id);
+    interacted.current = true;
+    setSaved((current) => {
+      const next = current.includes(itemId) ? current.filter((item) => item !== itemId) : [...current, itemId];
+      writeStoredValue(storageKey, next);
+      return next;
+    });
+    syncSavedToServer(itemId, kind).then((result) => {
+      if (!result.ok || result.localOnly || typeof result.saved !== 'boolean') return;
+      setSaved((current) => {
+        const next = result.saved
+          ? [...new Set([...current, itemId])]
+          : current.filter((item) => item !== itemId);
+        writeStoredValue(storageKey, next);
+        return next;
+      });
+    });
+  }, [kind, storageKey]);
+
+  return [saved, toggleSaved];
+}
+
 const advertisementPreviewJob = {
   id: 'advertisement-design-preview', hospital: '블루케어 메디컬센터', title: '전문의 의료진 집중채용',
   location: '서울 · 경기권', schedule: '주 4.5~5일', dept: '전문의', pay: '상담 후 협의',
@@ -598,15 +637,6 @@ function JobCard({
           >
             {job.badge}
           </span>
-          {isAd && (
-            <span
-              className={
-                job.isDemo ? "sponsored-label demo-label" : "sponsored-label"
-              }
-            >
-              {job.isDemo ? "DEMO · 가상 공고" : "AD · 병원 브랜드 광고"}
-            </span>
-          )}
         </div>
         {preview ? (
           <span className="preview-card-label">SAMPLE</span>
@@ -641,11 +671,6 @@ function JobCard({
               />
               <div className="ad-hospital-caption">
                 <strong>{job.hospital}</strong>
-                <small>
-                  {job.logoDesignSample
-                    ? "광고 디자인 예시 · 공식 로고 아님"
-                    : "병원 브랜드 채용관"}
-                </small>
               </div>
             </>
           ) : (
@@ -906,7 +931,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                 >
                   {job.badge}
                 </span>
-                {isAd && <span>AD · 병원 브랜드 채용관</span>}
                 {qaUnlocked && (
                   <span className="qa-unlocked-badge">
                     <ShieldCheck /> QA 잠금 해제
@@ -1204,14 +1228,9 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
 }
 
 function JobDetailRoute({ job, qa }) {
-  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs').includes(job.id));
-  const toggleSaved = () => {
-    const current = readStoredArray('medihelpers_saved_jobs');
-    const next = current.includes(job.id) ? current.filter((id) => id !== job.id) : [...current, job.id];
-    writeStoredValue('medihelpers_saved_jobs', next);
-    syncSavedToServer(job.id, 'job');
-    setSaved(next.includes(job.id));
-  };
+  const [savedItems, toggleSavedItem] = useServerSyncedSavedItems('job');
+  const saved = savedItems.includes(String(job.id));
+  const toggleSaved = () => toggleSavedItem(job.id);
   return <JobDetail job={job} qa={qa} page saved={saved} onSave={toggleSaved} onClose={() => navigate('/jobs')} />;
 }
 
@@ -1339,18 +1358,12 @@ function HomePage({ liveJobs = jobs }) {
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
-  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
+  const [saved, toggleSaved] = useServerSyncedSavedItems('job');
   const promotedJobs = useMemo(() => prioritizeJobs(liveJobs.filter((job) => job.adTier)), [liveJobs]);
   const latestStandardJobs = useMemo(() => {
     const standardJobs = liveJobs.filter((job) => !job.adTier);
     return (standardJobs.length ? standardJobs : liveJobs).slice(0, 4);
   }, [liveJobs]);
-  const toggleSaved = (id) => setSaved((current) => {
-    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-    writeStoredValue('medihelpers_saved_jobs', next);
-    syncSavedToServer(id, 'job');
-    return next;
-  });
   const openJobPage = (job) => {
     trackConversion('job_detail_open', { jobId: job.id, source: 'home' });
     navigate(`/jobs/${encodeURIComponent(job.id)}`);
@@ -1569,7 +1582,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const [region, setRegion] = useState(params.get('region') || '전국');
   const [condition, setCondition] = useState(params.get('condition') || '전체 조건');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
-  const [saved, setSaved] = useState(() => readStoredArray('medihelpers_saved_jobs'));
+  const [saved, toggleSaved] = useServerSyncedSavedItems('job');
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
@@ -1609,12 +1622,6 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
     setStandardVisible(STANDARD_STEP);
   }, [dept, region, keyword, recruitmentType, condition]);
 
-  const toggleSaved = (id) => setSaved((current) => {
-    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-    writeStoredValue('medihelpers_saved_jobs', next);
-    syncSavedToServer(id, 'job');
-    return next;
-  });
   const resetFilters = () => {
     setRecruitmentType('전체 초빙');
     setDept('전체 진료과');

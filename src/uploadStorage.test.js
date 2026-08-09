@@ -22,6 +22,12 @@ test('premium cards use the expanded responsive grid rotation component', () => 
   assert.match(mainSource, /const latestStandardJobs = useMemo/);
   assert.match(mainSource, /지금 주목할 집중채용/);
   assert.match(mainSource, /새로 등록된 채용공고/);
+  assert.match(mainSource, /function useServerSyncedSavedItems/);
+  assert.match(mainSource, /loadSavedFromServer\(kind\)/);
+  assert.doesNotMatch(mainSource, /AD · 병원 브랜드 광고/);
+  assert.doesNotMatch(mainSource, /AD · 병원 브랜드 채용관/);
+  assert.doesNotMatch(mainSource, /DEMO · 가상 공고/);
+  assert.doesNotMatch(mainSource, /광고 디자인 예시 · 공식 로고 아님/);
   assert.match(mainSource, /PREMIUM_GRID_SLOTS = \{ mobile: 2, tablet: 4, desktop: 6 \}/);
 });
 

@@ -98,7 +98,14 @@ export async function syncSavedToServer(jobId, kind = 'job') {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ jobId, kind }),
     });
-    if (response.ok) return { ok: true };
+    if (response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      return {
+        ok: true,
+        localOnly: payload.signedIn === false,
+        saved: typeof payload.saved === 'boolean' ? payload.saved : undefined,
+      };
+    }
     // 로그인하지 않은 사용자는 서버 저장 대상이 아니다(로컬 저장만으로 정상 동작).
     if (response.status === 401) return { ok: true, localOnly: true };
     const message = '관심공고를 서버에 저장하지 못했습니다. 다른 기기에서는 보이지 않을 수 있습니다.';
@@ -108,5 +115,25 @@ export async function syncSavedToServer(jobId, kind = 'job') {
     const message = '네트워크 연결이 불안정해 이 기기에만 저장했습니다.';
     notify(message);
     return { ok: false, message };
+  }
+}
+
+// 로그인 회원의 관심 목록은 D1을 기준으로 불러온다. 비로그인 사용자는 기존 브라우저 저장값을 유지한다.
+export async function loadSavedFromServer(kind = 'job') {
+  try {
+    const query = kind === 'talent' ? '?kind=talent' : '?kind=job';
+    const response = await fetch(`/api/saved-jobs${query}`, {
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+    });
+    if (!response.ok) return { ok: false, signedIn: false, saved: [] };
+    const payload = await response.json().catch(() => ({}));
+    return {
+      ok: true,
+      signedIn: payload.signedIn === true,
+      saved: Array.isArray(payload.saved) ? payload.saved.map(String).filter(Boolean) : [],
+    };
+  } catch {
+    return { ok: false, signedIn: false, saved: [] };
   }
 }
