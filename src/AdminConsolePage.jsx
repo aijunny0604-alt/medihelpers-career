@@ -162,7 +162,7 @@ const featureLabels = {
   resumeRegistration: ['이력서 등록', '의료인 회원 이력서 작성 및 관리'],
   medicalStaffHub: ['의료인 채용 허브', '간호·보건 직군 확장 영역'],
   paidCareerService: ['프리미엄 커리어 서비스', '유료 조건 비교·계약 분석'],
-  adRegistration: ['병원 광고 등록', '공고 상품 신청과 검수'],
+  adRegistration: ['병원 광고 등록', '결제 완료 즉시 게시'],
 };
 
 const go = (path) => {
@@ -390,7 +390,7 @@ const consultationStatus = { new:'신규 접수', contacted:'연락 완료', in_
 const recoveryStatus = { new:'신규 접수', contacted:'본인 확인 중', resolved:'처리 완료', closed:'종료' };
 const caseStatus = { new_request:'신규 의뢰', condition_review:'조건 확인', candidate_search:'후보 탐색', candidate_consent:'후보 동의', hospital_submitted:'병원 제안', interview:'면접 예정', negotiation:'조건 협상', hired:'입사 확정', closed:'종료' };
 const contentStatus = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감' };
-const paymentStatus = { pending_review:'검토 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패', cancelled:'취소', partially_refunded:'부분 환불', refunded:'환불 완료' };
+const paymentStatus = { pending_review:'결제 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패', cancelled:'취소', partially_refunded:'부분 환불', refunded:'환불 완료' };
 
 function OperationsMonitor({ data, select }) {
   const [kind, setKind] = useState('all');
@@ -540,14 +540,6 @@ function ContentManager({ data, setData, mutate, qa }) {
     const saved = await mutate(isUpdate ? 'content_update' : 'content_create', record, isUpdate ? '콘텐츠를 수정했습니다.' : '새 콘텐츠를 등록했습니다.');
     if (qa || saved) setEditing(null);
   };
-  // 병원이 등록한 검수 대기(draft) 공고 승인(published)/반려(hidden).
-  const resolveJob = async (item, nextStatus, msg) => {
-    const record = { ...item, id:item.id, contentType:item.contentType, title:item.title, subtitle:item.subtitle || '', status:nextStatus, visibility:item.visibility || 'public', payload:item.payload || {}, pinned:Number(item.sortOrder||0)>=100 };
-    if (qa) setData((old) => ({ ...old, contents:(old.contents || []).map((c) => c.id === item.id ? { ...c, status:nextStatus } : c) }));
-    await mutate('content_update', record, msg);
-  };
-  const approveJob = (item) => resolveJob(item, 'published', '공고를 승인·게시했습니다.');
-  const rejectJob = (item) => resolveJob(item, 'hidden', '공고를 반려(숨김)했습니다.');
   const remove = async (item) => {
     if (item.source === 'catalog') return;
     if (!window.confirm(`‘${item.title}’ 항목을 삭제할까요? 삭제 후에는 목록에서 복구할 수 없습니다.`)) return;
@@ -585,7 +577,7 @@ function ContentManager({ data, setData, mutate, qa }) {
     </div>}
     <div className="admin-content-table">
       <div className="head"><span>유형</span><span>제목·기관</span><span>공개 범위</span><span>상태</span><span>최근 수정</span><span>관리</span></div>
-      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{Number(item.sortOrder || 0) >= 100 && <span className="content-pin-badge">📌 상단고정</span>}{item.title || '(제목 없음)'}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{item.status === 'draft' && item.payload?.fromHospital ? '🔎 검수 대기' : {draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions">{item.status === 'draft' && item.payload?.fromHospital && <><button className="content-approve" onClick={(event) => { event.stopPropagation(); approveJob(item); }}><Check />승인</button><button className="content-reject" onClick={(event) => { event.stopPropagation(); rejectJob(item); }}>반려</button></>}<button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button>{item.source !== 'catalog' && <><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title || '제목 없음'} 삭제`}><Trash2 /></button></>}</div></div>)}
+      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{Number(item.sortOrder || 0) >= 100 && <span className="content-pin-badge">📌 상단고정</span>}{item.title || '(제목 없음)'}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button>{item.source !== 'catalog' && <><button onClick={(event) => { event.stopPropagation(); openEdit(item); }}><PencilLine />수정</button><button onClick={(event) => { event.stopPropagation(); remove(item); }} aria-label={`${item.title || '제목 없음'} 삭제`}><Trash2 /></button></>}</div></div>)}
       {!visible.length && <div className="admin-content-empty"><FileText /><span>조건에 맞는 운영 데이터가 없습니다.</span></div>}
     </div>
     {selected && <ContentDetail item={selected} onClose={() => setSelected(null)} onEdit={() => openEdit(selected)} />}
@@ -696,7 +688,7 @@ function MemberRow({ member, mutate }) {
 }
 
 const paymentStatusLabel = {
-  pending_review:'검수 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패',
+  pending_review:'결제 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패',
   cancelled:'취소', partially_refunded:'부분 환불', refunded:'전액 환불'
 };
 
@@ -763,10 +755,10 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
       {payment.exposure && <div><dt>노출 기간</dt><dd>{payment.exposure.start} ~ {payment.exposure.end} <small>{payment.exposure.days ? `${payment.exposure.days}일 상품` : ''}{new Date(`${String(payment.exposure.end).slice(0,10)}T23:59:59`).getTime() < Date.now() ? ' · ⛔ 노출 종료됨' : ' · ✅ 노출 중'}<br />기간 연장·수정은 ‘공고 · 인재 · 게시글’에서 해당 공고의 노출 종료일을 바꾸세요.</small></dd></div>}
     </dl>
     <div className="payment-admin-form">
-      <label><span>주문 상태</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="pending_review">검수 대기</option><option value="awaiting_payment">결제 대기</option><option value="paid">결제 완료</option><option value="failed">결제 실패</option><option value="cancelled">취소</option></select></label>
+      <label><span>주문 상태</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="awaiting_payment">결제 대기</option><option value="paid">결제 완료</option><option value="failed">결제 실패</option><option value="cancelled">취소</option></select></label>
       <label><span>결제 수단</span><select value={method} onChange={(event) => setMethod(event.target.value)}><option value="card">카드</option><option value="transfer">계좌이체</option></select></label>
       <label className="wide"><span>PG·승인 거래번호</span><input value={providerTransactionId} onChange={(event) => setProviderTransactionId(event.target.value)} placeholder="승인번호 또는 PG 거래번호" /></label>
-      <label className="wide"><span>관리 메모</span><textarea value={adminNote} onChange={(event) => setAdminNote(event.target.value)} rows="2" placeholder="검수, 입금 확인, 실패 사유 등" /></label>
+      <label className="wide"><span>관리 메모</span><textarea value={adminNote} onChange={(event) => setAdminNote(event.target.value)} rows="2" placeholder="입금 확인, 실패 사유, 운영 메모 등" /></label>
       <button className="admin-primary wide" onClick={save}><Save />결제 상태 저장</button>
     </div>
     <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{String(item.processedAt || '').slice(0,16)}</time></div>)}{!orderTransactions.length && <p>아직 승인·실패 거래가 없습니다.</p>}</section>

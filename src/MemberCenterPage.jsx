@@ -17,7 +17,7 @@ const hospitalDemo = {
   ],
   ads: [
     { title: '정형외과 전문의 집중 초빙', plan: '집중 채용', status: '게시 중', period: '2026.07.17 ~ 08.30', views: 284, inquiries: 7 },
-    { title: '검진센터 가정의학과 원장 초빙', plan: '추천 공고', status: '검수 중', period: '게시일 확정 전', views: 0, inquiries: 0 }
+    { title: '검진센터 가정의학과 원장 초빙', plan: '추천 공고', status: '결제 대기', period: '결제 완료 후 즉시 게시', views: 0, inquiries: 0 }
   ],
   inquiries: [
     { id:'INQ-H-2401', name: '박○○ 의사', subject: '근무시간·토요일 격주 여부 문의', source: '정형외과 집중 초빙', time: '오늘 10:24', status: '답변 대기', message:'공고에 안내된 주 4.5일 근무에서 토요일 근무가 격주인지 확인하고 싶습니다. 평일 진료 종료 시각과 당직 여부도 함께 안내 부탁드립니다.', details:{ 진료과:'정형외과', 희망근무:'주 4.5일', 입사가능:'1개월 내', 문의경로:'채용공고 상세' }, response:'병원 담당자에게 실제 근무표를 확인하고 있습니다. 확인되는 대로 헤드헌터가 답변드리겠습니다.', history:[['오늘 10:24','문의 접수'],['오늘 10:27','담당 헤드헌터 배정']] },
@@ -62,7 +62,7 @@ const doctorDemo = {
 
 function statusClass(value = '') {
   if (/완료|게시 중|이용 중|연결/.test(value)) return 'good';
-  if (/대기|확인|검수|조율/.test(value)) return 'wait';
+  if (/대기|확인|조율/.test(value)) return 'wait';
   return '';
 }
 
@@ -251,18 +251,18 @@ export default function MemberCenterPage({ route, qa }) {
       const status = adStatus === 'published' && item.status === 'paid'
         ? '노출 중'
         : adStatus === 'draft'
-          ? (item.status === 'paid' ? '결제 완료 · 검수 대기' : '검수 대기')
+          ? (item.status === 'paid' ? '게시 준비 중' : '결제 대기')
           : adStatus === 'hidden'
-            ? '반려·숨김'
+            ? '숨김'
             : adStatus === 'closed'
               ? '마감'
-              : ({ pending_review:'검수 대기', awaiting_payment:'결제 대기', failed:'결제 실패', cancelled:'취소', refunded:'환불' })[item.status] || '공고 확인 필요';
+              : ({ pending_review:'결제 대기', awaiting_payment:'결제 대기', failed:'결제 실패', cancelled:'취소', refunded:'환불' })[item.status] || '공고 확인 필요';
       return {
       id: item.orderNumber,
       title: item.adTitle || item.productName,
       plan: `${item.productName} · ${Number(item.totalAmount || 0).toLocaleString('ko-KR')}원`,
       status,
-      period: adStatus === 'published' && item.exposure ? `${item.exposure.start} ~ ${item.exposure.end}` : '관리자 검수 후 게시',
+      period: adStatus === 'published' && item.exposure ? `${item.exposure.start} ~ ${item.exposure.end}` : '결제 완료 후 즉시 게시',
       views: '-',
       inquiries: '-'
       };

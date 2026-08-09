@@ -249,11 +249,10 @@ async function handle(method, path, bodyText) {
       const contents = read(LS.adminContents, [
         { id: 'c1', contentType: 'doctor_job', title: '소화기내과 전문의 추천채용', subtitle: '김해좋은내과병원', status: 'published', visibility: 'public', sortOrder: 100, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-18 10:00' },
         { id: 'c2', contentType: 'medical_job', title: '병동 간호사 모집', subtitle: '서울○○병원', status: 'published', visibility: 'public', sortOrder: 0, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-17 09:00' },
-        // 병원이 유료 광고를 결제하면 생기는 '검수 대기' 공고. 승인/반려 버튼이 이 조건에서만
-        // 렌더되므로, 목 데이터에 반드시 남겨둔다(예전에 이게 없어서 관리자 콘솔 크래시를 놓쳤다).
-        { id: 'ad-order-mock1', contentType: 'doctor_job', title: '정형외과 전문의 초빙(유료광고)', subtitle: '해운대바른척추병원', status: 'draft', visibility: 'public', sortOrder: 0, payload: { fromHospital: true, adProductName: '추천 공고', department: '정형외과', region: '부산' }, createdBy: 'hr@hospital.co.kr', updatedBy: 'hr@hospital.co.kr', updatedAt: '2026-07-26 09:00' },
+        // 결제를 완료한 유료 공고는 서버에서 즉시 공개된다.
+        { id: 'ad-order-mock1', contentType: 'doctor_job', title: '정형외과 전문의 초빙(유료광고)', subtitle: '해운대바른척추병원', status: 'published', visibility: 'public', sortOrder: 0, payload: { fromHospital: true, adProductName: '추천 공고', department: '정형외과', region: '부산' }, createdBy: 'hr@hospital.co.kr', updatedBy: 'hr@hospital.co.kr', updatedAt: '2026-07-26 09:00' },
       ]);
-      // 목 데이터는 '비어 있지 않게' 유지한다. 빈 배열이면 상세·승인·환불 등 조건부 UI가
+      // 목 데이터는 '비어 있지 않게' 유지한다. 빈 배열이면 상세·결제·환불 등 조건부 UI가
       // 로컬에서 아예 렌더되지 않아 배포본에서만 터지는 크래시를 놓친다.
       const mockConsultations = [
         { id: 'con-mock-1', requestType: 'hospital', requesterName: '박정호', phone: '010-9876-5432', email: 'hr@hospital.co.kr', specialty: '정형외과', status: 'new', adminNote: '', emailNotificationStatus: 'sent', smsNotificationStatus: 'sent', createdAt: '2026-07-26 09:10', updatedAt: '2026-07-26 09:10', payload: { hospital: '해운대바른척추병원', purpose: '의사 추천', message: '정형외과 전문의 채용 상담 요청' } },

@@ -1,65 +1,50 @@
-# 병원 자기계정 공고 등록 → 지원 → 병원 알림 (end-to-end) 설계
+# 병원 채용공고 등록·결제·즉시 게시
 
-기준일: 2026-07-19
-관련: [[project-medihelpers-career]], AUTH.md, BILLING.md
+기준일: 2026-08-09
+관련 문서: `BILLING.md`, `API.md`, `DB.md`
 
-## 배경 / 확정 방향
+## 운영 원칙
 
-- 사용자(아버지) 확정: **일반 병원이 올린 공고 = 그 병원에게 직접 지원 접수. 아빠 인증 공고 = 헤드헌터(관리자) 경유.**
-- 점검 결과 현재 사슬이 여러 곳에서 끊김:
-  1. 병원이 공고 올리는 입구 없음(광고신청=결제 체크아웃일 뿐, 공고 내용 입력칸 없음)
-  2. 결제와 공고 게시 미연결(paymentApproveApi가 admin_content_records INSERT 안 함)
-  3. 공고 등록은 관리자(admin)만(content_create가 adminIdentity 게이트), created_by도 항상 admin
-  4. 방금 추가한 지원 알림 코드 미발화: (A) cleanConsultationPayload가 jobId 제거 (B) 공고 id 접두사 `admin-` 불일치
+- 병원 채용공고는 병원 회원이 광고 상품을 결제해 등록합니다.
+- 공고 등록에 관리자 사전 검수·승인·반려 단계는 없습니다.
+- 주문 생성 중에는 결제 전 데이터 손실을 막기 위해 공고를 `draft`로 보관합니다.
+- 가상결제 또는 실제 PG 승인이 성공하면 같은 요청 흐름에서 공고를 즉시 `published`로 전환합니다.
+- 결제에 실패하거나 취소되면 공개하지 않습니다. 환불·취소가 확정되면 노출을 회수합니다.
+- 운영자는 사전 승인자가 아니라 신고 대응, 정책 위반 게시물 숨김, 결제·환불 관리 역할을 담당합니다.
 
-## 목표 사슬
+## 저장 흐름
 
-병원 로그인 → 공고 작성(제목·직군·지역·급여·조건) → (광고상품 선택·결제 또는 무료 기본) → 공고 게시(admin_content_records, created_by=병원계정, status=published) → /jobs·/medical-staff 목록 노출 → 의사·의료인이 그 공고에 지원 → 서버가 공고 소유 병원 계정에 알림(member_activity) → 병원 마이페이지 '문의·후보'에서 지원자 확인.
+1. 병원 회원이 공고 내용과 광고 상품을 입력합니다.
+2. `POST /api/payment-orders`가 `payment_orders`와 `admin_content_records(status='draft')`를 같은 D1 배치로 생성합니다.
+3. 이니시스 키가 없는 테스트 환경은 즉시 `POST /api/payment-approve` 가상 승인을 실행합니다.
+4. 실제 결제 환경은 PG 승인 성공 후 같은 승인 API가 주문을 `paid`로 저장합니다.
+5. 승인 API가 연결된 공고를 `published`로 바꾸고 상품 등급·노출 기간을 payload에 동기화합니다.
+6. 공개 목록과 병원 마이페이지에서 바로 조회할 수 있습니다.
 
-## 구현 단계 (순차)
+## 기존 데이터 보정
 
-### M1. 병원 공고 등록 API (병원 계정 허용)
-- 새 액션 또는 엔드포인트: 병원 회원이 자기 공고를 admin_content_records에 INSERT.
-  - content_type: `doctor_job`(의사) / `medical_job`(의료인)
-  - **created_by = 병원 계정 이메일**(admin.email 아님)
-  - status: 결제 완료 시 `published`, 미결제 시 `draft`(또는 검수 대기 `pending`)
-  - payload: 제목·병원명·지역·직군·급여·근무조건·마감일 등(공개 리스트에서 쓰는 필드와 정합)
-- 권한: hospital 역할 계정만. 자기 공고만 수정/삭제(created_by 확인).
-- **주의**: content_create는 admin 전용 유지. 병원용은 별도 경로(예: memberCenterApi POST action='job_create' 또는 신규 /api/my-jobs).
+- 과거 정책으로 결제는 완료됐지만 `draft`에 남아 있는 병원 광고는 `/api/site-operations` 또는 병원 `/api/member-center` 조회 시 멱등하게 `published`로 보정합니다.
+- 기존 D1을 재생성하거나 바인딩을 바꾸지 않습니다.
+- 결제 전 `draft`와 실패·취소 주문은 자동 공개하지 않습니다.
 
-### M2. 병원 공고 작성 UI
-- /advertise/apply를 "결제만"에서 "공고 작성 + 상품 선택 + 결제"로 확장, 또는 신규 페이지.
-- 폼: 제목·직군·지역·급여·근무형태·마감일·상세(모집개요·담당업무·자격요건·복리후생).
-- 광고 상품(basic/featured/intensive) 선택 → 결제 → 게시. 무료 기본 등급 여부는 정책 결정 필요.
+## 권한과 안전장치
 
-### M3. 결제 ↔ 게시 연결
-- 광고 결제 승인(paymentApproveApi, product.type doctor_ad/medical_staff_ad) 시:
-  - 해당 병원의 draft 공고를 published로 전이(또는 주문 metadata에 담긴 공고 id로 연결).
-  - 노출기간(exposureDays)과 공고 노출을 함께 관리.
+- 병원 회원만 병원 광고 상품을 구매하고 공고를 등록할 수 있습니다.
+- 병원은 본인 계정이 생성한 공고와 주문만 조회할 수 있습니다.
+- 무료 공고 생성 API `job_create`는 계속 403으로 차단합니다. 이는 검수 단계가 아니라 유료 광고 상품 정책입니다.
+- 공고에 포함된 병원명, 채용조건, 이미지 권리와 정확성은 등록 병원이 책임집니다.
+- 관리자에게는 정책 위반·신고·법적 요청에 대응하기 위한 사후 숨김·삭제 권한만 남깁니다.
 
-### M4. 공고 id 정합 + 지원 알림 버그 수정
-- **결함 A**: cleanConsultationPayload 화이트리스트에 `jobId` 추가(값 보존).
-- **결함 B**: operationalDoctorJobs/MedicalJobs가 job.id를 `admin-<uuid>`로 만드니, 지원 시 서버가 접두사 제거 후 admin_content_records.id로 조회하거나, 프런트가 원본 id를 별도 필드로 전달. (정적 data.js 공고는 DB에 없으므로 알림 대상 아님 — 실제 등록 공고만.)
-- 알림 라우팅(consultationApi): created_by가 병원 계정이면 그 계정 member_activity에 'job_application' 기록(구현됨, 버그만 수정하면 발화).
+## 지원서와 알림
 
-### M5. 병원 마이페이지 지원자 표시
-- member-center가 'job_application' 활동/지원자를 '문의·후보' 탭에 표시.
-- (선택) 알림 이메일/문자를 병원에게 발송(Resend/Solapi, NOTIFICATION_SETUP.md).
+- 의료인이 유료 병원 공고에 지원하면 지원서, 병원 활동 기록, 읽지 않은 알림을 D1 배치로 함께 저장합니다.
+- 해당 병원 회원의 마이페이지 알림함과 문의·후보 목록에서 지원자를 확인합니다.
+- 병원과 지원 의료인의 메시지는 상대 회원 알림함에 표시됩니다.
 
-## 확정 정책 (2026-07-19 사용자)
-- **기본 무료 + 광고 유료**: 병원은 공고를 무료로 등록. 상단고정·추천·배너 등 광고 상품만 결제.
-- **아빠 검수 후 게시**: 병원 등록 → status='pending_review'(검수 대기) → 관리자(아빠) 승인 시 published. 즉시 게시 아님.
-  → 병원 공고 등록 API는 status를 강제로 pending 계열로. 관리자 콘솔에서 승인(published 전환).
-- 정적 데모 공고(data.js)는 유지(화면 채우기)하되 지원 알림 대상 아님 — 실제 등록 공고만 알림.
+## 완료 기준
 
-### 검수 상태 흐름
-- 병원 등록: status='pending_review'(신규 값 — 스키마 CHECK 확인 필요), created_by=병원이메일.
-- 관리자 콘솔 콘텐츠 관리: pending 목록 노출 → 승인(published)/반려(hidden).
-- 공개 목록(/jobs·/medical-staff): published만 노출(기존 유지).
-
-## 현재 상태
-- 광고 상품 신청 시 `payment_orders`와 관리자 검수용 `admin_content_records(status='draft', fromHospital=true)`를 같은 D1 배치로 생성한다.
-- 2026-07-26 이전에 결제 원장에만 저장된 광고 신청은 관리자 콘솔 최초 조회 시 공고 검수 목록으로 1회 복구한다.
-- 공고 콘텐츠에는 공개 가능한 채용조건만 복사하며 담당자 이메일·전화·사업자번호 등 주문 개인정보는 포함하지 않는다.
-- 관리자 승인 전에는 공개 목록에 노출되지 않는다. 승인 시 기존 콘텐츠 관리 흐름으로 `published` 전환된다.
-- 결제 승인과 게시 상태의 자동 전이는 아직 분리되어 있어 운영자가 결제 상태와 공고 승인 상태를 함께 확인해야 한다.
+- 결제 성공 후 관리자 조작 없이 공개 목록에 나타납니다.
+- 관리자 콘솔에 공고 승인·반려 버튼이 없습니다.
+- 미결제·실패 주문은 공개되지 않습니다.
+- 과거 결제 완료 `draft` 공고가 자동 복구됩니다.
+- 기존 `.openai/hosting.json`의 Sites 프로젝트, D1 `DB`, R2 `BACKUPS` 바인딩은 변경하지 않습니다.

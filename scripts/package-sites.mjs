@@ -1125,6 +1125,7 @@ async function memberCenterApi(request, env) {
   if (!account) return json({ signedIn:true, account:null, identity, isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
+    if (account.role === 'hospital') await publishLegacyPaidAdContentRecords(env);
     const alertStatement = env.DB.prepare('SELECT id, kind, title, body, action_url AS actionUrl, read_at AS readAt, created_at AS createdAt FROM member_notifications WHERE account_id=? ORDER BY created_at DESC LIMIT 100').bind(account.id);
     if (new URL(request.url).searchParams.get('notificationsOnly') === '1') {
       const alertRows = await alertStatement.all();
@@ -1224,8 +1225,8 @@ async function memberCenterApi(request, env) {
         recommendedCandidates = recommendedResult.results || [];
       } catch { recommendedCandidates = []; }
     }
-    // 병원 마이페이지는 결제 상태만으로 공고 노출 여부를 판단하면 안 된다.
-    // 결제 완료(paid)여도 관리자 검수 공고가 draft이면 아직 공개 전이다.
+    // 병원 마이페이지는 결제 상태와 실제 공고 공개 상태를 함께 내려준다.
+    // 광고 결제 성공 시 공고는 서버에서 즉시 published로 전환된다.
     let ownedAdContents = [];
     if (account.role === 'hospital') {
       try {
@@ -1315,8 +1316,6 @@ async function memberCenterApi(request, env) {
       ]);
       return json({ requested:true, orderNumber:order.orderNumber });
     }
-    // 병원 자기계정 공고 등록: 병원 회원이 채용공고를 올린다. 검수 대기(draft)로 저장, created_by=병원 이메일.
-    // 관리자(아빠)가 콘솔에서 승인(published)해야 공개 목록에 노출된다. 기본 무료.
     // [정책] 병원의 무료 공고 직접 등록은 폐지되었다(2026-07-20). 병원 채용공고는 광고 상품 결제로만 게시한다.
     // 클라이언트 경로(/advertise/post)를 막는 것만으로는 API 직접 호출을 못 막으므로 서버에서도 차단한다.
     if (body.action === 'job_create') {
@@ -1610,6 +1609,17 @@ function insertAdOrderContentStatement(env, record) {
   return env.DB.prepare("INSERT OR IGNORE INTO admin_content_records (id, content_type, title, subtitle, status, visibility, payload_json, sort_order, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, 'draft', 'public', ?, 0, ?, ?, ?, ?)")
     .bind(record.id, record.contentType, record.title, record.subtitle, JSON.stringify(record.payload), record.createdBy, record.createdBy, record.createdAt, record.createdAt);
 }
+async function publishAdOrderContent(env, order, metadataJson = order?.metadataJson) {
+  const product = paymentProductCatalog[String(order?.productId || '')];
+  if (product?.type !== 'doctor_ad') return;
+  const meta = parseJsonObject(metadataJson) || {};
+  const contentRecordId = cleanOrderValue(meta.contentRecordId || ('ad-order-' + String(order?.id || '')), 180);
+  if (!contentRecordId) return;
+  const exposure = meta.exposure && typeof meta.exposure === 'object' ? meta.exposure : null;
+  const exposureEnd = cleanOrderValue(exposure?.end, 10);
+  await env.DB.prepare("UPDATE admin_content_records SET status='published', published_at=COALESCE(published_at,CURRENT_TIMESTAMP), payload_json=json_set(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END, '$.adProductName', ?, '$.adTier', ?, '$.exposureEnd', ?, '$.exposure', json(?)), updated_at=CURRENT_TIMESTAMP WHERE id=?")
+    .bind(cleanOrderValue(product.name, 180), adTierForProduct(order.productId, product.name) || null, exposureEnd || null, JSON.stringify(exposure), contentRecordId).run();
+}
 // 이전 광고 신청은 결제 원장에만 저장됐다. 관리자 콘솔 조회 시 한 번만 복구하고
 // contentRecordId를 주문 metadata에 기록해 관리자가 삭제한 공고가 되살아나지 않게 한다.
 async function syncAdOrderContentRecords(env) {
@@ -1632,8 +1642,16 @@ async function syncAdOrderContentRecords(env) {
     // 집중/추천 광고를 프리미엄 영역에 배치하고 기간 만료를 적용할 수 있다.
     pending.push(env.DB.prepare("UPDATE admin_content_records SET payload_json=json_set(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END, '$.adProductName', ?, '$.adTier', ?, '$.exposureEnd', ?, '$.exposure', json(?)), updated_at=updated_at WHERE id=?")
       .bind(cleanOrderValue(row.productName, 180), adTierForProduct(row.productId, row.productName) || null, exposureEnd || null, JSON.stringify(exposure), contentRecordId));
+    if (row.status === 'paid') {
+      pending.push(env.DB.prepare("UPDATE admin_content_records SET status='published', published_at=COALESCE(published_at,CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='draft'").bind(contentRecordId));
+    }
   }
   for (let index = 0; index < pending.length; index += 50) await env.DB.batch(pending.slice(index, index + 50));
+}
+async function publishLegacyPaidAdContentRecords(env) {
+  try {
+    await env.DB.prepare("UPDATE admin_content_records SET status='published', published_at=COALESCE(published_at,CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE status='draft' AND id IN (SELECT COALESCE(NULLIF(json_extract(metadata_json,'$.contentRecordId'),''), 'ad-order-' || id) FROM payment_orders WHERE product_type='doctor_ad' AND status='paid')").run();
+  } catch {}
 }
 function createOrderNumber() {
   const date = new Date().toISOString().slice(0,10).replaceAll('-','');
@@ -1684,18 +1702,18 @@ async function paymentOrderApi(request, env) {
   const storedProductType = await paymentStorageType(env, product);
   const orderStatements = [
     env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, storedProductType, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
-    env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'pending_review', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
+    env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'awaiting_payment', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
   ];
   if (adContentRecord) {
     orderStatements.push(
       insertAdOrderContentStatement(env, adContentRecord),
-      env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_submission', '채용공고를 검수 요청했습니다.', ?)").bind(crypto.randomUUID(), account.id, (adContentRecord.title + ' · ' + orderNumber).slice(0,300))
+      env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_submission', '채용공고 결제를 시작했습니다.', ?)").bind(crypto.randomUUID(), account.id, (adContentRecord.title + ' · ' + orderNumber).slice(0,300))
     );
   }
   await env.DB.batch(orderStatements);
   // 이니시스 웹표준결제 파라미터(키 설정 시). 결제창은 이 값으로 호출한다.
   const inicis = await buildInicisPaymentParams(env, { orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone });
-  return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'pending_review', contentRecordId:adContentRecord?.id || '' }, inicis }, 201);
+  return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'awaiting_payment', contentRecordId:adContentRecord?.id || '' }, inicis }, 201);
 }
 async function sha256Hex(value) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -1778,6 +1796,7 @@ async function paymentApproveApi(request, env) {
   // [보안] 멱등성: 이미 결제 완료된 주문은 재처리하지 않는다.
   // (결제창 리턴 재전송·새로고침·리플레이로 거래기록/열람권이 중복 생성되는 것을 막는다)
   if (String(order.status) === 'paid') {
+    try { await publishAdOrderContent(env, order, order.metadataJson); } catch {}
     if (fromPgForm) return pgRedirect('paid', oid, '');
     return json({ approved:true, status:'paid', orderNumber:oid, duplicated:true });
   }
@@ -1829,11 +1848,13 @@ async function paymentApproveApi(request, env) {
   // === 테스트(가상) 결제 모드: 실제 이니시스 없이 승인 성공 처리 ===
   if (testMode) {
     const tid = 'TEST-' + Date.now().toString(36).toUpperCase();
+    const approvedMetadataJson = buildExposureMeta(order.metadataJson);
     await env.DB.batch([
-      env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status<>'paid'").bind(buildExposureMeta(order.metadataJson), order.id),
+      env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status<>'paid'").bind(approvedMetadataJson, order.id),
       env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'capture', 'test', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
       env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'test', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid, testMode:true }))
     ]);
+    await publishAdOrderContent(env, order, approvedMetadataJson);
     await recordTalentUnlock();
     return json({ approved:true, status:'paid', orderNumber:oid, tid, testMode:true, message:'테스트 결제가 완료되었습니다(실제 청구 없음).' });
   }
@@ -1894,12 +1915,14 @@ async function paymentApproveApi(request, env) {
     }
   }
   const tid = String(approval?.tid || body.tid || '');
+  const approvedMetadataJson = buildExposureMeta(order.metadataJson);
   await env.DB.batch([
     // [보안] 조건부 UPDATE: 동시 요청으로 이미 paid가 된 경우 두 번 반영되지 않게 한다.
-    env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status<>'paid'").bind(buildExposureMeta(order.metadataJson), order.id),
+    env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status<>'paid'").bind(approvedMetadataJson, order.id),
     env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'capture', 'inicis', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'inicis', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid }))
   ]);
+  await publishAdOrderContent(env, order, approvedMetadataJson);
   await recordTalentUnlock();
   if (fromPgForm) return pgRedirect('paid', oid, '');
   return json({ approved:true, status:'paid', orderNumber:oid, tid });
@@ -2011,7 +2034,7 @@ async function seedAdminConsole(env) {
   const features = {
     doctorRecruitment:[1,'의사 채용공고 목록과 상세 페이지'], talentSearch:[1,'병원 회원의 익명 인재 검색'],
     resumeRegistration:[1,'의사 회원 이력서 작성 및 관리'], medicalStaffHub:[1,'간호·보건 직군 채용정보'],
-    paidCareerService:[0,'유료 조건 비교·계약 분석'], adRegistration:[1,'공고 상품 신청과 검수']
+    paidCareerService:[0,'유료 조건 비교·계약 분석'], adRegistration:[1,'결제 완료 즉시 게시']
   };
   const medicalStaffRestored = await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key='migration_medical_staff_hub_v1'").first();
   const statements = categories.map(([group,name,slug,sort]) => env.DB.prepare('INSERT OR IGNORE INTO admin_categories (id, group_key, name, slug, sort_order) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), group, name, slug, sort));
@@ -2036,6 +2059,8 @@ async function publicSiteOperationsApi(request, env) {
   if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   await ensureAdminConsoleSchema(env);
   await seedAdminConsole(env);
+  // 이전 버전에서 결제 완료 후 공개 전 상태로 남은 공고도 첫 공개 조회 때 자동 게시한다.
+  await publishLegacyPaidAdContentRecords(env);
   const allowedVisibility = new Set(['public']);
   const identity = await authenticatedUser(request, env);
   let viewerAccount = null;

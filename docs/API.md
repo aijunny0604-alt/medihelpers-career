@@ -12,14 +12,14 @@
 | `/api/auth/login` | POST | 공개 | 자체 계정 로그인 및 보안 세션 쿠키 발급. 요청 헤더가 보조 세션을 명시하면 탭 토큰도 반환 |
 | `/api/auth/logout` | POST | 로그인 | 현재 D1 세션 폐기 및 보안 쿠키 삭제. 클라이언트는 탭 보조 토큰도 함께 삭제 |
 | `/api/member-center` | GET·POST·PATCH | 회원 | GET 프로필·알림·활동·상담·주문 / POST `refund_request`(환불 요청)·`job_create`(403 차단) / PATCH 프로필·알림 |
-| `/api/payment-orders` | GET·POST | 회원 | 본인 주문 조회·상품 신청. 병원 광고 신청은 관리자 검수용 공고(`draft`)도 같은 D1 배치로 생성 |
+| `/api/payment-orders` | GET·POST | 회원 | 본인 주문 조회·상품 신청. 병원 광고 신청은 결제 대기 공고(`draft`)도 같은 D1 배치로 생성 |
 | `/api/consultations` | POST | 로그인 | 구직·구인 상담 접수 |
 | `/api/consultations` | GET | 관리자 | 상담 목록 |
 | `/api/consultations/:id` | PATCH | 관리자 | 상담 상태·메모 |
 | `/api/recruitment-crm` | GET·POST | 관리자 | 채용 건 목록·생성 |
 | `/api/recruitment-crm/:id` | PATCH | 관리자 | 채용 단계 변경 |
 | `/api/admin-console` | GET·PATCH | 관리자 | 통합 운영 데이터와 관리 작업 |
-| `/api/payment-approve` | POST | 주문 소유자 / PG 리턴 | 결제 승인 확정(금액·서명·멱등성 검증). 키 미설정 시 테스트(가상) 승인 |
+| `/api/payment-approve` | POST | 주문 소유자 / PG 리턴 | 결제 승인 확정(금액·서명·멱등성 검증). 광고 주문은 승인 성공 즉시 공고를 `published`로 전환. 키 미설정 시 테스트(가상) 승인 |
 | `/api/resumes` | GET·POST | 의료인 회원 | 본인 이력서 목록 조회·신규 등록·수정(최대 20개 반환, 공개 범위 선택) |
 | `/api/uploads` | POST | 병원·관리자 / 의료인 | 병원 광고 이미지 또는 의료인 이력서 프로필 사진 업로드. `x-upload-purpose: resume-profile`은 의료인 본인만 허용 |
 | `/api/saved-jobs` | GET·POST | 회원 | 관심공고 조회(jobId 배열)·토글 |

@@ -28,16 +28,31 @@ test('관리자 콘텐츠는 작성자·수정자·게시 시각을 추적한다
   assert.match(schema, /admin_content_records_type_idx/);
 });
 
-test('병원 광고 주문은 관리자 검수용 공고와 같은 트랜잭션으로 연결된다', async () => {
+test('병원 광고 주문은 결제 완료 즉시 공개 공고로 전환된다', async () => {
   const source = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  const adminSource = await readFile(new URL('./AdminConsolePage.jsx', import.meta.url), 'utf8');
   assert.match(source, /function adOrderContentRecord/);
   assert.match(source, /contentRecordId/);
   assert.match(source, /insertAdOrderContentStatement/);
+  assert.match(source, /async function publishAdOrderContent/);
+  assert.match(source, /SET status='published'/);
+  assert.match(source, /await publishAdOrderContent\(env, order, approvedMetadataJson\)/);
+  assert.match(source, /status:'awaiting_payment'/);
   assert.match(source, /syncAdOrderContentRecords/);
   assert.match(source, /fromHospital:true/);
   assert.match(source, /job_submission/);
   assert.match(source, /contentRecordId:adContentRecord\?\.id/);
   assert.match(source, /ownedAdContentById/);
+  assert.doesNotMatch(adminSource, /approveJob|rejectJob|검수 대기/);
+});
+
+test('홈페이지 하단은 반복 메뉴 열 없이 브랜드·연락처·사업자 정보만 표시한다', async () => {
+  const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const footer = source.slice(source.indexOf('function Footer'), source.indexOf('function PageHero'));
+  assert.match(footer, /footer-brand-block/);
+  assert.match(footer, /footer-contact/);
+  assert.match(footer, /footer-bottom/);
+  assert.doesNotMatch(footer, /footer-column/);
 });
 
 test('유료 광고 상품 등급과 노출기간을 공개 공고 레코드에 동기화한다', async () => {

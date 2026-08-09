@@ -146,7 +146,7 @@ export const adPlans = [
   {
     id: 'basic', name: '베이직 공고', price: 59000, unit: '30일', label: '초기 파트너 가격',
     description: '필요한 정보를 빠르게 알리고 지원과 상담을 받아보세요.',
-    features: ['채용정보 목록 30일 노출', '진료과·지역 검색 노출', '공고 검수 및 문구 가이드', '지원·상담 연결']
+    features: ['채용정보 목록 30일 노출', '진료과·지역 검색 노출', '결제 완료 즉시 게시', '지원·상담 연결']
   },
   {
     id: 'featured', name: '추천 공고', price: 149000, unit: '30일', label: '가장 먼저 검토할 상품', featured: true,

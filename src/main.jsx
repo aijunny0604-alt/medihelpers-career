@@ -487,9 +487,6 @@ function Footer({ operations }) {
         <p>이직도 채용도 결국 사람의 일입니다.<br />메디헬퍼스가 직접 듣고, 꼼꼼히 연결하겠습니다.</p>
         <div className="footer-contact"><a href={`tel:${operations.settings.supportPhone.replace(/\D/g,'')}`}><Phone size={15} /> {operations.settings.supportPhone}</a><a href={`mailto:${operations.settings.supportEmail}`}><Mail size={15} /> {operations.settings.supportEmail}</a></div>
       </div>
-      <div className="footer-column"><strong>의사</strong><Link to="/jobs">초빙정보</Link><Link to="/resume">이력서 등록</Link><Link to="/headhunting">비공개 이직 상담</Link></div>
-      <div className="footer-column"><strong>병원</strong><Link to="/medical-staff">의료인 구인구직</Link><Link to="/headhunting">의사 채용 의뢰</Link><Link to="/advertise">광고센터</Link></div>
-      <div className="footer-column"><strong>안내</strong><Link to="/medical-staff">의료인 구인구직</Link><Link to="/signup">로그인·회원가입</Link><Link to="/terms">이용약관</Link><Link to="/privacy">개인정보처리방침</Link><Link to="/refund">환불 정책</Link><Link to="/withdrawal">회원 탈퇴 약관</Link></div>
     </div>
     <div className="footer-bottom"><span>© 2026 MEDIHELPERS. 대표 이형석 · 사업자등록번호 873-92-00515 · 직업정보제공사업 부산북부지청 제2017-1호</span><span>부산광역시 북구 만덕대로116번길 28</span></div>
   </footer>;
@@ -1391,7 +1388,7 @@ function HomePage({ liveJobs = jobs }) {
           <div><span><Crown /> PREMIUM RECRUITMENT</span><h2>지금 주목할 집중채용</h2><p>메디헬퍼스가 메인에서 먼저 소개하는 병원 채용광고입니다.</p></div>
           <div className="home-premium-actions"><Link className="button light" to="/jobs">전체 병원채용 보기 <ArrowRight /></Link><Link className="button glass" to="/advertise">병원 광고 안내</Link></div>
         </div>
-        <div className="home-premium-points" aria-label="집중채용 광고 특징"><span><BadgeCheck /> 검수된 채용정보</span><span><TrendingUp /> 메인 우선 노출</span><span><Sparkles /> 핵심 조건 빠른 비교</span></div>
+        <div className="home-premium-points" aria-label="집중채용 광고 특징"><span><BadgeCheck /> 확인된 채용정보</span><span><TrendingUp /> 메인 우선 노출</span><span><Sparkles /> 핵심 조건 빠른 비교</span></div>
         <PremiumAdCarousel items={promotedJobs} renderCard={(job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />} />
       </div>
     </section>}
@@ -2299,7 +2296,7 @@ function HeadhuntPostDetailPage({ post }) {
           <div className="hp-detail-tags">
             <span className={`hp-kind-pill ${post.kind === '의료인' ? 'medical' : 'doctor'}`}>{post.kind} 초빙</span>
             {post.region && <span className="hp-region-pill"><MapPin size={13} /> {post.region}</span>}
-            <span className="hp-verify-pill"><ShieldCheck size={13} /> 메디헬퍼스 검수</span>
+            <span className="hp-verify-pill"><ShieldCheck size={13} /> 등록 정보 확인</span>
           </div>
           <h1>{post.title}</h1>
           {post.hospital && <p className="hp-hospital"><Building2 size={16} /> {post.hospital}</p>}
@@ -2933,16 +2930,24 @@ function Checkout({ plan }) {
         paymentWindowOpened = true;
         return;
       }
+      const approveResponse = await fetch('/api/payment-approve', {
+        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
+        body:JSON.stringify({ orderNumber:result.order?.orderNumber, resultCode:'0000' })
+      });
+      const approveResult = await approveResponse.json().catch(() => ({}));
+      if (!approveResponse.ok || !approveResult.approved) {
+        throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
+      }
       appendStoredRecord("medihelpers_ad_requests", {
         id: result.order?.orderNumber || `AD-${Date.now()}`,
         planId: plan.id,
         amount: plan.price,
         paymentMethod: method,
-        status: result.order?.status || "pending_review",
+        status: approveResult.status || "paid",
         createdAt: new Date().toISOString(),
         ...data,
       });
-      setDone(result.order || { status: "pending_review" });
+      setDone({ ...(result.order || {}), ...approveResult, status:approveResult.status || 'paid' });
     } catch (error) {
       setSubmitError(error.message);
     } finally {
@@ -2963,15 +2968,15 @@ function Checkout({ plan }) {
           <span>
             <CircleCheck />
           </span>
-          <h2>광고 결제 요청이 접수되었습니다</h2>
+          <h2>채용공고가 바로 게시되었습니다</h2>
           <p>
-            공고가 관리자 검수함에 안전하게 저장되었습니다.
+            결제가 완료되어 채용정보에 즉시 공개되었습니다.
             <br />
-            공개 채용목록에는 관리자 검수·승인 후 게시됩니다.
+            게시 상태와 지원 현황은 마이페이지에서 확인할 수 있습니다.
           </p>
           <dl className="ad-apply-success-receipt">
             <div><dt>주문번호</dt><dd>{done.orderNumber || "확인 중"}</dd></div>
-            <div><dt>현재 상태</dt><dd>관리자 검수 대기</dd></div>
+            <div><dt>현재 상태</dt><dd>결제 완료 · 공개 중</dd></div>
           </dl>
           <div className="ad-apply-success-actions">
             <Link className="button outline" to="/advertise">광고센터로 돌아가기</Link>
@@ -2984,14 +2989,14 @@ function Checkout({ plan }) {
             <div>
               <small>DOCTOR RECRUITMENT AD</small>
               <h1>의사 초빙공고 등록</h1>
-              <p>병원 정보와 채용조건을 차례대로 입력해주세요. 접수 후 전담 헤드헌터가 내용과 게시 일정을 확인합니다.</p>
+              <p>병원 정보와 채용조건을 입력하고 결제를 완료하면 공고가 바로 게시됩니다.</p>
             </div>
-            <div className="ad-apply-help"><ShieldCheck /><span><strong>결제 전 검수</strong>입력 중에는 비용이 청구되지 않습니다.</span></div>
+            <div className="ad-apply-help"><ShieldCheck /><span><strong>결제 완료 즉시 공개</strong>입력 중에는 비용이 청구되지 않습니다.</span></div>
           </header>
           <ol className="ad-apply-steps">
             <li className="active"><b>1</b><span>병원·브랜드 정보</span></li>
             <li><b>2</b><span>채용조건 입력</span></li>
-            <li><b>3</b><span>검수·결제 안내</span></li>
+            <li><b>3</b><span>결제·게시 안내</span></li>
           </ol>
           <form className="checkout-grid" onSubmit={submit}>
             <div className="checkout-form">
@@ -3278,7 +3283,7 @@ function Checkout({ plan }) {
               <section className="ad-form-section ad-form-final">
                 <div className="ad-form-section-head">
                   <span>05</span>
-                  <div><h2>검수·결제 안내</h2><p>원하는 안내 방식을 선택하고 접수를 완료해주세요.</p></div>
+                  <div><h2>결제·게시 안내</h2><p>결제 방식을 선택하고 공고 등록을 완료해주세요.</p></div>
                 </div>
               <div className="payment-choice">
                 <span>결제 안내 방식</span>
@@ -3302,7 +3307,7 @@ function Checkout({ plan }) {
               <label className="consent">
                 <input required type="checkbox" name="terms" value="agreed" />
                 <span>
-                  광고 검수, 결제 안내 및 개인정보 수집·이용에 동의합니다. 병원
+                  결제 처리, 공고 게시 및 개인정보 수집·이용에 동의합니다. 병원
                   브랜드 이미지는 사용 권한을 확인한 파일만 등록합니다.
                 </span>
               </label>
@@ -3329,10 +3334,10 @@ function Checkout({ plan }) {
               </div>
               {/* disabled 누락 시 더블클릭으로 payment_orders 행이 2건 생기고 결제창도 2번 뜬다(다른 결제 모달과 동일하게 맞춤). */}
               <button className="button primary full" type="submit" disabled={submitting}>
-                {submitting ? "공고와 이미지를 안전하게 저장 중…" : "결제 안내 요청하기"} <ArrowRight size={17} />
+                {submitting ? "결제와 공고 게시를 처리 중…" : "결제하고 바로 게시하기"} <ArrowRight size={17} />
               </button>
               <p className="secure-note">
-                <ShieldCheck /> 실제 결제는 공고 검수 후 진행됩니다.
+                <ShieldCheck /> 결제 성공 시 공고가 채용정보에 즉시 공개됩니다.
               </p>
             </aside>
           </form>
@@ -3431,7 +3436,7 @@ function AdvertisePage({ qa }) {
   return <>
     <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 광고 상품(베이직·추천·집중) 결제로 게시됩니다. 상품을 선택하면 담당자가 조건을 확인한 뒤 결제·게시를 진행합니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a><Link className="button glass" to="/headhunting?role=hospital">헤드헌터 채용 상담</Link></PageHero>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 실제 결제 전 담당자가 기간과 조건을 다시 확인합니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul><button disabled={authLoading} className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{authLoading ? '회원 상태 확인 중…' : canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button></article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>숨은 비용 없이 먼저 확인합니다</strong><p>게시기간, 노출 위치, 수정 지원 범위와 최종 결제금액을 담당자가 확인한 뒤 결제를 진행합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 결제 전에 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
-    <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제보다 먼저 공고를 검수합니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 접수','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 및 검수','금액과 게시 조건 확인 후 결제합니다.'],[TrendingUp,'03','게시·성과 확인','공고를 게시하고 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />공고는 메디헬퍼스의 검수 후 게시됩니다. 의료법 및 채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p></div></section>
+    <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시·성과 확인','공고 공개 후 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>안전한 광고 운영</strong><br />등록한 공고 내용과 이미지의 정확성·사용 권한은 등록 병원이 확인합니다. 의료법·채용 관련 법령이나 운영정책을 위반한 공고는 게시 후 숨김 또는 삭제될 수 있습니다.</p></div></section>
   </>;
 }
 
@@ -3460,57 +3465,12 @@ function AdvertiseApplyPage({ route, qa }) {
   return <Checkout plan={plan} />;
 }
 
-// 병원 자기계정 채용공고 등록(무료). 제출 시 검수 대기(draft)로 접수 → 관리자 승인 후 게시.
-function HospitalJobPostPage({ qa }) {
-  const accountProfile = useAccountProfile();
-  const [staffType, setStaffType] = useState('doctor');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-  const submit = async (event) => {
-    event.preventDefault();
-    setError(''); setSubmitting(true);
-    const f = Object.fromEntries(new FormData(event.currentTarget).entries());
-    try {
-      const res = await fetch(withBase('/api/member-center'), {
-        method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'job_create', staffType, title: f.title, hospital: f.hospital, dept: f.dept, role: f.role, region: f.region, employmentType: f.employmentType, career: f.career, pay: f.pay, deadline: f.deadline, schedule: f.schedule, description: f.description }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || '공고 등록에 실패했습니다.');
-      setDone(true); window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (e) { setError(e.message); } finally { setSubmitting(false); }
-  };
-  if (done) return <section className="section"><div className="checkout-success"><span><CircleCheck /></span><h2>채용공고가 접수되었습니다</h2><p>메디헬퍼스 검수 후 게시됩니다. 게시 상태와 지원자는 마이페이지에서 확인할 수 있습니다.</p><div className="talent-unlock-success-actions"><Link className="button primary" to="/mypage">마이페이지 <ArrowRight /></Link><Link className="button outline" to="/advertise">광고센터</Link></div></div></section>;
-  return <section className="section job-post-section"><div className="job-post-card">
-    <div className="job-post-head"><small>FREE JOB POSTING</small><h2>채용공고 등록</h2><p>무료로 채용공고를 등록합니다. 상단 노출·추천은 광고센터에서 별도 신청할 수 있습니다. 등록 후 메디헬퍼스 검수를 거쳐 게시됩니다.</p></div>
-    <div className="job-post-typetabs"><button type="button" className={staffType === 'doctor' ? 'active' : ''} onClick={() => setStaffType('doctor')}><Stethoscope /> 의사 채용</button><button type="button" className={staffType === 'medical' ? 'active' : ''} onClick={() => setStaffType('medical')}><UsersRound /> 의료인(간호·기사) 채용</button></div>
-    <form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'} className="job-post-form">
-      <label className="wide"><span>공고 제목 *</span><input required name="title" placeholder="예: 검진 내과 전문의 초빙 / 병동 간호사 모집" /></label>
-      <label><span>병원·기관명 *</span><input required name="hospital" defaultValue={accountProfile.organization || accountProfile.name} placeholder="병원명" /></label>
-      <label><span>{staffType === 'doctor' ? '진료과' : '직군'} *</span><input required name="dept" placeholder={staffType === 'doctor' ? '예: 내과, 정형외과' : '예: 간호사, 방사선사'} /></label>
-      <label><span>세부 직무·포지션</span><input name="role" placeholder="예: 검진 진료의, 병동 간호" /></label>
-      <label><span>근무 지역 *</span><input required name="region" placeholder="예: 서울 강남, 경기 수원" /></label>
-      <label><span>고용 형태</span><input name="employmentType" placeholder="예: 정규직, 주 4.5일, 계약직" /></label>
-      <label><span>경력 조건</span><input name="career" placeholder="예: 경력 2년 이상, 신입 가능" /></label>
-      <label><span>급여 조건</span><input name="pay" placeholder="예: 월 1,200만원~, 협의" /></label>
-      <label><span>근무 시간</span><input name="schedule" placeholder="예: 평일 09:00~18:00" /></label>
-      <label><span>마감일</span><input name="deadline" type="date" /></label>
-      <label className="wide"><span>모집 상세 *</span><textarea required name="description" rows="6" placeholder="담당 업무, 자격 요건, 복리후생 등 상세 내용을 입력해 주세요." /></label>
-      {error && <p className="form-error wide" role="alert">{error}</p>}
-      <button className="button primary full wide" type="submit" disabled={submitting}>{submitting ? '등록 중…' : '검수 요청하고 등록하기'} <ArrowRight /></button>
-      <p className="job-post-note wide"><ShieldCheck /> 의료법·채용 관련 법령에 위반되거나 사실 확인이 어려운 표현은 수정 요청 또는 게시 거절될 수 있습니다.</p>
-    </form>
-  </div></section>;
-}
-
-
 function AboutPage() {
   return <>
     <PageHero tone="about" eyebrow="ABOUT MEDIHELPERS" title="의사 채용을 사람답게 만드는 연결" description="메디헬퍼스는 병원과 의사의 조건만 맞추지 않습니다. 서로 오래 신뢰할 수 있는 선택을 만들기 위해 의사 전담 헤드헌터가 직접 듣고 확인하고 조율합니다." />
     <section className="section story-layout"><div><span className="section-kicker">WHY MEDIHELPERS</span><h2>초빙공고 너머의<br />진짜 사정을 이해합니다</h2></div><div><p>의사의 이직은 생활과 가족, 진료 철학까지 함께 움직이는 결정입니다. 병원의 의사 채용 역시 단순히 빈자리를 채우는 일이 아니라 환자와 조직의 미래를 정하는 일입니다.</p><p>그래서 메디헬퍼스는 거대한 익명 게시판 대신, 의사 전담 헤드헌터가 양측의 이야기를 직접 듣고 필요한 정보만 안전하게 연결하는 방식을 선택했습니다.</p></div></section>
     <section className="section soft"><div className="value-grid"><div><span>01</span><ShieldCheck /><h3>신뢰를 먼저</h3><p>개인정보와 내부정보를 함부로 공개하지 않고 동의를 기준으로 움직입니다.</p></div><div><span>02</span><UserRoundSearch /><h3>사람이 직접</h3><p>자동 추천만으로 끝내지 않고 담당자가 조건과 맥락을 확인합니다.</p></div><div><span>03</span><Target /><h3>좋은 결과까지</h3><p>소개 건수보다 만족스러운 입사와 채용 완료를 목표로 합니다.</p></div></div></section>
-    <section className="section contact-section"><div className="contact-card"><span className="section-kicker">CONTACT</span><h2>어떤 고민부터 이야기할까요?</h2><p>이직을 아직 결정하지 않았거나 의사 채용 조건이 정리되지 않았어도 괜찮습니다.</p><div><a href="tel:0513425463"><Phone /> <span><small>전화 상담</small><strong>051-342-5463</strong></span></a><a href="mailto:hr@medihelpers.co.kr"><Mail /> <span><small>이메일</small><strong>hr@medihelpers.co.kr</strong></span></a></div></div><div className="policy-card"><h3>개인정보와 서비스 운영 원칙</h3><ul><li>상담 정보는 요청한 상담과 매칭 목적으로만 사용합니다.</li><li>의사 프로필은 본인 동의 없이 병원에 공개하지 않습니다.</li><li>병원 초빙정보는 사실 확인과 표현 검수 후 게시합니다.</li><li>광고비와 헤드헌팅 비용은 계약·결제 전에 명확히 안내합니다.</li></ul><p>정식 회원 기능과 결제 도입 전에 이용약관, 개인정보처리방침, 환불정책을 법률 검토 후 별도 게시합니다.</p></div></section>
+    <section className="section contact-section"><div className="contact-card"><span className="section-kicker">CONTACT</span><h2>어떤 고민부터 이야기할까요?</h2><p>이직을 아직 결정하지 않았거나 의사 채용 조건이 정리되지 않았어도 괜찮습니다.</p><div><a href="tel:0513425463"><Phone /> <span><small>전화 상담</small><strong>051-342-5463</strong></span></a><a href="mailto:hr@medihelpers.co.kr"><Mail /> <span><small>이메일</small><strong>hr@medihelpers.co.kr</strong></span></a></div></div><div className="policy-card"><h3>개인정보와 서비스 운영 원칙</h3><ul><li>상담 정보는 요청한 상담과 매칭 목적으로만 사용합니다.</li><li>의사 프로필은 본인 동의 없이 병원에 공개하지 않습니다.</li><li>공고 등록 병원은 게시 내용과 이미지 사용 권한을 확인합니다.</li><li>광고비와 헤드헌팅 비용은 계약·결제 전에 명확히 안내합니다.</li></ul><p>정식 회원 기능과 결제 도입 전에 이용약관, 개인정보처리방침, 환불정책을 법률 검토 후 별도 게시합니다.</p></div></section>
     <ConversionBanner />
   </>;
 }

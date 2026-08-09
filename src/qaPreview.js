@@ -14,10 +14,10 @@ export const QA_STATE_OPTIONS = Object.freeze([
     id: 'admin',
     label: '관리자',
     shortLabel: '관리자 QA',
-    description: '공고 검수, 회원 상태, 상담 접수를 점검합니다.',
+    description: '공고 게시, 회원 상태, 상담 접수를 점검합니다.',
     tone: 'admin',
     capabilities: { signedIn: true, admin: true, hospital: false, doctor: false, privateDetails: true },
-    metrics: [['검수 대기', '4건'], ['신규 상담', '7건'], ['회원 확인', '3건']]
+    metrics: [['결제 대기', '4건'], ['신규 상담', '7건'], ['회원 확인', '3건']]
   },
   {
     id: 'hospital',

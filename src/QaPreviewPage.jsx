@@ -39,7 +39,7 @@ export default function QaPreviewPage({ qa }) {
       </div>
       <div className="qa-section-head routes"><div><small>STEP 02</small><h2>이 상태로 주요 페이지 점검</h2><p>상단의 QA 표시를 통해 현재 권한을 놓치지 않고 확인할 수 있습니다.</p></div></div>
       <div className="qa-route-grid">{quickRoutes.map(({ path,label,description,icon:Icon }) => <a key={path} href={withBase(path)}><Icon /><span><strong>{label}</strong><small>{description}</small></span><ArrowRight /></a>)}</div>
-      <div className="qa-checklist"><div><UsersRound /><strong>권한별 공통 점검표</strong></div><ul><li><Check /> 헤더의 로그인·회원 상태</li><li><Check /> 공고 상세조건 잠금 여부</li><li><Check /> 구독 중·결제 버튼 상태</li><li><Check /> 병원 공고 등록 진입</li><li><Check /> 관리자 검수 요약</li><li><Check /> 모바일 줄바꿈과 고정 UI</li></ul></div>
+      <div className="qa-checklist"><div><UsersRound /><strong>권한별 공통 점검표</strong></div><ul><li><Check /> 헤더의 로그인·회원 상태</li><li><Check /> 공고 상세조건 잠금 여부</li><li><Check /> 구독 중·결제 버튼 상태</li><li><Check /> 병원 공고 등록 진입</li><li><Check /> 결제 후 즉시 게시</li><li><Check /> 모바일 줄바꿈과 고정 UI</li></ul></div>
     </section>
   </>;
 }

@@ -47,6 +47,18 @@ test('등록되지 않은 API 경로는 SPA HTML이 아닌 JSON 404로 종료한
   assert.match(serverSource, /pathname\.startsWith\('\/api\/'\).*json\(\{ error:'API 경로를 찾을 수 없습니다\.' \}, 404\)/);
 });
 
+test('회원 유형은 가입 때만 DB에 저장하고 로그인 시 DB 역할로 자동 분류한다', async () => {
+  const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  const accountSource = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  const schema = accountSchemaStatements.join('\n');
+  assert.match(schema, /role TEXT NOT NULL CHECK \(role IN \('doctor', 'hospital'\)\)/);
+  assert.match(accountSource, /authRequest\('register', \{[\s\S]*role: memberType/);
+  assert.match(serverSource, /INSERT INTO accounts \(id, user_key, role\).*body\.role/);
+  assert.match(serverSource, /FROM auth_credentials c JOIN accounts a[\s\S]*a\.role/);
+  assert.match(serverSource, /account:\{ role:credential\.role \}/);
+  assert.doesNotMatch(accountSource.slice(accountSource.indexOf('function LoginCard'), accountSource.indexOf('function SignupForm')), /name="role"|회원 유형 선택/);
+});
+
 test('병원 주소 검색용 카카오 우편번호 iframe 도메인을 CSP에서 허용한다', async () => {
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   assert.match(serverSource, /frame-src[^"]*https:\/\/postcode\.map\.kakao\.com/);
