@@ -792,17 +792,27 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
 
 function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   const [photoIndex, setPhotoIndex] = useState(null);
-  const [verifiedDoctor, setVerifiedDoctor] = useState(Boolean(qa?.active && (qa.info.capabilities.doctor || qa.info.capabilities.admin)));
+  const [viewerAccess, setViewerAccess] = useState({
+    loading: !qa?.active,
+    signedIn: Boolean(qa?.active && qa.info.capabilities.signedIn),
+    role: qa?.active && qa.info.capabilities.hospital ? 'hospital' : qa?.active && qa.info.capabilities.doctor ? 'doctor' : '',
+    isAdmin: Boolean(qa?.active && qa.info.capabilities.admin),
+  });
   useEffect(() => {
     if (qa?.active) {
-      setVerifiedDoctor(Boolean(qa.info.capabilities.doctor || qa.info.capabilities.admin));
+      setViewerAccess({
+        loading: false,
+        signedIn: Boolean(qa.info.capabilities.signedIn),
+        role: qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor ? 'doctor' : '',
+        isAdmin: Boolean(qa.info.capabilities.admin),
+      });
       return undefined;
     }
     let active = true;
     fetch('/api/account', { credentials:'same-origin', headers:{ accept:'application/json' } })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('account')))
-      .then((result) => { if (active) setVerifiedDoctor(Boolean(result.signedIn && result.account?.role === 'doctor')); })
-      .catch(() => { if (active) setVerifiedDoctor(false); });
+      .then((result) => { if (active) setViewerAccess({ loading:false, signedIn:Boolean(result.signedIn), role:result.account?.role || '', isAdmin:Boolean(result.isAdmin) }); })
+      .catch(() => { if (active) setViewerAccess({ loading:false, signedIn:false, role:'', isAdmin:false }); });
     return () => { active = false; };
   }, [qa?.active, qa?.state]);
   const isAd = Boolean(job.adTier);
@@ -813,7 +823,8 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
   // 비회원은 잠금(가입 유도).
   const memberUnlocked = qa?.active
     ? Boolean(qa.info.capabilities.doctor || qa.info.capabilities.admin)
-    : verifiedDoctor;
+    : Boolean(viewerAccess.signedIn && (viewerAccess.role === 'doctor' || viewerAccess.isAdmin));
+  const hospitalViewer = Boolean(!viewerAccess.loading && viewerAccess.signedIn && viewerAccess.role === 'hospital' && !viewerAccess.isAdmin);
   const qaUnlocked =
     restricted && memberUnlocked;
   const locked = restricted && !qaUnlocked;
@@ -983,7 +994,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
               <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
-            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span><Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link></div>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span>{viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
           </section>
           <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
             <div className="decision-sheet-head">
@@ -992,7 +1003,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                 <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : <><LockKeyhole /> 로그인 후 열람</>}
+                {viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : hospitalViewer ? <><LockKeyhole /> 의료인 회원 전용</> : <><LockKeyhole /> 로그인 후 열람</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
@@ -1006,7 +1017,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                     {rows.map(([label, value]) => (
                       <div key={label}>
                         <dt>{label}</dt>
-                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="로그인 후 공개">로그인 후 공개</span>}</dd>
+                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label={hospitalViewer ? '의료인 회원만 공개' : '로그인 후 공개'}>{hospitalViewer ? '의료인 회원 전용' : '로그인 후 공개'}</span>}</dd>
                       </div>
                     ))}
                   </dl>
@@ -1015,10 +1026,20 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
               {!memberUnlocked && (
                 <div className="decision-sheet-lock-overlay">
                   <span><LockKeyhole /></span>
-                  <small>MEMBERS ONLY</small>
-                  <strong>로그인 후 상세조건 열람</strong>
-                  <p>보수·실제 근무표·진료 강도·입사 판단 정보가 의사 회원에게 모두 공개됩니다.</p>
-                  <Link className="button primary" to={`/signup/doctor?next=${encodeURIComponent(`/jobs/${job.id}`)}`}>로그인 · 회원가입 <ArrowRight /></Link>
+                  {viewerAccess.loading ? <>
+                    <small>MEMBER ACCESS</small>
+                    <strong>회원 권한 확인 중</strong>
+                    <p>현재 로그인 정보를 확인하고 있습니다.</p>
+                  </> : hospitalViewer ? <>
+                    <small>DOCTOR MEMBERS ONLY</small>
+                    <strong>상세조건은 의료인 회원만 볼 수 있습니다</strong>
+                    <p>현재 로그인한 병원회원 계정에서는 보수·근무표·진료조건을 열람하거나 지원할 수 없습니다.</p>
+                  </> : <>
+                    <small>MEMBERS ONLY</small>
+                    <strong>로그인 후 상세조건 열람</strong>
+                    <p>보수·실제 근무표·진료 강도·입사 판단 정보가 의료인 회원에게 모두 공개됩니다.</p>
+                    <Link className="button primary" to={`/signup/doctor?next=${encodeURIComponent(`/jobs/${job.id}`)}`}>로그인 · 회원가입 <ArrowRight /></Link>
+                  </>}
                 </div>
               )}
             </div>
@@ -1165,20 +1186,20 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                     <LockKeyhole /> 채용 사유·면접 절차
                   </span>
                 </div>
-                <Link
-                  className="button primary full"
-                  to={`/signup/doctor?next=/jobs/${job.id}`}
-                  onClick={() =>
-                    trackConversion("job_unlock_cta", {
-                      jobId: job.id,
-                      offer: "verified_doctor_free",
-                    })
-                  }
-                >
-                  의사 인증하고 무료 열람
-                </Link>
+                {viewerAccess.loading ? <div className="doctor-only-aside-note"><LockKeyhole /><strong>회원 권한 확인 중</strong><span>현재 로그인 정보를 확인하고 있습니다.</span></div> : hospitalViewer ? <div className="doctor-only-aside-note"><LockKeyhole /><strong>의료인 회원 전용</strong><span>병원회원 계정에서는 상세조건을 열람할 수 없습니다.</span></div> : <Link
+                    className="button primary full"
+                    to={`/signup/doctor?next=/jobs/${job.id}`}
+                    onClick={() =>
+                      trackConversion("job_unlock_cta", {
+                        jobId: job.id,
+                        offer: "verified_doctor_free",
+                      })
+                    }
+                  >
+                    의료인 회원 로그인·가입
+                  </Link>}
                 <small className="value-hint">
-                  열람료 없이 상세조건과 상담을 이용할 수 있어요.
+                  {hospitalViewer ? '의료인 구직자를 위한 보호 정보입니다.' : '열람료 없이 상세조건과 상담을 이용할 수 있어요.'}
                 </small>
               </div>
             </>
@@ -1200,7 +1221,11 @@ function JobDetail({ job, saved, onSave, onClose, qa, page = false }) {
                 </div>
               )}
               <small>경력과 진료 범위에 따라 조율합니다.</small>
-              {job.badge === "비공개" ? (
+              {viewerAccess.loading ? (
+                <div className="doctor-only-aside-note"><LockKeyhole /><strong>회원 권한 확인 중</strong><span>현재 로그인 정보를 확인하고 있습니다.</span></div>
+              ) : hospitalViewer ? (
+                <div className="doctor-only-aside-note"><LockKeyhole /><strong>의료인 회원만 지원 가능</strong><span>병원회원은 이 공고에 지원하거나 문의할 수 없습니다.</span></div>
+              ) : job.badge === "비공개" ? (
                 // 아빠(헤드헌터)가 큐레이션한 비공개 포지션만 헤드헌터 상담으로 연결.
                 <Link className="button primary full" to={`/headhunting?job=${job.id}`}>
                   {qaUnlocked ? "헤드헌터와 조건 확인" : "비공개 상담 신청"}
