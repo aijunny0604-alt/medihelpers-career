@@ -9,6 +9,7 @@ import { withBase } from './basePath.js';
 import { authRequest, WithdrawSection } from './AccountPage.jsx';
 import { jobs } from './data.js';
 import { notify } from './browserStorage.js';
+import { cleanInquiryText } from './inquiryText.js';
 
 const hospitalDemo = {
   profile: { displayName: '김혜원', email: 'hospital@medihelpers.co.kr', phone: '010-2435-5463', organization: '메디헬퍼스 협력병원', jobTitle: '채용 담당자' },
@@ -458,15 +459,6 @@ export default function MemberCenterPage({ route, qa }) {
   </div>;
 }
 
-function cleanInquiryText(value, fallback = '') {
-  const text = String(value || '').trim();
-  if (!text) return fallback;
-  const compact = text.replace(/\s/g, '');
-  const questionCount = (text.match(/\?/g) || []).length;
-  if (questionCount >= 2 && questionCount / Math.max(1, compact.length) >= 0.18) return fallback;
-  return text;
-}
-
 function isInternalReference(value) {
   return /^(?:SEEK|INQ|CON|CASE|CAND|SUB|REQ|APP)-[A-Z0-9-]+$/i.test(String(value || '').trim());
 }
@@ -483,7 +475,9 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyResult, setReplyResult] = useState('');
-  const [thread, setThread] = useState(Array.isArray(inquiry.messages) ? inquiry.messages : []);
+  const [thread, setThread] = useState(Array.isArray(inquiry.messages)
+    ? inquiry.messages.filter((item) => cleanInquiryText(item?.body))
+    : []);
 
   const details = Object.entries(inquiry.details || {})
     .map(([label, value]) => [cleanInquiryText(label), cleanInquiryText(value)])

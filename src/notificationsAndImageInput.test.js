@@ -49,6 +49,9 @@ test('병원과 지원 의료인은 지원 건에서 상대방에게 영구 알�
   assert.match(server, /recipient\.recipientId/);
   assert.match(server, /INSERT INTO inquiry_messages/);
   assert.match(server, /messagesByConsultation/);
+  assert.match(server, /const isReadableInquiryMessage/);
+  assert.match(server, /if \(!isReadableInquiryMessage\(messageRow\.body\)\) continue/);
+  assert.match(server, /alert\.kind !== 'inquiry_reply' \|\| !isReadableInquiryMessage\(alert\.body\)/);
   assert.match(server, /legacy-.*alert\.id/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS inquiry_messages/);
   assert.match(migration, /inquiry_messages_consultation_idx/);

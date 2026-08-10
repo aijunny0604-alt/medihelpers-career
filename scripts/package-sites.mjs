@@ -1192,14 +1192,23 @@ async function memberCenterApi(request, env) {
     try {
       inquiryMessageRows = messageResult.results || [];
     } catch { inquiryMessageRows = []; }
+    const isReadableInquiryMessage = value => {
+      const text = String(value || '').trim();
+      if (!text || text.includes('�')) return false;
+      const compact = text.replace(/\s/g, '');
+      if (/^[?？□○◯●ㆍ·._\-]+$/u.test(compact)) return false;
+      const questionCount = (text.match(/[?？]/g) || []).length;
+      return !(questionCount >= 3 && questionCount / Math.max(1, compact.length) >= 0.18);
+    };
     const messagesByConsultation = new Map();
     for (const messageRow of inquiryMessageRows) {
+      if (!isReadableInquiryMessage(messageRow.body)) continue;
       const list = messagesByConsultation.get(messageRow.consultationId) || [];
       list.push(messageRow);
       messagesByConsultation.set(messageRow.consultationId, list);
     }
     for (const alert of alerts) {
-      if (alert.kind !== 'inquiry_reply' || !alert.body) continue;
+      if (alert.kind !== 'inquiry_reply' || !isReadableInquiryMessage(alert.body)) continue;
       const match = String(alert.actionUrl || '').match(/[?&]inquiry=([^&#]+)/);
       if (!match) continue;
       let consultationId = '';
