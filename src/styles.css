@@ -5332,6 +5332,17 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* ── 구직 게시판 (채용공고와 동일한 카드형, 열람권 연동) ── */
 .jobseeker-board-section{background:linear-gradient(180deg,#f7faff,#fff)}
 .jobseeker-board-section .headhunt-board{max-width:1320px}
+.medical-staff-seek-only .medical-staff-hero{display:block;padding:clamp(68px,6vw,94px) clamp(28px,6vw,90px) clamp(56px,5vw,76px)}
+.medical-staff-seek-only .medical-staff-hero>div{max-width:1180px}
+.medical-staff-seek-only .medical-staff-hero h1{max-width:1160px;font-size:clamp(64px,6.4vw,104px);line-height:.98;letter-spacing:-.075em;margin:20px 0 28px}
+.medical-staff-seek-only .medical-staff-hero p{max-width:880px;font-size:19px}
+.medical-staff-seek-only .jobseeker-board-section{padding-top:58px}
+@media(max-width:760px){
+  .medical-staff-seek-only .medical-staff-hero{padding:52px 20px 46px}
+  .medical-staff-seek-only .medical-staff-hero h1{font-size:clamp(46px,12vw,62px);line-height:1.04;margin:16px 0 22px}
+  .medical-staff-seek-only .medical-staff-hero p{font-size:16px;line-height:1.7}
+  .medical-staff-seek-only .jobseeker-board-section{padding-top:42px}
+}
 /* 진료과·지역 필터 행 */
 .jobseeker-filter-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;padding:16px 20px;border-radius:14px;background:#fff;border:1px solid #e4eaf2}
 .jobseeker-filter{display:flex;align-items:center;gap:9px}

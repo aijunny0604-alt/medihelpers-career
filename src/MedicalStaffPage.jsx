@@ -88,7 +88,6 @@ export default function MedicalStaffPage({ operations, medicalTalent = [], talen
   return <div className="medical-staff-hub medical-staff-seek-only">
     <section className="medical-staff-hero seek-hero">
       <div><span><UsersRound /> MEDICAL PROFESSIONALS</span><h1>의료인 구인구직<br /><em>구직 중인 의료인 인재</em></h1><p>의사·간호·의료기사·약무 등 의료인이 직접 등록한 <b>구직 이력서</b>입니다. 병원 회원은 <b>열람권</b>을 결제하면 이름·연락처·상세 이력을 열람할 수 있습니다.</p><div className="medical-staff-actions"><button onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서·구직 글 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/headhunting?role=hospital')}><Building2 /> 병원 · 인재 채용 상담</button></div></div>
-      <aside><small>병원 회원</small><strong>열람권으로<br />인재를 확인하세요</strong><ul><li><Check /> 진료과·직군·지역별 구직 인재</li><li><Check /> 열람권 결제 후 상세 열람</li><li><Check /> 연락처는 동의 후 전달</li></ul></aside>
     </section>
     {talentSection}
   </div>;
