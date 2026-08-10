@@ -20,6 +20,7 @@ import {
 } from './signupFields.js';
 import { withBase } from './basePath.js';
 import { clearSessionToken, storeSessionToken } from './authTransport.js';
+import { resolveLoginDestination } from './loginRedirect.js';
 
 const initialForm = (role = '') => ({
   role,
@@ -544,11 +545,14 @@ function LoginCard({ testAccountsEnabled = true }) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const goNext = (role = '') => {
-    const explicit = new URLSearchParams(window.location.search).get('next');
-    // next 파라미터가 없으면 관리자는 운영 콘솔로, 그 외는 마이페이지로 보낸다.
-    const fallback = role === 'admin' ? '/admin/console' : '/mypage';
-    const requested = explicit || fallback;
-    const target = withBase(requested.startsWith('/') && !requested.startsWith('//') ? requested : fallback);
+    // 보던 공고·상담 화면에서 로그인했다면 그 화면으로 돌아간다. 직접 로그인 화면을
+    // 열었을 때는 관리자는 운영 콘솔, 일반·병원회원은 메인으로 이동한다.
+    const target = withBase(resolveLoginDestination({
+      search: window.location.search,
+      referrer: document.referrer,
+      origin: window.location.origin,
+      role
+    }));
     // sessionStorage 보조 토큰은 새 문서에서도 유지된다. 전체 문서를 다시 읽어
     // 헤더·마이페이지·권한 게이트가 모두 같은 최신 세션을 보게 한다.
     window.location.replace(target);

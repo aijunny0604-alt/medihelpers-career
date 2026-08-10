@@ -387,8 +387,10 @@ function Header({ path, qa, operations, auth }) {
   // (QA 프리뷰 폐지 후 qa.active가 항상 false라, 예전 로직은 로그인해도 계속 '로그인'만 떴다.)
   const isSignedIn = auth.status === 'member';
   const isAdminUser = Boolean(auth.isAdmin);
-  // 관리자는 운영 콘솔로, 일반 회원은 마이페이지로, 비로그인은 로그인 화면으로.
-  const accountTarget = isAdminUser ? '/admin/console' : isSignedIn ? '/mypage' : '/login';
+  // 로그인 전에는 현재 화면을 next로 넘겨 로그인 뒤 보던 자리로 돌아오게 한다.
+  const currentRoute = getRoute();
+  const loginReturnTo = currentRoute.startsWith('/login') ? '/' : currentRoute;
+  const accountTarget = isAdminUser ? '/admin/console' : isSignedIn ? '/mypage' : `/login?next=${encodeURIComponent(loginReturnTo)}`;
   const accountLabel = isAdminUser ? '관리자' : isSignedIn ? '마이페이지' : '로그인';
   const activeTestRole = isAdminUser ? 'admin' : auth.role === 'hospital' ? 'hospital' : auth.role === 'doctor' ? 'doctor' : '';
   useEffect(() => {
