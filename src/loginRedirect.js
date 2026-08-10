@@ -24,4 +24,9 @@ export function resolveLoginDestination({ search = '', referrer = '', origin = '
   return fallback;
 }
 
+export function resolveAccountSwitchDestination(route = '') {
+  if (!isSafeInternalPath(route) || isAuthPage(route)) return '/';
+  return route;
+}
+
 export { isSafeInternalPath };

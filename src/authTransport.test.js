@@ -15,5 +15,5 @@ test('role switching reloads the app so every header and page reads the new sess
   const accountSource = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
   const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
   assert.match(accountSource, /window\.location\.replace\(target\)/);
-  assert.match(mainSource, /window\.location\.assign\(withBase\(account\.key === 'admin' \? '\/admin\/console' : '\/mypage'\)\)/);
+  assert.match(mainSource, /window\.location\.assign\(withBase\(resolveAccountSwitchDestination\(getRoute\(\)\)\)\)/);
 });

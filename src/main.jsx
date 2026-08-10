@@ -10,6 +10,7 @@ import {
 import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
 import AccountPage, { authRequest, TEST_ACCOUNTS } from './AccountPage.jsx';
+import { resolveAccountSwitchDestination } from './loginRedirect.js';
 import ResumePage from './ResumePage.jsx';
 import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
 import HeroSelect from './CustomSelect.jsx';
@@ -422,8 +423,9 @@ function Header({ path, qa, operations, auth }) {
     setSwitchingRole(account.key);
     try {
       await authRequest('test-switch', { key:account.key });
-      // 보조 토큰은 sessionStorage에 남으므로 전체 문서를 다시 읽어 모든 권한 훅을 동기화한다.
-      window.location.assign(withBase(account.key === 'admin' ? '/admin/console' : '/mypage'));
+      // 계정 전환은 로그인 행위일 뿐 목적지를 바꾸지 않는다. 현재 보던 화면을 새 세션으로
+      // 다시 읽고, 로그인·회원가입 화면에서 전환한 경우에만 메인으로 돌아간다.
+      window.location.assign(withBase(resolveAccountSwitchDestination(getRoute())));
     } catch (error) {
       window.alert(`테스트 계정 전환에 실패했습니다: ${error.message}`);
       setSwitchingRole('');

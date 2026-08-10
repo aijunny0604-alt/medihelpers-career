@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { resolveLoginDestination } from './loginRedirect.js';
+import { resolveAccountSwitchDestination, resolveLoginDestination } from './loginRedirect.js';
 
 test('login returns to an explicit safe page and no longer defaults members to mypage', () => {
   assert.equal(resolveLoginDestination({ search:'?next=%2Fjobs%2Fdoctor-1%3Ffrom%3Dhome', role:'doctor' }), '/jobs/doctor-1?from=home');
@@ -31,4 +31,16 @@ test('login can recover a same-origin previous page and header always supplies t
 
   const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
   assert.match(mainSource, /`\/login\?next=\$\{encodeURIComponent\(loginReturnTo\)\}`/);
+});
+
+test('header test account switching keeps the current page instead of forcing mypage', async () => {
+  assert.equal(resolveAccountSwitchDestination('/jobs/doctor-1?from=home'), '/jobs/doctor-1?from=home');
+  assert.equal(resolveAccountSwitchDestination('/medical-staff'), '/medical-staff');
+  assert.equal(resolveAccountSwitchDestination('/login?next=/jobs'), '/');
+  assert.equal(resolveAccountSwitchDestination('/signup/hospital'), '/');
+  assert.equal(resolveAccountSwitchDestination('https://evil.example'), '/');
+
+  const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  assert.match(mainSource, /resolveAccountSwitchDestination\(getRoute\(\)\)/);
+  assert.doesNotMatch(mainSource, /account\.key === 'admin' \? '\/admin\/console' : '\/mypage'/);
 });
