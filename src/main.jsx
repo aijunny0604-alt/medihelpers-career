@@ -2539,13 +2539,6 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' })
           <h2>구직 중인 의사·의료인</h2>
           <p className="headhunt-board-lead">의사·의료인이 직접 등록한 구직 이력서입니다. 병원 회원은 <b>열람권</b>을 결제하면 이름·연락처·상세 이력을 열람할 수 있습니다.</p>
         </div>
-        {/* 의료인 회원이 이 게시판에서 바로 구직글을 쓸 수 있게 한다.
-            병원 회원에게는 등록 경로가 없으므로(정책상 구직글은 의료인 본인만) 버튼을 숨긴다. */}
-        {!isHospitalMember && (
-          <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume' : '/signup/doctor?next=/resume')}>
-            <FileText /> {canWriteJobSeeker ? '구직글 등록' : '의료인 회원으로 등록'}
-          </a>
-        )}
       </div>
 
       <div className="headhunt-board">
@@ -2555,7 +2548,15 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' })
             <button className={filter === 'doctor' ? 'active' : ''} onClick={() => setFilter('doctor')}>의사 <b>{doctorCount}</b></button>
             <button className={filter === 'medical' ? 'active' : ''} onClick={() => setFilter('medical')}>간호·의료인 <b>{medicalCount}</b></button>
           </div>
-          <label className="headhunt-board-search"><Search size={16} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="진료과·지역·희망조건 검색" /></label>
+          <div className="headhunt-board-toolbar-actions">
+            <label className="headhunt-board-search"><Search size={16} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="진료과·지역·희망조건 검색" /></label>
+            {/* 구직글은 의료인 본인만 등록한다. 병원 회원에게는 작성 버튼을 노출하지 않는다. */}
+            {!isHospitalMember && (
+              <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume' : '/signup/doctor?next=/resume')}>
+                <FileText /> {canWriteJobSeeker ? '구직글 등록' : '의료인 회원으로 등록'}
+              </a>
+            )}
+          </div>
         </div>
         <div className="jobseeker-filter-row">
           <label className="jobseeker-filter"><span>진료과·직군</span><select value={dept} onChange={(e) => setDept(e.target.value)}>{deptOptions.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
