@@ -75,26 +75,19 @@ const mergeContentInventory = (contents = []) => [
 ];
 
 const groups = [
-  { title: '운영 대시보드', items: [
+  { title: '운영 기록', items: [
     ['dashboard', '전체 현황', LayoutDashboard],
-    ['monitoring', '통합 모니터링', Activity],
-    ['crm', '채용 CRM', BriefcaseBusiness],
-    ['consultations', '상담 접수', UsersRound],
+    ['monitoring', '통합 기록', Activity],
   ] },
-  { title: '사이트 관리', items: [
-    ['contents', '공고 · 인재 · 게시글', PencilLine],
-    ['categories', '카테고리 관리', FolderKanban],
-    ['settings', '사이트 기본정보', FileText],
-    ['features', '기능 설정', SlidersHorizontal],
-  ] },
-  { title: '회원 · 데이터', items: [
-    ['members', '회원 현황', UserRoundCog],
-    ['resumes', '이력서 관리', FileText],
-    ['payments', '결제 · 환불 관리', CreditCard],
+  { title: 'DB 기록', items: [
+    ['members', '회원 기록', UserRoundCog],
+    ['resumes', '이력서 기록', FileText],
+    ['contents', '공고 · 콘텐츠 기록', Eye],
+    ['payments', '결제 · 환불 원장', CreditCard],
     ['talentAudit', '인재 열람 감사', ShieldAlert],
-    ['protection', '백업 · 데이터 보존', Archive],
-    ['database', 'DB 현황', Database],
-    ['audit', '변경 이력', Activity],
+    ['protection', '백업 · 보존 기록', Archive],
+    ['database', 'DB 테이블 현황', Database],
+    ['audit', '시스템 기록', Activity],
   ] },
 ];
 
@@ -205,8 +198,8 @@ export default function AdminConsolePage({ qa = false }) {
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
         const next = await loadConsole();
-        const contents = mergeContentInventory(next.contents);
-        setData({ ...next, contents, metrics:{ ...next.metrics, contents:contents.length, databaseContents:(next.contents || []).length } });
+        const contents = next.contents || [];
+        setData({ ...next, contents, metrics:{ ...next.metrics, contents:contents.length, databaseContents:contents.length } });
         setMessage('');
         setLoadError('');
         setLoading(false);
@@ -222,32 +215,12 @@ export default function AdminConsolePage({ qa = false }) {
 
   useEffect(() => { refresh(); }, [qa]);
 
-  const mutate = async (action, payload, success) => {
-    if (qa) {
-      setMessage(`QA 미리보기: ${success}`);
-      return null;
-    }
-    try {
-      await updateConsole(action, payload);
-      setMessage(success);
-      await refresh();
-      return true;
-    } catch (error) {
-      setMessage(error.message);
-      return false;
-    }
-  };
-
   const currentLabel = useMemo(
     () => groups.flatMap((group) => group.items).find(([key]) => key === section)?.[1] || '관리자 모드',
     [section]
   );
 
-  const select = (key) => {
-    if (key === 'crm') return go('/admin/recruitment-crm');
-    if (key === 'consultations') return go('/admin/consultations');
-    setSection(key);
-  };
+  const select = (key) => setSection(key);
 
   const logout = async () => {
     if (loggingOut) return;
@@ -286,11 +259,9 @@ export default function AdminConsolePage({ qa = false }) {
       <div className="admin-console-top">
         <div>
           <span className="admin-console-mark"><ShieldCheck /></span>
-          <div><strong>메디헬퍼스 관리자 모드</strong><small>운영 · 회원 · 콘텐츠 통합 관리</small></div>
+          <div><strong>메디헬퍼스 관리자 기록실</strong><small>운영 DB 읽기 전용 조회</small></div>
         </div>
         <nav>
-          <button onClick={() => go('/admin/recruitment-crm')}>채용 CRM</button>
-          <button onClick={() => go('/admin/consultations')}>상담함</button>
           <button onClick={() => go('/')}>사이트 보기</button>
         </nav>
       </div>
@@ -298,7 +269,7 @@ export default function AdminConsolePage({ qa = false }) {
         <aside className="admin-sidebar">
           <div className="admin-profile">
             <span><UserRoundCog /></span>
-            <div><strong>최고 관리자</strong><small>{qa ? 'QA 권한 미리보기' : '인증된 운영 계정'}</small></div>
+            <div><strong>읽기 전용 관리자</strong><small>{qa ? 'QA 기록 미리보기' : 'DB 기록 조회 계정'}</small></div>
           </div>
           {groups.map((group) => (
             <section key={group.title}>
@@ -313,23 +284,20 @@ export default function AdminConsolePage({ qa = false }) {
           <button className="admin-console-logout" type="button" onClick={logout} disabled={loggingOut}>
             <LogOut /><span>{loggingOut ? '로그아웃 중…' : '로그아웃'}</span>
           </button>
-          <div className="admin-security-note"><ShieldCheck /><p><strong>안전한 운영 원칙</strong><br />직접 SQL 대신 검증된 관리 기능과 변경 이력을 사용합니다.</p></div>
+          <div className="admin-security-note"><ShieldCheck /><p><strong>읽기 전용 운영 원칙</strong><br />저장·승인·수정·삭제 없이 자동 기록된 DB 자료만 조회합니다.</p></div>
         </aside>
         <main className="admin-workspace">
           <header className="admin-page-head">
-            <div><small>ADMINISTRATION CONSOLE</small><h1>{currentLabel}</h1><p>홈페이지의 운영 데이터와 공개 기능을 한곳에서 관리합니다.</p></div>
+            <div><small>READ-ONLY DATABASE CONSOLE</small><h1>{currentLabel}</h1><p>홈페이지에서 자동 저장된 DB 기록을 조회합니다.</p></div>
             <span className={loading ? 'loading' : ''}>{loading ? '데이터 동기화 중' : '운영 DB 연결'}</span>
           </header>
           {message && <div className="admin-message">{message}</div>}
           {section === 'dashboard' && <Dashboard data={data} select={select} />}
           {section === 'monitoring' && <OperationsMonitor data={data} select={select} />}
-          {section === 'contents' && <ContentManager data={data} setData={setData} mutate={mutate} qa={qa} />}
-          {section === 'categories' && <Categories data={data} setData={setData} mutate={mutate} qa={qa} />}
-          {section === 'settings' && <SiteSettings data={data} setData={setData} mutate={mutate} />}
-          {section === 'features' && <Features data={data} setData={setData} mutate={mutate} />}
-          {section === 'members' && <Members data={data} mutate={mutate} />}
+          {section === 'contents' && <ContentRecords data={data} />}
+          {section === 'members' && <Members data={data} />}
           {section === 'resumes' && <Resumes data={data} />}
-          {section === 'payments' && <Payments data={data} mutate={mutate} />}
+          {section === 'payments' && <Payments data={data} />}
           {section === 'talentAudit' && <TalentAccessAudit active={section === 'talentAudit'} />}
           {section === 'protection' && <DataProtection active={section === 'protection'} qa={qa} />}
           {section === 'database' && <DatabaseStatus metrics={data.metrics} />}
@@ -344,34 +312,33 @@ function Dashboard({ data, select }) {
   // 각 위젯을 클릭하면 해당 관리 섹션으로 바로 이동하도록 target 섹션을 지정한다.
   const cards = [
     ['전체 회원', data.metrics.accounts, UserRoundCog, `의사 ${data.metrics.doctors} · 병원 ${data.metrics.hospitals}`, 'members'],
-    ['결제 요청', data.metrics.payments || 0, CreditCard, `처리 대기 ${data.metrics.pendingPayments || 0}건`, 'payments'],
+    ['결제 기록', data.metrics.payments || 0, CreditCard, `기록 상태 대기 ${data.metrics.pendingPayments || 0}건`, 'payments'],
     ['누적 결제', `${(data.metrics.paidRevenue || 0).toLocaleString()}원`, ReceiptText, `환불 주문 ${data.metrics.refundedPayments || 0}건`, 'payments'],
-    ['상담 접수', data.metrics.consultations, UsersRound, '신규·처리 대기 포함', 'consultations'],
-    ['진행 채용', data.metrics.activeCases, BriefcaseBusiness, `입사 확정 ${data.metrics.hiredCases}건`, 'crm'],
-    ['운영 콘텐츠', data.metrics.contents || 0, PencilLine, '공고·인재·게시글', 'contents'],
+    ['상담 기록', data.metrics.consultations, UsersRound, '자동 저장된 상담 내역', 'monitoring'],
+    ['채용 기록', data.metrics.activeCases, BriefcaseBusiness, `입사 기록 ${data.metrics.hiredCases}건`, 'monitoring'],
+    ['콘텐츠 기록', data.metrics.contents || 0, Eye, '공고·인재·게시글', 'contents'],
   ];
   return <>
     <div className="admin-metric-grid">{cards.map(([label, value, Icon, copy, target]) => <button type="button" key={label} className="admin-metric-card" onClick={() => select(target)} aria-label={`${label} 관리로 이동`}><span><Icon /></span><div><small>{label}</small><strong>{typeof value === 'number' ? value.toLocaleString() : value}</strong><p>{copy}</p></div><ChevronRight className="admin-metric-arrow" /></button>)}</div>
     <div className="admin-dashboard-grid">
       <section className="admin-panel">
-        <header><div><small>QUICK MANAGEMENT</small><h2>빠른 관리</h2></div></header>
+        <header><div><small>DATABASE SHORTCUTS</small><h2>기록 바로 보기</h2></div></header>
         <div className="admin-quick-grid">
-          <button className="admin-quick-highlight" onClick={() => go('/admin/post')}><Plus /><span><strong>공고 올리기</strong><small>의사·의료인 채용공고 바로 등록</small></span><ChevronRight /></button>
-          <button onClick={() => select('monitoring')}><Activity /><span><strong>통합 모니터링</strong><small>공고·상담·채용·결제 상태</small></span><ChevronRight /></button>
-          <button onClick={() => select('contents')}><PencilLine /><span><strong>콘텐츠 통합 관리</strong><small>공고·인재·게시글 CRUD</small></span><ChevronRight /></button>
-          <button onClick={() => select('payments')}><CreditCard /><span><strong>결제 · 환불 관리</strong><small>주문·승인·영수증·환불</small></span><ChevronRight /></button>
-          <button onClick={() => select('categories')}><FolderKanban /><span><strong>카테고리 관리</strong><small>진료과·지역·직군</small></span><ChevronRight /></button>
-          <button onClick={() => select('features')}><SlidersHorizontal /><span><strong>기능 설정</strong><small>서비스 공개 여부</small></span><ChevronRight /></button>
-          <button onClick={() => select('crm')}><BriefcaseBusiness /><span><strong>채용 CRM</strong><small>후보·면접·입사</small></span><ChevronRight /></button>
-          <button onClick={() => select('audit')}><Activity /><span><strong>변경 이력</strong><small>관리자 감사 로그</small></span><ChevronRight /></button>
+          <button className="admin-quick-highlight" onClick={() => select('monitoring')}><Activity /><span><strong>통합 기록</strong><small>공고·상담·채용·결제 상태 조회</small></span><ChevronRight /></button>
+          <button onClick={() => select('members')}><UserRoundCog /><span><strong>회원 기록</strong><small>가입 유형·연락처·접속 기록</small></span><ChevronRight /></button>
+          <button onClick={() => select('contents')}><Eye /><span><strong>콘텐츠 기록</strong><small>공고·인재·게시글 조회</small></span><ChevronRight /></button>
+          <button onClick={() => select('payments')}><CreditCard /><span><strong>결제 원장</strong><small>주문·거래·환불 기록 조회</small></span><ChevronRight /></button>
+          <button onClick={() => select('protection')}><Archive /><span><strong>백업 기록</strong><small>자동 백업·보존 상태 조회</small></span><ChevronRight /></button>
+          <button onClick={() => select('database')}><Database /><span><strong>DB 테이블</strong><small>테이블별 레코드 현황</small></span><ChevronRight /></button>
+          <button onClick={() => select('audit')}><Activity /><span><strong>시스템 기록</strong><small>과거 변경·감사 로그</small></span><ChevronRight /></button>
         </div>
       </section>
       <section className="admin-panel">
-        <header><div><small>OPERATIONS</small><h2>오늘 확인할 항목</h2></div></header>
+        <header><div><small>AUTOMATIC RECORDS</small><h2>자동 저장 현황</h2></div></header>
         <div className="admin-todo">
-          <button onClick={() => select('consultations')}><span>상담 접수</span><strong>{data.metrics.consultations}건</strong><ChevronRight /></button>
-          <button onClick={() => select('crm')}><span>진행 중 채용</span><strong>{data.metrics.activeCases}건</strong><ChevronRight /></button>
-          <button onClick={() => select('audit')}><span>관리 변경 기록</span><strong>{data.metrics.auditLogs}건</strong><ChevronRight /></button>
+          <button onClick={() => select('monitoring')}><span>상담 기록</span><strong>{data.metrics.consultations}건</strong><ChevronRight /></button>
+          <button onClick={() => select('monitoring')}><span>채용 기록</span><strong>{data.metrics.activeCases}건</strong><ChevronRight /></button>
+          <button onClick={() => select('audit')}><span>시스템 기록</span><strong>{data.metrics.auditLogs}건</strong><ChevronRight /></button>
         </div>
       </section>
     </div>
@@ -392,7 +359,7 @@ const caseStatus = { new_request:'신규 의뢰', condition_review:'조건 확�
 const contentStatus = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감' };
 const paymentStatus = { pending_review:'결제 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패', cancelled:'취소', partially_refunded:'부분 환불', refunded:'환불 완료' };
 
-function OperationsMonitor({ data, select }) {
+function OperationsMonitor({ data }) {
   const [kind, setKind] = useState('all');
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState(null);
@@ -410,18 +377,10 @@ function OperationsMonitor({ data, select }) {
     const haystack = `${item.monitorTitle} ${item.monitorSubtitle} ${item.monitorStatus} ${item.id}`.toLowerCase();
     return haystack.includes(keyword.trim().toLowerCase());
   });
-  const openManager = (item) => {
-    setSelected(null);
-    if (item.monitorType === 'recovery') return select('monitoring');
-    if (item.monitorType === 'consultation') return go('/admin/consultations');
-    if (item.monitorType === 'case') return go('/admin/recruitment-crm');
-    if (item.monitorType === 'content') return select('contents');
-    return select('payments');
-  };
   return <section className="admin-panel admin-monitor">
-    <header><div><small>REAL-TIME OPERATIONS MONITOR</small><h2>공고·상담·채용·결제 통합 모니터링</h2><p>새로 접수되거나 상태가 바뀐 운영 데이터를 시간순으로 확인하고 담당 관리 화면으로 바로 이동합니다.</p></div><button className="admin-primary" onClick={() => window.location.reload()}><RotateCcw />새로고침</button></header>
+    <header><div><small>READ-ONLY OPERATIONS RECORDS</small><h2>공고·상담·채용·결제 통합 기록</h2><p>홈페이지에서 자동 저장되거나 상태가 바뀐 DB 기록을 시간순으로 조회합니다.</p></div><button className="admin-primary" onClick={() => window.location.reload()}><RotateCcw />새로고침</button></header>
     <div className="admin-monitor-summary">
-      {Object.entries(monitorLabels).map(([key, label]) => <button key={key} onClick={() => setKind(key)} className={kind === key ? 'active' : ''}><span>{label}</span><strong>{counts[key] || 0}</strong><small>{key === 'recovery' ? '아이디·비밀번호 확인 요청' : key === 'consultation' ? '신규 문의와 알림 결과' : key === 'case' ? '후보·면접·입사 단계' : key === 'content' ? '공개·마감·수정 상태' : '주문·승인·환불 상태'}</small></button>)}
+      {Object.entries(monitorLabels).map(([key, label]) => <button key={key} onClick={() => setKind(key)} className={kind === key ? 'active' : ''}><span>{label}</span><strong>{counts[key] || 0}</strong><small>{key === 'recovery' ? '아이디·비밀번호 도움 기록' : key === 'consultation' ? '문의와 알림 결과' : key === 'case' ? '후보·면접·입사 기록' : key === 'content' ? '공개·마감 상태' : '주문·결제·환불 기록'}</small></button>)}
     </div>
     <div className="admin-monitor-toolbar">
       <div><button className={kind === 'all' ? 'active' : ''} onClick={() => setKind('all')}>전체 <b>{records.length}</b></button>{Object.entries(monitorLabels).map(([key,label]) => <button className={kind === key ? 'active' : ''} key={key} onClick={() => setKind(key)}>{label} <b>{counts[key] || 0}</b></button>)}</div>
@@ -432,11 +391,11 @@ function OperationsMonitor({ data, select }) {
       {visible.map((item) => <button key={`${item.monitorType}-${item.id}`} onClick={() => setSelected(item)}><span className={`monitor-kind ${item.monitorType}`}>{monitorLabels[item.monitorType]}</span><span><strong>{item.monitorTitle}</strong><small>{item.monitorSubtitle}</small></span><em className={`monitor-status ${item.status || item.stage}`}>{item.monitorStatus}</em><time>{String(item.monitorDate || '-').slice(0,16).replace('T',' ')}</time><i><Eye />상세</i></button>)}
       {!visible.length && <div className="admin-monitor-empty"><Activity /><span>조건에 맞는 운영 내역이 없습니다.</span></div>}
     </div>
-    {selected && <MonitorDetail item={selected} onClose={() => setSelected(null)} onManage={() => openManager(selected)} />}
+    {selected && <MonitorDetail item={selected} onClose={() => setSelected(null)} />}
   </section>;
 }
 
-function MonitorDetail({ item, onClose, onManage }) {
+function MonitorDetail({ item, onClose }) {
   useEffect(() => {
     const previous = document.body.style.overflow;
     const handleKey = (event) => { if (event.key === 'Escape') onClose(); };
@@ -466,7 +425,7 @@ function MonitorDetail({ item, onClose, onManage }) {
       <header><div><small>OPERATION RECORD DETAIL</small><span className={`monitor-kind ${item.monitorType}`}>{monitorLabels[item.monitorType]}</span><h2 id="admin-monitor-detail-title">{item.monitorTitle}</h2><p>{item.monitorSubtitle}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
       <div className="admin-content-detail-meta">{common.map(([label,value], index) => <div key={label}>{index === 1 ? <Activity /> : index === 0 ? <Database /> : <FileText />}<span><small>{label}</small><strong>{String(value || '-').slice(0,40).replace('T',' ')}</strong></span></div>)}</div>
       <div className="admin-monitor-detail-body"><h3>접수·처리 상세정보</h3><dl>{details.filter(([,value]) => value !== undefined && value !== null && value !== '').map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></div>
-      <footer><button className="button outline" onClick={onClose}>닫기</button>{item.monitorType !== 'recovery' && <button className="admin-primary" onClick={onManage}>담당 관리 화면 열기 <ChevronRight /></button>}</footer>
+      <footer><button className="button outline" onClick={onClose}>닫기</button><span className="catalog-readonly"><ShieldCheck /> 읽기 전용 DB 기록입니다.</span></footer>
     </section>
   </div>;
 }
@@ -514,6 +473,27 @@ const emptyContent = {
   contentType:'doctor_job', title:'', subtitle:'', status:'draft', visibility:'public',
   payload:{ primary:'', secondary:'', description:'', department:'', region:'', role:'', employmentType:'', career:'', pay:'', deadline:'', schedule:'' },
 };
+
+function ContentRecords({ data }) {
+  const [type, setType] = useState('all');
+  const [keyword, setKeyword] = useState('');
+  const [selected, setSelected] = useState(null);
+  const contents = data.contents || [];
+  const visible = contents.filter((item) => (type === 'all' || item.contentType === type) && (!keyword || `${item.title} ${item.subtitle}`.toLowerCase().includes(keyword.toLowerCase())));
+  return <section className="admin-panel admin-content-manager">
+    <header><div><small>CONTENT DATABASE RECORDS</small><h2>공고 · 인재 · 게시글 기록</h2><p>사용자 등록과 결제 결과로 DB에 저장된 콘텐츠를 읽기 전용으로 조회합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 수정·삭제 불가</span></header>
+    <div className="admin-content-toolbar">
+      <div>{[['all','전체'], ...Object.entries(contentTypeLabels)].map(([key,label]) => <button key={key} className={type === key ? 'active' : ''} onClick={() => setType(key)}>{label}<b>{key === 'all' ? contents.length : contents.filter((item) => item.contentType === key).length}</b></button>)}</div>
+      <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="제목·기관명 검색" /></label>
+    </div>
+    <div className="admin-content-table">
+      <div className="head"><span>유형</span><span>제목·기관</span><span>공개 범위</span><span>상태</span><span>최근 수정</span><span>조회</span></div>
+      {visible.map((item) => <div className="admin-content-row" key={item.id} role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><div><strong>{Number(item.sortOrder || 0) >= 100 && <span className="content-pin-badge">📌 상단고정</span>}{item.title || '(제목 없음)'}</strong><small>{item.subtitle || '보조 정보 없음'} · <b className={`content-source ${item.source}`}>{item.source === 'catalog' ? '기본 콘텐츠' : '운영 DB'}</b></small></div><span className="content-visibility"><Eye />{{public:'전체',doctor:'의사',hospital:'병원',admin:'관리자'}[item.visibility]}</span><span className={`content-status ${item.status}`}>{{draft:'임시저장',published:'공개 중',hidden:'숨김',closed:'마감'}[item.status]}</span><time>{String(item.updatedAt || '').slice(0,16).replace('T',' ') || '-'}</time><div className="content-actions"><button onClick={(event) => { event.stopPropagation(); setSelected(item); }}><Eye />상세</button></div></div>)}
+      {!visible.length && <div className="admin-content-empty"><FileText /><span>조건에 맞는 DB 기록이 없습니다.</span></div>}
+    </div>
+    {selected && <ContentDetail item={selected} onClose={() => setSelected(null)} />}
+  </section>;
+}
 
 function ContentManager({ data, setData, mutate, qa }) {
   const [type, setType] = useState('all');
@@ -584,7 +564,7 @@ function ContentManager({ data, setData, mutate, qa }) {
   </section>;
 }
 
-function ContentDetail({ item, onClose, onEdit }) {
+function ContentDetail({ item, onClose }) {
   useEffect(() => {
     const previous = document.body.style.overflow;
     const handleKey = (event) => { if (event.key === 'Escape') onClose(); };
@@ -607,9 +587,9 @@ function ContentDetail({ item, onClose, onEdit }) {
       </div>
       <div className="admin-content-detail-body">
         <section><h3>등록 내용</h3>{payload.length ? <dl>{payload.map(([key, value]) => <div className={key === 'description' ? 'wide' : ''} key={key}><dt>{payloadLabels[key] || key}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl> : <p className="admin-content-detail-empty">등록된 상세 내용이 없습니다.</p>}</section>
-        <aside><h3>운영 기록</h3><dl><div><dt>데이터 ID</dt><dd>{item.id}</dd></div><div><dt>작성 시각</dt><dd>{String(item.createdAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>최근 수정</dt><dd>{String(item.updatedAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>공개 시작</dt><dd>{String(item.publishedAt || '-').slice(0,16).replace('T',' ')}</dd></div></dl><p><ShieldCheck /> 수정·공개·삭제 작업은 관리자 변경 이력에 기록됩니다.</p></aside>
+        <aside><h3>운영 기록</h3><dl><div><dt>데이터 ID</dt><dd>{item.id}</dd></div><div><dt>작성 시각</dt><dd>{String(item.createdAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>최근 수정</dt><dd>{String(item.updatedAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>공개 시작</dt><dd>{String(item.publishedAt || '-').slice(0,16).replace('T',' ')}</dd></div></dl><p><ShieldCheck /> 홈페이지 동작 결과가 DB에 자동 기록됩니다.</p></aside>
       </div>
-      <footer><button className="button outline" onClick={onClose}>닫기</button>{item.source !== 'catalog' ? <button className="admin-primary" onClick={onEdit}><PencilLine />이 내용 수정</button> : <span className="catalog-readonly"><ShieldCheck /> 기본 콘텐츠는 여기서 읽기만 할 수 있습니다.</span>}</footer>
+      <footer><button className="button outline" onClick={onClose}>닫기</button><span className="catalog-readonly"><ShieldCheck /> 읽기 전용 DB 기록입니다.</span></footer>
     </section>
   </div>;
 }
@@ -644,7 +624,7 @@ function Features({ data, setData, mutate }) {
   </section>;
 }
 
-function Members({ data, mutate }) {
+function Members({ data }) {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('all');
   const members = (data.members || []).filter((member) => {
@@ -658,32 +638,33 @@ function Members({ data, mutate }) {
       <article><CreditCard /><strong>{data.metrics.payments || 0}</strong><p>전체 결제 주문</p><small>회원별 누적 결제액 추적</small></article>
     </section>
     <section className="admin-panel admin-member-manager">
-      <header><div><small>MEMBER DATABASE</small><h2>회원가입 회원 정보 DB</h2><p>계정, 연락처, 회원 유형, 인증·활동 상태, 약관 동의와 결제 누계를 한곳에서 확인합니다.</p></div></header>
+      <header><div><small>MEMBER DATABASE</small><h2>회원가입 회원 정보 DB</h2><p>계정, 연락처, 회원 유형, 인증·활동 상태, 약관 동의와 결제 누계를 읽기 전용으로 확인합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 상태 변경 불가</span></header>
       <div className="admin-data-toolbar">
         <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름·이메일·병원·연락처 검색" /></label>
         <select value={role} onChange={(event) => setRole(event.target.value)}><option value="all">전체 회원</option><option value="doctor">의료인 회원</option><option value="hospital">병원 회원</option></select>
         <span>검색 결과 <b>{members.length}</b>명</span>
       </div>
       <div className="admin-member-table">
-        <div className="head"><span>회원</span><span>유형·기관</span><span>인증</span><span>약관·결제</span><span>가입·접속</span><span>관리</span></div>
-        {members.map((member) => <MemberRow member={member} mutate={mutate} key={member.id} />)}
+        <div className="head"><span>회원</span><span>유형·기관</span><span>인증</span><span>약관·결제</span><span>가입·접속</span><span>계정 상태</span></div>
+        {members.map((member) => <MemberRow member={member} key={member.id} />)}
         {!members.length && <div className="admin-data-empty">조건에 맞는 회원이 없습니다.</div>}
       </div>
     </section>
   </>;
 }
 
-function MemberRow({ member, mutate }) {
-  const [status, setStatus] = useState(member.status || 'active');
-  const [verificationStatus, setVerificationStatus] = useState(member.verificationStatus || 'unverified');
-  const save = () => mutate('member_update', { id:member.id, status, verificationStatus }, '회원 상태와 인증 정보를 저장했습니다.');
+function MemberRow({ member }) {
+  const status = member.status || 'active';
+  const verificationStatus = member.verificationStatus || 'unverified';
+  const verificationLabel = { unverified:'미인증', pending:'확인 중', verified:'인증 완료', rejected:'인증 반려' }[verificationStatus] || verificationStatus;
+  const statusLabel = { active:'정상', suspended:'정지', withdrawn:'탈퇴' }[status] || status;
   return <div className="member-row">
     <div><strong>{member.fullName || '이름 미등록'}</strong><small>{member.email || '이메일 비공개'}</small><small>{member.phone || '연락처 미등록'}</small></div>
     <div><span className={`member-role ${member.role}`}>{member.role === 'doctor' ? '의사' : '병원'}</span><strong>{member.organization || member.jobTitle || '-'}</strong><small>{member.jobTitle || '직함 미등록'}</small></div>
-    <div><select value={verificationStatus} onChange={(event) => setVerificationStatus(event.target.value)}><option value="unverified">미인증</option><option value="pending">확인 중</option><option value="verified">인증 완료</option><option value="rejected">인증 반려</option></select><small>계정 {status === 'active' ? '정상' : status === 'suspended' ? '정지' : '탈퇴'}</small></div>
+    <div><strong>{verificationLabel}</strong><small>계정 {statusLabel}</small></div>
     <div><strong>동의 {member.consentCount || 0}건</strong><small>주문 {member.orderCount || 0}건</small><b>{Number(member.lifetimeValue || 0).toLocaleString()}원</b></div>
     <div><small>가입 {String(member.createdAt || '-').slice(0,16)}</small><small>최근 {String(member.lastLoginAt || '-').slice(0,16)}</small></div>
-    <div><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="active">정상</option><option value="suspended">이용 정지</option><option value="withdrawn">탈퇴</option></select><button className="admin-primary" onClick={save}><Save />저장</button></div>
+    <div><span className={`payment-status ${status}`}>{statusLabel}</span><small>자동 기록</small></div>
   </div>;
 }
 
@@ -692,7 +673,7 @@ const paymentStatusLabel = {
   cancelled:'취소', partially_refunded:'부분 환불', refunded:'전액 환불'
 };
 
-function Payments({ data, mutate }) {
+function Payments({ data }) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const filtered = (data.payments || []).filter((payment) => {
@@ -703,7 +684,7 @@ function Payments({ data, mutate }) {
   const selected = (data.payments || []).find((payment) => payment.id === selectedId) || filtered[0] || null;
   useEffect(() => { if (!selected && filtered[0]) setSelectedId(filtered[0].id); }, [selected, filtered]);
   return <section className="admin-panel admin-payment-manager">
-    <header><div><small>PAYMENT LEDGER</small><h2>결제 · 거래 · 환불 통합 원장</h2><p>주문번호를 기준으로 회원, 상품, 공급가·부가세, 승인·실패·취소와 환불 기록을 연결해 보관합니다.</p></div></header>
+    <header><div><small>PAYMENT LEDGER</small><h2>결제 · 거래 · 환불 통합 원장</h2><p>주문번호를 기준으로 회원, 상품, 공급가·부가세, 결제 결과와 환불 기록을 읽기 전용으로 조회합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 처리·승인 불가</span></header>
     <div className="admin-payment-metrics">
       <article><span>전체 주문</span><strong>{data.metrics.payments || 0}건</strong></article>
       <article><span>처리 대기</span><strong>{data.metrics.pendingPayments || 0}건</strong></article>
@@ -720,28 +701,15 @@ function Payments({ data, mutate }) {
         {filtered.map((payment) => <button className={payment.id === selected?.id ? 'active' : ''} onClick={() => setSelectedId(payment.id)} key={payment.id}><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status] || payment.status}</span><div><strong>{payment.productName}</strong><small>{payment.orderNumber}</small><small>{payment.customerName} · {payment.customerEmail}</small>{payment.exposure && <small className="payment-exposure">노출 {payment.exposure.start} ~ {payment.exposure.end}</small>}</div><b>{Number(payment.totalAmount).toLocaleString()}원</b><time>{String(payment.createdAt || '').slice(0,16)}</time></button>)}
         {!filtered.length && <div className="admin-data-empty">조건에 맞는 결제 주문이 없습니다.</div>}
       </div>
-      {selected ? <PaymentDetail payment={selected} transactions={data.transactions || []} refunds={data.refunds || []} mutate={mutate} /> : <div className="admin-payment-detail admin-data-empty">확인할 주문을 선택해주세요.</div>}
+      {selected ? <PaymentDetail payment={selected} transactions={data.transactions || []} refunds={data.refunds || []} /> : <div className="admin-payment-detail admin-data-empty">확인할 주문을 선택해주세요.</div>}
     </div>
   </section>;
 }
 
-function PaymentDetail({ payment, transactions, refunds, mutate }) {
-  const [status, setStatus] = useState(payment.status);
-  const [method, setMethod] = useState(payment.paymentMethod || 'card');
-  const [providerTransactionId, setProviderTransactionId] = useState('');
-  const [adminNote, setAdminNote] = useState(payment.adminNote || '');
-  const [refundAmount, setRefundAmount] = useState('');
-  const [refundReason, setRefundReason] = useState('');
-  useEffect(() => { setStatus(payment.status); setMethod(payment.paymentMethod || 'card'); setAdminNote(payment.adminNote || ''); setProviderTransactionId(''); setRefundAmount(''); setRefundReason(''); }, [payment.id]);
+function PaymentDetail({ payment, transactions, refunds }) {
   const [showReceipt, setShowReceipt] = useState(false);
   const orderTransactions = transactions.filter((item) => item.orderId === payment.id);
   const orderRefunds = refunds.filter((item) => item.orderId === payment.id);
-  const save = () => mutate('payment_update', { id:payment.id, status, paymentMethod:method, provider:'manual', providerTransactionId, adminNote }, '결제 상태와 거래 이력을 저장했습니다.');
-  const refund = async () => {
-    const saved = await mutate('refund_create', { orderId:payment.id, amount:Number(refundAmount), reason:refundReason }, '환불 요청을 원장에 기록했습니다.');
-    if (saved) { setRefundAmount(''); setRefundReason(''); }
-  };
-  const resolveRefund = (refundId, decision) => mutate('refund_resolve', { refundId, decision }, decision === 'approve' ? '환불 요청을 승인했습니다.' : '환불 요청을 거부했습니다.');
   // 영수증 모달용 매핑(회원 영수증과 동일 포맷).
   const receiptPayload = { id:payment.orderNumber, item:payment.productName, date:String(payment.paidAt || payment.createdAt || '').slice(0,10), method:payment.paymentMethod === 'transfer' ? '계좌이체' : '카드', status:paymentStatusLabel[payment.status] || payment.status, total:Number(payment.totalAmount||0), supply:Number(payment.supplyAmount||Math.round(Number(payment.totalAmount||0)/1.1)), tax:Number(payment.taxAmount||(Number(payment.totalAmount||0)-Math.round(Number(payment.totalAmount||0)/1.1))), customerName:payment.customerName };
   return <div className="admin-payment-detail">
@@ -752,24 +720,16 @@ function PaymentDetail({ payment, transactions, refunds, mutate }) {
       <div><dt>상품</dt><dd>{payment.productName}<small>{payment.accountRole === 'hospital' ? '병원 회원' : '의료인 회원'} · {payment.productType}</small></dd></div>
       <div><dt>결제금액</dt><dd><b>{Number(payment.totalAmount).toLocaleString()}원</b><small>공급가 {Number(payment.supplyAmount).toLocaleString()}원 · 부가세 {Number(payment.taxAmount).toLocaleString()}원</small></dd></div>
       <div><dt>처리시각</dt><dd>{String(payment.createdAt || '-').slice(0,16)}<small>결제 {String(payment.paidAt || '-').slice(0,16)}</small></dd></div>
-      {payment.exposure && <div><dt>노출 기간</dt><dd>{payment.exposure.start} ~ {payment.exposure.end} <small>{payment.exposure.days ? `${payment.exposure.days}일 상품` : ''}{new Date(`${String(payment.exposure.end).slice(0,10)}T23:59:59`).getTime() < Date.now() ? ' · ⛔ 노출 종료됨' : ' · ✅ 노출 중'}<br />기간 연장·수정은 ‘공고 · 인재 · 게시글’에서 해당 공고의 노출 종료일을 바꾸세요.</small></dd></div>}
+      {payment.exposure && <div><dt>노출 기간</dt><dd>{payment.exposure.start} ~ {payment.exposure.end} <small>{payment.exposure.days ? `${payment.exposure.days}일 상품` : ''}{new Date(`${String(payment.exposure.end).slice(0,10)}T23:59:59`).getTime() < Date.now() ? ' · 노출 종료' : ' · 노출 중'}</small></dd></div>}
     </dl>
-    <div className="payment-admin-form">
-      <label><span>주문 상태</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="awaiting_payment">결제 대기</option><option value="paid">결제 완료</option><option value="failed">결제 실패</option><option value="cancelled">취소</option></select></label>
-      <label><span>결제 수단</span><select value={method} onChange={(event) => setMethod(event.target.value)}><option value="card">카드</option><option value="transfer">계좌이체</option></select></label>
-      <label className="wide"><span>PG·승인 거래번호</span><input value={providerTransactionId} onChange={(event) => setProviderTransactionId(event.target.value)} placeholder="승인번호 또는 PG 거래번호" /></label>
-      <label className="wide"><span>관리 메모</span><textarea value={adminNote} onChange={(event) => setAdminNote(event.target.value)} rows="2" placeholder="입금 확인, 실패 사유, 운영 메모 등" /></label>
-      <button className="admin-primary wide" onClick={save}><Save />결제 상태 저장</button>
-    </div>
-    <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{String(item.processedAt || '').slice(0,16)}</time></div>)}{!orderTransactions.length && <p>아직 승인·실패 거래가 없습니다.</p>}</section>
-    {orderRefunds.some((item) => item.status === 'requested') && <section className="payment-refund-requests"><h4><RotateCcw />회원 환불(청약철회) 요청</h4>{orderRefunds.filter((item) => item.status === 'requested').map((item) => <div key={item.id} className="refund-request-row"><div><strong>환불 요청</strong><small>{item.reason || '사유 미입력'}</small><small>요청자 {item.requestedBy || '회원'}</small></div><div className="refund-request-actions"><button type="button" className="admin-primary" onClick={() => resolveRefund(item.id, 'approve')}>승인(전액 환불)</button><button type="button" className="admin-ghost" onClick={() => resolveRefund(item.id, 'reject')}>거부</button></div></div>)}</section>}
-    {['paid','partially_refunded'].includes(payment.status) && <section className="payment-refund"><h4><RotateCcw />환불 접수(관리자 직접)</h4><div><input value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} inputMode="numeric" placeholder="환불 금액" /><input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} placeholder="환불 사유" /><button onClick={refund}>환불 기록</button></div>{orderRefunds.filter((item) => item.status !== 'requested').map((item) => <p key={item.id}>{Number(item.amount).toLocaleString()}원 · {item.status} · {item.reason}</p>)}</section>}
+    <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{String(item.processedAt || '').slice(0,16)}</time></div>)}{!orderTransactions.length && <p>아직 저장된 거래 기록이 없습니다.</p>}</section>
+    <section className="payment-refund-requests"><h4><RotateCcw />환불 기록</h4>{orderRefunds.map((item) => <div key={item.id} className="refund-request-row"><div><strong>{Number(item.amount || 0).toLocaleString()}원 · {item.status}</strong><small>{item.reason || '사유 미입력'}</small><small>요청자 {item.requestedBy || '회원'} · {String(item.processedAt || item.createdAt || '').slice(0,16)}</small></div></div>)}{!orderRefunds.length && <p>저장된 환불 기록이 없습니다.</p>}</section>
   </div>;
 }
 
 function DatabaseStatus({ metrics }) {
   const rows = [['accounts', '회원 계정', metrics.accounts], ['account_admin_profiles', '회원 인증·운영 정보', metrics.accounts], ['payment_orders', '결제 주문 원장', metrics.payments || 0], ['payment_transactions', '승인·실패 거래', metrics.payments || 0], ['payment_refunds', '환불 원장', metrics.refundedPayments || 0], ['consultation_requests', '상담 접수', metrics.consultations], ['recruitment_cases', '채용 CRM', metrics.activeCases + metrics.hiredCases], ['admin_content_records', '공고·인재·게시글', metrics.contents || 0], ['admin_categories', '운영 카테고리', metrics.categories], ['admin_audit_logs', '관리자 변경 이력', metrics.auditLogs]];
-  return <section className="admin-panel"><header><div><small>DATABASE OVERVIEW</small><h2>DB 테이블 현황</h2><p>안전을 위해 임의 SQL 실행 대신 승인된 관리 기능만 제공합니다.</p></div></header><div className="admin-db-table">{rows.map(([table, label, count]) => <div key={table}><Database /><code>{table}</code><strong>{label}</strong><span>{count.toLocaleString()} records</span><em>정상</em></div>)}</div></section>;
+  return <section className="admin-panel"><header><div><small>DATABASE OVERVIEW</small><h2>DB 테이블 현황</h2><p>테이블별 자동 저장 건수를 읽기 전용으로 조회합니다. 관리자 화면에서는 데이터를 변경할 수 없습니다.</p></div></header><div className="admin-db-table">{rows.map(([table, label, count]) => <div key={table}><Database /><code>{table}</code><strong>{label}</strong><span>{count.toLocaleString()} records</span><em>조회 전용</em></div>)}</div></section>;
 }
 
 function DataProtection({ active, qa }) {
@@ -779,32 +739,20 @@ function DataProtection({ active, qa }) {
     objects:[{ key:'backups/2026/07/25/medihelpers-daily-2026-07-25T00-10-00-000Z.json', size:482104, uploaded:'2026-07-25T00:10:00.000Z', checksum:'demo-checksum' }],
     runs:[{ id:'demo-backup', runType:'backup', triggerType:'daily', status:'succeeded', actor:'system', startedAt:'2026-07-25 09:10:00', completedAt:'2026-07-25 09:10:02' }]
   };
-  const [state, setState] = useState({ loading:true, error:'', data:qa ? demo : null, creating:false });
+  const [state, setState] = useState({ loading:true, error:'', data:qa ? demo : null });
   const load = async () => {
-    if (qa) return setState({ loading:false, error:'', data:demo, creating:false });
+    if (qa) return setState({ loading:false, error:'', data:demo });
     setState((old) => ({ ...old, loading:true, error:'' }));
     try {
       const response = await fetch('/api/admin-backups', { credentials:'same-origin', headers:{ accept:'application/json' } });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || '백업 현황을 불러오지 못했습니다.');
-      setState({ loading:false, error:'', data:body, creating:false });
+      setState({ loading:false, error:'', data:body });
     } catch (error) {
-      setState({ loading:false, error:error.message, data:null, creating:false });
+      setState({ loading:false, error:error.message, data:null });
     }
   };
   useEffect(() => { if (active) load(); }, [active, qa]);
-  const create = async () => {
-    if (qa) return;
-    setState((old) => ({ ...old, creating:true, error:'' }));
-    try {
-      const response = await fetch('/api/admin-backups', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:'{}' });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || '백업을 만들지 못했습니다.');
-      await load();
-    } catch (error) {
-      setState((old) => ({ ...old, creating:false, error:error.message }));
-    }
-  };
   const download = async (key) => {
     try {
       const response = await fetch('/api/admin-backups?key=' + encodeURIComponent(key), { credentials:'same-origin' });
@@ -830,11 +778,11 @@ function DataProtection({ active, qa }) {
   const lastRetention = (data.runs || []).find((run) => run.runType === 'retention' && run.status === 'succeeded');
   const formatSize = (size) => size >= 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
   return <section className="admin-panel admin-protection">
-    <header><div><small>DATA PROTECTION</small><h2>백업 · 개인정보 보존 관리</h2><p>D1 전체 데이터를 별도 R2 저장소에 매일 백업하고, 보유기간이 끝난 데이터는 자동으로 정리합니다.</p></div><button className="admin-primary" onClick={create} disabled={state.creating || state.loading}><Archive />{state.creating ? '백업 생성 중' : '지금 백업'}</button></header>
+    <header><div><small>DATA PROTECTION RECORDS</small><h2>백업 · 개인정보 보존 기록</h2><p>D1 전체 데이터의 일일 자동 백업과 보유기간 정리 결과를 읽기 전용으로 확인합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 자동 백업 기록</span></header>
     {state.error && <div className="admin-message">{state.error}</div>}
     <div className="admin-protection-summary">
       <article><ShieldCheck /><span><small>백업 저장소</small><strong>{data.configured ? '정상 연결' : '설정 필요'}</strong><p>운영 DB와 분리된 비공개 R2</p></span></article>
-      <article><Archive /><span><small>마지막 백업</small><strong>{lastBackup ? String(lastBackup.completedAt || lastBackup.startedAt).slice(0,16) : '대기 중'}</strong><p>일일 자동 + 관리자 수동 생성</p></span></article>
+      <article><Archive /><span><small>마지막 백업</small><strong>{lastBackup ? String(lastBackup.completedAt || lastBackup.startedAt).slice(0,16) : '대기 중'}</strong><p>일일 자동 생성</p></span></article>
       <article><RotateCcw /><span><small>마지막 보존 정리</small><strong>{lastRetention ? String(lastRetention.completedAt || lastRetention.startedAt).slice(0,16) : '대기 중'}</strong><p>탈퇴 30일 · 상담 3년 · 거래 5년</p></span></article>
       <article><Database /><span><small>백업 보관기간</small><strong>{data.backupRetentionDays || 35}일</strong><p>만료 스냅샷 자동 삭제</p></span></article>
     </div>
@@ -848,7 +796,7 @@ function DataProtection({ active, qa }) {
 }
 
 function Audit({ audit = [] }) {
-  return <section className="admin-panel"><header><div><small>AUDIT LOG</small><h2>관리자 변경 이력</h2><p>카테고리, 기능, 사이트 설정 변경을 추적합니다.</p></div></header><div className="admin-audit-list">{audit.map((item) => <article key={item.id}><span><Activity /></span><div><strong>{item.subject}</strong><p>{item.action}</p></div><small>{item.actor}</small><time>{item.createdAt}</time></article>)}</div></section>;
+  return <section className="admin-panel"><header><div><small>AUDIT LOG</small><h2>시스템 기록</h2><p>자동 기록된 시스템 작업과 과거 관리자 변경 이력을 읽기 전용으로 확인합니다.</p></div></header><div className="admin-audit-list">{audit.map((item) => <article key={item.id}><span><Activity /></span><div><strong>{item.subject}</strong><p>{item.action}</p></div><small>{item.actor}</small><time>{item.createdAt}</time></article>)}</div></section>;
 }
 
 // 인재 이력서 열람 감사: 병원별 열람량과 이상 열람(한도 초과·단시간 폭주) 경고를 보여준다.

@@ -1611,7 +1611,7 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
   const adAuth = useAuthGate(qa);
-  const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
+  const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   const requestAdPlan = (plan) => {
     const target = `/advertise/apply?plan=${plan.id}`;
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
@@ -1658,21 +1658,8 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
     trackConversion('job_detail_open', { jobId: job.id, source: 'jobs' });
     navigate(`/jobs/${encodeURIComponent(job.id)}`);
   };
-  // 관리자면 관리자가 등록한(DB) 공고에 한해 카드에서 바로 수정·삭제할 수 있게 한다.
-  const isAdmin = Boolean(adAuth.isAdmin);
-  const manageJob = isAdmin ? {
-    edit: (job) => navigate(`/admin/post?edit=${encodeURIComponent(job.sourceId || String(job.id).replace(/^admin-/, ''))}`),
-    remove: async (job) => {
-      if (!window.confirm(`‘${job.title}’ 공고를 삭제할까요? 삭제 후 사이트에서 즉시 사라집니다.`)) return;
-      try {
-        const response = await fetch('/api/admin-console', { method:'PATCH', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ action:'content_delete', payload:{ id: job.sourceId || String(job.id).replace(/^admin-/, '') } }) });
-        if (!response.ok) throw new Error();
-        window.location.reload();
-      } catch { window.alert('삭제하지 못했습니다. 관리자 로그인 상태인지 확인해 주세요.'); }
-    }
-  } : null;
-  const renderPortalCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} manageJob={manageJob} />;
-  const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} manageJob={manageJob} />;
+  const renderPortalCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} />;
+  const renderStandardCard = (job) => <JobCard key={job.id} job={job} qa={qa} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJob(job)} />;
 
   const visibleStandard = standardDisplayOrder.slice(0, standardVisible);
   const standardRemaining = standardDisplayOrder.length - visibleStandard.length;
@@ -1685,7 +1672,6 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
       description={<><span className="jobs-description-part">봉직의·원장·검진·비임상 포지션을</span>{' '}<span className="jobs-description-part">진료과와 지역, 근무조건으로 찾고</span>{' '}<span className="jobs-description-part">비공개 조건은 의사 전담 헤드헌터에게 확인하세요.</span></>}
     ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
     <nav className="job-hub-nav" aria-label="채용정보 메뉴"><div><strong className="job-hub-title">채용정보</strong><Link className="active" to="/jobs">전체 채용</Link><Link to="/medical-staff">의료인 구인구직</Link><Link to="/headhunting">맞춤 초빙</Link><Link to="/account">내 활동</Link><Link className="job-hub-register" to={canRegisterAds ? '/advertise' : '/signup?next=/advertise'}>{canRegisterAds ? '공고 등록' : '회원가입'}</Link></div></nav>
-    {isAdmin && <div className="admin-inline-bar"><div className="admin-inline-bar-label"><ShieldCheck /> 관리자 모드 · 공고 관리</div><div className="admin-inline-bar-actions"><button type="button" className="admin-inline-primary" onClick={() => navigate('/admin/post?new=1')}><Plus /> 새 공고 올리기</button><button type="button" onClick={() => navigate('/admin/post')}><PencilLine /> 내 공고 전체 관리</button><button type="button" onClick={() => navigate('/admin/console')}>관리자 콘솔</button></div><p className="admin-inline-bar-hint">관리자가 등록한 공고 카드에는 <b>수정·삭제</b> 버튼이 표시됩니다.</p></div>}
     <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={siteCategories.departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={siteCategories.regions} /></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
       <div className="doctor-condition-filter" role="group" aria-label="의사 초빙 상세조건">{doctorConditions.map((item) => <button key={item} type="button" className={condition === item ? 'active' : ''} aria-pressed={condition === item} onClick={() => setCondition(item)}>{item}</button>)}</div>
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
@@ -2374,18 +2360,6 @@ function HeadhuntPostDetailPage({ post }) {
 
 function HeadhuntBoard({ operations, qa }) {
   const posts = useMemo(() => buildHeadhuntPosts(operations), [operations?.contents]);
-  // 관리자면 이 게시판에서 바로 공고를 올리고, 올린 글을 수정·삭제할 수 있게 한다.
-  const boardAuth = useAuthGate(qa);
-  const isAdmin = Boolean(boardAuth.isAdmin);
-  const editPost = (post) => navigate(`/admin/post?edit=${encodeURIComponent(post.id)}`);
-  const removePost = async (post) => {
-    if (!window.confirm(`‘${post.title}’ 공고를 삭제할까요? 삭제 후 사이트에서 즉시 사라집니다.`)) return;
-    try {
-      const response = await fetch('/api/admin-console', { method:'PATCH', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ action:'content_delete', payload:{ id: post.id } }) });
-      if (!response.ok) throw new Error();
-      window.location.reload();
-    } catch { window.alert('삭제하지 못했습니다. 관리자 로그인 상태인지 확인해 주세요.'); }
-  };
   const [filter, setFilter] = useState('all');
   const [region, setRegion] = useState('전체');
   const [dept, setDept] = useState('전체');
@@ -2411,8 +2385,6 @@ function HeadhuntBoard({ operations, qa }) {
         </div>
       </div>
 
-      {isAdmin && <div className="admin-inline-bar"><div className="admin-inline-bar-label"><ShieldCheck /> 관리자 모드 · 공고 관리</div><div className="admin-inline-bar-actions"><button type="button" className="admin-inline-primary" onClick={() => navigate('/admin/post?new=1')}><Plus /> 새 공고 올리기</button><button type="button" onClick={() => navigate('/admin/post')}><PencilLine /> 내 공고 전체 관리</button><button type="button" onClick={() => navigate('/admin/console')}>관리자 콘솔</button></div><p className="admin-inline-bar-hint">관리자가 등록한 공고에는 <b>수정·삭제</b> 버튼이 표시됩니다.</p></div>}
-
       <div className="headhunt-board">
         {/* 검색 도크 — 지역·진료과·키워드 */}
         <div className="hb-search-dock">
@@ -2437,10 +2409,9 @@ function HeadhuntBoard({ operations, qa }) {
         </div>
 
         {total > 0 ? (
-          <div className={`headhunt-board-table ${isAdmin ? 'admin-manage' : ''}`} role="table">
+          <div className="headhunt-board-table" role="table">
             <div className="headhunt-board-head" role="row" aria-hidden="true">
               <span>번호</span><span>제목</span><span>작성자</span><span>조회</span><span>등록일</span>
-              {isAdmin && <span>관리</span>}
             </div>
             {visible.map((post, index) => (
               <div
@@ -2459,12 +2430,6 @@ function HeadhuntBoard({ operations, qa }) {
                 <span className="hb-author">{post.author}</span>
                 <span className="hb-views">{post.views}</span>
                 <time className="hb-date">{post.date || '-'}</time>
-                {isAdmin && (
-                  <span className="hb-admin-actions">
-                    <button type="button" onClick={(e) => { e.stopPropagation(); editPost(post); }}><PencilLine size={14} /> 수정</button>
-                    <button type="button" className="danger" onClick={(e) => { e.stopPropagation(); removePost(post); }}><Trash2 size={14} /> 삭제</button>
-                  </span>
-                )}
               </div>
             ))}
           </div>
@@ -3441,7 +3406,7 @@ function TalentUnlockPage({ route, qa }) {
   // 진짜 병원 계정은 영영 열람권을 못 사서 결제가 막힌다(실제로 그런 버그였음).
   const auth = useAuthGate(qa);
   if (auth.status === 'loading') return <section className="section auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
-  const canUnlock = Boolean((auth.role === 'hospital' || auth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
+  const canUnlock = Boolean(auth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   return <>
     <PageHero tone="membership" eyebrow="TALENT RESUME UNLOCK" title="인재 이력서 열람권" description="구직 공개에 동의한 의사·의료인 후보의 연락처와 이력서 상세를 병원 회원이 열람합니다." />
     {canUnlock
@@ -3454,7 +3419,7 @@ function AdvertisePage({ qa }) {
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청을 못 한다.
   const adAuth = useAuthGate(qa);
   const authLoading = adAuth.status === 'loading';
-  const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
+  const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   const requestPlan = (nextPlan) => {
     if (authLoading) return;
     const target = `/advertise/apply?plan=${nextPlan.id}`;
@@ -3473,7 +3438,7 @@ function AdvertiseApplyPage({ route, qa }) {
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청 페이지에서 막힌다.
   const adAuth = useAuthGate(qa);
   if (adAuth.status === 'loading') return <section className="ad-apply-page auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
-  const canRegisterAds = Boolean((adAuth.role === 'hospital' || adAuth.isAdmin) || (qa.active && (qa.info.capabilities.hospital || qa.info.capabilities.admin)));
+  const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   if (!canRegisterAds) {
     const next = `/advertise/apply?plan=${plan.id}`;
     return (
@@ -3665,9 +3630,7 @@ export function App() {
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;
   else if (path === '/talent-unlock') page = <TalentUnlockPage route={route} qa={qa} />;
   else if (path === '/qa-preview') page = <NotFoundPage />;
-  else if (path === '/admin/consultations') page = <ConsultationAdminPage />;
-  else if (path === '/admin/recruitment-crm') page = <RecruitmentCrmPage qa={qa} />;
-  else if (path === '/admin/post') page = <JobPostBoardPage />;
+  else if (path === '/admin/consultations' || path === '/admin/recruitment-crm' || path === '/admin/post') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
   else if (path === '/admin' || path === '/admin/console') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
   else if (path === '/mypage' || path.startsWith('/mypage/inquiries/') || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;

@@ -471,6 +471,7 @@ async function dataProtectionHealthApi(request, env) {
 async function adminBackupsApi(request, env) {
   const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
+  if (request.method !== 'GET') return json({ error:'관리자 백업 화면은 기록 조회 전용입니다.' }, 405);
   if (!env || !env.DB || !env.BACKUPS) return json({ error:'백업 저장소가 준비되지 않았습니다.' }, 503);
   await ensureAdminConsoleSchema(env);
   const url = new URL(request.url);
@@ -676,6 +677,7 @@ async function consultationApi(request, env, pathname) {
   }
   const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 로그인이 필요합니다.' }, 401);
+  if (request.method !== 'GET') return json({ error:'관리자 상담 기록은 조회 전용입니다.' }, 405);
   if (request.method === 'GET' && pathname === '/api/consultations') {
     const result = await env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE json_extract(payload_json,'$.jobId') IS NULL AND COALESCE(json_extract(payload_json,'$.submissionChannel'),'') <> 'paid_job_direct' ORDER BY created_at DESC LIMIT 200").all();
     const requests = (result.results || []).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...rest } = row; return { ...rest, payload }; });
@@ -1941,6 +1943,7 @@ async function paymentApproveApi(request, env) {
 async function recruitmentCrmApi(request, env, pathname) {
   const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 401);
+  if (request.method !== 'GET') return json({ error:'채용 CRM 기록은 조회 전용입니다.' }, 405);
   try { await ensureRecruitmentCrmSchema(env); } catch { return json({ error:'채용 CRM 저장소를 사용할 수 없습니다.' }, 503); }
   if (request.method === 'GET' && pathname === '/api/recruitment-crm') {
     const result = await env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all();
@@ -2146,6 +2149,7 @@ async function publicSiteOperationsApi(request, env) {
 async function adminConsoleApi(request, env) {
   const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
+  if (request.method !== 'GET') return json({ error:'관리자 콘솔은 DB 기록 조회 전용입니다.' }, 405);
   try {
     await ensureAccountSchema(env);
     await ensureConsultationSchema(env);
@@ -2153,8 +2157,6 @@ async function adminConsoleApi(request, env) {
     await ensureAdminConsoleSchema(env);
     await ensureMemberCenterSchema(env);
     await ensureCommerceSchema(env);
-    await seedAdminConsole(env);
-    await syncAdOrderContentRecords(env);
   } catch {
     return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }

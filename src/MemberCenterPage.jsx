@@ -356,16 +356,15 @@ export default function MemberCenterPage({ route, qa }) {
   };
 
   if (accountState.loading) return <section className="member-loading"><ShieldCheck /><strong>내 회원 정보를 불러오고 있습니다</strong></section>;
-  // 관리자는 일반 마이페이지가 아니라 운영 콘솔로 안내한다(회원·공고·결제·DB 관리는 콘솔에서).
+  // 관리자는 일반 마이페이지가 아니라 읽기 전용 DB 기록 콘솔로 안내한다.
   if (accountState.isAdmin) {
     return <section className="member-gate member-admin-gate">
       <span><ShieldCheck /></span>
       <small>ADMINISTRATOR</small>
       <h1>관리자 계정입니다</h1>
-      <p>회원·공고·결제·상담·데이터 관리는 운영 콘솔에서 처리합니다.</p>
+      <p>회원·공고·결제·상담의 자동 저장 기록은 읽기 전용 콘솔에서 확인합니다.</p>
       <div>
-        <a className="button primary" href={withBase('/admin/console')}>운영 콘솔 열기 <ArrowRight /></a>
-        <a className="button outline" href={withBase('/admin/post')}>공고 올리기</a>
+        <a className="button primary" href={withBase('/admin/console')}>DB 기록 콘솔 열기 <ArrowRight /></a>
       </div>
     </section>;
   }
@@ -586,7 +585,7 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
 
       <footer>
         <a className="button outline" href={withBase('/mypage?tab=inquiries')}>문의 목록으로</a>
-        {canAdmin ? <a className="button primary" href={withBase('/admin/consultations')}>관리자 상담함에서 답변·상태 관리 <ArrowRight /></a> : !isDirectApplication && <a className="button primary" href="tel:0513425463">담당 헤드헌터에게 문의 <Phone /></a>}
+        {canAdmin ? <a className="button primary" href={withBase('/admin/console')}>DB 상담 기록 보기 <ArrowRight /></a> : !isDirectApplication && <a className="button primary" href="tel:0513425463">담당 헤드헌터에게 문의 <Phone /></a>}
       </footer>
       <p className="inquiry-detail-privacy"><LockKeyhole /> {role === 'hospital' ? '후보자의 실명과 연락처는 동의된 범위에서만 공개됩니다.' : '회원님의 개인정보는 동의한 병원과 담당 헤드헌터에게만 전달됩니다.'}</p>
   </article>;

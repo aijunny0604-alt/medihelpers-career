@@ -80,14 +80,29 @@ test('유료 광고 상품 등급과 노출기간을 공개 공고 레코드에 
   assert.match(source, /json_set\(/);
 });
 
-test('관리자 콘텐츠와 공개 초빙 게시판의 관리 버튼은 전용 열에서 한 줄로 표시된다', async () => {
+test('관리자 화면은 DB 기록 조회 전용이며 승인·수정 API를 거부한다', async () => {
+  const adminSource = await readFile(new URL('./AdminConsolePage.jsx', import.meta.url), 'utf8');
+  const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  assert.match(adminSource, /READ-ONLY DATABASE CONSOLE/);
+  assert.match(adminSource, /<ContentRecords data=\{data\}/);
+  assert.match(adminSource, /<Members data=\{data\}/);
+  assert.match(adminSource, /<Payments data=\{data\}/);
+  assert.doesNotMatch(adminSource, /section === 'categories'/);
+  assert.doesNotMatch(adminSource, /section === 'settings'/);
+  assert.doesNotMatch(adminSource, /section === 'features'/);
+  assert.match(serverSource, /관리자 콘솔은 DB 기록 조회 전용입니다/);
+  assert.match(serverSource, /관리자 상담 기록은 조회 전용입니다/);
+  assert.match(serverSource, /채용 CRM 기록은 조회 전용입니다/);
+  assert.match(serverSource, /관리자 백업 화면은 기록 조회 전용입니다/);
+});
+
+test('공개 화면에서 관리자는 공고·결제 신청과 수정·삭제 기능을 사용할 수 없다', async () => {
   const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
-  const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
-  assert.ok(source.includes("headhunt-board-table ${isAdmin ? 'admin-manage' : ''}"));
-  assert.match(source, /\{isAdmin && <span>관리<\/span>\}/);
-  assert.match(styles, /145px 310px/);
-  assert.match(styles, /\.content-actions\{display:grid!important;grid-template-columns:repeat\(3,minmax\(58px,1fr\)\)/);
-  assert.match(styles, /\.content-actions button\{[^}]*white-space:nowrap/);
-  assert.match(styles, /\.headhunt-board-table\.admin-manage[^}]*150px/);
-  assert.match(styles, /grid-template-areas:'title title' 'author date' 'actions actions'/);
+  const jobsPage = source.slice(source.indexOf('function JobsPage'), source.indexOf('export function TalentPage'));
+  const headhuntBoard = source.slice(source.indexOf('function HeadhuntBoard'), source.indexOf('function JobSeekerBoard'));
+  const advertise = source.slice(source.indexOf('function AdvertisePage'), source.indexOf('function AboutPage'));
+  assert.doesNotMatch(jobsPage, /admin-inline-bar|manageJob=|content_delete/);
+  assert.doesNotMatch(headhuntBoard, /admin-inline-bar|content_delete|hb-admin-actions|admin-manage/);
+  assert.doesNotMatch(advertise, /adAuth\.isAdmin|capabilities\.admin/);
+  assert.match(source, /path === '\/admin\/consultations'.*<AdminConsolePage/);
 });
