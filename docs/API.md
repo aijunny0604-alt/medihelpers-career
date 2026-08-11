@@ -11,7 +11,7 @@
 | `/api/auth/register` | POST | 공개 | 자체 이메일·비밀번호 계정 생성 및 로그인. 요청 헤더가 보조 세션을 명시하면 탭 토큰도 반환 |
 | `/api/auth/login` | POST | 공개 | 자체 계정 로그인 및 보안 세션 쿠키 발급. 요청 헤더가 보조 세션을 명시하면 탭 토큰도 반환 |
 | `/api/auth/logout` | POST | 로그인 | 현재 D1 세션 폐기 및 보안 쿠키 삭제. 클라이언트는 탭 보조 토큰도 함께 삭제 |
-| `/api/member-center` | GET·POST·PATCH | 회원 | GET 프로필·알림·활동·상담·주문 / POST `refund_request`(환불 요청)·`job_create`(403 차단) / PATCH 프로필·알림 |
+| `/api/member-center` | GET·POST·PATCH | 회원 | GET 프로필·알림·활동·상담·주문 / POST `owned_ad_update`(병원 본인 공고 수정)·`refund_request`(환불 요청)·`job_create`(403 차단) / PATCH 프로필·알림 |
 | `/api/payment-orders` | GET·POST | 회원 | 본인 주문 조회·상품 신청. 병원 광고 신청은 결제 대기 공고(`draft`)도 같은 D1 배치로 생성 |
 | `/api/consultations` | POST | 로그인 | 구직·구인 상담 접수 |
 | `/api/consultations` | GET | 관리자 | 상담 목록 |
@@ -42,6 +42,7 @@
 - 상품과 금액은 클라이언트 입력이 아니라 서버 카탈로그에서 확정합니다.
 - 상담은 인증 계정 이메일로 회원 내역에 연결하며 가입 계정이 있으면 역할도 검사합니다. `ACCOUNT_HASH_SECRET`이 약하면 검사를 건너뛰지 않고 **503으로 차단**(fail-closed)합니다.
 - 의료인 상담·공고 지원에서 `payload.resumeId`를 보내면 서버가 로그인 계정의 이력서 소유권을 확인합니다. 접수 기록에는 서버가 조회한 제목과 이력서 스냅샷을 함께 저장하므로 이후 원본이 수정되어도 접수 당시 제출 내용을 확인할 수 있습니다.
+- `owned_ad_update`는 병원회원만 사용할 수 있고 `contentRecordId`에 연결된 광고 주문의 `account_id`가 로그인 계정과 같은지 확인합니다. 제목·병원 정보·채용 조건·이미지만 갱신하며 결제금액·상품등급·노출기간은 기존 값을 보존합니다.
 - 이력서 신규 추가는 `POST /api/resumes`에 `createNew: true`, 특정 이력서 수정은 본인 소유 `resumeId`를 보냅니다. 기존 클라이언트는 별도 값이 없을 때 최근 이력서를 수정하는 방식으로 호환됩니다.
 - 이력서 증명사진은 R2의 `profiles/<account_id>/resume-profile/…`에 저장하고 이력서 `detail.photoUrl`에 연결합니다. 사진 URL은 공개 캐시하지 않으며 본인·관리자 또는 해당 후보 열람권을 가진 병원만 조회할 수 있습니다.
 - 후보 추천은 동의(`consent_status='granted'`)가 확인된 건만 병원에 노출합니다.

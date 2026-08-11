@@ -1163,7 +1163,7 @@ async function memberCenterApi(request, env) {
         "FROM candidate_submissions s JOIN recruitment_cases c ON c.id = s.case_id JOIN consultation_requests cr ON cr.id = c.consultation_id " +
         "WHERE lower(cr.email) = ? AND s.consent_status = 'granted' ORDER BY s.updated_at DESC LIMIT 50"
       ).bind(identity.email.toLowerCase()));
-      addQuery('ownedAds', env.DB.prepare("SELECT id, title, status, updated_at AS updatedAt FROM admin_content_records WHERE lower(created_by)=? ORDER BY updated_at DESC LIMIT 200").bind(identity.email.toLowerCase()));
+      addQuery('ownedAds', env.DB.prepare("SELECT DISTINCT c.id, c.content_type AS contentType, c.title, c.subtitle, c.status, c.payload_json AS payloadJson, c.updated_at AS updatedAt FROM admin_content_records c JOIN payment_orders o ON COALESCE(NULLIF(json_extract(o.metadata_json,'$.contentRecordId'),''), 'ad-order-' || o.id)=c.id WHERE o.account_id=? AND o.product_type='doctor_ad' AND o.status IN ('paid','awaiting_payment') AND c.content_type IN ('doctor_job','medical_job') ORDER BY c.updated_at DESC LIMIT 200").bind(account.id));
     }
     const queryResults = await env.DB.batch(queryStatements);
     const resultsByName = new Map(queryNames.map((name, index) => [name, queryResults[index] || { results:[] }]));
@@ -1241,7 +1241,10 @@ async function memberCenterApi(request, env) {
     let ownedAdContents = [];
     if (account.role === 'hospital') {
       try {
-        ownedAdContents = ownedAdsResult.results || [];
+        ownedAdContents = (ownedAdsResult.results || []).map(row => {
+          const { payloadJson, ...record } = row;
+          return { ...record, payload:parseJsonObject(payloadJson) || {} };
+        });
       } catch { ownedAdContents = []; }
     }
     const ownedAdContentById = new Map(ownedAdContents.map(record => [record.id, record]));
@@ -1254,7 +1257,11 @@ async function memberCenterApi(request, env) {
         exposure:meta.exposure || null,
         contentRecordId:content?.id || '',
         adTitle:content?.title || cleanOrderValue(meta.title || meta.hospital, 180),
-        adStatus:content?.status || ''
+        adSubtitle:content?.subtitle || cleanOrderValue(meta.hospital, 180),
+        adStatus:content?.status || '',
+        adContentType:content?.contentType || '',
+        adPayload:content?.payload || null,
+        adUpdatedAt:content?.updatedAt || ''
       };
     });
     return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson), messages:messagesByConsultation.get(row.id) || [] }; }), orders:orderList, resume:resume || null, recommendedCandidates });
@@ -1304,6 +1311,65 @@ async function memberCenterApi(request, env) {
         env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'inquiry_reply_sent', '메시지를 보냈습니다.', ?)").bind(crypto.randomUUID(), account.id, message.slice(0,300))
       ]);
       return json({ sent:true, message:{ id:messageId, consultationId, senderName:senderLabel, senderRole:account.role, body:message, createdAt:new Date().toISOString(), direction:'sent' } });
+    }
+    if (body.action === 'owned_ad_update') {
+      if (account.role !== 'hospital') return json({ error:'병원 회원만 본인이 등록한 채용공고를 수정할 수 있습니다.' }, 403);
+      const contentRecordId = String(body.contentRecordId || '').trim().slice(0,180);
+      if (!contentRecordId) return json({ error:'수정할 공고를 확인해주세요.' }, 400);
+      // 작성자 이메일만 비교하지 않고 결제 주문의 account_id까지 함께 확인한다. 같은 이메일 표기나
+      // 임의 API 호출로 다른 병원의 공고를 수정할 수 없도록 결제 원장 소유권을 기준으로 잠근다.
+      const owned = await env.DB.prepare(
+        "SELECT c.id, c.content_type AS contentType, c.status, c.payload_json AS payloadJson " +
+        "FROM admin_content_records c JOIN payment_orders o ON COALESCE(NULLIF(json_extract(o.metadata_json,'$.contentRecordId'),''), 'ad-order-' || o.id)=c.id " +
+        "WHERE c.id=? AND o.account_id=? AND o.product_type='doctor_ad' AND o.status IN ('paid','awaiting_payment') AND c.content_type IN ('doctor_job','medical_job') LIMIT 1"
+      ).bind(contentRecordId, account.id).first();
+      if (!owned) return json({ error:'본인 결제 공고에서 수정할 항목을 찾을 수 없습니다.' }, 404);
+      const source = body.content && typeof body.content === 'object' ? body.content : {};
+      const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0,max);
+      const title = s(source.title, 180);
+      const hospital = s(source.hospital, 180);
+      if (!title || !hospital) return json({ error:'공고 제목과 병원명은 필수입니다.' }, 400);
+      const current = parseJsonObject(owned.payloadJson) || {};
+      const address = s(source.address, 300);
+      const department = s(source.department, 180);
+      const salaryBasis = s(source.salaryBasis, 300);
+      const exactHours = s(source.exactHours, 500);
+      const introduction = s(source.introduction, 4000);
+      // 광고 상품명·등급·결제 노출기간은 current에서 보존하고, 병원이 작성한 채용 내용만 갱신한다.
+      const nextPayload = {
+        ...current,
+        hospital,
+        primary:address,
+        address,
+        region:address,
+        website:s(source.website, 500),
+        facilityType:s(source.facilityType, 100),
+        specialties:department,
+        department,
+        role:department,
+        secondary:salaryBasis || department,
+        pay:salaryBasis,
+        salaryBasis,
+        incentive:s(source.incentive, 500),
+        schedule:exactHours,
+        exactHours,
+        onCall:s(source.onCall, 500),
+        patientLoad:s(source.patientLoad, 500),
+        procedureScope:s(source.procedureScope, 500),
+        supportTeam:s(source.supportTeam, 500),
+        leavePolicy:s(source.leavePolicy, 500),
+        startTiming:s(source.startTiming, 300),
+        interviewProcess:s(source.interviewProcess, 500),
+        introduction,
+        description:introduction,
+        logo:s(source.logo, 800),
+        banner:s(source.banner, 800)
+      };
+      await env.DB.batch([
+        env.DB.prepare("UPDATE admin_content_records SET title=?, subtitle=?, payload_json=?, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title, hospital, JSON.stringify(nextPayload).slice(0,12000), identity.email, contentRecordId),
+        env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_update', '채용공고를 수정했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
+      ]);
+      return json({ updated:true, content:{ id:contentRecordId, title, subtitle:hospital, status:owned.status, contentType:owned.contentType, payload:nextPayload } });
     }
     // 소비자 환불(청약철회) 요청: 회원(병원·의사 공용)이 본인 결제 건에 환불을 신청. 실제 승인·환불은 관리자.
     if (body.action === 'refund_request') {
