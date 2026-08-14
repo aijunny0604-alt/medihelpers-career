@@ -265,7 +265,9 @@ async function ensureSchemaGroup(env, key, probeSql, statements, unavailableCode
   catch (error) { schemaReadyPromises.delete(key); throw error; }
 }
 async function ensureAccountSchema(env) {
-  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM auth_sessions LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
+  // 새 계정 기능을 추가한 기존 D1에서도 전체 계정 스키마 문장을 한 번 실행하도록
+  // 가장 최근 테이블을 probe한다. CREATE IF NOT EXISTS라 기존 회원 데이터는 유지된다.
+  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
 }
 async function ensureConsultationSchema(env) {
   return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
@@ -297,10 +299,10 @@ async function ensureAdminConsoleSchema(env) {
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
-const backupSchemaVersion = '0009';
+const backupSchemaVersion = '0010';
 const backupRetentionDays = 35;
 const backupTables = [
-  'accounts','auth_credentials','consent_records','withdrawn_members','account_recovery_requests',
+  'accounts','auth_credentials','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
   'consultation_requests','member_profiles','member_preferences','member_activity','member_notifications','inquiry_messages',
   'resumes','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
   'payment_transactions','payment_refunds','payment_receipts','payment_events',
@@ -365,7 +367,8 @@ async function runRetentionCleanup(env, triggerType = 'daily', actor = 'system')
       env.DB.prepare("DELETE FROM access_audit_logs WHERE created_at < datetime('now','-3 years')"),
       env.DB.prepare("DELETE FROM admin_audit_logs WHERE created_at < datetime('now','-3 years')"),
       env.DB.prepare("DELETE FROM data_protection_runs WHERE started_at < datetime('now','-1 year')"),
-      env.DB.prepare("DELETE FROM accounts WHERE NOT EXISTS (SELECT 1 FROM auth_credentials c WHERE c.account_id=accounts.id) AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.account_id=accounts.id)")
+      env.DB.prepare("DELETE FROM accounts WHERE NOT EXISTS (SELECT 1 FROM auth_credentials c WHERE c.account_id=accounts.id) AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.account_id=accounts.id)"),
+      env.DB.prepare("DELETE FROM account_password_resets WHERE used_at IS NOT NULL OR expires_at < datetime('now','-7 days')")
     ]);
     const deleted = {
       expiredSessions:runChanges(results[0]),
@@ -378,7 +381,8 @@ async function runRetentionCleanup(env, triggerType = 'daily', actor = 'system')
       accessAudit:runChanges(results[9]),
       adminAudit:runChanges(results[10]),
       oldRunLogs:runChanges(results[11]),
-      withdrawnAccounts:runChanges(results[12])
+      withdrawnAccounts:runChanges(results[12]),
+      passwordResetTokens:runChanges(results[13])
     };
     const expiredBackups = await pruneExpiredBackups(env);
     await env.DB.prepare("UPDATE data_protection_runs SET status='succeeded', detail_json=?, completed_at=CURRENT_TIMESTAMP WHERE id=?")
@@ -546,6 +550,26 @@ async function sendConsultationEmail(env, record) {
   const details = Object.entries(record.payload).filter(([, value]) => value).map(([key, value]) => '<tr><th style="padding:8px;text-align:left;background:#f3f7fb">'+escapeHtml(key)+'</th><td style="padding:8px">'+escapeHtml(value)+'</td></tr>').join('');
   const response = await fetch('https://api.resend.com/emails', { method:'POST', headers:{ authorization:'Bearer '+env.RESEND_API_KEY, 'content-type':'application/json' }, body:JSON.stringify({ from:env.RESEND_FROM, to:[env.ALERT_EMAIL_TO], subject:'[메디헬퍼스] 새 '+label+' 상담 '+record.id, html:'<h2>새 상담 신청이 접수되었습니다.</h2><p><b>접수번호:</b> '+escapeHtml(record.id)+'</p><table style="border-collapse:collapse;width:100%">'+details+'</table><p>관리자 상담함에서 처리 상태를 관리해 주세요.</p>' }) });
   if (!response.ok) throw new Error('EMAIL_'+response.status);
+  return 'sent';
+}
+function recoveryEmailConfigured(env) {
+  return Boolean(env && env.RESEND_API_KEY && env.RESEND_FROM);
+}
+async function sendRecoveryEmail(env, message) {
+  if (!recoveryEmailConfigured(env)) return 'not_configured';
+  const passwordReset = message.type === 'password';
+  const subject = passwordReset ? '[메디헬퍼스] 비밀번호 재설정 안내' : '[메디헬퍼스] 가입 이메일 안내';
+  const title = passwordReset ? '비밀번호를 다시 설정해주세요' : '메디헬퍼스 가입 이메일을 확인했습니다';
+  const action = passwordReset
+    ? '<p style="margin:28px 0"><a href="'+escapeHtml(message.resetUrl)+'" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#1263e8;color:#fff;text-decoration:none;font-weight:700">새 비밀번호 설정</a></p><p style="color:#64748b;font-size:13px">이 링크는 30분 동안 한 번만 사용할 수 있습니다.</p>'
+    : '<p style="padding:16px;border-radius:10px;background:#f3f7fb;color:#173455">로그인 이메일: <strong>'+escapeHtml(message.to)+'</strong></p>';
+  const html = '<div style="max-width:560px;margin:0 auto;padding:32px;font-family:Arial,sans-serif;color:#142e50"><h1 style="font-size:24px">'+title+'</h1><p style="line-height:1.7;color:#52657e">요청하신 메디헬퍼스 계정 도움 안내입니다.</p>'+action+'<hr style="margin:30px 0;border:0;border-top:1px solid #e3eaf2"><p style="font-size:12px;line-height:1.6;color:#7b8ba0">본인이 요청하지 않았다면 이 메일을 무시해주세요. 메디헬퍼스는 이메일로 비밀번호를 묻지 않습니다.</p></div>';
+  const response = await fetch('https://api.resend.com/emails', {
+    method:'POST',
+    headers:{ authorization:'Bearer '+env.RESEND_API_KEY, 'content-type':'application/json' },
+    body:JSON.stringify({ from:env.RESEND_FROM, to:[message.to], subject, html })
+  });
+  if (!response.ok) throw new Error('RECOVERY_EMAIL_'+response.status);
   return 'sent';
 }
 async function hmacHex(secret, value) {
@@ -902,7 +926,7 @@ async function authApi(request, env, pathname) {
   }
   return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
 }
-async function accountRecoveryApi(request, env) {
+async function accountRecoveryApi(request, env, ctx) {
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   const length = Number(request.headers.get('content-length') || 0);
@@ -910,9 +934,30 @@ async function accountRecoveryApi(request, env) {
   try { await ensureAccountSchema(env); } catch { return json({ error:'계정 도움 요청 저장소를 사용할 수 없습니다.' }, 503); }
   let body;
   try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  if (body.action === 'reset_password') {
+    const token = String(body.token || '').trim();
+    const password = String(body.password || '');
+    if (!/^[a-f0-9]{64}$/i.test(token) || !validPassword(password)) {
+      return json({ error:'재설정 링크와 영문·숫자를 포함한 8자 이상의 새 비밀번호를 확인해주세요.' }, 400);
+    }
+    const tokenHash = await authSha256Hex(token);
+    const reset = await env.DB.prepare(
+      "SELECT r.id, r.recovery_request_id AS recoveryRequestId, r.account_id AS accountId FROM account_password_resets r JOIN auth_credentials c ON c.account_id=r.account_id WHERE r.token_hash=? AND r.used_at IS NULL AND r.expires_at>CURRENT_TIMESTAMP LIMIT 1"
+    ).bind(tokenHash).first();
+    if (!reset) return json({ error:'재설정 링크가 만료되었거나 이미 사용되었습니다. 새 링크를 요청해주세요.' }, 400);
+    const salt = randomHex(16);
+    const hash = await passwordHash(password, salt);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE auth_credentials SET password_hash=?, password_salt=?, password_iterations=?, failed_attempts=0, locked_until=NULL, password_changed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(hash, salt, passwordIterations, reset.accountId),
+      env.DB.prepare("UPDATE account_password_resets SET used_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=? AND used_at IS NULL").bind(reset.accountId),
+      env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(reset.accountId),
+      env.DB.prepare("UPDATE account_recovery_requests SET status='resolved', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(reset.recoveryRequestId)
+    ]);
+    return json({ reset:true }, 200);
+  }
   const requestType = body.requestType === 'password' ? 'password' : body.requestType === 'id' ? 'id' : '';
   const requesterName = String(body.name || '').trim().slice(0, 80);
-  const phone = String(body.phone || '').replace(/[^0-9+]/g, '').slice(0, 24);
+  const phone = String(body.phone || '').replace(/[^0-9]/g, '').slice(0, 20);
   const email = normalizeEmail(body.email);
   if (!requestType || (requestType === 'id' && (!requesterName || phone.length < 9)) || (requestType === 'password' && !email)) {
     return json({ error:'계정 확인에 필요한 정보를 입력해주세요.' }, 400);
@@ -924,8 +969,44 @@ async function accountRecoveryApi(request, env) {
     await env.DB.prepare('INSERT INTO account_recovery_requests (id, request_type, requester_name, phone, email_normalized) VALUES (?, ?, ?, ?, ?)')
       .bind(id, requestType, requesterName, phone, email).run();
   }
-  // 계정 존재 여부는 공개 응답으로 노출하지 않는다. 담당자가 관리자 화면에서 본인 확인 후 처리한다.
-  return json({ accepted:true, requestId:id }, 202);
+  const emailDeliveryAvailable = recoveryEmailConfigured(env);
+  // 동일 정보의 5분 내 재요청은 새 토큰이나 메일을 만들지 않는다. 응답은 계정 존재 여부와 무관하게 같다.
+  if (recent) return json({ accepted:true, emailDeliveryAvailable }, 202);
+
+  let target = null;
+  if (requestType === 'password') {
+    target = await env.DB.prepare('SELECT account_id AS accountId, email_normalized AS email FROM auth_credentials WHERE email_normalized=? LIMIT 1').bind(email).first();
+  } else {
+    target = await env.DB.prepare(
+      "SELECT c.account_id AS accountId, c.email_normalized AS email FROM member_profiles p JOIN auth_credentials c ON c.account_id=p.account_id WHERE trim(p.display_name)=? AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.phone,'-',''),' ',''),'(',''),')',''),'+','')=? LIMIT 1"
+    ).bind(requesterName, phone).first();
+  }
+
+  let deliveryTask = null;
+  if (target && requestType === 'password') {
+    const rawToken = randomHex(32);
+    const tokenHash = await authSha256Hex(rawToken);
+    const resetId = 'PR-' + Date.now().toString(36).toUpperCase() + '-' + randomHex(5).toUpperCase();
+    const expiresAt = sqliteTimestamp(new Date(Date.now() + 30 * 60 * 1000));
+    const resetUrl = new URL('/account/recovery', request.url);
+    resetUrl.searchParams.set('mode', 'password');
+    resetUrl.searchParams.set('token', rawToken);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE account_password_resets SET used_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=? AND used_at IS NULL").bind(target.accountId),
+      env.DB.prepare("INSERT INTO account_password_resets (id, recovery_request_id, account_id, email_normalized, token_hash, expires_at, delivery_status) VALUES (?, ?, ?, ?, ?, ?, 'pending')").bind(resetId, id, target.accountId, target.email, tokenHash, expiresAt)
+    ]);
+    deliveryTask = sendRecoveryEmail(env, { type:'password', to:target.email, resetUrl:resetUrl.toString() })
+      .then(status => env.DB.prepare('UPDATE account_password_resets SET delivery_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(status, resetId).run())
+      .catch(() => env.DB.prepare("UPDATE account_password_resets SET delivery_status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(resetId).run());
+  } else if (target && requestType === 'id') {
+    deliveryTask = sendRecoveryEmail(env, { type:'id', to:target.email }).catch(() => {});
+  }
+  if (deliveryTask) {
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(deliveryTask);
+    else await deliveryTask;
+  }
+  // 계정 존재 여부, 실제 발송 여부와 대상 이메일은 공개 응답으로 노출하지 않는다.
+  return json({ accepted:true, emailDeliveryAvailable }, 202);
 }
 async function accountApi(request, env) {
   const enabled = signupEnabled(env);
@@ -2468,12 +2549,12 @@ async function adminConsoleApi(request, env) {
   }
   return json({ saved:true });
 }
-async function responseFor(request, env) {
+async function responseFor(request, env, ctx) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
   if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout' || pathname === '/api/auth/test-switch') return authApi(request, env, pathname);
-  if (pathname === '/api/account-recovery') return accountRecoveryApi(request, env);
+  if (pathname === '/api/account-recovery') return accountRecoveryApi(request, env, ctx);
   if (pathname === '/api/account') return accountApi(request, env);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);
@@ -2564,7 +2645,7 @@ export default {
         globalThis.__mhProtectionDate = today;
         ctx.waitUntil(runDailyDataProtection(env).catch(() => { globalThis.__mhProtectionDate = ''; }));
       }
-      return await responseFor(request, env);
+      return await responseFor(request, env, ctx);
     } catch (error) {
       // [보안] 최상위 안전망. 핸들러 안에서 잡지 못한 DB 예외 등이 밖으로 나가면
       // 런타임이 D1 오류 문구가 담긴 HTML 500을 그대로 노출한다(내부정보 유출 + JSON 계약 깨짐).
