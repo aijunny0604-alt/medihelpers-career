@@ -175,7 +175,7 @@ async function handle(method, path, bodyText) {
     const raw = localStorage.getItem(LS.authSession);
     const session = raw && raw !== 'null' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
     if (!session || !session.role) {
-      return jsonRes({ signupEnabled: true, signedIn: false });
+      return jsonRes({ signupEnabled: true, signedIn: false, welcomeEmailAvailable: true, adminSignupEmailAvailable: true });
     }
     const role = session.role === 'doctor' ? 'doctor' : 'hospital';
     const email = session.email || (role === 'hospital' ? 'hospital@example.com' : 'doctor@example.com');
@@ -187,7 +187,7 @@ async function handle(method, path, bodyText) {
       : { displayName: '목 의사 회원', phone: '010-3333-4444', specialty: '내과' };
     // 로컬에서도 관리자 테스트 계정은 관리자로 인식(admin@medihelpers.co.kr).
     const isAdmin = String(email).toLowerCase() === 'admin@medihelpers.co.kr';
-    return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin, profile, email });
+    return jsonRes({ signupEnabled: true, signedIn: true, account, identity, isAdmin, profile, email, welcomeEmailAvailable: true, adminSignupEmailAvailable: true });
   }
 
   // 마이페이지 환불(청약철회) 요청 목: 주문 상태를 refund_requested로 표시.

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
-  LockKeyhole, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, UserRound
+  LockKeyhole, Mail, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, UserRound
 } from 'lucide-react';
 import { accountRoleLabel, validateSignup } from './signupModel.js';
 import {
@@ -677,6 +677,48 @@ function AccountCard({ account, identity = {} }) {
   </section>;
 }
 
+export function SignupWelcomePage() {
+  const [state, setState] = useState({ loading:true, signedIn:false, account:null, identity:{}, welcomeEmailAvailable:false });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    accountRequest().then((data) => setState({ loading:false, ...data })).catch((loadError) => {
+      setError(loadError.message || '가입 정보를 확인하지 못했습니다.');
+      setState((current) => ({ ...current, loading:false }));
+    });
+  }, []);
+  if (state.loading) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-loading" role="status"><LoaderCircle className="spin" /><strong>가입 완료 정보를 확인하고 있습니다</strong></section></div>;
+  if (!state.signedIn || !state.account) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-gate"><span><ShieldAlert /></span><small>ACCOUNT CHECK</small><h1>가입 완료 정보를 확인할 수 없습니다</h1><p>{error || '가입을 마친 브라우저에서 다시 확인하거나 가입한 이메일로 로그인해주세요.'}</p><div><a className="button primary" href={withBase('/login')}>로그인하기 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입 화면</a></div></section></div>;
+  const role = state.account.role === 'hospital' ? 'hospital' : 'doctor';
+  const RoleIcon = role === 'hospital' ? Building2 : Stethoscope;
+  const roleLabel = accountRoleLabel(role);
+  const name = state.profile?.name || state.profile?.displayName || state.identity?.displayName || (role === 'hospital' ? '병원 담당자' : '의료인 회원');
+  const email = state.email || state.identity?.email || '';
+  const primary = role === 'hospital'
+    ? { href:'/advertise', label:'채용공고 등록 시작' }
+    : { href:'/resume?new=1', label:'내 이력서 작성 시작' };
+  const secondary = role === 'hospital'
+    ? { href:'/medical-staff', label:'의료인 인재 살펴보기' }
+    : { href:'/jobs', label:'채용공고 살펴보기' };
+  return <div className={`signup-welcome-page ${role}`}>
+    <div className="signup-confetti" aria-hidden="true">{Array.from({ length:12 }, (_, index) => <i key={index} />)}</div>
+    <section className="signup-welcome-card">
+      <div className="signup-welcome-mark"><CircleCheck /><Sparkles /></div>
+      <small>WELCOME TO MEDIHELPERS</small>
+      <h1>{name}님,<br />회원가입을 축하드립니다!</h1>
+      <p>메디헬퍼스 <strong>{roleLabel}</strong> 가입이 완료되었습니다.<br />필요한 채용 정보와 상담 기능을 지금부터 편하게 이용해보세요.</p>
+      <div className="signup-welcome-summary">
+        <span><RoleIcon /></span><div><small>가입 회원 유형</small><strong>{roleLabel}</strong></div>
+        <span><Mail /></span><div><small>로그인 이메일</small><strong>{email}</strong></div>
+      </div>
+      <div className={`signup-welcome-mail ${state.welcomeEmailAvailable ? 'is-ready' : 'is-pending'}`}>
+        <Mail /><div><strong>{state.welcomeEmailAvailable ? '가입 축하 메일을 전송 요청했습니다' : '가입 정보는 정상적으로 저장되었습니다'}</strong><p>{state.welcomeEmailAvailable ? `${email}에서 메디헬퍼스 환영 인사를 확인해주세요.` : '이메일 발송 설정이 완료되면 환영 메일 안내도 함께 제공됩니다.'}</p></div>
+      </div>
+      <div className="signup-welcome-actions"><a className="button primary" href={withBase(primary.href)}>{primary.label} <ArrowRight /></a><a className="button outline" href={withBase(secondary.href)}>{secondary.label}</a></div>
+      <a className="signup-welcome-home" href={withBase('/')}>메인으로 이동</a>
+    </section>
+  </div>;
+}
+
 // 회원 탈퇴 안내·동의·실행 UI. 마이페이지 회원정보 탭에서 사용(가입 완료 화면과 분리).
 export function WithdrawSection({ onDeleted }) {
   const [deleting, setDeleting] = useState(false);
@@ -752,7 +794,7 @@ export default function AccountPage({ memberType = '', loginOnly = false }) {
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;
   else if (loginOnly) content = <LoginCard testAccountsEnabled={state.testAccountsEnabled !== false} />;
   else if (!memberType) content = <MemberTypeChooser />;
-  else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={(account, identity) => setState((current) => ({ ...current, account, identity:identity || current.identity, signedIn:true }))} />;
+  else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={() => window.location.replace(withBase('/signup/welcome'))} />;
   return <div className="signup-page">
     <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의료인 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
     <div className="signup-shell signup-shell-centered">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}</div>

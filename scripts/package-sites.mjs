@@ -572,6 +572,36 @@ async function sendRecoveryEmail(env, message) {
   if (!response.ok) throw new Error('RECOVERY_EMAIL_'+response.status);
   return 'sent';
 }
+function signupAdminRecipients(env) {
+  return String(env?.ALERT_EMAIL_TO || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+}
+async function sendSignupEmails(env, member) {
+  if (!recoveryEmailConfigured(env)) return { member:'not_configured', admin:'not_configured' };
+  const roleLabel = member.role === 'hospital' ? '병원 회원' : '의료인 회원';
+  const name = member.displayName || (member.role === 'hospital' ? '병원 담당자' : '의료인 회원');
+  const origin = String(member.origin || '').replace(/\\\/$/, '');
+  const startPath = member.role === 'hospital' ? '/advertise' : '/resume?new=1';
+  const welcomeHtml = '<div style="max-width:600px;margin:0 auto;padding:38px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1.2px">WELCOME TO MEDIHELPERS</p><h1 style="margin:10px 0 16px;font-size:28px">'+escapeHtml(name)+'님, 회원가입을 축하드립니다!</h1><p style="line-height:1.8;color:#52657e">메디헬퍼스 '+roleLabel+' 가입이 완료되었습니다. 필요한 채용 정보와 상담 기능을 지금부터 이용하실 수 있습니다.</p><p style="margin:24px 0;padding:16px 18px;border-radius:12px;background:#f3f7fb;color:#173455"><b>로그인 이메일</b><br>'+escapeHtml(member.email)+'</p><p style="margin:28px 0"><a href="'+escapeHtml(origin + startPath)+'" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#1263e8;color:#fff;text-decoration:none;font-weight:700">메디헬퍼스 시작하기</a></p><hr style="margin:30px 0;border:0;border-top:1px solid #e3eaf2"><p style="font-size:12px;line-height:1.7;color:#7b8ba0">본인이 가입하지 않았다면 hr@medihelpers.co.kr 또는 051-342-5463으로 알려주세요. 메디헬퍼스는 이메일로 비밀번호를 묻지 않습니다.</p></div>';
+  const admins = signupAdminRecipients(env);
+  const adminHtml = '<div style="max-width:600px;margin:0 auto;padding:34px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1px">NEW MEMBER</p><h1 style="margin:10px 0 22px;font-size:25px">신규 회원이 가입했습니다</h1><table style="width:100%;border-collapse:collapse"><tr><th style="padding:11px;text-align:left;background:#f3f7fb">회원 유형</th><td style="padding:11px">'+roleLabel+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">이름·담당자</th><td style="padding:11px">'+escapeHtml(name)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 이메일</th><td style="padding:11px">'+escapeHtml(member.email)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">병원·전문 분야</th><td style="padding:11px">'+escapeHtml(member.organization || '-')+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 시각</th><td style="padding:11px">'+escapeHtml(member.createdAt || new Date().toISOString())+'</td></tr></table><p style="margin:26px 0 0"><a href="'+escapeHtml(origin + '/admin')+'" style="color:#1263e8;font-weight:700">관리자 DB 기록 확인</a></p><p style="margin-top:28px;font-size:12px;color:#7b8ba0">보안을 위해 비밀번호와 인증 정보는 이 메일에 포함하지 않습니다.</p></div>';
+  const send = async (to, subject, html, errorPrefix) => {
+    const response = await fetch('https://api.resend.com/emails', {
+      method:'POST',
+      headers:{ authorization:'Bearer '+env.RESEND_API_KEY, 'content-type':'application/json' },
+      body:JSON.stringify({ from:env.RESEND_FROM, to, subject, html })
+    });
+    if (!response.ok) throw new Error(errorPrefix+'_'+response.status);
+    return 'sent';
+  };
+  const [memberResult, adminResult] = await Promise.allSettled([
+    send([member.email], '[메디헬퍼스] 회원가입을 축하드립니다', welcomeHtml, 'SIGNUP_MEMBER_EMAIL'),
+    admins.length ? send(admins, '[메디헬퍼스] 신규 '+roleLabel+' 가입 안내', adminHtml, 'SIGNUP_ADMIN_EMAIL') : Promise.resolve('not_configured')
+  ]);
+  return {
+    member:memberResult.status === 'fulfilled' ? memberResult.value : 'failed',
+    admin:adminResult.status === 'fulfilled' ? adminResult.value : 'failed'
+  };
+}
 async function hmacHex(secret, value) {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
@@ -792,7 +822,7 @@ async function createTestAccountSession(env, accountKey) {
   const token = await createAuthSession(env, account.id, { isAdmin });
   return { token, definition, account, isAdmin };
 }
-async function authApi(request, env, pathname) {
+async function authApi(request, env, pathname, ctx) {
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   if (!env || !env.DB) return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503);
   try {
@@ -922,7 +952,9 @@ async function authApi(request, env, pathname) {
     const token = await createAuthSession(env, account.id, { isAdmin: isAdminAccount });
     const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
     const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:token } : {};
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName }, ...sessionFallback }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
+    const signupEmailTask = sendSignupEmails(env, { email, displayName, role:account.role, organization, createdAt:account.createdAt, origin:new URL(request.url).origin }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(signupEmailTask); else await signupEmailTask;
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName }, welcomeEmailAvailable:recoveryEmailConfigured(env), adminSignupEmailAvailable:signupAdminRecipients(env).length > 0 && recoveryEmailConfigured(env), ...sessionFallback }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
   return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
 }
@@ -1008,13 +1040,15 @@ async function accountRecoveryApi(request, env, ctx) {
   // 계정 존재 여부, 실제 발송 여부와 대상 이메일은 공개 응답으로 노출하지 않는다.
   return json({ accepted:true, emailDeliveryAvailable }, 202);
 }
-async function accountApi(request, env) {
+async function accountApi(request, env, ctx) {
   const enabled = signupEnabled(env);
   const identity = await authenticatedUser(request, env);
   const isAdmin = Boolean(await adminIdentity(request, env));
+  const welcomeEmailAvailable = recoveryEmailConfigured(env);
+  const adminSignupEmailAvailable = welcomeEmailAvailable && signupAdminRecipients(env).length > 0;
   if (request.method === 'GET') {
-    if (!enabled) return json({ signupEnabled: false, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: Boolean(identity), account: null, identity: identity || {}, isAdmin });
-    if (!identity) return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: false, account: null, identity: {}, isAdmin: false });
+    if (!enabled) return json({ signupEnabled: false, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: Boolean(identity), account: null, identity: identity || {}, isAdmin, welcomeEmailAvailable, adminSignupEmailAvailable });
+    if (!identity) return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: false, account: null, identity: {}, isAdmin: false, welcomeEmailAvailable, adminSignupEmailAvailable });
     try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const row = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
@@ -1024,7 +1058,7 @@ async function accountApi(request, env) {
     if (row) {
       try { profile = await env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id = ?').bind(row.id).first(); } catch { profile = null; }
     }
-    return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity, isAdmin, profile: profile || null, email: identity.email });
+    return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity, isAdmin, profile: profile || null, email: identity.email, welcomeEmailAvailable, adminSignupEmailAvailable });
   }
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
   if (!enabled) return json({ error: '회원가입은 법무 검토 완료 후 열립니다.' }, 503);
@@ -1074,6 +1108,10 @@ async function accountApi(request, env) {
       ['privacy_notice_ack', privacyNoticeVersion]
     ].map(([type, version]) => env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, type, version));
     await env.DB.batch(records);
+    if (!existingAccount) {
+      const signupEmailTask = sendSignupEmails(env, { email:identity.email, displayName:identity.displayName || '', role:account.role, organization:'', createdAt:account.createdAt, origin:new URL(request.url).origin }).catch(() => {});
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(signupEmailTask); else await signupEmailTask;
+    }
     return json({ account: { role: account.role, createdAt: account.createdAt } }, 201);
   }
   if (request.method === 'DELETE') {
@@ -2553,9 +2591,9 @@ async function responseFor(request, env, ctx) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
-  if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout' || pathname === '/api/auth/test-switch') return authApi(request, env, pathname);
+  if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout' || pathname === '/api/auth/test-switch') return authApi(request, env, pathname, ctx);
   if (pathname === '/api/account-recovery') return accountRecoveryApi(request, env, ctx);
-  if (pathname === '/api/account') return accountApi(request, env);
+  if (pathname === '/api/account') return accountApi(request, env, ctx);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);
   if (pathname === '/api/resumes') return resumeApi(request, env);
   if (pathname === '/api/saved-jobs') return savedJobsApi(request, env);

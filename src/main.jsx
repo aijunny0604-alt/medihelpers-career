@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
-import AccountPage, { authRequest, TEST_ACCOUNTS } from './AccountPage.jsx';
+import AccountPage, { authRequest, SignupWelcomePage, TEST_ACCOUNTS } from './AccountPage.jsx';
 import { resolveAccountSwitchDestination } from './loginRedirect.js';
 import ResumePage from './ResumePage.jsx';
 import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
@@ -3637,6 +3637,7 @@ export function App() {
   else if (path === '/mypage' || path.startsWith('/mypage/inquiries/') || path.startsWith('/mypage/ads/') || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/login') page = <AccountPage loginOnly />;
+  else if (path === '/signup/welcome') page = <SignupWelcomePage />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" />;
   else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} need="doctor" title="이력서 등록은 의사·의료인 회원 전용입니다" description="이력서에는 개인정보가 포함되어 의사·의료인 회원만 안전하게 작성할 수 있습니다. 병원 회원은 인재 채용을 위해 채용정보·인재정보를 이용해 주세요."><ResumeRoute qa={qa} /></AuthGate>;

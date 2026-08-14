@@ -1,7 +1,7 @@
 # 상담 알림(메일·문자) 설정 가이드
 
 기준일: 2026-08-14
-관련 코드: `scripts/package-sites.mjs` (`sendConsultationEmail`, `sendRecoveryEmail`, `sendConsultationSms`)
+관련 코드: `scripts/package-sites.mjs` (`sendConsultationEmail`, `sendRecoveryEmail`, `sendSignupEmails`, `sendConsultationSms`)
 
 ## 지금 상태
 
@@ -12,7 +12,15 @@
 
 이메일·문자는 현재 **환경변수 미설정이라 `not_configured` 상태**. 아래 키만 등록하면 즉시 아빠 메일·휴대폰으로 알림이 간다. **코드 수정 불필요.**
 
-같은 `RESEND_API_KEY`와 `RESEND_FROM`은 회원 아이디 찾기 안내와 30분 비밀번호 재설정 링크 발송에도 사용합니다. 계정 복구 메일은 회원이 등록한 이메일로 직접 전송하므로 `ALERT_EMAIL_TO`는 필요하지 않습니다. 2026-08-14 운영 Sites 확인 기준 `RESEND_API_KEY`와 `RESEND_FROM`이 아직 등록되지 않았습니다.
+같은 `RESEND_API_KEY`와 `RESEND_FROM`은 회원 아이디 찾기 안내, 30분 비밀번호 재설정 링크, 회원가입 축하 메일에도 사용합니다. 계정 복구와 가입 축하 메일은 회원이 등록한 이메일로 직접 전송하고, 신규 가입 관리자 안내는 `ALERT_EMAIL_TO`로 보냅니다. 2026-08-14 운영 Sites 확인 기준 `RESEND_API_KEY`와 `RESEND_FROM`이 아직 등록되지 않았습니다.
+
+### 회원가입 메일 수신 규칙
+
+- 가입자 축하 메일: 회원가입 때 입력한 이메일 주소
+- 대표자·관리자 가입 알림: `ALERT_EMAIL_TO`에 쉼표로 구분해 등록한 주소
+- 관리자 안내 항목: 회원 유형, 가입자명, 가입 이메일, 병원명 또는 전문분야, 가입 시각
+- 제외 항목: 비밀번호, 비밀번호 해시, 세션·인증 토큰
+- 발송 시점: 회원가입 DB 저장과 로그인 세션 생성 후 백그라운드 실행. 메일 실패는 회원가입 성공에 영향을 주지 않음
 
 ## 설정할 환경변수 (호스팅 환경변수에만 저장, git 커밋 금지)
 
