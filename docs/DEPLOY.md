@@ -18,25 +18,26 @@
 
 ## Current State
 
-- 2026-08-08 최신 공개본: OpenAI Sites v234 · 소스 커밋 `eaa90ff`
+- 2026-08-14 최신 공개본: OpenAI Sites v272 · 소스 커밋 `9a3a871`
 - 공개 URL: https://medihelpers-career.junnyai.chatgpt.site
 
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career` (**테스트 전용 — 실결제 불가**)
-- 현재 공개 버전: Sites v233 · 소스 커밋 `ae95268` (2026-08-03)
 - 보조 공개본: GitHub Pages `aijunny0604-alt.github.io/medihelpers-career`
 - 소스 저장소: GitHub `aijunny0604-alt/medihelpers-career`
 - 현재 Sites 작업 브랜치: `agent/medihelpers-ui-stability`
 - 운영 목표 도메인: `medihelpers.co.kr` (Cloudflare 이전 시 연결)
 - 이니시스 키: 미발급 → 결제 비활성 상태
+- Resend 메일 키: 미등록 → 축하·가입 알림·계정 복구 메일은 `RESEND_API_KEY`, `RESEND_FROM` 등록 후 활성화
 
 ## Current Rules
 
 - 배포 전 `npm run build`(Sites) 또는 `npm run build:cf`(Cloudflare) 성공을 확인합니다.
-- `npm test` 통과를 확인합니다(현재 79건).
+- `npm test` 통과를 확인합니다(현재 132건).
 - 기존 `.openai/hosting.json`의 프로젝트 연결을 유지합니다.
 - D1 바인딩 `DB`는 재생성·재연결하지 않고 R2 바인딩 `BACKUPS`를 유지합니다. Sites의 병원 이미지 업로드는 이 저장소의 `hospitals/` 경로를 사용하며, Cloudflare는 전용 `UPLOADS` 바인딩을 우선 사용합니다.
 - 배포 후 `/api/data-protection-health`에서 `configured:true`와 최근 성공 시각을 확인합니다.
 - 비밀값은 저장소가 아닌 호스팅 환경변수에 저장합니다.
+- 메일 활성화 시 `RESEND_API_KEY`는 Secret으로 저장하고, `RESEND_FROM`은 인증된 `@medihelpers.co.kr` 주소를 사용합니다. `ALERT_EMAIL_TO`는 기존 대표자 수신 주소를 보존합니다.
 - 공개 배포 전 샘플 데이터와 개인정보를 재검토합니다.
 - 정식 공개 직전 `TEST_ACCOUNT_SWITCH_ENABLED=false`를 설정해 테스트 역할 전환 UI와 API를 함께 닫습니다.
 - 검색 노출 전 `/robots.txt`, `/sitemap.xml`, canonical URL, `/manifest.webmanifest`의 실제 도메인을 확인합니다.

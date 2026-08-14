@@ -14,6 +14,25 @@
 
 같은 `RESEND_API_KEY`와 `RESEND_FROM`은 회원 아이디 찾기 안내, 30분 비밀번호 재설정 링크, 회원가입 축하 메일에도 사용합니다. 계정 복구와 가입 축하 메일은 회원이 등록한 이메일로 직접 전송하고, 신규 가입 관리자 안내는 `ALERT_EMAIL_TO`로 보냅니다. 2026-08-14 운영 Sites 확인 기준 `RESEND_API_KEY`와 `RESEND_FROM`이 아직 등록되지 않았습니다.
 
+## 가장 간단한 실제 메일 활성화 순서
+
+1. [Resend](https://resend.com)에 가입하고 **Domains**에서 `medihelpers.co.kr`을 추가합니다.
+2. Resend가 보여주는 DKIM·SPF·MX DNS 레코드를 현재 도메인 DNS 관리 화면에 그대로 등록합니다. Resend의 도메인 상태가 `Verified`가 될 때까지 기다립니다.
+3. Resend **API Keys**에서 `Sending access` 권한의 키를 하나 생성합니다. 가능하면 `medihelpers.co.kr` 도메인으로 범위를 제한합니다. 키 원문은 생성 직후 한 번만 표시되므로 안전한 곳에 보관합니다.
+4. OpenAI Sites 운영 환경변수에 아래 값을 추가합니다. 기존 `ALERT_EMAIL_TO`는 대표자·관리자 수신 주소로 그대로 유지합니다.
+
+   - `RESEND_API_KEY` = `re_...` 형식의 키, **Secret**으로 저장
+   - `RESEND_FROM` = `메디헬퍼스 <no-reply@medihelpers.co.kr>`
+   - `ALERT_EMAIL_TO` = 신규 가입 안내를 받을 대표자 이메일. 여러 주소는 쉼표로 구분
+
+5. 같은 소스 버전을 다시 배포해 새 환경변수 리비전을 적용합니다.
+6. 본인이 받을 수 있는 이메일로 테스트 회원가입을 1건 진행해 다음 두 통을 확인합니다.
+
+   - 가입자: `[메디헬퍼스] 회원가입을 축하드립니다`
+   - 대표자·관리자: `[메디헬퍼스] 신규 의료인 회원 가입 안내` 또는 `신규 병원 회원 가입 안내`
+
+`onboarding@resend.dev`는 Resend 계정 소유자 주소로만 보낼 수 있는 제한된 테스트 발신자입니다. 실제 회원과 대표자에게 보내려면 반드시 우리 도메인을 인증하고 `@medihelpers.co.kr` 발신 주소를 사용합니다.
+
 ### 회원가입 메일 수신 규칙
 
 - 가입자 축하 메일: 회원가입 때 입력한 이메일 주소
@@ -28,10 +47,10 @@
 | 변수 | 값 | 설명 |
 |---|---|---|
 | `RESEND_API_KEY` | `re_...` | resend.com 가입 후 API Keys에서 발급 |
-| `RESEND_FROM` | `alert@medihelpers.co.kr` | 발신 주소. Resend에 도메인 인증 필요(SPF/DKIM). 인증 전엔 `onboarding@resend.dev`로 테스트 가능 |
+| `RESEND_FROM` | `메디헬퍼스 <no-reply@medihelpers.co.kr>` | 발신 주소. 실제 회원에게 보내려면 Resend에서 도메인 인증 필요 |
 | `ALERT_EMAIL_TO` | 아빠 이메일 | 알림 받을 주소 |
 
-**절차**: resend.com 무료 가입 → (권장) medihelpers.co.kr 도메인 인증 → API Key 발급 → 위 3개 등록.
+**절차**: resend.com 가입 → medihelpers.co.kr 도메인 인증 → Sending access API Key 발급 → 위 3개 등록 → 재배포.
 무료 플랜 월 3,000건까지 발송 가능(상담 알림엔 충분).
 
 ### 📱 문자 알림 (Solapi = 구 쿨SMS)
