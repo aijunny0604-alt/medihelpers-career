@@ -10,7 +10,7 @@ const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 test('회원가입 성공 후 별도 축하 페이지로 이동한다', () => {
   assert.match(accountPage, /window\.location\.replace\(withBase\('\/signup\/welcome'\)\)/);
   assert.match(accountPage, /export function SignupWelcomePage/);
-  assert.match(main, /path === '\/signup\/welcome'.*<SignupWelcomePage \/>/);
+  assert.match(main, /path === '\/signup\/welcome'.*<SignupWelcomePage auth=\{auth\} \/>/);
   assert.match(accountPage, /회원가입을 축하드립니다!/);
   assert.match(accountPage, /role === 'hospital'[\s\S]*\/advertise[\s\S]*\/resume\?new=1/);
   assert.match(styles, /\.signup-welcome-page/);

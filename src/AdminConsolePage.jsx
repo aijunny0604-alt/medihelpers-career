@@ -234,6 +234,17 @@ export default function AdminConsolePage({ qa = false }) {
     }
   };
 
+  // 실제 DB 응답 전에는 데모 수치와 관리 버튼을 먼저 그리지 않는다.
+  // 느린 연결에서 데모 콘솔이 잠깐 나타났다 실제 기록으로 바뀌는 깜빡임을 막는다.
+  if (loading && !qa) {
+    return <div className="admin-console admin-console-loading">
+      <section className="member-loading" role="status" aria-live="polite">
+        <Database />
+        <strong>운영 DB 기록을 불러오고 있습니다</strong>
+      </section>
+    </div>;
+  }
+
   // 관리자 데이터를 끝내 못 불러오면(권한 없음·세션 만료 등) 빈 콘솔 대신 안내 화면을 띄운다.
   // 예전에는 이 경우 데모 데이터가 섞인 채로 섹션이 비어 보여 '빈 페이지'처럼 느껴졌다.
   if (loadError && !qa) {

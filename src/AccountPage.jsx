@@ -677,15 +677,33 @@ function AccountCard({ account, identity = {} }) {
   </section>;
 }
 
-export function SignupWelcomePage() {
-  const [state, setState] = useState({ loading:true, signedIn:false, account:null, identity:{}, welcomeEmailAvailable:false });
+function accountStateFromAuth(auth) {
+  return {
+    loading: auth?.status === 'loading',
+    signupEnabled: auth?.signupEnabled !== false,
+    signedIn: auth?.status === 'member',
+    account: auth?.account || null,
+    identity: auth?.identity || {},
+    profile: auth?.profile || {},
+    email: auth?.email || '',
+    testAccountsEnabled: auth?.testAccountsEnabled,
+    welcomeEmailAvailable: Boolean(auth?.welcomeEmailAvailable),
+    adminSignupEmailAvailable: Boolean(auth?.adminSignupEmailAvailable),
+  };
+}
+
+export function SignupWelcomePage({ auth }) {
+  const [remoteState, setRemoteState] = useState({ loading:true, signedIn:false, account:null, identity:{}, welcomeEmailAvailable:false });
+  const state = auth ? accountStateFromAuth(auth) : remoteState;
   const [error, setError] = useState('');
   useEffect(() => {
-    accountRequest().then((data) => setState({ loading:false, ...data })).catch((loadError) => {
+    if (auth) return undefined;
+    accountRequest().then((data) => setRemoteState({ loading:false, ...data })).catch((loadError) => {
       setError(loadError.message || '가입 정보를 확인하지 못했습니다.');
-      setState((current) => ({ ...current, loading:false }));
+      setRemoteState((current) => ({ ...current, loading:false }));
     });
-  }, []);
+    return undefined;
+  }, [auth]);
   if (state.loading) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-loading" role="status"><LoaderCircle className="spin" /><strong>가입 완료 정보를 확인하고 있습니다</strong></section></div>;
   if (!state.signedIn || !state.account) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-gate"><span><ShieldAlert /></span><small>ACCOUNT CHECK</small><h1>가입 완료 정보를 확인할 수 없습니다</h1><p>{error || '가입을 마친 브라우저에서 다시 확인하거나 가입한 이메일로 로그인해주세요.'}</p><div><a className="button primary" href={withBase('/login')}>로그인하기 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입 화면</a></div></section></div>;
   const role = state.account.role === 'hospital' ? 'hospital' : 'doctor';
@@ -779,16 +797,19 @@ function SignupPrinciples({ memberType, previewMode }) {
   </aside>;
 }
 
-export default function AccountPage({ memberType = '', loginOnly = false }) {
-  const [state, setState] = useState({ loading: true, signupEnabled: false, signedIn: false, account: null, identity: {} });
+export default function AccountPage({ memberType = '', loginOnly = false, auth }) {
+  const [remoteState, setRemoteState] = useState({ loading: true, signupEnabled: false, signedIn: false, account: null, identity: {} });
+  const state = auth ? accountStateFromAuth(auth) : remoteState;
   const [error, setError] = useState('');
   const title = useMemo(() => state.account ? '내 계정' : loginOnly ? '로그인' : roleContent[memberType]?.title || '회원가입', [memberType, state.account, loginOnly]);
   useEffect(() => {
-    accountRequest().then((data) => setState({ loading: false, ...data })).catch((loadError) => {
+    if (auth) return undefined;
+    accountRequest().then((data) => setRemoteState({ loading: false, ...data })).catch((loadError) => {
       if (loadError.code !== 'STATIC_HOSTING') setError(loadError.message);
-      setState((current) => ({ ...current, loading: false }));
+      setRemoteState((current) => ({ ...current, loading: false }));
     });
-  }, []);
+    return undefined;
+  }, [auth]);
   let content;
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;

@@ -5468,10 +5468,17 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 /* 계정 조회 전에는 비회원용 버튼을 추측해 그리지 않고 같은 크기의 고정 자리만 유지한다. */
 .auth-action-pending{position:relative;overflow:hidden;pointer-events:none;color:transparent!important;background:#edf2f8!important;border-color:#dce5ef!important;box-shadow:none!important}
+.header-auth-actions{min-width:270px;display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.header-auth-actions .header-notifications.auth-action-pending{width:46px;min-width:46px;height:46px}
+.header-auth-actions .header-logout.auth-action-pending{width:82px;min-width:82px;height:42px}
 .nav-actions .header-account.auth-action-pending{width:112px;min-width:112px;padding:0}
 .mobile-account-link.auth-action-pending{min-height:48px;margin-top:2px;border-radius:11px}
 .job-hub-register.auth-action-pending{display:inline-flex;width:92px;min-height:40px;margin-left:8px;border-radius:999px}
-.tier-apply-button:disabled,.smart-ad-dock-cta:disabled{cursor:wait;opacity:.72;transform:none}
+.tier-apply-button.auth-action-pending{min-width:190px;min-height:46px}
+.smart-ad-dock-cta.auth-action-pending{width:142px;min-width:142px;min-height:48px}
+.price-action-pending{display:flex;min-height:52px}
+.admin-console-loading{display:grid;place-items:center}
+.admin-console-loading .member-loading{width:100%;min-height:100vh}
 @media(max-width:780px){.mobile-quickbar>span.mobile-ad{display:flex;align-items:center;justify-content:center;border-radius:11px}}
 .header-logout{min-height:42px;padding:0 12px;border:1px solid #d8e2ef;border-radius:11px;background:#fff;color:#617188;display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}.header-logout svg{width:15px}.header-logout:hover{border-color:#aebfd3;background:#f7faff;color:#284b73}.header-logout:disabled{cursor:wait;opacity:.58}
 .mobile-logout-button{display:none}
@@ -5483,6 +5490,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .header-test-switcher button:disabled{cursor:wait;opacity:.62}
 .mobile-header-test-switcher{display:none}
 @media(max-width:1100px){
+  .header-auth-actions{min-width:0}
+  .header-auth-actions>.auth-action-pending{display:none}
   .header-logout{display:none}
   .mobile-logout-button{min-height:48px;margin-top:4px;padding:0 12px;border:1px solid #dbe4ef;border-radius:11px;background:#fff;color:#52657d;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:800}.mobile-logout-button svg{width:18px}.mobile-logout-button:disabled{opacity:.58}
   .mobile-header-test-switcher{margin-top:10px;padding:8px;border:1px solid #dbe6f4;border-radius:13px;background:#f4f8fd;display:grid;grid-template-columns:auto repeat(3,1fr);align-items:center;gap:5px}

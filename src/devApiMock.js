@@ -41,6 +41,14 @@ async function handle(method, path, bodyText) {
 
   // 자체 로그인 목 — 서버 authApi(/api/auth/*) 계약과 동일한 형태로 반환.
   // 로컬에서 의사/병원 회원가입·로그인·로그아웃과 role 구분 흐름을 검증하기 위한 것.
+  if (path === '/api/auth/test-switch' && method === 'POST') {
+    const key = ['doctor', 'admin', 'hospital'].includes(body.key) ? body.key : '';
+    if (!key) return jsonRes({ error: '테스트 계정을 확인해주세요.' }, 400);
+    const role = key === 'hospital' ? 'hospital' : 'doctor';
+    const email = key === 'admin' ? 'admin@medihelpers.co.kr' : `${key}@example.com`;
+    write(LS.authSession, { email, role });
+    return jsonRes({ signedIn: true, account: { role }, identity: { email } });
+  }
   if (path === '/api/auth/logout' && method === 'POST') {
     write(LS.authSession, null);
     return jsonRes({ signedOut: true });
@@ -172,6 +180,10 @@ async function handle(method, path, bodyText) {
   // ※ 화면 흐름(병원 회원 결제·열람권 등)을 매번 로그인 없이 보고 싶으면 localStorage에
   //    devmock_auth_session = {"email":"hospital@example.com","role":"hospital"} 를 넣어두면 된다.
   if (path === '/api/account') {
+    // ?slow-auth=1은 느린 PC/네트워크의 첫 렌더를 재현하는 로컬 QA 전용 지연이다.
+    if (new URLSearchParams(window.location.search).has('slow-auth')) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
     const raw = localStorage.getItem(LS.authSession);
     const session = raw && raw !== 'null' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
     if (!session || !session.role) {

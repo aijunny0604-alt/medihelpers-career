@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, CalendarDays, Check,
   CheckCircle2, ClipboardCheck, Clock3, FileText, HeartPulse, LockKeyhole,
@@ -102,12 +102,14 @@ function DetailList({ title, icon, items }) {
   </section>;
 }
 
-export function MedicalStaffDetailPage({ operations, jobId, qa }) {
+export function MedicalStaffDetailPage({ operations, jobId, qa, auth }) {
   const jobs = useMemo(() => getMedicalStaffJobs(operations), [operations?.contents]);
   const job = jobs.find((item) => String(item.id) === String(jobId));
-  const [signedIn, setSignedIn] = useState(Boolean(qa?.active && qa.info.capabilities.signedIn));
-  const [accountRole, setAccountRole] = useState('');
-  const [roleReady, setRoleReady] = useState(Boolean(qa?.active)); // 실제 계정 role 확정 여부(깜빡임 방지)
+  const signedIn = qa?.active ? Boolean(qa.info.capabilities.signedIn) : auth?.status === 'member';
+  const accountRole = qa?.active
+    ? qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor ? 'doctor' : ''
+    : auth?.role || '';
+  const roleReady = qa?.active || auth?.status !== 'loading';
 
   useEffect(() => {
     if (!job) return undefined;
@@ -115,22 +117,6 @@ export function MedicalStaffDetailPage({ operations, jobId, qa }) {
     document.title = `${job.title} | 메디헬퍼스`;
     return () => { document.title = previous; };
   }, [job]);
-
-  useEffect(() => {
-    if (qa?.active) {
-      setSignedIn(Boolean(qa.info.capabilities.signedIn));
-      setAccountRole(qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor ? 'doctor' : '');
-      setRoleReady(true);
-      return undefined;
-    }
-    let active = true;
-    setRoleReady(false);
-    fetch('/api/account', { credentials:'same-origin', headers:{ accept:'application/json' } })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('account')))
-      .then((result) => { if (active) { setSignedIn(Boolean(result.signedIn)); setAccountRole(result.account?.role || ''); setRoleReady(true); } })
-      .catch(() => { if (active) { setSignedIn(false); setAccountRole(''); setRoleReady(true); } });
-    return () => { active = false; };
-  }, [qa?.active, qa?.state]);
 
   if (!job) return <div className="medical-staff-detail-page"><section className="medical-staff-detail-missing"><Stethoscope /><h1>공고를 찾을 수 없습니다</h1><p>마감되었거나 주소가 변경된 공고입니다.</p><button onClick={() => go('/headhunting')}><ArrowLeft /> 초빙 정보란</button></section></div>;
 

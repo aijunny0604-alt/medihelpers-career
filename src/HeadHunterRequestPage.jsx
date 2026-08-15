@@ -41,7 +41,7 @@ const copy = {
   },
 };
 
-export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
+export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
   const isDoctor = mode === "doctor";
   const content = copy[mode];
   const requestContext = (() => {
@@ -74,22 +74,14 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
   const [done, setDone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const accountProfile = useAccountProfile();
-  const [access, setAccess] = useState(qaAllowed ? "allowed" : "checking");
+  const accountProfile = useAccountProfile(auth);
+  const expectedRole = isDoctor ? 'doctor' : 'hospital';
+  const access = qaAllowed || auth?.isAdmin || auth?.role === expectedRole
+    ? 'allowed'
+    : auth?.status === 'loading' ? 'checking' : 'blocked';
+  const signedInWrongRole = auth?.status === 'member' && access === 'blocked';
   const [resumes, setResumes] = useState([]);
   const [selectedResumeId, setSelectedResumeId] = useState("");
-  useEffect(() => {
-    if (qaAllowed) {
-      setAccess("allowed");
-      return undefined;
-    }
-    let active = true;
-    fetch("/api/account", { credentials: "same-origin", headers: { accept: "application/json" } })
-      .then((response) => response.json())
-      .then((result) => { if (active) setAccess(result.signedIn ? "allowed" : "blocked"); })
-      .catch(() => { if (active) setAccess("blocked"); });
-    return () => { active = false; };
-  }, [qaAllowed]);
   const submit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -166,11 +158,13 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa }) {
       <section className="quick-auth-dialog" role="dialog" aria-modal="true" aria-labelledby="consultation-login-title">
         <div className={`quick-auth-icon ${isDoctor ? "doctor" : "hospital"}`}>{isDoctor ? <Stethoscope /> : <BriefcaseBusiness />}</div>
         <small>MEMBERS ONLY CONSULTATION</small>
-          <h1 id="consultation-login-title">{isDirectApplication ? "공고 지원" : "상담 신청"}은 로그인 후<br />이용할 수 있어요</h1>
-        <p>{isDirectApplication ? "지원 이력과 연락처" : isDoctor ? "이직 조건과 경력 정보" : "병원 채용 조건과 담당자 정보"}를 안전하게 보호하기 위해 로그인한 회원만 접수할 수 있습니다.</p>
+          <h1 id="consultation-login-title">{signedInWrongRole ? `현재 회원 유형으로는 ${isDirectApplication ? '공고 지원' : '상담 신청'}을 이용할 수 없어요` : `${isDirectApplication ? "공고 지원" : "상담 신청"}은 로그인 후 이용할 수 있어요`}</h1>
+        <p>{signedInWrongRole ? `${isDoctor ? '의료인 회원' : '병원 회원'} 전용 접수 화면입니다. 현재 로그인은 유지되며 다시 로그인하거나 가입할 필요가 없습니다.` : `${isDirectApplication ? "지원 이력과 연락처" : isDoctor ? "이직 조건과 경력 정보" : "병원 채용 조건과 담당자 정보"}를 안전하게 보호하기 위해 로그인한 회원만 접수할 수 있습니다.`}</p>
         {access === "checking" ? <div className="quick-auth-checking">회원 상태를 확인하고 있습니다…</div> : <>
-          <a className="quick-auth-login" href={withBase(`/login?next=${encodeURIComponent(returnTo)}`)}><LogIn /> 로그인하고 상담 계속하기 <ArrowRight /></a>
-          <a className="quick-auth-signup" href={withBase(`/signup/${isDoctor ? "doctor" : "hospital"}?next=${encodeURIComponent(returnTo)}`)}>{isDoctor ? "의료인 회원가입" : "병원 회원가입"} 안내 보기</a>
+          {signedInWrongRole ? <a className="quick-auth-login" href={withBase(isDoctor ? '/jobs' : '/medical-staff')}><ArrowRight /> 이용 가능한 채용정보로 이동</a> : <>
+            <a className="quick-auth-login" href={withBase(`/login?next=${encodeURIComponent(returnTo)}`)}><LogIn /> 로그인하고 상담 계속하기 <ArrowRight /></a>
+            <a className="quick-auth-signup" href={withBase(`/signup/${isDoctor ? "doctor" : "hospital"}?next=${encodeURIComponent(returnTo)}`)}>{isDoctor ? "의료인 회원가입" : "병원 회원가입"} 안내 보기</a>
+          </>}
         </>}
         <div className="quick-auth-safe"><ShieldCheck /><span><strong>{isDirectApplication ? "지원 내용은 해당 병원에만 전달됩니다" : "상담 내용은 공개되지 않습니다"}</strong><small>{isDirectApplication ? "유료 채용광고 지원은 메디헬퍼스 헤드헌터 상담함으로 전달되지 않습니다." : "회원 확인 후 메디헬퍼스 담당 헤드헌터에게만 안전하게 전달됩니다."}</small></span></div>
       </section>

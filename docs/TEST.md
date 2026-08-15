@@ -1,5 +1,14 @@
 # TEST
 
+## 전 화면 인증 UI 첫 렌더 회귀 검증 (2026-08-15)
+
+- 공고 상세·의료인 채용 상세·이력서·헤드헌팅 접수·상담·결제·계정 화면이 App의 공용 계정 상태를 재사용하고 자체 `/api/account` 요청을 만들지 않는지 검사합니다.
+- 헤더, 병원 채용 추천/기본 공고 등록, 광고 상품, 하단 등록 도크가 권한 확인 전 실제 CTA 대신 같은 크기의 중립 자리를 유지하는지 검사합니다.
+- 관리자 콘솔이 DB 응답 전 데모 데이터와 관리 컨트롤을 렌더링하지 않는지 검사합니다.
+- 로컬 `?slow-auth=1` 500ms 지연에서 응답 전후 헤더·공고 버튼 폭 차이 `0px`, 응답 후 `.auth-action-pending` `0개`를 브라우저로 확인했습니다.
+- 비회원 `/`, `/resume`, `/medical-staff`, `/login`, `/jobs`, `/advertise`; 의료인 `/resume`, `/request/job-seeker`, `/request/hiring`, `/jobs`, `/medical-staff`, `/advertise`, `/mypage`; 병원 `/resume`, `/request/job-seeker`, `/advertise`, `/jobs`, `/medical-staff`; 관리자 `/admin/console`을 확인했습니다.
+- `npm test`: **142/142 통과**
+
 ## 회원 역할 버튼 깜빡임 회귀 검증 (2026-08-15)
 
 - 인증이 필요한 하위 페이지가 앱의 공용 계정 상태를 재사용하고 `/api/account`를 중복 호출하지 않는지 검사합니다.
