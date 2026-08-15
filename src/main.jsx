@@ -241,6 +241,7 @@ function useAuthGate(qa) {
       return undefined;
     }
     let active = true;
+    let recoveryTimer = 0;
     const applyFullAccount = (result) => {
       const signedIn = Boolean(result.signedIn || result.account);
       const role = result.account?.role || '';
@@ -260,19 +261,29 @@ function useAuthGate(qa) {
       });
     };
     const load = ({ showLoading = true } = {}) => {
+      if (recoveryTimer) window.clearTimeout(recoveryTimer);
       const sequence = ++requestSequence.current;
-      if (showLoading) setState((current) => ({ ...current, status:'loading' }));
-      fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } })
-        .then((response) => (response.ok ? response.json() : Promise.reject(new Error('account lookup failed'))))
-        .then((result) => {
-          if (!active || sequence !== requestSequence.current) return;
-          applyFullAccount(result);
-        })
-        .catch(() => active && sequence === requestSequence.current && showLoading && setState({
-          status: 'guest', role: '', isAdmin: false, isHospital: false,
-          account: null, identity: {}, profile: {}, email: '', signupEnabled: false,
-          testAccountsEnabled: true, welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
-        }));
+      if (showLoading) setState((current) => current.status === 'member' ? current : ({ ...current, status:'loading' }));
+      const run = async () => {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            const response = await fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } });
+            if (!response.ok) throw new Error('account lookup failed');
+            const result = await response.json();
+            if (!active || sequence !== requestSequence.current) return;
+            applyFullAccount(result);
+            return;
+          } catch {
+            if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 300 * (attempt + 1)));
+          }
+        }
+        if (!active || sequence !== requestSequence.current) return;
+        // 네트워크·D1 일시 오류를 로그아웃으로 오인하지 않는다. 이미 확인된 회원 권한은
+        // 그대로 유지하고, 첫 진입이면 중립 로딩 화면에서 자동으로 다시 연결한다.
+        setState((current) => current.status === 'member' ? current : ({ ...current, status:'loading' }));
+        recoveryTimer = window.setTimeout(() => load({ showLoading:false }), 3000);
+      };
+      run();
     };
     const onAuthChanged = (event) => {
       const result = event.detail?.result || {};
@@ -304,6 +315,7 @@ function useAuthGate(qa) {
     window.addEventListener('medihelpers:auth-changed', onAuthChanged);
     return () => {
       active = false;
+      if (recoveryTimer) window.clearTimeout(recoveryTimer);
       requestSequence.current += 1;
       window.removeEventListener('medihelpers:auth-changed', onAuthChanged);
     };

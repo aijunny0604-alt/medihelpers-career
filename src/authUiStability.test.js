@@ -28,6 +28,18 @@ test('member center follows the shared role immediately after a test-account swi
   assert.match(source, /role:auth\?\.role \|\| ''/);
   assert.match(source, /auth\?\.status, auth\?\.role, auth\?\.isAdmin, auth\?\.email/);
   assert.match(source, /setServerData\(\{ consultations: \[\], alerts: \[\]/);
+  assert.match(source, /loading:true,[\s\S]*signedIn:auth\?\.status === 'member'/);
+  assert.match(source, /alreadySignedIn=\{auth\?\.status === 'member'\}/);
+  assert.match(source, /로그인은 정상적으로 유지되어 있습니다/);
+});
+
+test('transient account lookup failures do not downgrade a confirmed member to guest', async () => {
+  const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const authHook = source.slice(source.indexOf('function useAuthGate'), source.indexOf('function AuthGate'));
+  assert.match(authHook, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
+  assert.match(authHook, /current\.status === 'member' \? current/);
+  assert.match(authHook, /recoveryTimer = window\.setTimeout\(\(\) => load\(\{ showLoading:false \}\), 3000\)/);
+  assert.doesNotMatch(authHook, /\.catch\([\s\S]*status: 'guest'/);
 });
 
 test('job seeker write action does not guess a guest role while account state is loading', async () => {

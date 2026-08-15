@@ -196,11 +196,11 @@ function bearerToken(request) {
   const match = authorization.match(/^Bearer ([a-f0-9]{64})$/i);
   return match ? match[1] : '';
 }
-function requestAuthToken(request) {
-  // The client sends the freshly issued tab token when a browser cannot store
-  // or has not yet replaced the HttpOnly cookie. Prefer that explicit token so
-  // a stale cookie cannot keep the previous test account active.
-  return bearerToken(request) || cookieValue(request, authCookieName);
+function requestAuthTokens(request) {
+  // HttpOnly 쿠키가 정상 저장된 브라우저에서는 쿠키가 계정 상태의 기준이다.
+  // 쿠키를 저장할 수 없는 브라우저만 탭 단위 bearer 토큰으로 보완한다.
+  // 둘 중 하나가 오래되었더라도 다른 유효 세션으로 계속 인증할 수 있게 모두 검사한다.
+  return [...new Set([cookieValue(request, authCookieName), bearerToken(request)].filter(Boolean))];
 }
 function authCookie(token, maxAge = authSessionSeconds) {
   return authCookieName + '=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + maxAge;
@@ -231,13 +231,16 @@ function constantTimeEqual(left, right) {
   return difference === 0;
 }
 async function authenticatedUser(request, env) {
-  const token = requestAuthToken(request);
-  if (!token || !env || !env.DB) return null;
+  const tokens = requestAuthTokens(request);
+  if (!tokens.length || !env || !env.DB) return null;
   try {
     await ensureAccountSchema(env);
-    const tokenHash = await authSha256Hex(token);
-    const row = await env.DB.prepare("SELECT c.email_normalized AS email, s.account_id AS accountId FROM auth_sessions s JOIN auth_credentials c ON c.account_id=s.account_id WHERE s.token_hash=? AND s.expires_at > CURRENT_TIMESTAMP LIMIT 1").bind(tokenHash).first();
-    return row ? { email: row.email, displayName:'', accountId: row.accountId } : null;
+    for (const token of tokens) {
+      const tokenHash = await authSha256Hex(token);
+      const row = await env.DB.prepare("SELECT c.email_normalized AS email, s.account_id AS accountId FROM auth_sessions s JOIN auth_credentials c ON c.account_id=s.account_id WHERE s.token_hash=? AND s.expires_at > CURRENT_TIMESTAMP LIMIT 1").bind(tokenHash).first();
+      if (row) return { email: row.email, displayName:'', accountId: row.accountId };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -524,10 +527,13 @@ async function adminBackupsApi(request, env) {
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
+function isAdminEmail(email, env) {
+  const allowed = String(env?.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+  return allowed.includes(String(email || '').trim().toLowerCase());
+}
 async function adminIdentity(request, env) {
   const identity = await authenticatedUser(request, env);
-  const allowed = String(env.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
-  return identity && allowed.includes(identity.email) ? identity : null;
+  return identity && isAdminEmail(identity.email, env) ? identity : null;
 }
 function cleanConsultationPayload(payload) {
   const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message','jobId','headhuntPostId','headhuntPostTitle','headhuntPostHospital','resumeId','resumeTitle'];
@@ -833,10 +839,10 @@ async function authApi(request, env, pathname, ctx) {
     return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }
   if (request.method === 'POST' && pathname === '/api/auth/logout') {
-    const token = requestAuthToken(request);
-    if (token) {
-      const tokenHash = await authSha256Hex(token);
-      await env.DB.prepare('DELETE FROM auth_sessions WHERE token_hash=?').bind(tokenHash).run();
+    const tokens = requestAuthTokens(request);
+    if (tokens.length) {
+      const tokenHashes = await Promise.all(tokens.map(token => authSha256Hex(token)));
+      await env.DB.batch(tokenHashes.map(tokenHash => env.DB.prepare('DELETE FROM auth_sessions WHERE token_hash=?').bind(tokenHash)));
     }
     return json({ signedOut:true }, 200, { 'set-cookie':authCookie('', 0) });
   }
@@ -1043,7 +1049,7 @@ async function accountRecoveryApi(request, env, ctx) {
 async function accountApi(request, env, ctx) {
   const enabled = signupEnabled(env);
   const identity = await authenticatedUser(request, env);
-  const isAdmin = Boolean(await adminIdentity(request, env));
+  const isAdmin = Boolean(identity && isAdminEmail(identity.email, env));
   const welcomeEmailAvailable = recoveryEmailConfigured(env);
   const adminSignupEmailAvailable = welcomeEmailAvailable && signupAdminRecipients(env).length > 0;
   if (request.method === 'GET') {
@@ -1242,7 +1248,7 @@ async function memberCenterApi(request, env) {
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   // 관리자 여부를 함께 내려준다(마이페이지가 관리자를 운영 콘솔로 안내하도록).
-  const isAdmin = Boolean(await adminIdentity(request, env));
+  const isAdmin = isAdminEmail(identity.email, env);
   if (!account) return json({ signedIn:true, account:null, identity, isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {

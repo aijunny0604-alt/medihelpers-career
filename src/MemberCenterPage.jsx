@@ -68,11 +68,11 @@ function statusClass(value = '') {
   return '';
 }
 
-function MemberGate({ failed = false }) {
+function MemberGate({ failed = false, alreadySignedIn = false }) {
   // 불러오기 실패와 '로그인 필요'는 다른 상황이다. 예전에는 둘 다 로그인 안내가 떠서,
   // 서버 오류로 못 불러온 회원이 로그인을 반복해도 같은 화면만 보게 됐다.
   if (failed) {
-    return <section className="member-gate"><span><TriangleAlert /></span><small>TEMPORARY ERROR</small><h1>회원 정보를 불러오지 못했습니다</h1><p>일시적인 오류이거나 로그인이 만료되었을 수 있습니다. 새로고침 후에도 같은 화면이 보이면 고객센터로 문의해 주세요.</p><div><button className="button primary" type="button" onClick={() => window.location.reload()}>다시 시도</button><a className="button outline" href={withBase('/login?next=/mypage')}>로그인</a></div></section>;
+    return <section className="member-gate"><span><TriangleAlert /></span><small>TEMPORARY ERROR</small><h1>회원 정보를 잠시 불러오지 못했습니다</h1><p>{alreadySignedIn ? '로그인은 정상적으로 유지되어 있습니다. 회원 데이터 연결이 지연되고 있으니 잠시 후 다시 시도해 주세요.' : '일시적인 연결 오류입니다. 새로고침 후에도 같은 화면이 보이면 고객센터로 문의해 주세요.'}</p><div><button className="button primary" type="button" onClick={() => window.location.reload()}>다시 연결</button>{alreadySignedIn ? <a className="button outline" href={withBase('/')}>메인으로</a> : <a className="button outline" href={withBase('/login?next=/mypage')}>로그인</a>}</div></section>;
   }
   return <section className="member-gate"><span><LockKeyhole /></span><small>MEMBERS ONLY</small><h1>로그인 후 내 활동을<br />한곳에서 관리하세요</h1><p>공고·상담·결제·이력서와 회원정보는 본인 계정에서만 확인할 수 있습니다.</p><div><a className="button primary" href={withBase('/login?next=/mypage')}>로그인 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입</a></div></section>;
 }
@@ -146,7 +146,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
     }
     // 상단 테스트 계정 전환 직후 이전 역할의 대시보드·프로필을 남기지 않는다.
     setAccountState({
-      loading:false,
+      loading:true,
       signedIn:auth?.status === 'member',
       role:auth?.role || '',
       identity:auth?.identity || {},
@@ -164,18 +164,19 @@ export default function MemberCenterPage({ route, qa, auth }) {
           if (response.ok) {
             const data = await response.json();
             if (cancelled) return;
+            if (!data.signedIn || !data.account?.role) throw new Error('member center auth mismatch');
             setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
             if (data.profile) setProfile(data.profile);
             if (data.notifications) setNotifications(data.notifications);
             setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
             return;
           }
-          // 401/403은 아직 세션이 안 붙었을 수 있으니 잠깐 뒤 재시도.
-          if (response.status !== 401 && response.status !== 403) break;
+          // 세션 반영 지연과 일시적인 서버·저장소 오류는 잠깐 뒤 재시도한다.
+          if (response.status !== 401 && response.status !== 403 && response.status !== 429 && response.status < 500) break;
         } catch {}
         await new Promise((r) => setTimeout(r, 400));
       }
-      if (!cancelled) setAccountState({ loading: false, signedIn: false, role: '', identity: {}, failed: true });
+      if (!cancelled) setAccountState({ loading: false, signedIn: auth?.status === 'member', role: auth?.role || '', identity: auth?.identity || {}, isAdmin:Boolean(auth?.isAdmin), failed: true });
     };
     load();
     return () => { cancelled = true; };
@@ -388,6 +389,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
   };
 
   if (accountState.loading) return <section className="member-loading"><ShieldCheck /><strong>내 회원 정보를 불러오고 있습니다</strong></section>;
+  if (accountState.failed) return <MemberGate failed alreadySignedIn={auth?.status === 'member'} />;
   // 관리자는 일반 마이페이지가 아니라 읽기 전용 DB 기록 콘솔로 안내한다.
   if (accountState.isAdmin) {
     return <section className="member-gate member-admin-gate">
@@ -400,7 +402,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
       </div>
     </section>;
   }
-  if (!accountState.signedIn || !role) return <MemberGate failed={Boolean(accountState.failed)} />;
+  if (!accountState.signedIn || !role) return <MemberGate />;
 
   const saveProfile = async (event) => {
     event.preventDefault();

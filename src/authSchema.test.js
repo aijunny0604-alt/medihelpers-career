@@ -22,7 +22,10 @@ test('배포 서버는 보안 쿠키와 PBKDF2를 사용하고 OpenAI 로그인 
   const memberCenterSource = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
   assert.match(serverSource, /HttpOnly; Secure; SameSite=Lax/);
   assert.match(serverSource, /function bearerToken\(request\)/);
-  assert.match(serverSource, /bearerToken\(request\) \|\| cookieValue\(request, authCookieName\)/);
+  assert.match(serverSource, /function requestAuthTokens\(request\)/);
+  assert.match(serverSource, /\[cookieValue\(request, authCookieName\), bearerToken\(request\)\]/);
+  assert.match(serverSource, /for \(const token of tokens\)/);
+  assert.match(serverSource, /tokens\.map\(token => authSha256Hex\(token\)\)/);
   assert.match(serverSource, /x-mh-session-fallback/);
   assert.match(serverSource, /pathname === '\/api\/auth\/test-switch'/);
   assert.match(serverSource, /createTestAccountSession\(env, body\.key\)/);
