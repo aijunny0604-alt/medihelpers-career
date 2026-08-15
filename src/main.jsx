@@ -3229,48 +3229,29 @@ function Checkout({ plan }) {
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
                   <span>04</span>
-                  <div><h2>채용조건</h2><p>공개 가능한 핵심 조건부터 상세 근무조건까지 입력해주세요.</p></div>
-                  <em>정확할수록 매칭 향상</em>
+                  <div><h2>채용조건</h2><p>초빙 분야만 필수입니다. 나머지는 아는 만큼만 간단히 적어주세요.</p></div>
+                  <em>필수 1개</em>
                 </div>
               <label className="wide-field">
-                <span>채용 진료과·초빙 형태 *</span>
+                <span>초빙 분야 *</span>
                 <input
                   required
                   name="department"
                   placeholder="예: 정형외과 전문의, 검진센터 진료원장"
                 />
               </label>
-              <details className="membership-intake" open>
-                <summary>
-                  <span><Crown /></span>
-                  <div><strong>상세 근무조건</strong><small>작성한 항목은 지원 의료인이 확인하는 ‘결정 조건표’에 정리됩니다</small></div>
-                  <em>모두 선택사항</em>
-                </summary>
-                <div className="form-grid">
-                  <label><span>급여 기준</span><input name="salaryBasis" placeholder="예: Net 월 1,500만원 · 퇴직금 별도" /></label>
-                  <label><span>인센티브 구조</span><input name="incentive" placeholder="예: 내시경 건별 또는 매출 구간별" /></label>
-                  <label><span>평일·토요일 실제 시간</span><input name="exactHours" placeholder="예: 평일 08:30~17:30 · 토 격주 13시" /></label>
-                  <label><span>당직·온콜</span><input name="onCall" placeholder="예: 당직 없음 · 온콜 월 1회" /></label>
-                  <label><span>일평균 환자·검사량</span><input name="patientLoad" placeholder="예: 외래 35명 · 내시경 8건" /></label>
-                  <label><span>시술·검사 범위</span><input name="procedureScope" placeholder="예: 위·대장내시경, 초음파 선택" /></label>
-                  <label><span>간호·보조 인력</span><input name="supportTeam" placeholder="예: 전담 간호사 2명 · PA 없음" /></label>
-                  <label><span>휴무·연차</span><input name="leavePolicy" placeholder="예: 연차 15일 · 공휴일 휴무" /></label>
-                  <label><span>입사 가능 시점</span><input name="startTiming" placeholder="예: 1개월 내 · 협의 가능" /></label>
-                  <label><span>면접 절차</span><input name="interviewProcess" placeholder="예: 원장 면담 1회 → 조건 조율" /></label>
-                </div>
-                <label className="wide-field">
-                  <span>채용 담당자 확인 메모</span>
-                  <textarea name="verifiedNote" rows="3" placeholder="예: 토요일 근무는 월 2회까지 조정 가능하며, 경력에 따라 급여 상향 협의 가능합니다." />
-                </label>
-              </details>
+              <div className="form-grid ad-condition-simple">
+                <label><span>급여·보수 <i>선택</i></span><input name="salaryBasis" placeholder="예: 월 1,500만원 · 협의 가능" /></label>
+                <label><span>근무 일정 <i>선택</i></span><input name="exactHours" placeholder="예: 평일 08:30~17:30 · 토요일 격주" /></label>
+              </div>
               <label className="wide-field">
                 <span>
-                  병원·초빙 소개 <i>선택</i>
+                  추가 안내 <i>선택</i>
                 </span>
                 <textarea
                   name="introduction"
-                  rows="3"
-                  placeholder="진료 환경, 기관의 강점, 초빙 인원과 일정을 간단히 적어주세요."
+                  rows="4"
+                  placeholder="당직, 휴무, 인센티브 등 꼭 알릴 내용만 자유롭게 적어주세요."
                 />
               </label>
               </section>

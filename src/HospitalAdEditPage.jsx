@@ -96,19 +96,11 @@ export default function HospitalAdEditPage({ ad }) {
         <label className="wide"><span>주소</span><input value={form.address} onChange={(event) => update('address', event.target.value)} /></label>
         <label className="wide"><span>홈페이지</span><input type="url" value={form.website} onChange={(event) => update('website', event.target.value)} placeholder="https://" /></label>
       </div></section>
-      <section className="member-panel"><div className="member-panel-head"><div><h3>채용 조건</h3><p>결제금액·광고등급·게시기간을 제외한 실제 채용 조건을 수정합니다.</p></div></div><div className="owned-ad-form-grid">
-        <label><span>진료과·초빙분야</span><input value={form.department} onChange={(event) => update('department', event.target.value)} /></label>
-        <label><span>급여·보수</span><input value={form.salaryBasis} onChange={(event) => update('salaryBasis', event.target.value)} /></label>
-        <label><span>인센티브</span><input value={form.incentive} onChange={(event) => update('incentive', event.target.value)} /></label>
-        <label><span>근무시간</span><input value={form.exactHours} onChange={(event) => update('exactHours', event.target.value)} /></label>
-        <label><span>당직·온콜</span><input value={form.onCall} onChange={(event) => update('onCall', event.target.value)} /></label>
-        <label><span>환자·검사량</span><input value={form.patientLoad} onChange={(event) => update('patientLoad', event.target.value)} /></label>
-        <label><span>진료·시술 범위</span><input value={form.procedureScope} onChange={(event) => update('procedureScope', event.target.value)} /></label>
-        <label><span>지원 인력</span><input value={form.supportTeam} onChange={(event) => update('supportTeam', event.target.value)} /></label>
-        <label><span>휴무·휴가</span><input value={form.leavePolicy} onChange={(event) => update('leavePolicy', event.target.value)} /></label>
-        <label><span>입사 가능 시점</span><input value={form.startTiming} onChange={(event) => update('startTiming', event.target.value)} /></label>
-        <label className="wide"><span>면접 절차</span><input value={form.interviewProcess} onChange={(event) => update('interviewProcess', event.target.value)} /></label>
-        <label className="wide"><span>병원·채용 소개</span><textarea rows="7" value={form.introduction} onChange={(event) => update('introduction', event.target.value)} /></label>
+      <section className="member-panel"><div className="member-panel-head"><div><h3>채용 조건</h3><p>초빙 분야를 확인하고 급여·근무 일정·추가 안내만 간단히 수정합니다.</p></div></div><div className="owned-ad-form-grid">
+        <label className="wide"><span>초빙 분야 *</span><input required value={form.department} onChange={(event) => update('department', event.target.value)} placeholder="예: 정형외과 전문의, 검진센터 진료원장" /></label>
+        <label><span>급여·보수</span><input value={form.salaryBasis} onChange={(event) => update('salaryBasis', event.target.value)} placeholder="예: 월 1,500만원 · 협의 가능" /></label>
+        <label><span>근무 일정</span><input value={form.exactHours} onChange={(event) => update('exactHours', event.target.value)} placeholder="예: 평일 08:30~17:30 · 토요일 격주" /></label>
+        <label className="wide"><span>추가 안내</span><textarea rows="5" value={form.introduction} onChange={(event) => update('introduction', event.target.value)} placeholder="당직, 휴무, 인센티브 등 꼭 알릴 내용만 자유롭게 적어주세요." /></label>
       </div></section>
       <section className="member-panel"><div className="member-panel-head"><div><h3>공고 이미지</h3><p>기존 이미지를 유지하거나 새 이미지로 교체할 수 있습니다.</p></div></div><div className="owned-ad-image-grid">
         <EditableImage label="병원 로고·브랜드 이미지" description="병원명 옆과 브랜드 영역에 사용됩니다." purpose="logo" value={form.logo} file={logoFile} onChange={setLogoFile} onRemove={() => { setLogoFile(null); update('logo',''); }} />

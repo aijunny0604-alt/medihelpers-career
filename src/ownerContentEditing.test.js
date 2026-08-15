@@ -35,7 +35,7 @@ test('owner edit preserves billing and exposure metadata while updating authored
   assert.match(branch, /const nextPayload = \{\s*\.\.\.current,/);
   assert.doesNotMatch(branch, /adTier\s*:\s*s\(source\./);
   assert.doesNotMatch(branch, /exposure(?:End)?\s*:\s*s\(source\./);
-  assert.match(editorSource, /결제금액·광고등급·게시기간을 제외한 실제 채용 조건/);
+  assert.match(editorSource, /초빙 분야를 확인하고 급여·근무 일정·추가 안내만 간단히 수정/);
 });
 
 test('ad image replacement supports select, drag-and-drop, and clipboard paste', () => {
@@ -48,4 +48,23 @@ test('ad image replacement supports select, drag-and-drop, and clipboard paste',
 test('medical professional keeps the existing owner-edit route through the saved resume', () => {
   assert.match(memberCenterSource, /저장된 이력서 수정/);
   assert.match(memberCenterSource, /role === 'hospital' \? '\/request\/hiring' : '\/resume'/);
+});
+
+test('hospital job conditions use only four practical inputs while preserving legacy data', () => {
+  const createSection = mainSource.slice(
+    mainSource.indexOf('<div><h2>채용조건</h2>'),
+    mainSource.indexOf('<section className="ad-form-section ad-form-final">')
+  );
+  assert.match(createSection, /name="department"/);
+  assert.match(createSection, /name="salaryBasis"/);
+  assert.match(createSection, /name="exactHours"/);
+  assert.match(createSection, /name="introduction"/);
+  for (const obsolete of ['incentive','onCall','patientLoad','procedureScope','supportTeam','leavePolicy','startTiming','interviewProcess','verifiedNote']) {
+    assert.doesNotMatch(createSection, new RegExp(`name="${obsolete}"`));
+  }
+  assert.doesNotMatch(createSection, /membership-intake/);
+  assert.match(editorSource, /초빙 분야 \*/);
+  assert.match(editorSource, /급여·근무 일정·추가 안내만 간단히 수정/);
+  assert.match(editorSource, /incentive:payload\.incentive/);
+  assert.match(editorSource, /content:\{ \.\.\.form, logo, banner \}/);
 });
