@@ -81,5 +81,5 @@ test('hospital job registration uses a large readable desktop form scale', () =>
   assert.match(scale, /label>span\{font-size:16px/);
   assert.match(scale, /min-height:60px[^}]*font-size:17px/);
   assert.match(scale, /\.sample-banner-grid strong\{[^}]*font-size:14px/);
-  assert.match(scale, /@media\(min-width:781px\) and \(max-width:980px\)/);
+  assert.match(scale, /@media\(min-width:781px\) and \(max-width:1180px\)/);
 });

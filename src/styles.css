@@ -3274,8 +3274,8 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   grid-template-columns:minmax(0,1fr) 340px;gap:26px;
   padding:30px;border:1px solid #dce6f2;border-top:0;border-radius:0 0 24px 24px;background:#edf2f8;
 }
-.ad-apply-page .checkout-form{display:flex;flex-direction:column;gap:20px}
-.ad-form-section{padding:30px 32px;border:1px solid #dfe7f0;border-radius:20px;background:#fff;box-shadow:0 10px 26px rgba(35,64,100,.035)}
+.ad-apply-page .checkout-form{display:flex;min-width:0;flex-direction:column;gap:20px}
+.ad-form-section{min-width:0;padding:30px 32px;border:1px solid #dfe7f0;border-radius:20px;background:#fff;box-shadow:0 10px 26px rgba(35,64,100,.035)}
 .ad-form-section-head{display:flex;align-items:flex-start;gap:13px;margin-bottom:24px}
 .ad-form-section-head>span{width:38px;height:38px;border-radius:12px;background:#eaf2ff;color:var(--blue);display:grid;place-items:center;font:800 12px 'Manrope';flex:0 0 auto}
 .ad-form-section-head>div{flex:1}.ad-form-section-head h2{margin:0;color:#172b49;font-size:22px;letter-spacing:-.7px}.ad-form-section-head p{margin:5px 0 0;color:#7b899b;font-size:14px;line-height:1.6}
@@ -3292,6 +3292,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .ad-apply-page .facility-photo-upload{margin:0;background:#f7f9fc}
 .ad-apply-page .institution-fields-head{margin-top:0;padding-top:0;border-top:0}
 .ad-apply-page .form-grid{gap:17px}.ad-apply-page .checkout-form label>span{font-size:14px}
+.ad-apply-page .required-label{display:inline-flex;align-items:center;margin-left:6px;color:#d93b4d;font-size:.76em;font-style:normal;font-weight:900;line-height:1;letter-spacing:-.1px;vertical-align:middle}
 .ad-apply-page .checkout-form input,.ad-apply-page .checkout-form textarea,.ad-apply-page .checkout-form select{min-height:52px;border-radius:12px;font-size:15px}
 .ad-apply-page .checkout-form textarea{min-height:120px}
 .ad-apply-page .membership-intake{margin-top:20px}
@@ -3308,10 +3309,14 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .ad-apply-gate-card small{font:800 12px 'Manrope';letter-spacing:1px;color:var(--blue)}.ad-apply-gate-card h1{margin:9px 0 15px;color:#122746;font-size:35px;line-height:1.25;letter-spacing:-1.5px}
 .ad-apply-gate-card p{margin:0 0 25px;color:#738197;font-size:15px;line-height:1.7}.ad-apply-gate-card .button{min-height:57px}.ad-apply-gate-back{display:inline-block;margin-top:18px;color:#60738d;font-size:14px;font-weight:800}
 
-@media(max-width:1120px){
+@media(max-width:1440px){
   .ad-apply-page .checkout-grid{grid-template-columns:1fr}
-  .ad-apply-page .order-summary{position:static;order:-1}
+  .ad-apply-page .order-summary{position:static;order:0}
   .single-brand-guide{grid-template-columns:1fr 1fr}.single-brand-guide strong{grid-column:1/-1}
+}
+@media(max-width:1180px){
+  .single-brand-upload{grid-template-columns:1fr}
+  .single-brand-upload .banner-preview{width:100%}
 }
 @media(max-width:780px){
   .ad-apply-page{padding:30px 15px 80px}
@@ -5730,10 +5735,10 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   .ad-apply-page .sample-banner-grid strong{margin-top:10px;font-size:14px}
   .ad-apply-page .sample-banner-grid small{margin-top:4px;font-size:12px}
 }
-@media(min-width:1121px){
+@media(min-width:1441px){
   .ad-apply-page .checkout-grid{grid-template-columns:minmax(0,1fr) 380px}
 }
-@media(min-width:781px) and (max-width:980px){
+@media(min-width:781px) and (max-width:1180px){
   .single-brand-upload{grid-template-columns:1fr}
 }
 

@@ -3152,7 +3152,7 @@ function Checkout({ plan }) {
               </div>
               <div className="form-grid">
                 <label>
-                  <span>병원명 *</span>
+                  <span>병원명 <b className="required-label">필수</b></span>
                   <input
                     required
                     name="hospital"
@@ -3160,7 +3160,7 @@ function Checkout({ plan }) {
                   />
                 </label>
                 <label data-field="facility-type">
-                  <span>기관 유형 *</span>
+                  <span>기관 유형 <b className="required-label">필수</b></span>
                   <HeroSelect
                     label="기관 유형"
                     name="facilityType"
@@ -3186,11 +3186,11 @@ function Checkout({ plan }) {
                   )}
                 </label>
                 <label>
-                  <span>담당자명 *</span>
+                  <span>담당자명 <b className="required-label">필수</b></span>
                   <input required name="manager" placeholder="담당자 성함" />
                 </label>
                 <label>
-                  <span>연락처 *</span>
+                  <span>연락처 <b className="required-label">필수</b></span>
                   <input
                     required
                     name="phone"
@@ -3199,7 +3199,7 @@ function Checkout({ plan }) {
                   />
                 </label>
                 <label>
-                  <span>이메일 *</span>
+                  <span>이메일 <b className="required-label">필수</b></span>
                   <input
                     required
                     name="email"
@@ -3208,7 +3208,7 @@ function Checkout({ plan }) {
                   />
                 </label>
                 <label>
-                  <span>병원 위치 *</span>
+                  <span>병원 위치 <b className="required-label">필수</b></span>
                   <input
                     required
                     name="address"
@@ -3264,7 +3264,7 @@ function Checkout({ plan }) {
                   <em>필수 1개</em>
                 </div>
               <label className="wide-field">
-                <span>초빙 분야 *</span>
+                <span>초빙 분야 <b className="required-label">필수</b></span>
                 <input
                   required
                   name="department"
