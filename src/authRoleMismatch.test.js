@@ -13,6 +13,9 @@ test('logged-in members with the wrong role see a standalone notice without anot
   assert.match(mismatchBranch, /auth-role-mismatch/);
   assert.match(mismatchBranch, /현재 병원회원으로 로그인되어 있습니다/);
   assert.match(mismatchBranch, /현재 의료인회원으로 로그인되어 있습니다/);
+  assert.match(mismatchBranch, /이전 페이지로 돌아가기/);
+  assert.match(mismatchBranch, /window\.history\.back\(\)/);
+  assert.match(mismatchBranch, /navigate\(doctorNeed \? '\/jobs' : hospitalNeed \? '\/medical-staff' : '\/'\)/);
   assert.doesNotMatch(mismatchBranch, /<Link/);
   assert.doesNotMatch(mismatchBranch, /로그인<\/Link>/);
   assert.doesNotMatch(mismatchBranch, /\{children\}/);

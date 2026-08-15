@@ -278,6 +278,16 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
       : hospitalNeed && auth.role === 'doctor'
         ? '현재 의료인회원으로 로그인되어 있습니다. 병원 전용 채용 기능은 병원회원 계정에서 이용할 수 있습니다.'
         : '현재 로그인한 계정 유형에서는 이 화면을 이용할 수 없습니다.';
+    const returnFromRoleNotice = () => {
+      let sameSitePreviousPage = false;
+      try {
+        sameSitePreviousPage = Boolean(document.referrer)
+          && new URL(document.referrer).origin === window.location.origin
+          && window.history.length > 1;
+      } catch {}
+      if (sameSitePreviousPage) return window.history.back();
+      navigate(doctorNeed ? '/jobs' : hospitalNeed ? '/medical-staff' : '/');
+    };
     return <section className="auth-gate auth-role-mismatch">
       <div className="auth-gate-card">
         <span className="auth-gate-icon"><LockKeyhole /></span>
@@ -285,6 +295,9 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
         <h2>{title || (hospitalNeed ? '병원 회원 전용입니다' : doctorNeed ? '의료인 회원 전용입니다' : '회원 전용입니다')}</h2>
         <p>{description || roleNotice}</p>
         <span className="auth-gate-note"><ShieldCheck size={14} /> {roleNotice}</span>
+        <div className="auth-gate-actions">
+          <button type="button" className="button primary" onClick={returnFromRoleNotice} aria-label="이전 페이지로 돌아가기"><ArrowLeft size={17} /> 뒤로 가기</button>
+        </div>
       </div>
     </section>;
   }

@@ -4664,6 +4664,8 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .auth-role-mismatch .auth-gate-card{box-shadow:0 22px 60px rgba(24,52,92,.1)}
 .auth-role-mismatch .auth-gate-note{max-width:410px;margin-top:24px;padding:13px 16px;border-radius:12px;background:#eef6ff;color:#526780;line-height:1.55;text-align:left}
 .auth-role-mismatch .auth-gate-note svg{flex:0 0 auto}
+.auth-role-mismatch .auth-gate-actions{margin:22px 0 0}
+.auth-role-mismatch .auth-gate-actions .button{min-width:150px}
 .auth-gate-loading .auth-gate-card{box-shadow:0 16px 40px rgba(24,52,92,.06)}
 .auth-gate-loading p{margin:0;color:#6f7d91;font-size:14px}
 .auth-gate-spinner{width:34px;height:34px;margin:0 auto 16px;display:block;border-radius:50%;border:3px solid #e3ebf5;border-top-color:var(--blue);animation:auth-gate-spin .7s linear infinite}
