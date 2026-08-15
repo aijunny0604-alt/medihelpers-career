@@ -1,5 +1,18 @@
 # TEST
 
+## 운영 사이트 직접 검증 (2026-08-15)
+
+- 대상: `https://medihelpers-career.junnyai.chatgpt.site` / Sites version `279` / commit `868ca62`.
+- 실제 일반회원 브라우저 세션으로 `/resume`, `/medical-staff`, `/jobs`, `/advertise`, `/mypage`, `/request/hiring`을 열고 핵심 콘텐츠, 역할 불일치 안내 부재, 인증 완료 후 `.auth-action-pending` `0개`를 확인했습니다.
+- 별도 쿠키 세션에서 `POST /api/auth/test-switch`를 의료인·병원·관리자 순서로 실행해 모두 HTTP `200`을 확인하고, 각 세션의 `GET /api/account`가 D1 역할과 관리자 권한을 정확히 반환하는지 확인했습니다.
+- 의료인 세션 `GET /api/resumes`: HTTP `200` 및 등록 이력서 JSON 확인.
+- 병원 세션 `GET /api/member-center`: HTTP `200` 및 공고·결제·알림 JSON 확인.
+- 관리자 세션 `GET /api/admin-console`: HTTP `200` 및 읽기 전용 운영 기록 JSON 확인.
+- 비회원 `GET /api/account`: HTTP `200` JSON, 비회원 `GET /api/resumes`: 의도된 HTTP `401` JSON 확인.
+- 과거 2026-08-08 테스트 지원·알림의 일부 `??` 문자열은 D1에 이미 저장된 레거시 원문으로 확인했습니다. 이번 검증에서는 데이터 보존 원칙에 따라 수정·삭제하지 않았습니다.
+- `npm test`: **142/142 통과**
+- `npm run build`, `node --check dist/server/index.js`, `git diff --check`: 통과
+
 ## 전 화면 인증 UI 첫 렌더 회귀 검증 (2026-08-15)
 
 - 공고 상세·의료인 채용 상세·이력서·헤드헌팅 접수·상담·결제·계정 화면이 App의 공용 계정 상태를 재사용하고 자체 `/api/account` 요청을 만들지 않는지 검사합니다.
