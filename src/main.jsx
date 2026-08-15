@@ -258,8 +258,8 @@ function useAuthGate(qa) {
   return state;
 }
 
-// 비로그인/권한 부족 시 콘텐츠를 블러 처리하고 그 위에 로그인 유도 카드를 띄우는 게이트.
-// 통째로 차단하지 않고 뒤 콘텐츠를 흐리게 보여줘 "무엇이 있는지" 맛보기 → 가입 동기를 살린다.
+// 비로그인 사용자는 콘텐츠 미리보기와 로그인 경로를 제공한다.
+// 이미 로그인했지만 역할이 다른 사용자는 보호 콘텐츠를 렌더링하지 않고 역할 안내만 보여준다.
 function AuthGate({ auth, need = 'member', title, description, children }) {
   if (auth.status === 'loading') {
     return <section className="auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>로그인 상태를 확인하고 있습니다…</p></div></section>;
@@ -272,6 +272,22 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
   if (ok) return children;
   const hospitalNeed = need === 'hospital';
   const doctorNeed = need === 'doctor';
+  if (auth.status === 'member') {
+    const roleNotice = doctorNeed && auth.isHospital
+      ? '현재 병원회원으로 로그인되어 있습니다. 이력서 작성과 구직 활동은 의료인회원 계정에서 이용할 수 있습니다.'
+      : hospitalNeed && auth.role === 'doctor'
+        ? '현재 의료인회원으로 로그인되어 있습니다. 병원 전용 채용 기능은 병원회원 계정에서 이용할 수 있습니다.'
+        : '현재 로그인한 계정 유형에서는 이 화면을 이용할 수 없습니다.';
+    return <section className="auth-gate auth-role-mismatch">
+      <div className="auth-gate-card">
+        <span className="auth-gate-icon"><LockKeyhole /></span>
+        <small>{hospitalNeed ? 'HOSPITAL MEMBERS ONLY' : doctorNeed ? 'DOCTOR MEMBERS ONLY' : 'MEMBERS ONLY'}</small>
+        <h2>{title || (hospitalNeed ? '병원 회원 전용입니다' : doctorNeed ? '의료인 회원 전용입니다' : '회원 전용입니다')}</h2>
+        <p>{description || roleNotice}</p>
+        <span className="auth-gate-note"><ShieldCheck size={14} /> {roleNotice}</span>
+      </div>
+    </section>;
+  }
   return <div className="auth-gate-wrap">
     <div className="auth-gate-blurred" aria-hidden="true">{children}</div>
     <div className="auth-gate-overlay">

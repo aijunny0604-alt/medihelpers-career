@@ -4639,7 +4639,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .medical-staff-mobile-cta button svg{width:17px}
 }
 
-/* 회원 전용 접근 게이트 — 콘텐츠 블러 + 로그인 유도 오버레이 */
+/* 회원 전용 접근 게이트 — 비회원은 미리보기, 역할 불일치는 단독 안내 */
 .auth-gate-wrap{position:relative;min-height:calc(100vh - 76px)}
 .auth-gate-blurred{filter:blur(7px) saturate(.92);opacity:.5;pointer-events:none;user-select:none;max-height:calc(100vh - 76px);overflow:hidden;-webkit-mask-image:linear-gradient(180deg,#000 60%,transparent);mask-image:linear-gradient(180deg,#000 60%,transparent)}
 /* 오버레이는 블러 영역 전체를 덮고, 카드는 화면 중앙에 오도록 상단 여백으로 배치.
@@ -4660,6 +4660,10 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 @media(max-width:460px){.auth-gate-actions{flex-direction:column}.auth-gate-actions .button{width:100%}}
 .auth-gate-note{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8794a6}
 .auth-gate-note svg{color:var(--mint)}
+.auth-role-mismatch{min-height:calc(100vh - 76px);background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}
+.auth-role-mismatch .auth-gate-card{box-shadow:0 22px 60px rgba(24,52,92,.1)}
+.auth-role-mismatch .auth-gate-note{max-width:410px;margin-top:24px;padding:13px 16px;border-radius:12px;background:#eef6ff;color:#526780;line-height:1.55;text-align:left}
+.auth-role-mismatch .auth-gate-note svg{flex:0 0 auto}
 .auth-gate-loading .auth-gate-card{box-shadow:0 16px 40px rgba(24,52,92,.06)}
 .auth-gate-loading p{margin:0;color:#6f7d91;font-size:14px}
 .auth-gate-spinner{width:34px;height:34px;margin:0 auto 16px;display:block;border-radius:50%;border:3px solid #e3ebf5;border-top-color:var(--blue);animation:auth-gate-spin .7s linear infinite}
