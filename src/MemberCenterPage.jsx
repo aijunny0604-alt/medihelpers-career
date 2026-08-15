@@ -77,7 +77,7 @@ function MemberGate({ failed = false }) {
   return <section className="member-gate"><span><LockKeyhole /></span><small>MEMBERS ONLY</small><h1>로그인 후 내 활동을<br />한곳에서 관리하세요</h1><p>공고·상담·결제·이력서와 회원정보는 본인 계정에서만 확인할 수 있습니다.</p><div><a className="button primary" href={withBase('/login?next=/mypage')}>로그인 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입</a></div></section>;
 }
 
-export default function MemberCenterPage({ route, qa }) {
+export default function MemberCenterPage({ route, qa, auth }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const routePath = route.split('?')[0].replace(/\/$/, '');
   const requestedTab = params.get('tab');
@@ -134,6 +134,26 @@ export default function MemberCenterPage({ route, qa }) {
 
   useEffect(() => {
     if (qa.active) return;
+    if (auth?.status === 'loading') {
+      setAccountState((current) => ({ ...current, loading:true }));
+      return;
+    }
+    if (auth?.status === 'guest') {
+      setAccountState({ loading:false, signedIn:false, role:'', identity:{} });
+      setProfile(null);
+      setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, recommendedCandidates: [] });
+      return;
+    }
+    // 상단 테스트 계정 전환 직후 이전 역할의 대시보드·프로필을 남기지 않는다.
+    setAccountState({
+      loading:false,
+      signedIn:auth?.status === 'member',
+      role:auth?.role || '',
+      identity:auth?.identity || {},
+      isAdmin:Boolean(auth?.isAdmin)
+    });
+    setProfile(auth?.profile || null);
+    setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, recommendedCandidates: [] });
     let cancelled = false;
     // 로그인 직후 세션 쿠키가 아직 자리잡지 않아 401이 날 수 있다(느린 PC·네트워크).
     // 한 번의 실패로 바로 '불러오지 못했습니다'를 띄우지 말고, 짧게 몇 번 재시도한다.
@@ -159,7 +179,7 @@ export default function MemberCenterPage({ route, qa }) {
     };
     load();
     return () => { cancelled = true; };
-  }, [qa.active]);
+  }, [qa.active, auth?.status, auth?.role, auth?.isAdmin, auth?.email]);
 
   useEffect(() => {
     if (qa.active || !accountState.signedIn) return undefined;
@@ -189,6 +209,8 @@ export default function MemberCenterPage({ route, qa }) {
   const [savedJobIds, setSavedJobIds] = useState([]);
   useEffect(() => {
     if (qa.active) return;
+    setSavedJobIds([]);
+    if (auth?.status !== 'member') return;
     fetch('/api/saved-jobs', { credentials: 'same-origin', headers: { accept: 'application/json' } })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
@@ -197,7 +219,7 @@ export default function MemberCenterPage({ route, qa }) {
         setSavedJobIds(data.saved.map((s) => (typeof s === 'string' ? s : (s?.jobId || s?.id))).filter(Boolean));
       })
       .catch(() => {});
-  }, [qa.active]);
+  }, [qa.active, auth?.status, auth?.role, auth?.email]);
   const savedJobs = useMemo(() => savedJobIds.map((id) => {
     const found = jobs.find((j) => String(j.id) === String(id));
     return found

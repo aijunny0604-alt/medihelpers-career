@@ -29,7 +29,8 @@ test('배포 서버는 보안 쿠키와 PBKDF2를 사용하고 OpenAI 로그인 
   assert.match(serverSource, /TEST_ACCOUNT_SWITCH_ENABLED !== 'false'/);
   assert.match(serverSource, /testAccountsEnabled:testAccountSwitchEnabled\(env\)/);
   assert.match(accountSource, /window\.location\.replace\(target\)/);
-  assert.match(mainSource, /window\.location\.assign\(withBase/);
+  assert.match(mainSource, /const onAuthChanged = \(event\) =>/);
+  assert.doesNotMatch(mainSource, /window\.location\.assign\(withBase\(resolveAccountSwitchDestination/);
   assert.match(mainSource, /medihelpers:auth-changed/);
   assert.doesNotMatch(mainSource + accountSource, /account\.password|acct\.password/);
   assert.match(mainSource, /className="header-logout"/);

@@ -15,10 +15,19 @@ test('auth-sensitive pages reuse the single app account lookup', async () => {
   assert.match(source, /<JobSeekerBoard[^>]*auth=\{auth\}/);
   assert.match(source, /<AdvertisePage qa=\{qa\} auth=\{auth\}/);
   assert.match(source, /<TalentUnlockPage route=\{route\} qa=\{qa\} auth=\{auth\}/);
+  assert.match(source, /<MemberCenterPage[^>]*auth=\{auth\}/);
   assert.equal((source.match(/fetch\('\/api\/account'/g) || []).length, 1);
   assert.doesNotMatch(medicalStaff, /\/api\/account/);
   assert.doesNotMatch(headhunter, /\/api\/account/);
   assert.doesNotMatch(profileHook, /fetch\(/);
+});
+
+test('member center follows the shared role immediately after a test-account switch', async () => {
+  const source = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
+  assert.match(source, /MemberCenterPage\(\{ route, qa, auth \}\)/);
+  assert.match(source, /role:auth\?\.role \|\| ''/);
+  assert.match(source, /auth\?\.status, auth\?\.role, auth\?\.isAdmin, auth\?\.email/);
+  assert.match(source, /setServerData\(\{ consultations: \[\], alerts: \[\]/);
 });
 
 test('job seeker write action does not guess a guest role while account state is loading', async () => {
@@ -61,4 +70,14 @@ test('local QA mock switches the same doctor, admin, and hospital roles as produ
   assert.match(source, /path === '\/api\/auth\/test-switch'/);
   assert.match(source, /\['doctor', 'admin', 'hospital'\]\.includes\(body\.key\)/);
   assert.match(source, /write\(LS\.authSession, \{ email, role \}\)/);
+});
+
+test('role switching applies the server role immediately and ignores stale account lookups', async () => {
+  const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  assert.match(source, /const requestSequence = useRef\(0\)/);
+  assert.match(source, /sequence !== requestSequence\.current/);
+  assert.match(source, /event\.detail\?\.result/);
+  assert.match(source, /status:'member'/);
+  assert.match(source, /load\(\{ showLoading:false \}\)/);
+  assert.doesNotMatch(source, /window\.location\.assign\(withBase\(resolveAccountSwitchDestination/);
 });

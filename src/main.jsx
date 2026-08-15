@@ -10,7 +10,6 @@ import {
 import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
 import AccountPage, { authRequest, SignupWelcomePage, TEST_ACCOUNTS } from './AccountPage.jsx';
-import { resolveAccountSwitchDestination } from './loginRedirect.js';
 import ResumePage from './ResumePage.jsx';
 import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
 import HeroSelect from './CustomSelect.jsx';
@@ -220,6 +219,7 @@ function trackConversion(event, detail = {}) {
 
 // 로그인 여부를 서버(/api/account)로 확인하는 공용 훅. QA 프리뷰 모드는 미리보기 권한을 그대로 사용한다.
 function useAuthGate(qa) {
+  const requestSequence = useRef(0);
   const [state, setState] = useState({
     status: 'loading', role: '', isAdmin: false, isHospital: false,
     account: null, identity: {}, profile: {}, email: '',
@@ -241,38 +241,72 @@ function useAuthGate(qa) {
       return undefined;
     }
     let active = true;
-    const load = () => {
-      setState((current) => ({ ...current, status:'loading' }));
+    const applyFullAccount = (result) => {
+      const signedIn = Boolean(result.signedIn || result.account);
+      const role = result.account?.role || '';
+      setState({
+        status: signedIn ? 'member' : 'guest',
+        role,
+        isAdmin: Boolean(result.isAdmin),
+        isHospital: role === 'hospital' || Boolean(result.isAdmin),
+        account: result.account || null,
+        identity: result.identity || {},
+        profile: result.profile || {},
+        email: result.email || result.identity?.email || '',
+        signupEnabled: Boolean(result.signupEnabled),
+        testAccountsEnabled: result.testAccountsEnabled !== false,
+        welcomeEmailAvailable: Boolean(result.welcomeEmailAvailable),
+        adminSignupEmailAvailable: Boolean(result.adminSignupEmailAvailable),
+      });
+    };
+    const load = ({ showLoading = true } = {}) => {
+      const sequence = ++requestSequence.current;
+      if (showLoading) setState((current) => ({ ...current, status:'loading' }));
       fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } })
         .then((response) => (response.ok ? response.json() : Promise.reject(new Error('account lookup failed'))))
         .then((result) => {
-          if (!active) return;
-          const signedIn = Boolean(result.signedIn || result.account);
-          const role = result.account?.role || '';
-          setState({
-            status: signedIn ? 'member' : 'guest',
-            role,
-            isAdmin: Boolean(result.isAdmin),
-            isHospital: role === 'hospital' || Boolean(result.isAdmin),
-            account: result.account || null,
-            identity: result.identity || {},
-            profile: result.profile || {},
-            email: result.email || result.identity?.email || '',
-            signupEnabled: Boolean(result.signupEnabled),
-            testAccountsEnabled: result.testAccountsEnabled !== false,
-            welcomeEmailAvailable: Boolean(result.welcomeEmailAvailable),
-            adminSignupEmailAvailable: Boolean(result.adminSignupEmailAvailable),
-          });
+          if (!active || sequence !== requestSequence.current) return;
+          applyFullAccount(result);
         })
-        .catch(() => active && setState({
+        .catch(() => active && sequence === requestSequence.current && showLoading && setState({
           status: 'guest', role: '', isAdmin: false, isHospital: false,
           account: null, identity: {}, profile: {}, email: '', signupEnabled: false,
           testAccountsEnabled: true, welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
         }));
     };
+    const onAuthChanged = (event) => {
+      const result = event.detail?.result || {};
+      if (result.signedOut) {
+        setState((current) => ({
+          ...current, status:'guest', role:'', isAdmin:false, isHospital:false,
+          account:null, identity:{}, profile:{}, email:''
+        }));
+      } else if (result.signedIn || result.account) {
+        const role = result.account?.role || '';
+        setState((current) => ({
+          ...current,
+          status:'member',
+          role,
+          isAdmin:Boolean(result.isAdmin),
+          isHospital:role === 'hospital' || Boolean(result.isAdmin),
+          account:result.account || current.account,
+          identity:result.identity || current.identity,
+          profile:result.identity?.displayName
+            ? { name:result.identity.displayName, displayName:result.identity.displayName }
+            : {},
+          email:result.identity?.email || current.email,
+        }));
+      }
+      // 서버 응답으로 역할을 즉시 반영한 뒤 전체 계정 정보는 화면을 비우지 않고 재확인한다.
+      load({ showLoading:false });
+    };
     load();
-    window.addEventListener('medihelpers:auth-changed', load);
-    return () => { active = false; window.removeEventListener('medihelpers:auth-changed', load); };
+    window.addEventListener('medihelpers:auth-changed', onAuthChanged);
+    return () => {
+      active = false;
+      requestSequence.current += 1;
+      window.removeEventListener('medihelpers:auth-changed', onAuthChanged);
+    };
   }, [qa?.active, qa?.state]);
   return state;
 }
@@ -472,11 +506,12 @@ function Header({ path, qa, operations, auth }) {
     setSwitchingRole(account.key);
     try {
       await authRequest('test-switch', { key:account.key });
-      // 계정 전환은 로그인 행위일 뿐 목적지를 바꾸지 않는다. 현재 보던 화면을 새 세션으로
-      // 다시 읽고, 로그인·회원가입 화면에서 전환한 경우에만 메인으로 돌아간다.
-      window.location.assign(withBase(resolveAccountSwitchDestination(getRoute())));
+      // 현재 페이지를 다시 불러오지 않고 공용 인증 상태를 즉시 갱신한다. 전체 계정 정보는
+      // useAuthGate가 백그라운드에서 다시 확인하므로 느린 네트워크에서도 역할이 되돌아가지 않는다.
+      setOpen(false);
     } catch (error) {
       window.alert(`테스트 계정 전환에 실패했습니다: ${error.message}`);
+    } finally {
       setSwitchingRole('');
     }
   };
@@ -3589,7 +3624,7 @@ export function App() {
   else if (path === '/qa-preview') page = <NotFoundPage />;
   else if (path === '/admin/consultations' || path === '/admin/recruitment-crm' || path === '/admin/post') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
   else if (path === '/admin' || path === '/admin/console') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
-  else if (path === '/mypage' || path.startsWith('/mypage/inquiries/') || path.startsWith('/mypage/ads/') || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} />;
+  else if (path === '/mypage' || path.startsWith('/mypage/inquiries/') || path.startsWith('/mypage/ads/') || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} auth={auth} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/login') page = <AccountPage loginOnly auth={auth} />;
   else if (path === '/signup/welcome') page = <SignupWelcomePage auth={auth} />;

@@ -33,7 +33,7 @@ test('login can recover a same-origin previous page and header always supplies t
   assert.match(mainSource, /`\/login\?next=\$\{encodeURIComponent\(loginReturnTo\)\}`/);
 });
 
-test('header test account switching keeps the current page instead of forcing mypage', async () => {
+test('legacy account-switch destinations stay internal while the header no longer reloads', async () => {
   assert.equal(resolveAccountSwitchDestination('/jobs/doctor-1?from=home'), '/jobs/doctor-1?from=home');
   assert.equal(resolveAccountSwitchDestination('/medical-staff'), '/medical-staff');
   assert.equal(resolveAccountSwitchDestination('/login?next=/jobs'), '/');
@@ -41,6 +41,8 @@ test('header test account switching keeps the current page instead of forcing my
   assert.equal(resolveAccountSwitchDestination('https://evil.example'), '/');
 
   const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
-  assert.match(mainSource, /resolveAccountSwitchDestination\(getRoute\(\)\)/);
+  assert.doesNotMatch(mainSource, /resolveAccountSwitchDestination\(getRoute\(\)\)/);
+  assert.match(mainSource, /await authRequest\('test-switch', \{ key:account\.key \}\)/);
+  assert.match(mainSource, /setOpen\(false\)/);
   assert.doesNotMatch(mainSource, /account\.key === 'admin' \? '\/admin\/console' : '\/mypage'/);
 });

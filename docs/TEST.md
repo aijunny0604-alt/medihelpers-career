@@ -1,5 +1,15 @@
 # TEST
 
+## 상단 테스트 계정 전환 회귀 검증 (2026-08-15)
+
+- 전환 응답의 `doctor`, `hospital`, 관리자 권한을 `medihelpers:auth-changed` 이벤트에 포함해 공용 인증 상태가 즉시 반영되는지 검사합니다.
+- 전환 뒤 `window.location.assign`으로 현재 페이지를 다시 읽지 않고, 동일 URL에서 선택 역할만 갱신하는지 검사합니다.
+- 이전 계정 조회와 새 계정 조회가 겹쳐도 요청 순번이 지난 응답을 무시하는지 검사합니다.
+- `/mypage`에서 병원회원 → 일반회원 전환 시 `HOSPITAL DASHBOARD`가 제거되고 `DOCTOR DASHBOARD`가 표시되는지, 관리자 전환 시 상단 계정 링크가 `/admin/console`을 가리키는지 확인했습니다.
+- 브라우저 실제 클릭: 병원회원 → 관리자 → 일반회원 모두 `aria-pressed=true`, URL 변화 없음, `.auth-action-pending` `0개` 확인.
+- `?slow-auth=1`: 클릭 직후와 900ms 후 병원회원 선택 유지, `.auth-action-pending` `0개` 확인.
+- `npm test`: **144/144 통과**
+
 ## 운영 사이트 직접 검증 (2026-08-15)
 
 - 대상: `https://medihelpers-career.junnyai.chatgpt.site` / Sites version `279` / commit `868ca62`.

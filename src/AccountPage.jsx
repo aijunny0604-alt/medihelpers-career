@@ -126,7 +126,7 @@ export async function authRequest(action, body = {}) {
   if (data.sessionToken) storeSessionToken(data.sessionToken);
   if (action === 'logout') clearSessionToken();
   if (!response.ok) throw new Error(data.error || '로그인 요청을 처리하지 못했습니다.');
-  try { window.dispatchEvent(new CustomEvent('medihelpers:auth-changed', { detail:{ action } })); } catch {}
+  try { window.dispatchEvent(new CustomEvent('medihelpers:auth-changed', { detail:{ action, result:data } })); } catch {}
   return data;
 }
 
