@@ -83,11 +83,13 @@ export function getMedicalStaffJobs(operations) {
   return [...operationalMedicalJobs(operations?.contents || []), ...sampleJobs].map(normalizeJob);
 }
 
-export default function MedicalStaffPage({ operations, medicalTalent = [], talentSection = null }) {
+export default function MedicalStaffPage({ operations, medicalTalent = [], talentSection = null, auth }) {
   // 의료인 구인구직 = 구직 의료인 게시판 전용(병원 채용공고 목록은 /jobs·광고로 이동, 여기선 구직만).
+  const isHospital = auth?.role === 'hospital';
+  const isDoctor = auth?.role === 'doctor';
   return <div className="medical-staff-hub medical-staff-seek-only">
     <section className="medical-staff-hero seek-hero">
-      <div><span><UsersRound /> MEDICAL PROFESSIONALS</span><h1>의료인 구인구직<br /><em>구직 중인 의료인 인재</em></h1><p>의사·간호·의료기사·약무 등 의료인이 직접 등록한 <b>구직 이력서</b>입니다. 병원 회원은 <b>열람권</b>을 결제하면 이름·연락처·상세 이력을 열람할 수 있습니다.</p><div className="medical-staff-actions"><button onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서·구직 글 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/headhunting?role=hospital')}><Building2 /> 병원 · 인재 채용 상담</button></div></div>
+      <div><span><UsersRound /> MEDICAL PROFESSIONALS</span><h1>의료인 구인구직<br /><em>구직 중인 의료인 인재</em></h1><p>의사·간호·의료기사·약무 등 의료인이 직접 등록한 <b>구직 이력서</b>입니다. 병원 회원은 <b>열람권</b>을 결제하면 이름·연락처·상세 이력을 열람할 수 있습니다.</p>{(isHospital || isDoctor) && <div className="medical-staff-actions">{isDoctor && <><button onClick={() => go('/resume?staff=1')}><FileText /> 의료인 이력서·구직 글 등록 <ArrowRight /></button><button className="secondary" onClick={() => go('/headhunting?role=doctor')}><UsersRound /> 헤드헌터 이직 상담</button></>}{isHospital && <button onClick={() => go('/headhunting?role=hospital')}><Building2 /> 병원 · 인재 채용 상담 <ArrowRight /></button>}</div>}</div>
     </section>
     {talentSection}
   </div>;

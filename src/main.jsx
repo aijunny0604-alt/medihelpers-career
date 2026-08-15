@@ -415,6 +415,7 @@ function Header({ path, qa, operations, auth }) {
   useEffect(() => { setOpen(false); }, [path]);
   // 실제 로그인 세션으로 헤더 계정 링크를 결정한다.
   // (QA 프리뷰 폐지 후 qa.active가 항상 false라, 예전 로직은 로그인해도 계속 '로그인'만 떴다.)
+  const authLoading = auth.status === 'loading';
   const isSignedIn = auth.status === 'member';
   const isAdminUser = Boolean(auth.isAdmin);
   // 로그인 전에는 현재 화면을 next로 넘겨 로그인 뒤 보던 자리로 돌아오게 한다.
@@ -489,15 +490,19 @@ function Header({ path, qa, operations, auth }) {
           return true;
         }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''} ${item.highlight ? 'nav-highlight' : ''}`}>{item.label}</Link>)}
         {isSignedIn && !isAdminUser && <Link to="/mypage?tab=notifications" onClick={() => setOpen(false)} className="mobile-notification-link"><Bell /> 알림함 {unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
-        <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>
-        {isSignedIn && <button type="button" className="mobile-logout-button" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button>}
+        {authLoading
+          ? <span className="mobile-account-link auth-action-pending" aria-hidden="true" />
+          : <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>}
+        {!authLoading && isSignedIn && <button type="button" className="mobile-logout-button" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button>}
         {testSwitcher(true)}
       </nav>
       <div className="nav-actions">
         {testSwitcher()}
-        {isSignedIn && !isAdminUser && <Link className="header-notifications" to="/mypage?tab=notifications" aria-label={`알림함${unreadCount > 0 ? `, 읽지 않은 알림 ${unreadCount}개` : ''}`}><Bell />{unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
-        <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
-        {isSignedIn && <button type="button" className="header-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '처리 중' : '로그아웃'}</button>}
+        {!authLoading && isSignedIn && !isAdminUser && <Link className="header-notifications" to="/mypage?tab=notifications" aria-label={`알림함${unreadCount > 0 ? `, 읽지 않은 알림 ${unreadCount}개` : ''}`}><Bell />{unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
+        {authLoading
+          ? <span className="header-account auth-action-pending" aria-hidden="true" />
+          : <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>}
+        {!authLoading && isSignedIn && <button type="button" className="header-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '처리 중' : '로그아웃'}</button>}
       </div>
       <button className="menu-btn" onClick={() => setOpen(!open)} aria-label={open ? '메뉴 닫기' : '메뉴 열기'} aria-controls="primary-navigation" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
     </div>
@@ -1598,7 +1603,7 @@ function PremiumAdCarousel({ items, renderCard }) {
   </div>;
 }
 
-function SmartAdDock({ total, onSelect, canRegister }) {
+function SmartAdDock({ total, onSelect, canRegister, authLoading = false }) {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const timerRef = useRef(null);
@@ -1625,11 +1630,11 @@ function SmartAdDock({ total, onSelect, canRegister }) {
     <div className="smart-ad-dock-brand"><Building2 /><span><small>MEDIHELPERS RECRUIT</small><strong>병원 채용 바로가기</strong></span></div>
     <div className="smart-ad-dock-count"><small>전체 초빙공고</small><strong>{total.toLocaleString()}</strong><span>건</span></div>
     <div className="smart-ad-dock-links"><Link to="/advertise">광고 상품안내</Link><Link to="/headhunting?role=hospital">채용 상담</Link><Link to="/mypage">내 공고 관리</Link></div>
-    <button type="button" className="smart-ad-dock-cta" onClick={() => { trackConversion('smart_ad_dock_open', { canRegister }); onSelect(adPlans[0]); }}>{canRegister ? '초빙공고 등록하기' : '회원가입'} <ArrowRight /></button>
+    <button type="button" className="smart-ad-dock-cta" disabled={authLoading} onClick={() => { if (authLoading) return; trackConversion('smart_ad_dock_open', { canRegister }); onSelect(adPlans[0]); }}>{authLoading ? '확인 중…' : canRegister ? '초빙공고 등록하기' : '회원가입'} {!authLoading && <ArrowRight />}</button>
     <button type="button" className="smart-ad-dock-close" onClick={() => setDismissed(true)} aria-label="공고 등록창 닫기"><X /></button>
   </aside>;
 }
-function JobsPage({ route, qa, liveJobs = jobs }) {
+function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   const siteCategories = useSiteCategories();
   const params = new URLSearchParams(route.split('?')[1] || '');
   const [recruitmentType, setRecruitmentType] = useState(params.get('recruitmentType') || '전체 초빙');
@@ -1641,9 +1646,11 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
-  const adAuth = useAuthGate(qa);
+  const adAuth = auth;
+  const authLoading = adAuth.status === 'loading';
   const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   const requestAdPlan = (plan) => {
+    if (authLoading) return;
     const target = `/advertise/apply?plan=${plan.id}`;
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
   };
@@ -1702,19 +1709,19 @@ function JobsPage({ route, qa, liveJobs = jobs }) {
       title={<><span className="jobs-hero-part">조건부터 비교하는</span>{' '}<span className="jobs-hero-part">의사 초빙정보</span></>}
       description={<><span className="jobs-description-part">봉직의·원장·검진·비임상 포지션을</span>{' '}<span className="jobs-description-part">진료과와 지역, 근무조건으로 찾고</span>{' '}<span className="jobs-description-part">비공개 조건은 의사 전담 헤드헌터에게 확인하세요.</span></>}
     ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
-    <nav className="job-hub-nav jobs-hub-nav" aria-label="채용정보 공고 등록"><div><strong className="job-hub-title">채용정보</strong><Link className="job-hub-register" to={canRegisterAds ? '/advertise' : '/signup/hospital?next=/advertise'}>공고 등록</Link></div></nav>
+    <nav className="job-hub-nav jobs-hub-nav" aria-label="채용정보 공고 등록"><div><strong className="job-hub-title">채용정보</strong>{authLoading ? <span className="job-hub-register auth-action-pending" aria-hidden="true" /> : <Link className="job-hub-register" to={canRegisterAds ? '/advertise' : '/signup/hospital?next=/advertise'}>공고 등록</Link>}</div></nav>
     <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={siteCategories.departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={siteCategories.regions} /></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
       <div className="doctor-condition-filter" role="group" aria-label="의사 초빙 상세조건">{doctorConditions.map((item) => <button key={item} type="button" className={condition === item ? 'active' : ''} aria-pressed={condition === item} onClick={() => setCondition(item)}>{item}</button>)}</div>
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 추천 초빙정보</strong><small>메인 추천 공고와 핵심 조건을 한 화면에서 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 추천 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button></div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 추천 초빙정보</strong><small>메인 추천 공고와 핵심 조건을 한 화면에서 빠르게 비교하세요</small></div><div className="tier-heading-actions"><button type="button" className="tier-apply-button featured" disabled={authLoading} onClick={() => requestAdPlan(adPlans[1])}>{authLoading ? '회원 상태 확인 중…' : canRegisterAds ? '메인 추천 공고 등록' : '회원가입 후 등록'} {!authLoading && <ArrowRight />}</button></div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
-        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button></div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
+        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div><button type="button" className="tier-apply-button basic" disabled={authLoading} onClick={() => requestAdPlan(adPlans[0])}>{authLoading ? '회원 상태 확인 중…' : canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} {!authLoading && <ArrowRight />}</button></div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
         <div className="decision-nudge"><div><span><Crown /> HEADHUNTING</span><h3>{saved.length ? `찜한 ${saved.length}개 공고, 조건을 헤드헌터와 정리해보세요` : '원하는 조건을 헤드헌터에게 바로 상담하세요'}</h3><p>근무·보수·거리·진료 범위 등 중요하게 보는 조건을 전문 헤드헌터가 함께 맞춰드립니다.</p></div><Link className="button dark" to="/headhunting" onClick={() => trackConversion('jobs_headhunting_nudge', { savedCount: saved.length })}>헤드헌터에게 상담하기 <ArrowRight /></Link></div>
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
-    <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} />
+    <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} authLoading={authLoading} />
     <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
   </>;
 }
@@ -2482,16 +2489,16 @@ function HeadhuntBoard({ operations, qa }) {
 
 // 구직 게시판 — 의사·의료인이 직접 올린 구직글(이력서 '구직 공개' 선택분)을 게시판으로 노출.
 // 행 클릭 시 TalentDetailModal(열람권 자동 연동): 병원은 열람권 결제 후 이름·연락처·상세를 본다.
-function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' }) {
+function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route = '' }) {
   const all = useMemo(() => [...liveTalent, ...medicalTalent], [liveTalent, medicalTalent]);
   const [filter, setFilter] = useState('all');
   const [dept, setDept] = useState('전체');
   const [region, setRegion] = useState('전체');
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState(null);
-  // 구직글 작성 권한: 의료인(doctor) 회원 본인만. 병원 회원은 구직글을 쓸 수 없다.
-  // qa.info.capabilities는 QA 프리뷰 전용이라 실제 로그인 세션에서는 비어 있다 → useAuthGate로 실제 역할을 본다.
-  const auth = useAuthGate(qa);
+  // 구직글 작성 권한은 앱에서 이미 확인한 공용 로그인 상태를 사용한다.
+  // 페이지 안에서 /api/account를 다시 조회하면 처음 비회원 버튼이 나타났다 사라지는 경쟁 상태가 생긴다.
+  const authLoading = auth.status === 'loading';
   const isHospitalMember = auth.role === 'hospital';
   const canWriteJobSeeker = auth.role === 'doctor';
   // 열람권 결제 완료 후 /medical-staff?open=코드 로 진입하면 그 인재 상세를 바로 연다(목록으로 안 돌아가게).
@@ -2548,12 +2555,14 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, route = '' })
           </div>
           <div className="headhunt-board-toolbar-actions">
             <label className="headhunt-board-search"><Search size={16} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="진료과·지역·희망조건 검색" /></label>
-            {/* 구직글은 의료인 본인만 등록한다. 병원 회원에게는 작성 버튼을 노출하지 않는다. */}
-            {!isHospitalMember && (
-              <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume' : '/signup/doctor?next=/resume')}>
-                <FileText /> {canWriteJobSeeker ? '구직글 등록' : '의료인 회원으로 등록'}
-              </a>
-            )}
+            {/* 역할 확인 전에는 비회원 가입 버튼을 추측해서 그리지 않는다. */}
+            <div className={`headhunt-board-write-slot ${!authLoading && isHospitalMember ? 'is-empty' : ''}`}>
+              {authLoading
+                ? <span className="headhunt-board-write auth-action-pending" aria-hidden="true" />
+                : isHospitalMember
+                  ? <span className="headhunt-board-write is-empty" aria-hidden="true" />
+                  : <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume' : '/signup/doctor?next=/resume')}><FileText /> {canWriteJobSeeker ? '구직글 등록' : '의료인 회원으로 등록'}</a>}
+            </div>
           </div>
         </div>
         <div className="jobseeker-filter-row">
@@ -3410,13 +3419,12 @@ function TalentUnlockCheckout({ plan, talentId }) {
   return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}{plan.unlockCount > 1 ? ` · ${plan.unlockCount}명` : ''}</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 가상 결제 완료 즉시 해당 인재 연락처·이력서 상세가 열립니다.</p></div></section>;
 }
 
-function TalentUnlockPage({ route, qa }) {
+function TalentUnlockPage({ route, qa, auth }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const plan = talentUnlockPlans.find((item) => item.id === params.get('product')) || talentUnlockPlans[0];
   const talentId = params.get('talent') || '';
   // 실제 로그인 세션 기준으로 판단해야 한다. qa.active만 보면 QA 프리뷰가 아닌
   // 진짜 병원 계정은 영영 열람권을 못 사서 결제가 막힌다(실제로 그런 버그였음).
-  const auth = useAuthGate(qa);
   if (auth.status === 'loading') return <section className="section auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
   const canUnlock = Boolean(auth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   return <>
@@ -3427,9 +3435,9 @@ function TalentUnlockPage({ route, qa }) {
   </>;
 }
 
-function AdvertisePage({ qa }) {
+function AdvertisePage({ qa, auth }) {
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청을 못 한다.
-  const adAuth = useAuthGate(qa);
+  const adAuth = auth;
   const authLoading = adAuth.status === 'loading';
   const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   const requestPlan = (nextPlan) => {
@@ -3444,11 +3452,11 @@ function AdvertisePage({ qa }) {
   </>;
 }
 
-function AdvertiseApplyPage({ route, qa }) {
+function AdvertiseApplyPage({ route, qa, auth }) {
   const params = new URLSearchParams(route.split("?")[1] || "");
   const plan = adPlans.find((item) => item.id === params.get("plan")) || adPlans[1];
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청 페이지에서 막힌다.
-  const adAuth = useAuthGate(qa);
+  const adAuth = auth;
   if (adAuth.status === 'loading') return <section className="ad-apply-page auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
   const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
   if (!canRegisterAds) {
@@ -3615,13 +3623,15 @@ export function App() {
   const qaInfo = getQaStateInfo('guest');
   const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
   const auth = useAuthGate(qa);
-  const mobileAction = auth.status === 'member'
-    ? { to: auth.isAdmin ? '/admin/console' : '/mypage', label: auth.isAdmin ? '관리 콘솔' : '마이페이지' }
-    : { to: '/signup/hospital?next=/advertise', label: '병원 가입' };
+  const mobileAction = auth.status === 'loading'
+    ? null
+    : auth.status === 'member'
+      ? { to: auth.isAdmin ? '/admin/console' : '/mypage', label: auth.isAdmin ? '관리 콘솔' : '마이페이지' }
+      : { to: '/signup/hospital?next=/advertise', label: '병원 가입' };
 
   let page;
   if (path === '/') page = <HomePage liveJobs={liveJobs} />;
-  else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} liveJobs={liveJobs} />;
+  else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
     const job = liveJobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
     page = job ? <JobDetailRoute job={job} qa={qa} /> : <NotFoundPage />;
@@ -3633,14 +3643,14 @@ export function App() {
     page = post ? <HeadhuntPostDetailPage post={post} /> : <NotFoundPage />;
   }
   // 의료인 채용 = 채용공고 + 구직 의료인 인재(열람권). 로그인 회원 전용(비회원·경쟁사 정보 수집 차단).
-  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} route={route} />} /></AuthGate>;
+  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} auth={auth} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} route={route} />} /></AuthGate>;
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
     : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="의료인 채용 상세정보는 로그인 후 안전하게 확인할 수 있습니다."><MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} /></AuthGate>;
-  else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} />;
+  else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} auth={auth} />;
   // /advertise/post(무료 직접게시)는 폐지 — 상단 ROUTE_ALIASES에서 /advertise로 정규화됨(도달 불가).
-  else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} />;
-  else if (path === '/talent-unlock') page = <TalentUnlockPage route={route} qa={qa} />;
+  else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} auth={auth} />;
+  else if (path === '/talent-unlock') page = <TalentUnlockPage route={route} qa={qa} auth={auth} />;
   else if (path === '/qa-preview') page = <NotFoundPage />;
   else if (path === '/admin/consultations' || path === '/admin/recruitment-crm' || path === '/admin/post') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
   else if (path === '/admin' || path === '/admin/console') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
@@ -3663,5 +3673,5 @@ export function App() {
   if (path === '/admin' || path.startsWith('/admin/')) {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link><Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link></div></div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link>{mobileAction ? <Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link> : <span className="mobile-ad auth-action-pending" aria-hidden="true" />}</div></div>;
 }
