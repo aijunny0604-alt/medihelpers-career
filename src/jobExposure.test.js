@@ -44,7 +44,7 @@ test('AD_TIER_ORDER exposes the simplified two-level catalog', () => {
 
 test('the public ad catalog has only basic and main featured plans', () => {
   assert.deepEqual(adPlans.map((plan) => plan.id), ['basic', 'featured']);
-  assert.deepEqual(adPlans.map((plan) => plan.name), ['베이직 공고', '메인 추천 공고']);
+  assert.deepEqual(adPlans.map((plan) => plan.name), ['베이직 광고', '메인 광고']);
   assert.doesNotMatch(JSON.stringify(adPlans), /집중 채용|전담 컨설턴트|인재풀/);
 });
 

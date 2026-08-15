@@ -144,14 +144,14 @@ export const talent = [
 
 export const adPlans = [
   {
-    id: 'basic', name: '베이직 공고', price: 59000, unit: '30일', label: '초기 파트너 가격',
+    id: 'basic', name: '베이직 광고', price: 59000, unit: '30일', label: '초기 파트너 가격',
     description: '필요한 정보를 빠르게 알리고 지원과 상담을 받아보세요.',
     features: ['채용정보 목록 30일 노출', '진료과·지역 검색 노출', '결제 완료 즉시 게시', '지원·상담 연결']
   },
   {
-    id: 'featured', name: '메인 추천 공고', price: 149000, unit: '30일', label: '더 많은 노출이 필요할 때', featured: true,
-    description: '기본 공고에 메인 우선 노출과 브랜드 강조를 더합니다.',
-    features: ['기본 공고의 모든 기능', '병원 브랜드 이미지 강조 노출', '메인 추천 채용 우선 노출', '채용정보 목록 상단 강조', '주간 성과 요약', '1회 공고 수정 지원']
+    id: 'featured', name: '메인 광고', price: 149000, unit: '30일', label: '더 많은 노출이 필요할 때', featured: true,
+    description: '베이직 광고에 메인 우선 노출과 브랜드 강조를 더합니다.',
+    features: ['베이직 광고의 모든 기능', '병원 브랜드 이미지 강조 노출', '메인 채용 우선 노출', '채용정보 목록 상단 강조', '주간 성과 요약', '1회 공고 수정 지원']
   }
 ];
 

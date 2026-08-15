@@ -4199,6 +4199,17 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .unified-job-grid .job-card.premium-ad:before,.unified-job-grid .job-card.premium-ad:after,.unified-job-grid .ad-brand-stage:before,.unified-job-grid .ad-brand-stage:after,.unified-job-grid .brand-media-backdrop{display:none!important}
 .unified-job-grid .job-top{position:absolute!important;z-index:5!important;top:14px!important;left:auto!important;right:14px!important;width:auto!important}
 .unified-job-grid .job-top>div{display:none!important}
+.unified-job-grid .job-top.has-ad-tier{left:14px!important;right:14px!important;width:auto!important}
+.unified-job-grid .job-top.has-ad-tier>div{display:flex!important}
+.ad-tier-badge{min-height:27px;padding:5px 10px;border:1px solid transparent;border-radius:999px;display:inline-flex!important;align-items:center;gap:5px;font-size:11px;font-weight:900;line-height:1;letter-spacing:-.2px;white-space:nowrap;box-shadow:0 3px 10px rgba(28,54,87,.07)}
+.ad-tier-badge svg{width:13px;height:13px;flex:0 0 auto}
+.ad-tier-badge.ad-tier-main{border-color:#e6c66f;background:#fff5d9;color:#8a5a00}
+.ad-tier-badge.ad-tier-basic{border-color:#bdd6f7;background:#edf5ff;color:#155fb9}
+.job-card[data-ad-tier="main"]{border-top-color:#c89b2d!important}
+.job-card[data-ad-tier="basic"]{border-top-color:#2f82dc!important}
+.ad-tier-guide{display:flex;align-items:center;flex-wrap:wrap;gap:9px 18px}
+.ad-tier-guide>span{display:inline-flex!important;align-items:center;gap:8px;color:#60738b!important;font-size:12px!important;font-weight:700;letter-spacing:0!important}
+.ad-tier-guide .ad-tier-badge{font-size:10px}
 .unified-job-grid .heart{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.94);color:#9aabc0;box-shadow:0 3px 12px rgba(23,52,87,.06)}
 .unified-job-grid .listing-brand-stage,.unified-job-grid .premium-ad .ad-brand-stage{min-height:116px!important;margin:0 0 15px!important;padding:13px 16px!important;border:0!important;border-bottom:1px solid #edf1f5!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:13px!important;overflow:hidden!important}
 .unified-job-grid .listing-brand-stage .hospital-logo.prominent,.unified-job-grid .premium-ad .hospital-logo.prominent,.unified-job-grid .premium-ad.has-brand-logo .hospital-logo.prominent.has-image{position:static!important;width:74px!important;height:74px!important;min-width:74px!important;min-height:74px!important;flex:0 0 74px!important;padding:0!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;transform:none!important}
@@ -4389,7 +4400,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   min-height:96px!important;
   flex-basis:112px!important;
 }
-/* 등급 간 차별 제거: 추천 공고 버튼도 집중채용과 동일한 골드 채움 버튼 */
+/* 메인 광고는 강조된 행동 버튼을 사용하고 등급 배지로 베이직 광고와 구분한다. */
 .unified-job-grid .job-card.premium-ad.ad-featured .card-action{
   position:relative;
   z-index:3;
@@ -4484,7 +4495,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .home-premium-actions .button.light{border:1px solid #1263e8;background:#1263e8;color:#fff;box-shadow:0 10px 24px rgba(18,99,232,.16)}
 .home-premium-actions .button.glass{border:1px solid #d8e2ee;background:#fff;color:#294765}
 .home-premium-points{display:flex;align-items:center;gap:9px;margin:0 0 22px;flex-wrap:wrap}
-.home-premium-points span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #e0e8f1;border-radius:999px;background:#f8fafc;color:#52667f;font-size:12px;font-weight:750}
+.home-premium-points>span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #e0e8f1;border-radius:999px;background:#f8fafc;color:#52667f;font-size:12px;font-weight:750}
 .home-premium-points svg{width:14px;color:#6fe0c6}
 .home-premium-showcase .premium-rotator{border-color:#dfe7f0;background:#fff;box-shadow:0 16px 42px rgba(31,65,105,.08)}
 
@@ -5786,6 +5797,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .detail-heading-copy{min-width:0}.detail-heading.has-detail-banner{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.9fr);align-items:center;gap:clamp(24px,4vw,46px);min-height:235px;padding-right:38px;overflow:hidden}.detail-heading.has-detail-banner:after{content:"";position:absolute;right:-90px;top:-130px;width:410px;height:410px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--job-color) 14%,transparent),transparent 67%);pointer-events:none}
 .detail-hero-banner{position:relative;z-index:1;width:100%;aspect-ratio:3/1;overflow:hidden;border:1px solid rgba(255,255,255,.9);border-radius:20px;background:#eef4fa;box-shadow:0 22px 48px rgba(22,57,99,.18),0 0 0 1px color-mix(in srgb,var(--job-color) 18%,#d8e4f1);isolation:isolate}.detail-hero-banner:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,30,58,.1),transparent 50%,rgba(255,255,255,.12));pointer-events:none}
 .detail-hero-banner>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .35s ease}.detail-hero-banner:hover>img{transform:scale(1.025)}.detail-banner-chip{position:absolute;z-index:2;right:11px;top:10px;padding:5px 8px;border:1px solid rgba(255,255,255,.72);border-radius:999px;background:rgba(14,38,69,.62);color:#fff!important;font:800 7px 'Manrope';letter-spacing:.9px;backdrop-filter:blur(8px)}.detail-hero-banner>div{position:absolute;z-index:2;left:12px;right:35%;bottom:11px;min-width:0;padding:9px 11px;border:1px solid rgba(255,255,255,.78);border-radius:12px;background:rgba(255,255,255,.9);box-shadow:0 7px 18px rgba(18,44,78,.12);backdrop-filter:blur(9px);display:flex;flex-direction:column}.detail-hero-banner small{color:#2870bf;font:800 8px 'Manrope';letter-spacing:.65px}.detail-hero-banner strong{margin-top:2px;overflow:hidden;color:#173455;font-size:14px;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}.detail-hero-banner>div>span{margin-top:1px;overflow:hidden;color:#6c7d91;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.detail-banner-chip.ad-tier-main{border-color:#f2d98e;background:rgba(119,76,0,.82)}
+.detail-banner-chip.ad-tier-basic{border-color:#bcd9ff;background:rgba(17,88,171,.84)}
 .detail-institution-mark{position:relative;width:64px;height:64px;flex:0 0 64px;border:1px solid color-mix(in srgb,var(--job-color) 24%,#dce7f3);border-radius:19px;background:linear-gradient(145deg,#fff 5%,color-mix(in srgb,var(--job-color) 10%,#eef5ff));color:var(--job-color);box-shadow:0 12px 26px color-mix(in srgb,var(--job-color) 15%,rgba(26,59,99,.08)),inset 0 1px 0 #fff;display:grid;place-items:center;overflow:visible}.detail-institution-mark>svg{width:29px;height:29px;stroke-width:1.8}.detail-institution-mark:before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--job-color) 12%,transparent);border-radius:13px}.detail-institution-mark i{position:absolute;right:-5px;bottom:-5px;width:25px;height:25px;border:3px solid #fff;border-radius:9px;background:linear-gradient(145deg,#13b89a,#07957e);color:#fff;box-shadow:0 5px 12px rgba(9,151,126,.24);display:grid;place-items:center}.detail-institution-mark i svg{width:13px;height:13px;stroke-width:2.4}
 @media(max-width:780px){.detail-heading.has-detail-banner{grid-template-columns:1fr;min-height:0;padding-right:24px;gap:20px}.detail-hero-banner{max-width:520px}.detail-heading.has-detail-banner:after{right:-180px;top:40px}}
 @media(max-width:460px){.detail-heading.has-detail-banner{padding-right:20px}.detail-hero-banner{border-radius:15px}.detail-hero-banner>div{left:8px;right:32%;bottom:7px;padding:6px 8px}.detail-banner-chip{right:7px;top:7px;padding:4px 6px}.detail-hero-banner small{font-size:7px}.detail-hero-banner strong{font-size:12px}.detail-institution-mark{width:56px;height:56px;flex-basis:56px;border-radius:16px}.detail-institution-mark>svg{width:25px}.detail-institution-mark i{width:22px;height:22px}}
@@ -5808,6 +5821,16 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .premium-rotation-page .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption small{font-size:10px!important}
 @media(max-width:560px){.premium-rotation-page .job-card.job-card-compact{min-height:370px;padding:15px 16px}.premium-rotation-page .job-card-compact h3{min-height:54px;font-size:18px}.premium-rotation-page .job-card-compact .meta{font-size:12.5px}.premium-rotation-page .job-card-compact .job-bottom>span{font-size:13px}.premium-rotation-page .job-card-compact .job-bottom strong,.premium-rotation-page .job-card-compact .card-action{font-size:12.5px}}
 .monitor-kind.recovery{background:#fff0e4;color:#a85517}
+
+/* Paid recruitment tiers must remain unmistakable on cards and detail pages. */
+.unified-job-grid .job-card[data-ad-tier="main"]{border-top-color:#c89b2d!important}
+.unified-job-grid .job-card[data-ad-tier="basic"]{border-top-color:#2f82dc!important}
+.ad-tier-badge.ad-tier-main{border-color:#e6c66f!important;background:#fff5d9!important;color:#8a5a00!important}
+.ad-tier-badge.ad-tier-basic{border-color:#bdd6f7!important;background:#edf5ff!important;color:#155fb9!important}
+.ad-tier-badge svg{color:inherit!important}
+.detail-brand-label .ad-tier-badge{font-size:11px;font-weight:900}
+.home-premium-points.ad-tier-guide>span{padding:7px 10px;background:#fff}
+@media(max-width:560px){.ad-tier-badge{min-height:25px;padding:4px 8px;font-size:10px}.ad-tier-guide{gap:8px 12px}.ad-tier-guide>span{font-size:11px!important}}
 
 /* Hospital-owned recruitment ad editor */
 .owned-ad-edit-page{max-width:1080px;margin:0 auto;padding-bottom:36px}

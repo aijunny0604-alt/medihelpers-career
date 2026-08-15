@@ -42,6 +42,7 @@ import { balancedOrder, countByDept } from './jobExposure.js';
 import { installAuthenticatedFetch } from './authTransport.js';
 import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
 import { imageFilesFromTransfer, pasteImageFiles } from './imageInput.js';
+import { getAdTierPresentation } from './adTierPresentation.js';
 
 installAuthenticatedFetch();
 
@@ -623,6 +624,18 @@ function HospitalLogo({ job, prominent = false, source, fit }) {
 const adPriority = { spotlight: 0, featured: 0, basic: 1 };
 const prioritizeJobs = (items) => [...items].sort((a, b) => (adPriority[a.adTier] ?? 3) - (adPriority[b.adTier] ?? 3));
 
+function AdTierBadge({ tier }) {
+  const presentation = getAdTierPresentation(tier);
+  if (!presentation) return null;
+  const Icon = presentation.key === 'main' ? Crown : BriefcaseBusiness;
+  return (
+    <span className={`ad-tier-badge ad-tier-${presentation.key}`} title={presentation.description}>
+      <Icon aria-hidden="true" />
+      {presentation.label}
+    </span>
+  );
+}
+
 function useServerSyncedSavedItems(kind = 'job') {
   const storageKey = kind === 'talent' ? 'medihelpers_saved_talent' : 'medihelpers_saved_jobs';
   const [saved, setSaved] = useState(() => readStoredArray(storageKey).map(String));
@@ -666,7 +679,7 @@ const advertisementPreviewJob = {
   location: '서울 · 경기권', schedule: '주 4.5~5일', dept: '전문의', pay: '상담 후 협의',
   badge: '추천공고', adTier: 'featured', color: '#1263e8', brandAsset: 'bluecare',
   updated: '디자인 예시', facilityType: '가상 의료기관', focus: '광고 디자인 미리보기', scale: '디자인 예시',
-  access: '실제 공고가 아닙니다.', summary: '병원 로고가 등록된 메인 추천 공고의 노출 예시입니다.',
+  access: '실제 공고가 아닙니다.', summary: '병원 로고가 등록된 메인 광고의 노출 예시입니다.',
   benefits: ['브랜드 이미지 강조', '메인 우선 노출', '목록 상단 강조']
 };
 
@@ -681,6 +694,7 @@ function JobCard({
   manageJob = null,
 }) {
   const isAd = Boolean(job.adTier);
+  const adTierPresentation = getAdTierPresentation(job.adTier);
   // 관리자가 등록한 DB 공고(id가 admin- 접두)만 카드에서 직접 수정·삭제 가능.
   const adminManageable = Boolean(manageJob) && String(job.id).startsWith("admin-");
   // 프리미엄 광고 카드는 등록 배너를 우선하고, 일반 공고는 병원 로고를 우선한다.
@@ -720,6 +734,7 @@ function JobCard({
       className={`job-card ${variant ? `job-card-${variant}` : ""} ${preview ? "advertisement-preview-card" : ""} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? "has-brand-logo" : "has-brand-wordmark"} ${brandFit === "banner" ? "has-brand-banner" : ""}` : ""}`}
       style={isAd ? hospitalMoodStyle(job) : { "--job-color": job.color }}
       data-brand-mood={isAd ? mood.id : undefined}
+      data-ad-tier={adTierPresentation?.key}
       onPointerMove={moveCardLight}
       onPointerLeave={resetCardLight}
     >
@@ -728,22 +743,21 @@ function JobCard({
         onClick={onOpen}
         aria-label={
           preview
-            ? "메인 추천 공고 디자인 예시 신청하기"
+            ? "메인 광고 디자인 예시 신청하기"
             : `${job.hospital} ${job.title} 상세보기`
         }
       />
       {/* 채용정보(/jobs) 메인 공고는 병원이 올리는 광고라 헤드헌터 인증 배지를 표시하지 않는다. */}
-      <div className="job-top">
+      <div className={`job-top ${adTierPresentation ? 'has-ad-tier' : ''}`}>
         <div>
-          <span
-            className="tag"
-            style={{
-              color: isAd ? mood.primary : job.color,
-              background: `${isAd ? mood.primary : job.color}12`,
-            }}
-          >
-            {job.badge}
-          </span>
+          {adTierPresentation ? <AdTierBadge tier={job.adTier} /> : (
+            <span
+              className="tag"
+              style={{ color: job.color, background: `${job.color}12` }}
+            >
+              {job.badge}
+            </span>
+          )}
         </div>
         {preview ? (
           <span className="preview-card-label">SAMPLE</span>
@@ -914,6 +928,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
     isAdmin: Boolean(auth?.isAdmin),
   };
   const isAd = Boolean(job.adTier);
+  const adTierPresentation = getAdTierPresentation(job.adTier);
   // 병원이 비용을 낸 광고 공고는 널리 알리는 것이 목적이므로 급여·조건을 공개한다.
   // 비공개 헤드헌팅 포지션(badge === "비공개")만 상담 후 공개 대상으로 잠근다.
   const restricted = job.badge === "비공개";
@@ -1016,12 +1031,14 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
             )}
             <div>
               <div className="detail-brand-label">
-                <span
-                  className="tag"
-                  style={{ color: job.color, background: `${job.color}12` }}
-                >
-                  {job.badge}
-                </span>
+                {adTierPresentation ? <AdTierBadge tier={job.adTier} /> : (
+                  <span
+                    className="tag"
+                    style={{ color: job.color, background: `${job.color}12` }}
+                  >
+                    {job.badge}
+                  </span>
+                )}
                 {qaUnlocked && (
                   <span className="qa-unlocked-badge">
                     <ShieldCheck /> QA 잠금 해제
@@ -1053,7 +1070,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
         {detailBanner && (
           <div className="detail-hero-banner" aria-label={`${job.hospital} 채용 배너`}>
             <img src={detailBanner} alt="" />
-            <span className="detail-banner-chip">PREMIUM</span>
+            {adTierPresentation && <span className={`detail-banner-chip ad-tier-${adTierPresentation.key}`}>{adTierPresentation.label}</span>}
             <div>
               <small>MEDIHELPERS RECRUIT</small>
               <strong>{job.hospital}</strong>
@@ -1464,9 +1481,9 @@ function HomePage({ liveJobs = jobs }) {
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
   const [saved, toggleSaved] = useServerSyncedSavedItems('job');
-  const promotedJobs = useMemo(() => prioritizeJobs(liveJobs.filter((job) => job.adTier)), [liveJobs]);
+  const promotedJobs = useMemo(() => prioritizeJobs(liveJobs.filter((job) => getAdTierPresentation(job.adTier)?.key === 'main')), [liveJobs]);
   const latestStandardJobs = useMemo(() => {
-    const standardJobs = liveJobs.filter((job) => !job.adTier);
+    const standardJobs = liveJobs.filter((job) => getAdTierPresentation(job.adTier)?.key !== 'main');
     return (standardJobs.length ? standardJobs : liveJobs).slice(0, 4);
   }, [liveJobs]);
   const openJobPage = (job) => {
@@ -1492,10 +1509,10 @@ function HomePage({ liveJobs = jobs }) {
     {promotedJobs.length > 0 && <section className="section home-premium-showcase" id="premium-recruitment">
       <div className="home-premium-inner">
         <div className="home-premium-head">
-          <div><span><Crown /> PREMIUM RECRUITMENT</span><h2>지금 주목할 추천공고</h2><p>메디헬퍼스가 메인에서 먼저 소개하는 병원 채용광고입니다.</p></div>
+          <div><span><Crown /> MAIN RECRUITMENT AD</span><h2>지금 주목할 메인 광고</h2><p>메인 영역에 우선 노출되는 병원 채용광고입니다.</p></div>
           <div className="home-premium-actions"><Link className="button light" to="/jobs">전체 병원채용 보기 <ArrowRight /></Link><Link className="button glass" to="/advertise">병원 광고 안내</Link></div>
         </div>
-        <div className="home-premium-points" aria-label="추천공고 광고 특징"><span><TrendingUp /> 메인 우선 노출</span><span><Sparkles /> 핵심 조건 빠른 비교</span></div>
+        <div className="home-premium-points ad-tier-guide" aria-label="메인 광고 안내"><span><AdTierBadge tier="featured" /> 메인 영역 우선 노출</span></div>
         <PremiumAdCarousel items={promotedJobs} renderCard={(job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />} />
       </div>
     </section>}
@@ -1631,16 +1648,16 @@ function PremiumAdCarousel({ items, renderCard }) {
     <div className="premium-rotation-toolbar">
       <span><i className="live-dot" /> {reducedMotion ? '수동 탐색' : paused ? '잠시 멈춤' : '자동 순환 중'}</span>
       {pageCount > 1 && <div className="premium-rotation-actions">
-        <button type="button" onClick={() => go(safePage - 1)} aria-label="이전 프리미엄 광고"><ArrowLeft /></button>
+        <button type="button" onClick={() => go(safePage - 1)} aria-label="이전 채용 광고"><ArrowLeft /></button>
         <strong><b>{safePage + 1}</b> / {pageCount}</strong>
-        <button type="button" onClick={() => go(safePage + 1)} aria-label="다음 프리미엄 광고"><ArrowRight /></button>
+        <button type="button" onClick={() => go(safePage + 1)} aria-label="다음 채용 광고"><ArrowRight /></button>
       </div>}
     </div>
-    <div key={`${safePage}-${slotCount}`} className={`job-grid promoted-grid premium-rotation-page ${visible.length === 1 ? 'single-item' : ''}`} aria-label={`프리미엄 광고 ${safePage + 1}번째 묶음`}>
+    <div key={`${safePage}-${slotCount}`} className={`job-grid promoted-grid premium-rotation-page ${visible.length === 1 ? 'single-item' : ''}`} aria-label={`채용 광고 ${safePage + 1}번째 묶음`}>
       {visible.map(renderCard)}
     </div>
     {pageCount > 1 && <>
-      <div className="premium-rotation-dots" role="group" aria-label="프리미엄 광고 묶음 선택">
+      <div className="premium-rotation-dots" role="group" aria-label="채용 광고 묶음 선택">
         {Array.from({ length: pageCount }, (_, index) => <button key={index} type="button" className={index === safePage ? 'active' : ''} onClick={() => go(index)} aria-label={`${index + 1}번째 광고 묶음`} aria-current={index === safePage ? 'true' : undefined} />)}
       </div>
     </>}
@@ -1718,10 +1735,10 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   // 프리미엄: 등급 우선순위 유지 + 등급 내부 진료과·지역 균형.
   // Keep the promoted catalogue in the same stable tier/order as the home page.
   // Re-randomising it on every visit made familiar spotlight cards appear to be missing.
-  const orderedPromoted = useMemo(() => prioritizeJobs(filtered.filter((job) => job.adTier)), [filtered]);
+  const orderedPromoted = useMemo(() => prioritizeJobs(filtered.filter((job) => getAdTierPresentation(job.adTier)?.key === 'main')), [filtered]);
   // 일반: 진료과·지역 라운드로빈 균형.
-  const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => !job.adTier), { seed: daySeed }), [filtered, daySeed]);
-  const standardDisplayOrder = useMemo(() => jobSort === 'recent' ? filtered.filter((job) => !job.adTier) : orderedStandard, [filtered, orderedStandard, jobSort]);
+  const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => getAdTierPresentation(job.adTier)?.key !== 'main'), { seed: daySeed }), [filtered, daySeed]);
+  const standardDisplayOrder = useMemo(() => jobSort === 'recent' ? filtered.filter((job) => getAdTierPresentation(job.adTier)?.key !== 'main') : orderedStandard, [filtered, orderedStandard, jobSort]);
 
   // 필터 변경 시 더보기 카운트 초기화.
   useEffect(() => {
@@ -1759,7 +1776,7 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 추천 초빙정보</strong><small>메인 추천 공고와 핵심 조건을 한 화면에서 빠르게 비교하세요</small></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 추천 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> MAIN RECRUITMENT AD</span><strong>메인 광고</strong><small>메인 광고는 이 우선 노출 영역에, 베이직 광고는 아래 전체 채용정보 목록에 표시됩니다.</small><div className="ad-tier-guide" aria-label="채용 광고 등급 안내"><span><AdTierBadge tier="featured" /> 메인 영역 우선 노출</span><span><AdTierBadge tier="basic" /> 전체 목록 기본 노출</span></div></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 광고 등록' : '회원가입 후 등록'} <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div>{authLoading ? <span className="tier-apply-button basic auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button>}</div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
@@ -3425,7 +3442,7 @@ function AdvertisePage({ qa, auth }) {
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
   };
   return <>
-    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 기본 공고 또는 메인 추천 공고로 게시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a></PageHero>
+    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 베이직 광고 또는 메인 광고로 게시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a></PageHero>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul>{authLoading ? <span className={`button ${item.featured ? 'primary' : 'outline'} full auth-action-pending price-action-pending`} aria-hidden="true" /> : <button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button>}</article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시·성과 확인','공고 공개 후 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>광고 운영 안내</strong><br />공고 내용과 이미지 사용 권한에 대한 책임은 등록 병원에 있습니다. 의료법·채용 관련 법령이나 운영정책을 위반한 공고는 게시 후 숨김 또는 삭제될 수 있습니다.</p></div></section>
   </>;
