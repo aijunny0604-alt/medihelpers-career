@@ -1,5 +1,20 @@
 # TEST
 
+## 전체 기능·권한·운영 화면 재검증 (2026-08-15)
+
+- 운영 HTTP: 공개·계정·상담·상세·법무 화면 19개, `robots.txt`·`sitemap.xml`·웹 앱 매니페스트 3개, 1500×500 샘플 배너 6개가 모두 HTTP `200`과 올바른 콘텐츠 형식을 반환했습니다.
+- 비회원 API: `/api/account` `200`, `/api/resumes` `401`, `/api/member-center` `401`, 미등록 API `404` JSON.
+- 의료인 API: 테스트 전환 `200`, `/api/account` `200` `role=doctor`, `/api/resumes` `200`, `/api/member-center` `200`, `/api/admin-console` `403`.
+- 병원 API: 테스트 전환 `200`, `/api/account` `200` `role=hospital`, `/api/member-center` `200`, `/api/resumes` `403`, `/api/admin-console` `403`.
+- 관리자 API: 테스트 전환 `200`, `/api/account` `200` `isAdmin=true`, `/api/admin-console` `200`.
+- 브라우저 역할 점검: 의료인 10개 경로와 병원 6개 경로에서 인증 로딩 잔여 요소 `0개`, 깨진 이미지 `0개`, 가로 넘침 `0개`, `???`·유니코드 대체문자 `0개`를 확인했습니다. 병원회원의 `/resume`·`/request/job-seeker`에는 재로그인·재가입 버튼이 나타나지 않습니다.
+- 독립 상세: 채용공고는 `/jobs/{id}`에서 모집개요·상세조건·지원 동선, 맞춤 헤드헌팅은 `/headhunting/posts/{id}`에서 상세정보·상담·목록 복귀 동선을 확인했습니다. 일반 화면에는 내부 접수 코드가 노출되지 않았습니다.
+- 가입·로그인: 병원 가입 주소 검색은 카카오 검색 UI를 실제로 표시했고, 로그인 화면의 이메일·비밀번호·계정 찾기 동선과 잘못된 `회원가입 완료` 문구 부재를 확인했습니다.
+- 접근성 기본 검사: 공개 주요 9개 화면에서 이름 없는 버튼·링크·폼 필드와 `alt` 없는 이미지가 모두 `0개`, 화면별 `h1` 1개를 확인했습니다.
+- 의존성 보안: `npm audit --omit=dev` **0건**. 취약한 전이 버전을 제거하고 `vinext 1.0.0-beta.6`, `vite 8.2.1`, `postcss 8.5.26`, `nanoid 3.3.18`을 잠금 파일에 반영했습니다.
+- 자동 검증: `npm test` **144/144**, `npm run build`, `node --check dist/server/index.js`, `git diff --check` 통과. 빌드의 단일 청크 크기 경고는 후속 성능 개선 항목입니다.
+- 보존 원칙: 과거 D1 테스트 원문의 `??` 레거시 데이터, Sites `project_id`, D1 `DB`, R2 `BACKUPS` 바인딩과 스키마는 변경하지 않았습니다.
+
 ## 상단 테스트 계정 전환 회귀 검증 (2026-08-15)
 
 - 전환 응답의 `doctor`, `hospital`, 관리자 권한을 `medihelpers:auth-changed` 이벤트에 포함해 공용 인증 상태가 즉시 반영되는지 검사합니다.
@@ -211,7 +226,7 @@ npm test
 npm run build
 ```
 
-현재 133건의 Node 테스트가 다음 순수 로직과 스키마 계약을 검증합니다.
+현재 144건의 Node 테스트가 다음 순수 로직과 스키마 계약을 검증합니다.
 
 - 브라우저 저장소 실패·손상 데이터 복구
 - 회원가입 입력 검증과 개인정보 초기화
