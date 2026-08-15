@@ -5635,6 +5635,73 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .sample-banner-grid>button>span{display:block;aspect-ratio:3/1;overflow:hidden;border-radius:8px;background:#eaf1f8}.sample-banner-grid img{width:100%;height:100%;object-fit:cover;display:block}.sample-banner-grid strong,.sample-banner-grid small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sample-banner-grid strong{margin-top:8px;font-size:12px}.sample-banner-grid small{margin-top:2px;color:#8795a7;font-size:10px}
 @media(max-width:760px){.sample-banner-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sample-banner-picker{padding:14px}}
 
+/* 공고 등록 페이지는 긴 입력 흐름을 편하게 읽도록 데스크톱 밀도와 글자 크기를 크게 잡는다. */
+@media(min-width:781px){
+  .ad-apply-page{padding-inline:clamp(32px,4.5vw,76px)}
+  .ad-apply-shell{width:min(1640px,100%)}
+  .ad-apply-header{padding:44px 50px}
+  .ad-apply-header small{font-size:14px}
+  .ad-apply-header p{font-size:18px}
+  .ad-apply-help{min-width:330px;padding:20px 22px;border-radius:17px}
+  .ad-apply-help span{font-size:14px}.ad-apply-help strong{font-size:17px}
+  .ad-apply-steps{height:96px;padding-inline:50px}
+  .ad-apply-steps li{gap:13px;font-size:17px}
+  .ad-apply-steps b{width:36px;height:36px;font-size:14px}
+  .ad-apply-page .checkout-grid{gap:32px;padding:38px}
+  .ad-apply-page .checkout-form{gap:27px}
+  .ad-form-section{padding:40px 42px;border-radius:24px}
+  .ad-form-section-head{gap:16px;margin-bottom:30px}
+  .ad-form-section-head>span{width:46px;height:46px;border-radius:14px;font-size:14px}
+  .ad-form-section-head h2{font-size:28px;letter-spacing:-.9px}
+  .ad-form-section-head p{margin-top:7px;font-size:16px}
+  .ad-form-section-head>em{padding:9px 12px;font-size:14px}
+  .single-brand-upload{grid-template-columns:minmax(360px,1.2fr) minmax(370px,1fr);gap:28px;padding:28px;border-radius:21px}
+  .single-brand-upload label>span{font-size:16px}
+  .single-brand-upload label>span i{margin-top:5px;font-size:14px}
+  .single-brand-upload em{font-size:14px}
+  .single-brand-upload .banner-preview{min-height:176px}
+  .single-brand-upload .banner-preview>div{padding:30px}
+  .single-brand-upload .banner-preview svg{width:34px}
+  .single-brand-upload .banner-preview strong{font-size:17px}
+  .single-brand-upload .banner-preview small{font-size:13px!important}
+  .ad-apply-page .upload-button{min-height:68px;margin-top:10px;padding:13px 15px;border-radius:13px}
+  .ad-apply-page .upload-button>svg{width:23px}
+  .ad-apply-page .upload-button strong{font-size:15px}
+  .ad-apply-page .upload-button small{font-size:12px!important}
+  .single-brand-guide{gap:16px;padding-top:7px;font-size:14px;line-height:1.65}
+  .single-brand-guide svg{width:17px}
+  .ad-apply-page .form-grid{gap:22px}
+  .ad-apply-page .checkout-form label{gap:10px}
+  .ad-apply-page .checkout-form label>span{font-size:16px}
+  .ad-apply-page .checkout-form input,.ad-apply-page .checkout-form textarea,.ad-apply-page .checkout-form select{min-height:60px;padding:15px 17px;border-radius:14px;font-size:17px}
+  .ad-apply-page .checkout-form textarea{min-height:144px;line-height:1.7}
+  .ad-apply-page .payment-choice>span{font-size:16px}
+  .ad-apply-page .payment-choice button{height:58px;border-radius:12px;font-size:16px}
+  .ad-apply-page .order-summary{padding:34px;border-radius:21px}
+  .ad-apply-page .order-summary>small{font-size:14px}
+  .ad-apply-page .order-summary h3{font-size:28px}
+  .ad-apply-page .order-summary>p{font-size:15px;line-height:1.65}
+  .ad-apply-page .order-summary li{font-size:15px;line-height:1.65}
+  .ad-apply-page .price-row strong{font-size:24px}
+  .ad-apply-page .order-summary .button{min-height:62px;font-size:17px}
+  .ad-apply-page .secure-note{font-size:13px!important}
+  .ad-apply-page .sample-banner-picker{margin-top:24px;padding:24px;border-radius:20px}
+  .ad-apply-page .sample-banner-picker-head{margin-bottom:18px}
+  .ad-apply-page .sample-banner-picker-head strong{font-size:17px}
+  .ad-apply-page .sample-banner-picker-head small{font-size:14px}
+  .ad-apply-page .sample-banner-picker-head button{padding:9px 12px;border-radius:10px;font-size:13px}
+  .ad-apply-page .sample-banner-grid{gap:14px}
+  .ad-apply-page .sample-banner-grid>button{padding:10px 10px 13px;border-radius:15px}
+  .ad-apply-page .sample-banner-grid strong{margin-top:10px;font-size:14px}
+  .ad-apply-page .sample-banner-grid small{margin-top:4px;font-size:12px}
+}
+@media(min-width:1121px){
+  .ad-apply-page .checkout-grid{grid-template-columns:minmax(0,1fr) 380px}
+}
+@media(min-width:781px) and (max-width:980px){
+  .single-brand-upload{grid-template-columns:1fr}
+}
+
 /* Premium recruitment artwork integrated into the job-detail modal header */
 .detail-heading-copy{min-width:0}.detail-heading.has-detail-banner{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.9fr);align-items:center;gap:clamp(24px,4vw,46px);min-height:235px;padding-right:38px;overflow:hidden}.detail-heading.has-detail-banner:after{content:"";position:absolute;right:-90px;top:-130px;width:410px;height:410px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--job-color) 14%,transparent),transparent 67%);pointer-events:none}
 .detail-hero-banner{position:relative;z-index:1;width:100%;aspect-ratio:3/1;overflow:hidden;border:1px solid rgba(255,255,255,.9);border-radius:20px;background:#eef4fa;box-shadow:0 22px 48px rgba(22,57,99,.18),0 0 0 1px color-mix(in srgb,var(--job-color) 18%,#d8e4f1);isolation:isolate}.detail-hero-banner:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,30,58,.1),transparent 50%,rgba(255,255,255,.12));pointer-events:none}

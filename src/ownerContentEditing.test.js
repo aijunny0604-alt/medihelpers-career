@@ -6,6 +6,7 @@ const serverSource = await readFile(new URL('../scripts/package-sites.mjs', impo
 const memberCenterSource = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
 const editorSource = await readFile(new URL('./HospitalAdEditPage.jsx', import.meta.url), 'utf8');
 const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+const stylesSource = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('hospital ad editing is routed from the owned-ad card to a standalone page', () => {
   assert.match(mainSource, /path\.startsWith\('\/mypage\/ads\/'\)/);
@@ -67,4 +68,18 @@ test('hospital job conditions use only four practical inputs while preserving le
   assert.match(editorSource, /급여·근무 일정·추가 안내만 간단히 수정/);
   assert.match(editorSource, /incentive:payload\.incentive/);
   assert.match(editorSource, /content:\{ \.\.\.form, logo, banner \}/);
+});
+
+test('hospital job registration uses a large readable desktop form scale', () => {
+  const start = stylesSource.indexOf('/* 공고 등록 페이지는 긴 입력 흐름을 편하게 읽도록');
+  const end = stylesSource.indexOf('/* Premium recruitment artwork', start);
+  const scale = stylesSource.slice(start, end);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  assert.match(scale, /\.ad-form-section\{padding:40px 42px/);
+  assert.match(scale, /\.ad-form-section-head h2\{font-size:28px/);
+  assert.match(scale, /label>span\{font-size:16px/);
+  assert.match(scale, /min-height:60px[^}]*font-size:17px/);
+  assert.match(scale, /\.sample-banner-grid strong\{[^}]*font-size:14px/);
+  assert.match(scale, /@media\(min-width:781px\) and \(max-width:980px\)/);
 });
