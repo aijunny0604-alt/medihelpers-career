@@ -2130,14 +2130,14 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
     strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
   };
   // 열람권 보유 시 서버가 연락처·상세를 내려준다. 없으면 unlocked:false.
-  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, accessReason: "", detail: null, limited: false, message: "" });
+  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, accessReason: "", contactProtected: false, detail: null, limited: false, message: "" });
   useEffect(() => {
     let active = true;
     fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.detailId || person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
       // 429(열람 한도 초과)는 응답 본문(limited/message)을 읽어 사용자에게 안내한다.
       .then((r) => r.json().catch(() => ({})).then((body) => ({ ok: r.ok, status: r.status, body })))
-      .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), accessReason: body.accessReason || "", detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
-      .catch(() => active && setUnlock({ loading: false, unlocked: false, accessReason: "", detail: null, limited: false, message: "" }));
+      .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), accessReason: body.accessReason || "", contactProtected: Boolean(body.contactProtected), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
+      .catch(() => active && setUnlock({ loading: false, unlocked: false, accessReason: "", contactProtected: false, detail: null, limited: false, message: "" }));
     return () => { active = false; };
   }, [person.code]);
   // 서버 상세(실제 이력서)가 있으면 그것, 없으면(정적 데모 인재) person 자체의 상세 필드로 폴백.
@@ -2215,8 +2215,9 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           <section className="talent-detail-unlocked">
             <div className="talent-detail-title">
               <span><BadgeCheck /></span>
-              <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : '연락처·이력서 상세'}</h3></div>
+              <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
             </div>
+            {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>연락처는 작성자 설정으로 비공개입니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 플랫폼 상담·메시지로 먼저 연락해주세요.</p></div></div>}
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
               {d.phone && <div><dt>연락처</dt><dd><a href={`tel:${String(d.phone).replace(/\D/g, '')}`}>{d.phone}</a></dd></div>}
@@ -2251,8 +2252,8 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
                 <p>{unlock.message || '금일 열람 한도를 초과했습니다. 잠시 후 다시 이용해 주세요.'} 추가 열람이 필요하면 담당자에게 문의해 주세요.</p>
               </> : <>
                 <small>이력서 열람권으로 열람할 수 있습니다</small>
-                <h3>성명 · 연락처 · 이메일 · 근무기관 이력 · 자기소개</h3>
-                <p>후보자 동의 범위에서, 열람권을 결제한 병원 회원에게만 연락처와 이력서 상세가 공개됩니다.</p>
+                <h3>경력 · 희망 조건 · 자기소개</h3>
+                <p>이력서 상세는 열람권으로 확인할 수 있습니다. 전화번호와 이메일은 작성자가 공개를 선택한 경우에만 제공됩니다.</p>
               </>}
             </div>
           </section>
@@ -3409,7 +3410,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     const openHref = talentId ? `/medical-staff?open=${encodeURIComponent(talentId)}` : '/medical-staff';
     return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '방금 결제한 의료인의 이력서를 바로 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 의료인 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/medical-staff">의료인 채용으로 <ArrowRight /></Link>}<Link className="button outline" to="/medical-staff">의료인 목록</Link></div></div></section>;
   }
-  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}{plan.unlockCount > 1 ? ` · ${plan.unlockCount}명` : ''}</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 가상 결제 완료 즉시 해당 인재 연락처·이력서 상세가 열립니다.</p></div></section>;
+  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}{plan.unlockCount > 1 ? ` · ${plan.unlockCount}명` : ''}</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 결제 완료 시 이력서 상세가 열립니다. 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
 }
 
 function TalentUnlockPage({ route, qa, auth }) {

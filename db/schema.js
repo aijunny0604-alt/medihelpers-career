@@ -305,6 +305,33 @@ export const commerceSchemaStatements = [
   `CREATE INDEX IF NOT EXISTS payment_webhook_order_idx ON payment_webhook_events(order_number, received_at DESC)`
 ];
 
+// 병원 회원가입 시 제출한 사업자등록증과 관리자 검토 이력.
+// 파일 원본은 비공개 R2에 저장하고 D1에는 검색·감사에 필요한 메타데이터만 둔다.
+export const hospitalVerificationSchemaStatements = [
+  `CREATE TABLE IF NOT EXISTS hospital_verification_requests (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    hospital_name TEXT NOT NULL DEFAULT '',
+    representative_name TEXT NOT NULL DEFAULT '',
+    business_number TEXT NOT NULL DEFAULT '',
+    address TEXT NOT NULL DEFAULT '',
+    document_key TEXT NOT NULL UNIQUE,
+    original_filename TEXT NOT NULL DEFAULT '',
+    content_type TEXT NOT NULL CHECK (content_type IN ('application/pdf','image/jpeg','image/png','image/webp')),
+    file_size INTEGER NOT NULL DEFAULT 0,
+    file_sha256 TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+    review_note TEXT NOT NULL DEFAULT '',
+    reviewed_by TEXT NOT NULL DEFAULT '',
+    submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TEXT,
+    retention_until TEXT NOT NULL DEFAULT (datetime('now','+3 years')),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS hospital_verification_status_idx ON hospital_verification_requests(status, submitted_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS hospital_verification_account_idx ON hospital_verification_requests(account_id, submitted_at DESC)`
+];
+
 export const recruitmentCrmSchemaStatements = [
   `CREATE TABLE IF NOT EXISTS recruitment_cases (
     id TEXT PRIMARY KEY,

@@ -22,11 +22,12 @@ test('신규 가입자는 환영 메일을 받고 대표자 메일에는 가입 
   const end = server.indexOf('async function hmacHex', start);
   const emailBlock = server.slice(start, end);
   assert.ok(start >= 0 && end > start);
-  assert.match(emailBlock, /send\(\[member\.email\], '\[메디헬퍼스\] 회원가입을 축하드립니다'/);
+  assert.match(emailBlock, /pendingHospital \? '\[메디헬퍼스\] 병원 회원 신청이 접수되었습니다' : '\[메디헬퍼스\] 회원가입을 축하드립니다'/);
   assert.match(emailBlock, /signupAdminRecipients\(env\)/);
   assert.match(emailBlock, /신규 회원이 가입했습니다/);
   assert.match(emailBlock, /회원 유형/);
   assert.match(emailBlock, /가입 이메일/);
+  assert.match(emailBlock, /병원 사업자등록증 승인 검토 요청/);
   assert.doesNotMatch(emailBlock, /body\.password|member\.password|password_hash|password_salt/);
 });
 

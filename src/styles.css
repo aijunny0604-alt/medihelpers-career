@@ -4555,6 +4555,46 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .signup-shell.signup-shell-centered .signup-application>p{max-width:1040px;font-size:clamp(16px,1.25vw,20px);line-height:1.8}
 .signup-shell.signup-shell-centered .signup-form-section{padding:clamp(26px,2.6vw,40px)}
 .signup-shell.signup-shell-centered .signup-form-section h3{font-size:clamp(22px,1.7vw,28px)}
+
+/* 병원 가입 서류와 의료인 연락처 공개 설정 */
+.hospital-document-upload{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:18px;min-height:138px;padding:24px;border:2px dashed #b9cce4;border-radius:18px;background:#f8fbff;transition:.18s ease}
+.hospital-document-upload.is-dragging{border-color:#1263e8;background:#edf5ff;box-shadow:0 0 0 5px rgba(18,99,232,.08)}
+.hospital-document-upload.has-error{border-color:#dc5656;background:#fff8f8}
+.hospital-document-icon{width:54px;height:54px;border-radius:15px;background:#e8f1ff;color:#1263e8;display:grid;place-items:center}
+.hospital-document-icon svg{width:25px;height:25px}
+.hospital-document-upload strong,.hospital-document-upload small,.hospital-document-upload em{display:block}
+.hospital-document-upload strong{color:#153354;font-size:16px}
+.hospital-document-upload small{margin-top:7px;color:#74869a}
+.hospital-document-upload em{margin-top:5px;color:#0b8d75;font-size:12px;font-style:normal;font-weight:750}
+.hospital-document-upload label{position:relative;cursor:pointer;min-width:116px;justify-content:center}
+.hospital-document-upload label input{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+.hospital-document-remove{position:absolute;right:10px;top:10px;width:32px;height:32px;border:0;border-radius:50%;background:#fff0f0;color:#bf3f3f;display:grid;place-items:center}
+.hospital-document-remove svg{width:16px}
+.hospital-document-privacy{display:flex;gap:9px;align-items:flex-start;margin:14px 0 0;color:#527166;font-size:12px;line-height:1.65}
+.hospital-document-privacy svg{flex:0 0 auto;width:17px;color:#0c9c81}
+.hospital-document-section>.signup-field-error{display:block;margin:10px 0 0;color:#c23f3f;font-size:13px;font-style:normal;font-weight:750}
+.resume-contact-visibility{margin-top:26px;padding-top:25px;border-top:1px solid #dfe8f2}
+.resume-contact-visibility label:first-of-type.active{border-color:#13a184;background:#f0fbf8}
+.talent-contact-protected{display:flex;gap:13px;align-items:flex-start;margin:0 0 18px;padding:17px 18px;border:1px solid #b9e4da;border-radius:14px;background:#effaf7;color:#285f55}
+.talent-contact-protected>svg{flex:0 0 auto;width:21px;color:#07967b}
+.talent-contact-protected strong{display:block;color:#173f38}
+.talent-contact-protected p{margin:5px 0 0;line-height:1.6;font-size:13px}
+
+/* 병원 인증은 관리자 화면에서만 처리한다. 다른 운영 기록은 계속 읽기 전용이다. */
+.hospital-verification-queue{margin-bottom:18px}
+.hospital-verification-count{padding:9px 13px;border-radius:999px;background:#fff5db;color:#946100;font-size:12px;font-weight:750}
+.hospital-verification-count b{color:#d77800}
+.hospital-verification-list{display:grid;gap:14px}
+.hospital-verification-card{padding:20px;border:1px solid #dce5ef;border-radius:17px;background:#fbfdff}
+.hospital-verification-card.approved{border-color:#bce4d9;background:#f6fcfa}.hospital-verification-card.rejected{border-color:#efd0d0;background:#fffafa}
+.hospital-verification-heading{display:flex;align-items:center;gap:13px}
+.hospital-verification-heading>span{width:46px;height:46px;border-radius:13px;background:#eaf2ff;color:#1263e8;display:grid;place-items:center}.hospital-verification-heading svg{width:21px}
+.hospital-verification-heading>div{min-width:0;flex:1}.hospital-verification-heading small,.hospital-verification-heading strong,.hospital-verification-heading p{display:block}.hospital-verification-heading small{color:#7b8da2}.hospital-verification-heading strong{margin:3px 0;font-size:18px}.hospital-verification-heading p{margin:0;color:#61758d;font-size:12px}
+.hospital-verification-heading>em{padding:7px 10px;border-radius:999px;background:#fff3d7;color:#9d6500;font-size:11px;font-style:normal;font-weight:850}.approved .hospital-verification-heading>em{background:#e4f7f1;color:#087963}.rejected .hospital-verification-heading>em{background:#ffeded;color:#aa3636}
+.hospital-verification-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:18px 0;border:1px solid #e1e8f0;border-radius:13px;overflow:hidden}.hospital-verification-card dl>div{padding:12px 14px;border-right:1px solid #e1e8f0;border-bottom:1px solid #e1e8f0}.hospital-verification-card dl>div:nth-child(2n){border-right:0}.hospital-verification-card dl>div.wide{grid-column:1/-1;border-right:0}.hospital-verification-card dt{color:#8291a3;font-size:11px}.hospital-verification-card dd{margin:5px 0 0;color:#193553;font-weight:750;overflow-wrap:anywhere}
+.hospital-verification-actions{display:grid;grid-template-columns:minmax(240px,1fr) auto;gap:12px;align-items:end}.hospital-verification-actions textarea{width:100%;min-height:66px;padding:12px;border:1px solid #ccd9e8;border-radius:11px;resize:vertical}.hospital-verification-actions>div{display:flex;gap:8px}.hospital-verification-actions .button{min-height:44px}.hospital-verification-actions .danger{color:#b13939;border-color:#efc4c4;background:#fff}.hospital-verification-result{display:flex;align-items:center;gap:8px;margin:0;color:#43665e}.hospital-verification-result svg{width:18px;color:#0a9c80}.hospital-verification-result small{margin-left:auto}.admin-review-error{padding:12px 14px;border-radius:11px;background:#fff0f0;color:#b73535;font-weight:750}
+
+@media(max-width:780px){.hospital-document-upload{grid-template-columns:auto 1fr;padding:19px}.hospital-document-upload label{grid-column:1/-1;width:100%}.hospital-verification-card dl,.hospital-verification-actions{grid-template-columns:1fr}.hospital-verification-card dl>div{border-right:0}.hospital-verification-actions>div{flex-wrap:wrap}.hospital-verification-actions .button{flex:1}.hospital-verification-queue>header{display:grid}.hospital-verification-count{width:max-content}}
 .signup-shell.signup-shell-centered .signup-field label{font-size:15px}
 .signup-shell.signup-shell-centered .signup-field input,.signup-shell.signup-shell-centered .signup-field select{min-height:58px;font-size:16px}
 .signup-shell.signup-shell-centered .signup-consent-block{margin-top:32px}

@@ -30,7 +30,7 @@ export default function ResumePage() {
   const [form, setForm] = useState({
     title: '', profession: '', name: '', phone: '', email: '', region: '', photoUrl: '',
     specialty: '', desiredRegions: '', salary: '',
-    introduction: '', visibility: 'proposal', consent: false
+    introduction: '', visibility: 'proposal', contactVisibility: 'private', consent: false
   });
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
@@ -68,6 +68,7 @@ export default function ResumePage() {
           email: resume.email || '',
           desiredRegions: resume.desiredRegions || '',
           visibility: resume.visibility || 'proposal',
+          contactVisibility: detail.contactVisibility === 'ticket' ? 'ticket' : 'private',
           region: detail.region || '',
           salary: detail.salary || '',
           introduction: detail.introduction || '',
@@ -135,8 +136,9 @@ export default function ResumePage() {
           desiredRegions: form.desiredRegions,
           completion,
           visibility: form.visibility,
+          contactVisibility: form.contactVisibility,
           ...(savedResumeId ? { resumeId:savedResumeId } : createNew ? { createNew:true } : {}),
-          detail: { ...form, photoUrl }
+          detail: { region:form.region, salary:form.salary, introduction:form.introduction, photoUrl, contactVisibility:form.contactVisibility }
         })
       });
       if (!response.ok) {
@@ -162,13 +164,13 @@ export default function ResumePage() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
-  if (completed) return <main className="resume-page"><section className="resume-complete"><span><CircleCheck /></span><small>MEDICAL RESUME REGISTERED</small><h1>의료인 이력서가 등록되었습니다</h1><p>공개 범위는 <strong>{form.visibility === 'public' ? '채용기관 공개' : form.visibility === 'proposal' ? '제안 요청 시 공개' : '비공개 보관'}</strong>로 설정했습니다.<br />이름·연락처는 병원이 열람권을 결제한 경우에만 전달됩니다.</p><div><a className="button primary" href={withBase('/jobs')}>맞춤 채용정보 보기 <ArrowRight /></a><button className="button outline" onClick={() => setCompleted(false)}>이력서 수정</button></div></section></main>;
+  if (completed) return <main className="resume-page"><section className="resume-complete"><span><CircleCheck /></span><small>MEDICAL RESUME REGISTERED</small><h1>의료인 이력서가 등록되었습니다</h1><p>공개 범위는 <strong>{form.visibility === 'public' ? '채용기관 공개' : form.visibility === 'proposal' ? '제안 요청 시 공개' : '비공개 보관'}</strong>로 설정했습니다.<br />연락처는 <strong>{form.contactVisibility === 'ticket' ? '열람권을 구매한 병원에 공개' : '열람권 구매와 관계없이 비공개'}</strong>로 보호됩니다.</p><div><a className="button primary" href={withBase('/jobs')}>맞춤 채용정보 보기 <ArrowRight /></a><button className="button outline" onClick={() => setCompleted(false)}>이력서 수정</button></div></section></main>;
 
   if (loadingResume) return <main className="resume-page"><section className="resume-complete"><span><FileText /></span><small>MY RESUME</small><h1>저장된 이력서를 불러오는 중입니다</h1><p>다른 기기에서 등록한 최신 이력서를 안전하게 확인하고 있습니다.</p></section></main>;
 
   const activeStep = steps[step].id;
   return <main className="resume-page">
-    <header className="resume-hero"><div><span><FileText /> SIMPLE MEDICAL RESUME</span><h1>초간편 의료인 이력서</h1><p>의사·간호·의료기사·약무·행정 등 모든 의료인이 몇 줄이면 됩니다. 직군도 자유롭게 적고, 필요한 만큼만 채워도 등록됩니다.</p></div><div className="resume-security"><ShieldCheck /><span><strong>연락처는 열람권 결제 후에만 공개</strong><small>주민등록번호·면허번호는 받지 않습니다. 이름·연락처는 병원이 열람권을 산 경우에만 전달됩니다.</small></span></div></header>
+    <header className="resume-hero"><div><span><FileText /> SIMPLE MEDICAL RESUME</span><h1>초간편 의료인 이력서</h1><p>의사·간호·의료기사·약무·행정 등 모든 의료인이 몇 줄이면 됩니다. 직군도 자유롭게 적고, 필요한 만큼만 채워도 등록됩니다.</p></div><div className="resume-security"><ShieldCheck /><span><strong>연락처 공개 여부는 본인이 결정</strong><small>비공개를 선택하면 병원이 이력서 열람권을 구매해도 전화번호와 이메일은 전달되지 않습니다.</small></span></div></header>
     <form className="resume-layout" onSubmit={submit}>
       <aside className="resume-step-nav"><div className="resume-progress"><div><span>작성 완성도</span><strong>{completion}%</strong></div><i><b style={{ width: `${completion}%` }} /></i></div>{steps.map((item, index) => { const Icon = item.icon; return <button type="button" key={item.id} className={index === step ? 'active' : index < step ? 'done' : ''} onClick={() => setStep(index)}><span>{index < step ? <Check /> : <Icon />}</span><div><small>STEP {String(index + 1).padStart(2, '0')}</small><strong>{item.label}</strong></div></button>; })}<div className="resume-help"><LockKeyhole /><span><strong>공개 범위를 직접 선택</strong><small>비공개 보관부터 채용기관 공개까지 설정할 수 있습니다.</small></span></div></aside>
       <section className="resume-editor">
@@ -196,7 +198,7 @@ export default function ResumePage() {
             <label><span>이메일 *</span><input required type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="me@example.com" /></label>
             <label><span>현재 거주지역</span><input value={form.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산광역시" /></label>
           </div>
-          <div className="resume-safe-note"><ShieldCheck /> 이름·연락처는 익명 목록에 노출되지 않고, 병원이 열람권을 결제한 경우에만 전달됩니다.</div>
+          <div className="resume-safe-note"><ShieldCheck /> 이름·연락처는 익명 목록에 노출되지 않습니다. 연락처 공개 여부는 마지막 단계에서 직접 선택합니다.</div>
         </div>}
         {activeStep === 'intro' && <div className="resume-step-panel">
           <div className="resume-panel-head"><small>STEP 02</small><h2>경력·소개</h2><p>경력, 강점, 희망 조건을 자유롭게 한 번에 적어주세요. 형식은 자유입니다.</p></div>
@@ -208,13 +210,14 @@ export default function ResumePage() {
         </div>}
         {activeStep === 'visibility' && <div className="resume-step-panel">
           <div className="resume-panel-head"><small>STEP 03</small><h2>공개설정</h2><p>이 이력서를 어디까지 공개할지 직접 정하세요.</p></div>
-          <fieldset className="resume-visibility"><legend>구직 공개 설정</legend>{[['public','구직 등록 (채용기관 공개)','병원 회원이 익명 프로필로 나를 검색할 수 있습니다. 이름·연락처는 열람권 결제 후에만 공개됩니다.'],['proposal','제안 올 때만 공개','평소엔 비공개이며, 맞는 병원 제안이 있을 때 동의를 요청합니다.'],['private','비공개 보관','목록에 올리지 않고, 내가 직접 지원할 때만 전달합니다.']].map(([value,title,copy]) => <label key={value} className={form.visibility === value ? 'active' : ''}><input type="radio" name="visibility" value={value} checked={form.visibility === value} onChange={(e) => update('visibility', e.target.value)} /><span><strong>{title}</strong><small>{copy}</small></span>{form.visibility === value && <Check />}</label>)}</fieldset>
+          <fieldset className="resume-visibility"><legend>구직글 공개 설정</legend>{[['public','구직 등록 (채용기관 공개)','병원 회원이 익명 프로필로 나를 검색할 수 있습니다.'],['proposal','제안 올 때만 공개','평소엔 비공개이며, 맞는 병원 제안이 있을 때 동의를 요청합니다.'],['private','비공개 보관','목록에 올리지 않고, 내가 직접 지원할 때만 전달합니다.']].map(([value,title,copy]) => <label key={value} className={form.visibility === value ? 'active' : ''}><input type="radio" name="visibility" value={value} checked={form.visibility === value} onChange={(e) => update('visibility', e.target.value)} /><span><strong>{title}</strong><small>{copy}</small></span>{form.visibility === value && <Check />}</label>)}</fieldset>
+          <fieldset className="resume-visibility resume-contact-visibility"><legend>연락처 공개 설정</legend>{[['private','연락처 비공개 (권장)','병원이 이력서 열람권을 구매해도 전화번호와 이메일은 공개하지 않습니다. 플랫폼 메시지로 먼저 연락받습니다.'],['ticket','열람권 구매 병원에 공개','병원 회원이 내 이력서 열람권을 구매하면 전화번호와 이메일을 확인할 수 있습니다.']].map(([value,title,copy]) => <label key={value} className={form.contactVisibility === value ? 'active' : ''}><input type="radio" name="contactVisibility" value={value} checked={form.contactVisibility === value} onChange={(e) => update('contactVisibility', e.target.value)} /><span><strong>{title}</strong><small>{copy}</small></span>{form.contactVisibility === value && <Check />}</label>)}</fieldset>
           <label className="resume-consent"><input type="checkbox" checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>이력서 등록과 채용 매칭을 위한 개인정보 수집·이용에 동의합니다.</span></label>
         </div>}
         <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={!form.consent || submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
         {submitError && <p className="form-error" role="alert">{submitError}</p>}
       </section>
-      <aside className="resume-preview"><small>LIVE PREVIEW</small><div className={`resume-preview-avatar ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="프로필 사진" /> : <UserRound />}</div><h3>{form.title || '이력서 제목을 입력해주세요'}</h3><span className="resume-preview-role">{form.profession || '직군 미입력'}{form.specialty ? ` · ${form.specialty}` : ''}</span><dl><div><dt>희망 지역</dt><dd>{form.desiredRegions || form.region || '미입력'}</dd></div><div><dt>희망 보수</dt><dd>{form.salary || '협의'}</dd></div></dl><div className="resume-preview-privacy"><LockKeyhole /><span><strong>사진·이름·연락처 보호</strong><small>본인과 관리자, 열람권을 가진 병원에만 공개됩니다.</small></span></div></aside>
+      <aside className="resume-preview"><small>LIVE PREVIEW</small><div className={`resume-preview-avatar ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="프로필 사진" /> : <UserRound />}</div><h3>{form.title || '이력서 제목을 입력해주세요'}</h3><span className="resume-preview-role">{form.profession || '직군 미입력'}{form.specialty ? ` · ${form.specialty}` : ''}</span><dl><div><dt>희망 지역</dt><dd>{form.desiredRegions || form.region || '미입력'}</dd></div><div><dt>희망 보수</dt><dd>{form.salary || '협의'}</dd></div></dl><div className="resume-preview-privacy"><LockKeyhole /><span><strong>연락처 {form.contactVisibility === 'ticket' ? '조건부 공개' : '비공개'}</strong><small>{form.contactVisibility === 'ticket' ? '열람권을 구매한 병원에만 공개됩니다.' : '열람권을 구매해도 공개되지 않습니다.'}</small></span></div></aside>
     </form>
   </main>;
 }

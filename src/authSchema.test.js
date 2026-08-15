@@ -56,7 +56,8 @@ test('회원 유형은 가입 때만 DB에 저장하고 로그인 시 DB 역할�
   const accountSource = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
   const schema = accountSchemaStatements.join('\n');
   assert.match(schema, /role TEXT NOT NULL CHECK \(role IN \('doctor', 'hospital'\)\)/);
-  assert.match(accountSource, /authRequest\('register', \{[\s\S]*role: memberType/);
+  assert.match(accountSource, /const payload = \{[\s\S]*role: memberType/);
+  assert.match(accountSource, /authRequest\('register', requestBody\)/);
   assert.match(serverSource, /INSERT INTO accounts \(id, user_key, role\).*body\.role/);
   assert.match(serverSource, /FROM auth_credentials c JOIN accounts a[\s\S]*a\.role/);
   assert.match(serverSource, /account:\{ role:credential\.role \}/);

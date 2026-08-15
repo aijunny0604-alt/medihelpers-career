@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
-  LockKeyhole, Mail, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, UserRound
+  FileCheck2, LockKeyhole, Mail, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, Upload, UserRound, X
 } from 'lucide-react';
 import { accountRoleLabel, validateSignup } from './signupModel.js';
 import {
@@ -49,8 +49,8 @@ const roleContent = {
     eyebrow: 'MEDICAL INSTITUTION',
     title: '병원 회원가입',
     description: '채용 의뢰와 메디헬퍼스 헤드헌터 상담을 위한 기관 담당자 계정입니다.',
-    afterTitle: '기관 서류 확인은 나중에',
-    afterCopy: '공고 등록이나 후보 상담 시점에 기관과 담당자 관계를 별도로 확인합니다. 가입 단계에서는 사업자등록증 등 서류를 받지 않습니다.',
+    afterTitle: '사업자등록증 확인 후 승인',
+    afterCopy: '가입 신청과 함께 사업자등록증 PDF 또는 이미지를 제출합니다. 관리자가 병원 정보와 서류를 확인한 뒤 로그인 권한을 승인합니다.',
     benefits: [
       '채용공고 등록과 노출 관리',
       '전담 헤드헌터 후보 상담',
@@ -113,14 +113,12 @@ async function accountRequest(method = 'GET', body) {
 }
 
 export async function authRequest(action, body = {}) {
+  const formData = typeof FormData !== 'undefined' && body instanceof FormData;
   const response = await fetch(`/api/auth/${action}`, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: {
-      'content-type': 'application/json',
-      'x-mh-session-fallback': 'session-storage'
-    },
-    body: JSON.stringify(body)
+    headers: formData ? { 'x-mh-session-fallback': 'session-storage' } : { 'content-type': 'application/json', 'x-mh-session-fallback': 'session-storage' },
+    body: formData ? body : JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
   if (data.sessionToken) storeSessionToken(data.sessionToken);
@@ -314,12 +312,12 @@ function PrivacyCopy({ memberType }) {
     <h4>개인정보 수집·이용 안내</h4>
     <dl>
       <div><dt>수집 목적</dt><dd>회원 식별과 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의 처리, 결제·계약 내역 관리</dd></div>
-      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 담당자 직책, 병원명, 기관 유형, 대표자명, 대표전화, 주소' : ', 의료 직군, 전문 분야, 활동 지역'}</dd></div>
-      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. 계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
+      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 담당자 직책, 병원명, 대표자명, 사업자등록번호, 주소, 사업자등록증 제출 파일' : ', 의료 직군, 전문 분야, 활동 지역'}</dd></div>
+      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증 제출본과 인증 이력은 사기 방지·분쟁 대응을 위해 제출 또는 최종 처리 후 3년까지 접근을 제한해 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
       <div><dt>동의 거부</dt><dd>동의를 거부할 수 있으나 필수정보 수집에 동의하지 않으면 회원가입과 계정 기반 서비스를 이용할 수 없습니다.</dd></div>
       <div><dt>선택 정보</dt><dd>출생연도와 성별은 선택 항목이며 입력하지 않아도 가입할 수 있습니다. 광고성 정보 수신 동의도 가입 필수 동의와 분리해 별도로 받습니다.</dd></div>
     </dl>
-    <p className="signup-legal-notice"><b>개인정보 보호책임자: 이형석</b> hr@medihelpers.co.kr · 051-342-5463. 주민등록번호와 면허·자격·사업자등록증 원본은 가입 단계에서 수집하지 않습니다. <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 전문</a>에서 처리위탁, 제3자 제공, 파기와 권리 행사 방법을 확인할 수 있습니다.</p>
+    <p className="signup-legal-notice"><b>개인정보 보호책임자: 이형석</b> hr@medihelpers.co.kr · 051-342-5463. 주민등록번호와 의료인 면허번호는 가입 단계에서 수집하지 않습니다. 병원 회원의 사업자등록증은 관리자 인증 목적으로만 제한적으로 처리합니다. <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 전문</a>에서 처리위탁, 제3자 제공, 파기와 권리 행사 방법을 확인할 수 있습니다.</p>
   </>;
 }
 
@@ -333,7 +331,23 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const [touched, setTouched] = useState({});
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(false);
+  const [businessDocument, setBusinessDocument] = useState(null);
+  const [documentDragging, setDocumentDragging] = useState(false);
   const formRef = useRef(null);
+
+  const chooseBusinessDocument = (file, input) => {
+    if (!file) return;
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    const error = !allowed.includes(file.type) ? 'PDF, JPG, PNG, WEBP 파일만 등록할 수 있습니다.' : file.size > 10 * 1024 * 1024 ? '파일은 10MB 이하로 등록해주세요.' : '';
+    if (error) {
+      setErrors((current) => ({ ...current, businessDocument:error }));
+      if (input) input.value = '';
+      return;
+    }
+    setBusinessDocument(file);
+    setErrors((current) => ({ ...current, businessDocument:'' }));
+  };
 
   const setField = (field, value) => {
     const nextValue = FIELD_META[field]?.phone ? formatKoreanPhone(value) : value;
@@ -381,9 +395,13 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     event.preventDefault();
     setSubmittedOnce(true);
     const validation = validateApplicationDraft(draft, memberType);
+    if (memberType === 'hospital' && !businessDocument) {
+      validation.valid = false;
+      validation.errors.businessDocument = '사업자등록증 파일을 첨부해주세요.';
+    }
     setErrors(validation.errors);
     if (!validation.valid) {
-      const firstInvalid = [...fields, 'termsAccepted', 'privacyAccepted', 'ageConfirmed'].find((key) => validation.errors[key]);
+      const firstInvalid = [...fields, 'businessDocument', 'termsAccepted', 'privacyAccepted', 'ageConfirmed'].find((key) => validation.errors[key]);
       // id 는 `signup-<role>-<field>` 형태로 항상 안전한 문자만 사용하므로 CSS.escape 없이 getElementById 로 직접 찾습니다.
       // (일부 구형 브라우저는 CSS.escape 를 지원하지 않습니다.)
       const node = firstInvalid && document.getElementById(`signup-${memberType}-${firstInvalid}`);
@@ -406,7 +424,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       }
     }
     try {
-      const result = await authRequest('register', {
+      const payload = {
         role: memberType,
         email: draft.email,
         password: draft.password,
@@ -414,13 +432,33 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         phone: draft.phone,
         hospitalName: draft.hospitalName,
         hospitalRole: draft.hospitalRole,
+        representativeName: draft.representativeName,
+        businessNumber: draft.businessNumber,
+        address: draft.address,
+        addressDetail: draft.addressDetail,
+        website: draft.website,
+        fax: draft.fax,
+        department: draft.department,
         professionType: draft.professionType,
         specialty: draft.specialty,
         termsAccepted: true,
         privacyAcknowledged: true,
         ageConfirmed: true
-      });
+      };
+      let requestBody = payload;
+      if (memberType === 'hospital') {
+        requestBody = new FormData();
+        requestBody.append('payload', JSON.stringify(payload));
+        requestBody.append('businessDocument', businessDocument);
+      }
+      const result = await authRequest('register', requestBody);
       setDraft((current) => clearDraftFields(current));
+      if (result.pendingApproval) {
+        setPendingApproval(true);
+        setCompleted(true);
+        window.scrollTo({ top:0, behavior:'auto' });
+        return;
+      }
       onComplete(result.account, result.identity);
     } catch (requestError) {
       setErrors((current) => ({ ...current, submit: requestError.message }));
@@ -429,6 +467,8 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
 
   const resetForm = () => {
     setCompleted(false);
+    setPendingApproval(false);
+    setBusinessDocument(null);
     setDraft((current) => clearDraftFields(current));
     setErrors({});
     setTouched({});
@@ -437,16 +477,17 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
 
   if (completed) {
     return <section className="signup-card signup-complete-draft">
-      <span className="account-check"><CircleCheck /></span>
-      <small>SIGNUP</small>
-      <h2>회원가입 신청이 접수되었습니다</h2>
-      <p>가입 양식과 필수 동의를 확인했습니다. 정식 오픈 시 이 정보로 회원 계정이 생성됩니다.</p>
+      <span className="account-check"><FileCheck2 /></span>
+      <small>HOSPITAL VERIFICATION</small>
+      <h2>{pendingApproval ? '병원 회원 신청과 서류가 접수되었습니다' : '회원가입 신청이 접수되었습니다'}</h2>
+      <p>{pendingApproval ? '관리자가 사업자등록증과 병원 정보를 확인한 뒤 승인 결과를 가입 이메일로 알려드립니다. 승인 전에는 로그인할 수 없습니다.' : '가입 양식과 필수 동의를 확인했습니다.'}</p>
       <dl>
         <div><dt>선택한 회원 유형</dt><dd>{content.label}</dd></div>
-        <div><dt>다음 단계</dt><dd>정식 오픈 후 로그인</dd></div>
+        <div><dt>현재 상태</dt><dd>{pendingApproval ? '관리자 서류 검토 중' : '접수 완료'}</dd></div>
+        <div><dt>다음 단계</dt><dd>{pendingApproval ? '승인 이메일 확인 후 로그인' : '로그인'}</dd></div>
       </dl>
       <div className="account-actions">
-        <a className="button primary" href={withBase('/login')}>메디헬퍼스 로그인 <ArrowRight /></a>
+        <a className="button primary" href={withBase('/')}>홈으로 <ArrowRight /></a>
         <button type="button" className="button outline" onClick={resetForm}><RotateCcw size={15} /> 입력 내용 수정</button>
       </div>
     </section>;
@@ -467,7 +508,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   return <section className="signup-card signup-application">
     <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
     <h2>{content.label} 가입</h2>
-    <p>{memberType === 'hospital' ? '채용 담당자 계정과 병원 기본정보를 한 번에 등록합니다. 기관 서류는 가입 후 공고 등록이나 결제 전에 별도 확인합니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 면허·자격과 경력 상세정보는 가입 후 이력서 또는 인증 단계에서 추가할 수 있습니다.'}</p>
+    <p>{memberType === 'hospital' ? '채용 담당자 정보와 병원 기본정보, 사업자등록증을 함께 제출합니다. 관리자 승인 후 병원 회원 로그인이 열립니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 면허·자격과 경력 상세정보는 가입 후 이력서 또는 인증 단계에서 추가할 수 있습니다.'}</p>
     <form ref={formRef} onSubmit={submit} noValidate>
       {memberType === 'hospital' ? <>
         <section className="signup-form-section">
@@ -477,6 +518,25 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         <section className="signup-form-section hospital-info-section">
           <header><span>02</span><div><h3>병원·기관 정보</h3><p>의사가 신뢰할 수 있는 공고와 기관 인증에 필요한 기본정보입니다.</p></div></header>
           <div className="signup-field-grid">{hospitalInfoFields().map(renderField)}</div>
+        </section>
+        <section className="signup-form-section hospital-document-section">
+          <header><span>03</span><div><h3>사업자등록증 확인</h3><p>허위 병원 계정을 막기 위해 관리자만 열람하는 인증 서류입니다.</p></div></header>
+          <div
+            id={`signup-${memberType}-businessDocument`}
+            className={`hospital-document-upload ${documentDragging ? 'is-dragging' : ''} ${errors.businessDocument ? 'has-error' : ''}`}
+            tabIndex="0"
+            onDragEnter={(event) => { event.preventDefault(); setDocumentDragging(true); }}
+            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDocumentDragging(true); }}
+            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDocumentDragging(false); }}
+            onDrop={(event) => { event.preventDefault(); setDocumentDragging(false); chooseBusinessDocument(event.dataTransfer.files?.[0]); }}
+          >
+            <span className="hospital-document-icon">{businessDocument ? <FileCheck2 /> : <Upload />}</span>
+            <div><strong>{businessDocument ? businessDocument.name : '사업자등록증 파일을 선택하거나 끌어 놓으세요'}</strong><small>PDF · JPG · PNG · WEBP · 최대 10MB</small>{businessDocument && <em>{(businessDocument.size / 1024 / 1024).toFixed(2)}MB · 관리자 검토 전용</em>}</div>
+            <label className="button outline">파일 선택<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => chooseBusinessDocument(event.target.files?.[0], event.target)} /></label>
+            {businessDocument && <button type="button" className="hospital-document-remove" aria-label="첨부 파일 삭제" onClick={() => setBusinessDocument(null)}><X /></button>}
+          </div>
+          {errors.businessDocument && <p className="signup-field-error" role="alert">{errors.businessDocument}</p>}
+          <p className="hospital-document-privacy"><ShieldCheck /> 제출본은 공개되지 않으며 관리자 인증 화면에서만 열람합니다. 인증 이력과 제출본은 사기 방지·분쟁 대응을 위해 최대 3년 보관 후 파기합니다.</p>
         </section>
       </> : <>
         <section className="signup-form-section individual-account-section">

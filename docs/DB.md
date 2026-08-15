@@ -1,5 +1,13 @@
 # DB
 
+## 2026-08-15 추가 보안 모델
+
+- `hospital_verification_requests`: 병원 가입의 사업자등록증 제출 메타데이터와 `pending/approved/rejected` 상태, 검토 사유·관리자·시각을 기록합니다. 원본 파일은 D1에 넣지 않고 기존 비공개 R2에 보관합니다.
+- 병원 계정은 `account_admin_profiles.verification_status`로 로그인 가능 여부를 판정합니다. 승인 전 세션을 발급하지 않습니다.
+- `member_resumes.contact_visibility`는 `private` 또는 `ticket`입니다. `private`이면 유효한 `talent_unlocks`가 있어도 병원 응답에서 실명·전화·이메일을 제거합니다.
+- 이력서 `detail_json`에는 연락처 사본을 저장하지 않아 중첩 응답이나 이전 UI 경로로 우회 노출되지 않게 합니다.
+- 새 테이블은 기존 `ensure*Schema` 런타임 초기화와 D1 백업 스키마 v0011에 포함되며 별도 수동 마이그레이션은 필요하지 않습니다.
+
 > 아래 "핵심 테이블"은 목표 데이터 모델(개념)이다. 실제 런타임 D1 테이블은
 > `scripts/package-sites.mjs`(및 `db/schema.js`)가 요청 시 생성하며, 이름이 다르다.
 > 현재 구현된 테이블은 맨 아래 **"실제 런타임 테이블"**을 참고.

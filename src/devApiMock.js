@@ -12,6 +12,7 @@ const LS = {
   authSession: 'devmock_auth_session', // { email, role } | null
   adminContents: 'devmock_admin_contents', // 관리자가 올린 공고·콘텐츠 (로컬에서도 실제 저장·노출)
   savedServer: 'devmock_saved_server', // 서버(D1) 관심공고 목록 흉내 — 카드 로컬키(medihelpers_saved_jobs)와 분리해 기기 간 동기화를 검증
+  hospitalVerifications: 'devmock_hospital_verifications',
 };
 const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k) || '') ?? fallback; } catch { return fallback; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -57,6 +58,18 @@ async function handle(method, path, bodyText) {
   // 관리자 공고·콘텐츠 CRUD — 로컬에서도 실제 저장되어 목록·사이트에 노출되도록 localStorage에 반영.
   if (path === '/api/admin-console' && method === 'PATCH') {
     const { action, payload = {} } = body;
+    if (action === 'hospital_verification_review') {
+      const requests = read(LS.hospitalVerifications, []);
+      const request = requests.find((item) => item.id === payload.id);
+      if (!request) return jsonRes({ error:'병원 인증 요청을 찾을 수 없습니다.' }, 404);
+      if (payload.status === 'rejected' && !String(payload.reviewNote || '').trim()) return jsonRes({ error:'반려 사유를 입력해주세요.' }, 400);
+      request.status = payload.status; request.reviewNote = payload.reviewNote || ''; request.reviewedAt = new Date().toISOString();
+      write(LS.hospitalVerifications, requests);
+      const accounts = read(LS.authAccounts, {});
+      if (accounts[request.email]) accounts[request.email].verificationStatus = payload.status === 'approved' ? 'verified' : 'rejected';
+      write(LS.authAccounts, accounts);
+      return jsonRes({ saved:true, id:request.id, status:request.status });
+    }
     const seed = [
       { id: 'c1', contentType: 'doctor_job', title: '소화기내과 전문의 추천채용', subtitle: '김해좋은내과병원', status: 'published', visibility: 'public', sortOrder: 100, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-18 10:00' },
       { id: 'c2', contentType: 'medical_job', title: '병동 간호사 모집', subtitle: '서울○○병원', status: 'published', visibility: 'public', sortOrder: 0, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-17 09:00' },
@@ -89,14 +102,23 @@ async function handle(method, path, bodyText) {
     if (path === '/api/auth/register') {
       if (accounts[email]) return jsonRes({ error: '이미 가입된 이메일입니다.' }, 409);
       const role = body.role === 'hospital' ? 'hospital' : 'doctor';
-      accounts[email] = { role, password };
+      if (role === 'hospital' && !body.businessDocumentName) return jsonRes({ error:'사업자등록증 파일을 첨부해주세요.' }, 400);
+      accounts[email] = { role, password, verificationStatus:role === 'hospital' ? 'pending' : 'unverified' };
       write(LS.authAccounts, accounts);
+      if (role === 'hospital') {
+        const requests = read(LS.hospitalVerifications, []);
+        requests.unshift({ id:'HV-'+Date.now(), email, hospitalName:body.hospitalName || '', representativeName:body.representativeName || '', businessNumber:String(body.businessNumber || '').replace(/[^0-9]/g,''), address:[body.address, body.addressDetail].filter(Boolean).join(' '), originalFilename:body.businessDocumentName, contentType:body.businessDocumentType, fileSize:body.businessDocumentSize, status:'pending', submittedAt:new Date().toISOString(), documentUrl:'#' });
+        write(LS.hospitalVerifications, requests);
+        return jsonRes({ signedIn:false, pendingApproval:true, account:{ role, verificationStatus:'pending' }, identity:{ email } }, 202);
+      }
       write(LS.authSession, { email, role });
       return jsonRes({ signedIn: true, account: { role }, identity: { email } });
     }
     // login
     const acct = accounts[email];
     if (!acct || acct.password !== password) return jsonRes({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, 401);
+    if (acct.role === 'hospital' && acct.verificationStatus === 'pending') return jsonRes({ error:'사업자등록증을 검토 중입니다. 관리자 승인 후 로그인할 수 있습니다.' }, 403);
+    if (acct.role === 'hospital' && acct.verificationStatus === 'rejected') return jsonRes({ error:'병원 인증이 보류되었습니다. 메디헬퍼스로 문의해주세요.' }, 403);
     write(LS.authSession, { email, role: acct.role });
     return jsonRes({ signedIn: true, account: { role: acct.role }, identity: { email } });
   }
@@ -157,8 +179,12 @@ async function handle(method, path, bodyText) {
     if (unlocks[talentId]) {
       // 실제 이력서(resume-<id>)만 서버 상세를 흉내. 정적 데모(MH-...)는 detail:null로 반환해
       // 클라이언트가 data.js의 데모 상세로 폴백하게 한다(실제 서버 동작과 동일).
-      const detail = talentId.startsWith('resume-') ? mockDetailFor(talentId) : null;
-      return jsonRes({ unlocked: true, detail });
+      const resumeId = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
+      const resume = resumeId ? read(LS.resumes, {})[resumeId] : null;
+      const source = resume ? { name:resume.name, phone:resume.phone, email:resume.email, specialty:resume.specialty, desiredRegions:resume.desiredRegions, detail:resume.detail || {} } : talentId.startsWith('resume-') ? mockDetailFor(talentId) : null;
+      const contactProtected = Boolean(resume && resume.contactVisibility !== 'ticket');
+      const detail = source ? { ...source, name:contactProtected ? '' : source.name, phone:contactProtected ? '' : source.phone, email:contactProtected ? '' : source.email } : null;
+      return jsonRes({ unlocked: true, contactProtected, detail });
     }
     return jsonRes({ unlocked: false, detail: null });
   }
@@ -280,8 +306,9 @@ async function handle(method, path, bodyText) {
         { id: 'm1', role: 'doctor', email: 'doctor@example.com', fullName: '김현우', status: 'active', verificationStatus: 'verified', phone: '010-1234-5678', organization: '', jobTitle: '정형외과 전문의', consentCount: 3, orderCount: 0, lifetimeValue: 0, createdAt: '2026-07-16 09:30', lastLoginAt: '2026-07-26 08:40' },
         { id: 'm2', role: 'hospital', email: 'hr@hospital.co.kr', fullName: '박정호', status: 'active', verificationStatus: 'pending', phone: '010-9876-5432', organization: '해운대바른척추병원', jobTitle: '채용팀장', consentCount: 3, orderCount: 2, lifetimeValue: 178000, createdAt: '2026-07-15 11:20', lastLoginAt: '2026-07-26 09:00' },
       ];
+      const hospitalVerifications = read(LS.hospitalVerifications, [{ id:'hv-mock-1', email:'hr@hospital.co.kr', phone:'010-9876-5432', hospitalName:'해운대바른척추병원', representativeName:'김대표', businessNumber:'1234567890', address:'부산 해운대구', originalFilename:'사업자등록증.pdf', contentType:'application/pdf', fileSize:248000, status:'pending', submittedAt:'2026-07-26 09:00', documentUrl:'#' }]);
       return jsonRes({
-        metrics: { accounts: mockMembers.length, doctors: 1, hospitals: 1, consultations: mockConsultations.length, activeCases: 1, hiredCases: 0, categories: 16, contents: contents.length, auditLogs: 2, payments: mockPayments.length, pendingPayments: 1, paidRevenue: 149000, refundedPayments: 0 },
+        metrics: { accounts: mockMembers.length, doctors: 1, hospitals: 1, consultations: mockConsultations.length, activeCases: 1, hiredCases: 0, categories: 16, contents: contents.length, auditLogs: 2, payments: mockPayments.length, pendingPayments: 1, paidRevenue: 149000, refundedPayments: 0, pendingHospitalVerifications:hospitalVerifications.filter((item) => item.status === 'pending').length },
         contents, categories: [], features: {}, settings: {},
         audit: [
           { id: 'a1', subject: '의사 초빙공고', action: '기능 공개 설정', actor: 'admin@medihelpers.co.kr', createdAt: '2026-07-26 09:20' },
@@ -290,7 +317,7 @@ async function handle(method, path, bodyText) {
         payments: mockPayments,
         transactions: [{ id: 't-mock-1', orderId: 'o-mock-1', transactionType: 'capture', provider: 'manual', providerTransactionId: 'mock-tx-001', amount: 149000, status: 'succeeded', processedAt: '2026-07-26 09:05' }],
         refunds: [],
-        resumes: [{ id: 'r-mock-1', profession: '의사', specialty: '소화기내과', visibility: 'public', completion: 80, updatedAt: '2026-07-25 12:00' }],
+        resumes: [{ id: 'r-mock-1', profession: '의사', specialty: '소화기내과', visibility: 'public', completion: 80, updatedAt: '2026-07-25 12:00' }], hospitalVerifications,
       });
     }
     return jsonRes({ mock: true });
@@ -338,7 +365,12 @@ export function installDevApiMock() {
       }
     }
     try {
-      const bodyText = init?.body ? (typeof init.body === 'string' ? init.body : '') : '';
+      let bodyText = init?.body ? (typeof init.body === 'string' ? init.body : '') : '';
+      if (typeof FormData !== 'undefined' && init?.body instanceof FormData) {
+        const payload = JSON.parse(String(init.body.get('payload') || '{}'));
+        const document = init.body.get('businessDocument');
+        bodyText = JSON.stringify({ ...payload, businessDocumentName:document?.name || '', businessDocumentType:document?.type || '', businessDocumentSize:document?.size || 0 });
+      }
       const res = await handle(method, pathname, bodyText);
       // eslint-disable-next-line no-console
       console.info('[devApiMock]', method, pathname, '→', res.status);

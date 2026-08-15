@@ -80,17 +80,18 @@ test('유료 광고 상품 등급과 노출기간을 공개 공고 레코드에 
   assert.match(source, /json_set\(/);
 });
 
-test('관리자 화면은 DB 기록 조회 전용이며 승인·수정 API를 거부한다', async () => {
+test('관리자 화면은 병원 가입 인증만 처리하고 나머지 DB 기록은 읽기 전용이다', async () => {
   const adminSource = await readFile(new URL('./AdminConsolePage.jsx', import.meta.url), 'utf8');
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
-  assert.match(adminSource, /READ-ONLY DATABASE CONSOLE/);
+  assert.match(adminSource, /DATABASE & HOSPITAL VERIFICATION/);
   assert.match(adminSource, /<ContentRecords data=\{data\}/);
   assert.match(adminSource, /<Members data=\{data\}/);
   assert.match(adminSource, /<Payments data=\{data\}/);
   assert.doesNotMatch(adminSource, /section === 'categories'/);
   assert.doesNotMatch(adminSource, /section === 'settings'/);
   assert.doesNotMatch(adminSource, /section === 'features'/);
-  assert.match(serverSource, /관리자 콘솔은 DB 기록 조회 전용입니다/);
+  assert.match(serverSource, /hospital_verification_review/);
+  assert.match(serverSource, /병원 가입 인증 외에는 DB 기록 조회 전용입니다/);
   assert.match(serverSource, /관리자 상담 기록은 조회 전용입니다/);
   assert.match(serverSource, /채용 CRM 기록은 조회 전용입니다/);
   assert.match(serverSource, /관리자 백업 화면은 기록 조회 전용입니다/);

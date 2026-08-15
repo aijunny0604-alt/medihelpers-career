@@ -6,6 +6,7 @@
 
 ## Current State
 
+- `UPDATE_2026-08-15_HOSPITAL_VERIFICATION_AND_CONTACT_PRIVACY.md`: 의료인 연락처 공개 선택, 열람권과 연락처 권한 분리, 병원 사업자등록증 제출·관리자 승인
 - `UPDATE_2026-08-09_ROLE_AND_DIRECT_PUBLICATION.md`: 회원가입 역할 저장·로그인 자동 분류, 병원 광고 결제 후 즉시 게시, 하단 링크 정리
 - `STATUS.md`: 마지막 작업일, 배포 상태, 구현·미구현 범위
 - `HANDOFF_2026-08-08.md`: 최신 전수조사·권한별 운영 API·R2 업로드·가상결제·백업 검증 및 배포 인수인계
@@ -22,7 +23,7 @@
 - `AUTH.md`: 회원과 권한
 - `LEGAL_PRIVACY_SIGNUP.md`: 회원가입 동의 문구, 개인정보·소셜 로그인 법무/보안 기준
 - `BILLING.md`: 광고 상품·결제·인재 열람권 수익모델
-- `TALENT_UNLOCK_PLAN.md`: 인재 이력서 열람권(병원 결제→연락처 공개) 설계
+- `TALENT_UNLOCK_PLAN.md`: 인재 이력서 열람권과 의료인 연락처 공개 동의 분리 설계
 - `RESUME_PIPELINE_PLAN.md`: 의사·의료인 이력서 등록→구직 노출(opt-in) 파이프라인
 - `HEADHUNTING_BOARD_PLAN.md`: 구인·구직 게시 및 매칭 흐름
 - `BILLING_INICIS_PLAN.md`: 이니시스 실결제 연동 계획(가상결제→실승인 전환)

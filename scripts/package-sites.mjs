@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
+import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, hospitalVerificationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
 
 // 빌드 타깃: 기본은 OpenAI Sites(정적 파일을 Worker에 base64 인라인).
 // --target=cloudflare 이면 Cloudflare Workers용으로 만든다:
@@ -93,6 +93,7 @@ const memberCenterSchemaStatements = ${JSON.stringify(memberCenterSchemaStatemen
 const commerceSchemaStatements = ${JSON.stringify(commerceSchemaStatements)};
 const recruitmentCrmSchemaStatements = ${JSON.stringify(recruitmentCrmSchemaStatements)};
 const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatements)};
+const hospitalVerificationSchemaStatements = ${JSON.stringify(hospitalVerificationSchemaStatements)};
 const termsVersion = 'terms-v1.0-2026-07-18';
 const privacyNoticeVersion = 'privacy-v1.0-2026-07-18';
 const defaultPublicOrigin = 'https://medihelpers-career.junnyai.chatgpt.site';
@@ -302,7 +303,10 @@ async function ensureAdminConsoleSchema(env) {
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
-const backupSchemaVersion = '0010';
+async function ensureHospitalVerificationSchema(env) {
+  return ensureSchemaGroup(env, 'hospital-verification', 'SELECT 1 FROM hospital_verification_requests LIMIT 1', hospitalVerificationSchemaStatements, 'HOSPITAL_VERIFICATION_DB_UNAVAILABLE');
+}
+const backupSchemaVersion = '0011';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
@@ -312,7 +316,7 @@ const backupTables = [
   'payment_webhook_events','recruitment_cases','candidate_submissions','interview_events',
   'consent_grants','billing_records','access_audit_logs','admin_content_records',
   'admin_categories','site_settings','feature_flags','admin_audit_logs',
-  'talent_credit_pools','data_protection_runs'
+  'talent_credit_pools','data_protection_runs','hospital_verification_requests'
 ];
 async function ensureAllSchemas(env) {
   await ensureAccountSchema(env);
@@ -322,6 +326,7 @@ async function ensureAllSchemas(env) {
   await ensureTalentCreditSchema(env);
   await ensureRecruitmentCrmSchema(env);
   await ensureAdminConsoleSchema(env);
+  await ensureHospitalVerificationSchema(env);
 }
 function protectionRunId(prefix) {
   return prefix + '-' + Date.now() + '-' + randomHex(6);
@@ -587,9 +592,16 @@ async function sendSignupEmails(env, member) {
   const name = member.displayName || (member.role === 'hospital' ? '병원 담당자' : '의료인 회원');
   const origin = String(member.origin || '').replace(/\\\/$/, '');
   const startPath = member.role === 'hospital' ? '/advertise' : '/resume?new=1';
-  const welcomeHtml = '<div style="max-width:600px;margin:0 auto;padding:38px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1.2px">WELCOME TO MEDIHELPERS</p><h1 style="margin:10px 0 16px;font-size:28px">'+escapeHtml(name)+'님, 회원가입을 축하드립니다!</h1><p style="line-height:1.8;color:#52657e">메디헬퍼스 '+roleLabel+' 가입이 완료되었습니다. 필요한 채용 정보와 상담 기능을 지금부터 이용하실 수 있습니다.</p><p style="margin:24px 0;padding:16px 18px;border-radius:12px;background:#f3f7fb;color:#173455"><b>로그인 이메일</b><br>'+escapeHtml(member.email)+'</p><p style="margin:28px 0"><a href="'+escapeHtml(origin + startPath)+'" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#1263e8;color:#fff;text-decoration:none;font-weight:700">메디헬퍼스 시작하기</a></p><hr style="margin:30px 0;border:0;border-top:1px solid #e3eaf2"><p style="font-size:12px;line-height:1.7;color:#7b8ba0">본인이 가입하지 않았다면 hr@medihelpers.co.kr 또는 051-342-5463으로 알려주세요. 메디헬퍼스는 이메일로 비밀번호를 묻지 않습니다.</p></div>';
+  const pendingHospital = member.role === 'hospital' && member.pendingApproval === true;
+  const welcomeTitle = pendingHospital ? '병원 회원 신청과 서류가 접수되었습니다' : name+'님, 회원가입을 축하드립니다!';
+  const welcomeCopy = pendingHospital
+    ? '제출하신 사업자등록증과 병원 정보를 관리자가 직접 확인합니다. 승인 결과를 이메일로 알려드리며, 승인 전에는 병원 회원 로그인이 제한됩니다.'
+    : '메디헬퍼스 '+roleLabel+' 가입이 완료되었습니다. 필요한 채용 정보와 상담 기능을 지금부터 이용하실 수 있습니다.';
+  const welcomeAction = pendingHospital ? '' : '<p style="margin:28px 0"><a href="'+escapeHtml(origin + startPath)+'" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#1263e8;color:#fff;text-decoration:none;font-weight:700">메디헬퍼스 시작하기</a></p>';
+  const welcomeHtml = '<div style="max-width:600px;margin:0 auto;padding:38px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1.2px">WELCOME TO MEDIHELPERS</p><h1 style="margin:10px 0 16px;font-size:28px">'+escapeHtml(welcomeTitle)+'</h1><p style="line-height:1.8;color:#52657e">'+escapeHtml(welcomeCopy)+'</p><p style="margin:24px 0;padding:16px 18px;border-radius:12px;background:#f3f7fb;color:#173455"><b>로그인 이메일</b><br>'+escapeHtml(member.email)+'</p>'+welcomeAction+'<hr style="margin:30px 0;border:0;border-top:1px solid #e3eaf2"><p style="font-size:12px;line-height:1.7;color:#7b8ba0">본인이 신청하지 않았다면 hr@medihelpers.co.kr 또는 051-342-5463으로 알려주세요. 메디헬퍼스는 이메일로 비밀번호를 묻지 않습니다.</p></div>';
   const admins = signupAdminRecipients(env);
-  const adminHtml = '<div style="max-width:600px;margin:0 auto;padding:34px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1px">NEW MEMBER</p><h1 style="margin:10px 0 22px;font-size:25px">신규 회원이 가입했습니다</h1><table style="width:100%;border-collapse:collapse"><tr><th style="padding:11px;text-align:left;background:#f3f7fb">회원 유형</th><td style="padding:11px">'+roleLabel+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">이름·담당자</th><td style="padding:11px">'+escapeHtml(name)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 이메일</th><td style="padding:11px">'+escapeHtml(member.email)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">병원·전문 분야</th><td style="padding:11px">'+escapeHtml(member.organization || '-')+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 시각</th><td style="padding:11px">'+escapeHtml(member.createdAt || new Date().toISOString())+'</td></tr></table><p style="margin:26px 0 0"><a href="'+escapeHtml(origin + '/admin')+'" style="color:#1263e8;font-weight:700">관리자 DB 기록 확인</a></p><p style="margin-top:28px;font-size:12px;color:#7b8ba0">보안을 위해 비밀번호와 인증 정보는 이 메일에 포함하지 않습니다.</p></div>';
+  const adminTitle = pendingHospital ? '병원 회원 승인 검토가 필요합니다' : '신규 회원이 가입했습니다';
+  const adminHtml = '<div style="max-width:600px;margin:0 auto;padding:34px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1px">NEW MEMBER</p><h1 style="margin:10px 0 22px;font-size:25px">'+adminTitle+'</h1><table style="width:100%;border-collapse:collapse"><tr><th style="padding:11px;text-align:left;background:#f3f7fb">회원 유형</th><td style="padding:11px">'+roleLabel+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">이름·담당자</th><td style="padding:11px">'+escapeHtml(name)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 이메일</th><td style="padding:11px">'+escapeHtml(member.email)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">병원·전문 분야</th><td style="padding:11px">'+escapeHtml(member.organization || '-')+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 시각</th><td style="padding:11px">'+escapeHtml(member.createdAt || new Date().toISOString())+'</td></tr></table><p style="margin:26px 0 0"><a href="'+escapeHtml(origin + '/admin/console')+'" style="color:#1263e8;font-weight:700">'+(pendingHospital ? '사업자등록증 검토하기' : '관리자 DB 기록 확인')+'</a></p><p style="margin-top:28px;font-size:12px;color:#7b8ba0">보안을 위해 비밀번호와 인증 정보는 이 메일에 포함하지 않습니다.</p></div>';
   const send = async (to, subject, html, errorPrefix) => {
     const response = await fetch('https://api.resend.com/emails', {
       method:'POST',
@@ -600,13 +612,22 @@ async function sendSignupEmails(env, member) {
     return 'sent';
   };
   const [memberResult, adminResult] = await Promise.allSettled([
-    send([member.email], '[메디헬퍼스] 회원가입을 축하드립니다', welcomeHtml, 'SIGNUP_MEMBER_EMAIL'),
-    admins.length ? send(admins, '[메디헬퍼스] 신규 '+roleLabel+' 가입 안내', adminHtml, 'SIGNUP_ADMIN_EMAIL') : Promise.resolve('not_configured')
+    send([member.email], pendingHospital ? '[메디헬퍼스] 병원 회원 신청이 접수되었습니다' : '[메디헬퍼스] 회원가입을 축하드립니다', welcomeHtml, 'SIGNUP_MEMBER_EMAIL'),
+    admins.length ? send(admins, pendingHospital ? '[메디헬퍼스] 병원 사업자등록증 승인 검토 요청' : '[메디헬퍼스] 신규 '+roleLabel+' 가입 안내', adminHtml, 'SIGNUP_ADMIN_EMAIL') : Promise.resolve('not_configured')
   ]);
   return {
     member:memberResult.status === 'fulfilled' ? memberResult.value : 'failed',
     admin:adminResult.status === 'fulfilled' ? adminResult.value : 'failed'
   };
+}
+async function sendHospitalVerificationDecisionEmail(env, message) {
+  if (!recoveryEmailConfigured(env)) return 'not_configured';
+  const approved = message.status === 'approved';
+  const subject = approved ? '[메디헬퍼스] 병원 회원 승인이 완료되었습니다' : '[메디헬퍼스] 병원 회원 서류를 다시 확인해주세요';
+  const html = '<div style="max-width:600px;margin:0 auto;padding:38px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1.2px">HOSPITAL VERIFICATION</p><h1 style="margin:10px 0 16px;font-size:28px">'+(approved ? '병원 회원 승인이 완료되었습니다' : '제출 서류 확인이 필요합니다')+'</h1><p style="line-height:1.8;color:#52657e">'+(approved ? '이제 가입한 이메일로 로그인해 채용공고 등록과 병원 회원 기능을 이용할 수 있습니다.' : '관리자 검토 결과 승인이 보류되었습니다. 아래 사유를 확인한 뒤 메디헬퍼스로 문의해주세요.')+'</p>'+(message.note ? '<p style="margin:24px 0;padding:16px 18px;border-radius:12px;background:#f3f7fb;color:#173455"><b>검토 메모</b><br>'+escapeHtml(message.note)+'</p>' : '')+(approved ? '<p style="margin:28px 0"><a href="'+escapeHtml(message.origin + '/login')+'" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#1263e8;color:#fff;text-decoration:none;font-weight:700">로그인하기</a></p>' : '')+'<p style="font-size:12px;line-height:1.7;color:#7b8ba0">문의: hr@medihelpers.co.kr · 051-342-5463</p></div>';
+  const response = await fetch('https://api.resend.com/emails', { method:'POST', headers:{ authorization:'Bearer '+env.RESEND_API_KEY, 'content-type':'application/json' }, body:JSON.stringify({ from:env.RESEND_FROM, to:[message.email], subject, html }) });
+  if (!response.ok) throw new Error('HOSPITAL_VERIFICATION_EMAIL_'+response.status);
+  return 'sent';
 }
 async function hmacHex(secret, value) {
   const encoder = new TextEncoder();
@@ -835,6 +856,7 @@ async function authApi(request, env, pathname, ctx) {
     await ensureAccountSchema(env);
     await ensureMemberCenterSchema(env);
     await ensureCommerceSchema(env);
+    await ensureHospitalVerificationSchema(env);
   } catch {
     return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503);
   }
@@ -847,10 +869,22 @@ async function authApi(request, env, pathname, ctx) {
     return json({ signedOut:true }, 200, { 'set-cookie':authCookie('', 0) });
   }
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  const contentType = String(request.headers.get('content-type') || '').toLowerCase();
+  const multipartRegistration = pathname === '/api/auth/register' && contentType.includes('multipart/form-data');
   const length = Number(request.headers.get('content-length') || 0);
-  if (length > 32768) return json({ error:'요청 크기가 너무 큽니다.' }, 413);
+  if (length > (multipartRegistration ? 12 * 1024 * 1024 : 32768)) return json({ error:'요청 크기가 너무 큽니다.' }, 413);
   let body;
-  try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  let businessDocument = null;
+  try {
+    if (multipartRegistration) {
+      const formData = await request.formData();
+      body = JSON.parse(String(formData.get('payload') || '{}'));
+      const candidate = formData.get('businessDocument');
+      businessDocument = candidate && typeof candidate.arrayBuffer === 'function' ? candidate : null;
+    } else {
+      body = await request.json();
+    }
+  } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
   if (pathname === '/api/auth/test-switch') {
     if (!testAccountSwitchEnabled(env)) return json({ error:'테스트 계정 전환이 비활성화되어 있습니다.' }, 404);
     let session;
@@ -869,7 +903,7 @@ async function authApi(request, env, pathname, ctx) {
   if (!email || !validPassword(password)) return json({ error:'이메일과 영문·숫자를 포함한 8자 이상의 비밀번호를 확인해주세요.' }, 400);
 
   if (pathname === '/api/auth/login') {
-    const credential = await env.DB.prepare("SELECT c.account_id AS accountId, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE c.email_normalized=? LIMIT 1").bind(email).first();
+    const credential = await env.DB.prepare("SELECT c.account_id AS accountId, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status, COALESCE(ap.verification_status,'unverified') AS verificationStatus FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE c.email_normalized=? LIMIT 1").bind(email).first();
     // [보안] 잠금 상태여도 즉시 응답하지 않는다.
     // 예전에는 잠긴 계정에만 429를 돌려줘서, 공격자가 아무 비밀번호나 5번 넣어보고
     // 상태 코드만으로 "이 이메일이 가입돼 있는지" 확인할 수 있었다(계정 열거).
@@ -897,6 +931,8 @@ async function authApi(request, env, pathname, ctx) {
       return json({ error:'이메일 또는 비밀번호가 올바르지 않습니다.' }, 401);
     }
     if (credential.status !== 'active') return json({ error:credential.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
+    if (credential.role === 'hospital' && credential.verificationStatus === 'pending') return json({ error:'사업자등록증을 검토 중입니다. 관리자 승인 후 로그인할 수 있습니다.', code:'HOSPITAL_APPROVAL_PENDING' }, 403);
+    if (credential.role === 'hospital' && credential.verificationStatus === 'rejected') return json({ error:'병원 인증이 보류되었습니다. 제출 서류를 확인하려면 메디헬퍼스로 문의해주세요.', code:'HOSPITAL_APPROVAL_REJECTED' }, 403);
     await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     await env.DB.prepare('UPDATE account_admin_profiles SET last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     // [보안] 관리자 계정은 세션·쿠키 수명을 12시간으로 단축(탈취 시 노출 시간 축소).
@@ -912,10 +948,21 @@ async function authApi(request, env, pathname, ctx) {
     if (!['doctor','hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error:'회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
+    if (body.role === 'hospital') {
+      const hospitalName = String(body.hospitalName || '').trim();
+      const representativeName = String(body.representativeName || '').trim();
+      const businessNumber = String(body.businessNumber || '').replace(/[^0-9]/g, '');
+      const address = String(body.address || '').trim();
+      if (!hospitalName || !representativeName || businessNumber.length !== 10 || !address) return json({ error:'병원명·대표자명·사업자등록번호·주소를 확인해주세요.' }, 400);
+      if (!businessDocument) return json({ error:'사업자등록증 PDF 또는 이미지 파일을 첨부해주세요.' }, 400);
+      if (!['application/pdf','image/jpeg','image/png','image/webp'].includes(String(businessDocument.type || '').toLowerCase())) return json({ error:'사업자등록증은 PDF, JPG, PNG, WEBP 파일만 등록할 수 있습니다.' }, 400);
+      if (!businessDocument.size || businessDocument.size > 10 * 1024 * 1024) return json({ error:'사업자등록증 파일은 10MB 이하로 등록해주세요.' }, 413);
+    }
     const duplicate = await env.DB.prepare('SELECT account_id FROM auth_credentials WHERE email_normalized=? LIMIT 1').bind(email).first();
     if (duplicate) return json({ error:'이미 가입된 이메일입니다. 로그인해주세요.' }, 409);
     const key = await userKey(email, env.ACCOUNT_HASH_SECRET);
     let account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key=?').bind(key).first();
+    let createdAccount = false;
     if (!account) {
       const withdrawn = await env.DB.prepare("SELECT (julianday('now') - julianday(withdrawn_at)) AS days FROM withdrawn_members WHERE user_key=?").bind(key).first();
       if (withdrawn && Number(withdrawn.days) < 30) {
@@ -925,6 +972,7 @@ async function authApi(request, env, pathname, ctx) {
       const accountId = crypto.randomUUID();
       await env.DB.prepare('INSERT INTO accounts (id, user_key, role) VALUES (?, ?, ?)').bind(accountId, key, body.role).run();
       account = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE id=?').bind(accountId).first();
+      createdAccount = true;
     } else if (account.role !== body.role) {
       await env.DB.prepare('UPDATE accounts SET role=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(body.role, account.id).run();
       account.role = body.role;
@@ -935,31 +983,68 @@ async function authApi(request, env, pathname, ctx) {
     const salt = randomHex(16);
     let hash;
     try { hash = await passwordHash(password, salt); } catch { return json({ error:'가입 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503); }
-    try {
-      await env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations).run();
-    } catch {
-      return json({ error:'이미 가입된 이메일입니다. 로그인해주세요.' }, 409);
-    }
     const displayName = String(body.displayName || body.name || '').trim().slice(0, 80);
     const phone = String(body.phone || '').trim().slice(0, 40);
     const organization = String(body.organization || body.hospitalName || body.specialty || '').trim().slice(0, 160);
     const jobTitle = String(body.jobTitle || body.hospitalRole || body.professionType || '').trim().slice(0, 160);
+    let verificationRecord = null;
+    let storedDocumentKey = '';
+    if (body.role === 'hospital') {
+      const uploadStorage = env.UPLOADS || env.BACKUPS;
+      if (!uploadStorage) {
+        if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
+        return json({ error:'사업자등록증 보관 저장소가 설정되지 않았습니다.' }, 503);
+      }
+      const bytes = await businessDocument.arrayBuffer();
+      const view = new Uint8Array(bytes);
+      const type = String(businessDocument.type || '').toLowerCase();
+      const signatureOk = type === 'application/pdf' ? String.fromCharCode(...view.slice(0,5)) === '%PDF-' : type === 'image/jpeg' ? view[0] === 0xff && view[1] === 0xd8 : type === 'image/png' ? view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47 : type === 'image/webp' ? String.fromCharCode(...view.slice(0,4)) === 'RIFF' && String.fromCharCode(...view.slice(8,12)) === 'WEBP' : false;
+      if (!signatureOk) {
+        if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
+        return json({ error:'파일 내용과 확장자가 일치하지 않습니다. 원본 사업자등록증 파일을 다시 선택해주세요.' }, 400);
+      }
+      const ext = { 'application/pdf':'pdf', 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp' }[type];
+      storedDocumentKey = 'verifications/hospitals/' + account.id + '/business-registration/' + crypto.randomUUID() + '.' + ext;
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      verificationRecord = { id:crypto.randomUUID(), hospitalName:organization, representativeName:String(body.representativeName || '').trim().slice(0,80), businessNumber:String(body.businessNumber || '').replace(/[^0-9]/g, '').slice(0,10), address:[body.address, body.addressDetail].filter(Boolean).join(' ').trim().slice(0,300), documentKey:storedDocumentKey, originalFilename:String(businessDocument.name || 'business-registration.' + ext).replace(/[^a-zA-Z0-9가-힣._ -]/g,'_').slice(0,180), contentType:type, fileSize:Number(businessDocument.size || bytes.byteLength), fileSha256:bytesToHex(new Uint8Array(digest)) };
+      try { await uploadStorage.put(storedDocumentKey, bytes, { httpMetadata:{ contentType:type, contentDisposition:'inline' }, customMetadata:{ accountId:account.id, purpose:'hospital-verification', sha256:verificationRecord.fileSha256 } }); }
+      catch {
+        if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
+        return json({ error:'사업자등록증을 안전하게 보관하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503);
+      }
+    }
     const records = [
       env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
-      env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, last_login_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, email, displayName),
+      env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations),
+      env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, verification_status, last_login_at) VALUES (?, ?, ?, 'active', ?, ?) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', verification_status=excluded.verification_status, last_login_at=excluded.last_login_at, updated_at=CURRENT_TIMESTAMP").bind(account.id, email, displayName, body.role === 'hospital' ? 'pending' : 'unverified', body.role === 'hospital' ? null : new Date().toISOString()),
       env.DB.prepare("INSERT INTO member_profiles (account_id, display_name, phone, organization, job_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, phone=excluded.phone, organization=excluded.organization, job_title=excluded.job_title, updated_at=CURRENT_TIMESTAMP").bind(account.id, displayName, phone, organization, jobTitle),
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'terms', termsVersion),
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'age_confirmation', termsVersion),
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'privacy_notice_ack', privacyNoticeVersion)
     ];
-    await env.DB.batch(records);
+    if (verificationRecord) records.push(env.DB.prepare("INSERT INTO hospital_verification_requests (id, account_id, hospital_name, representative_name, business_number, address, document_key, original_filename, content_type, file_size, file_sha256, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')").bind(verificationRecord.id, account.id, verificationRecord.hospitalName, verificationRecord.representativeName, verificationRecord.businessNumber, verificationRecord.address, verificationRecord.documentKey, verificationRecord.originalFilename, verificationRecord.contentType, verificationRecord.fileSize, verificationRecord.fileSha256));
+    if (body.role === 'hospital') {
+      const adminEmails = String(env.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+      if (adminEmails.length) {
+        const placeholders = adminEmails.map(() => '?').join(',');
+        const admins = await env.DB.prepare('SELECT account_id AS accountId FROM auth_credentials WHERE email_normalized IN ('+placeholders+')').bind(...adminEmails).all();
+        for (const adminAccount of admins.results || []) records.push(env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, 'service', ?, ?, '/admin/console')").bind(crypto.randomUUID(), adminAccount.accountId, '병원 회원 승인 검토 요청', organization + '에서 사업자등록증을 제출했습니다.'));
+      }
+    }
+    try { await env.DB.batch(records); }
+    catch {
+      if (storedDocumentKey) try { await (env.UPLOADS || env.BACKUPS).delete(storedDocumentKey); } catch {}
+      if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
+      return json({ error:'이미 가입된 이메일이거나 가입 정보를 저장하지 못했습니다.' }, 409);
+    }
     // [보안] 가입 직후 세션도 로그인과 동일하게 관리자면 12시간으로 단축한다.
     const isAdminAccount = String(env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(email);
+    const signupEmailTask = sendSignupEmails(env, { email, displayName, role:account.role, organization, pendingApproval:body.role === 'hospital', createdAt:account.createdAt, origin:new URL(request.url).origin }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(signupEmailTask); else await signupEmailTask;
+    if (body.role === 'hospital') return json({ signedIn:false, pendingApproval:true, account:{ role:account.role, createdAt:account.createdAt, verificationStatus:'pending' }, identity:{ email, displayName }, welcomeEmailAvailable:recoveryEmailConfigured(env), adminSignupEmailAvailable:signupAdminRecipients(env).length > 0 && recoveryEmailConfigured(env) }, 202);
     const token = await createAuthSession(env, account.id, { isAdmin: isAdminAccount });
     const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
     const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:token } : {};
-    const signupEmailTask = sendSignupEmails(env, { email, displayName, role:account.role, organization, createdAt:account.createdAt, origin:new URL(request.url).origin }).catch(() => {});
-    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(signupEmailTask); else await signupEmailTask;
     return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName }, welcomeEmailAvailable:recoveryEmailConfigured(env), adminSignupEmailAvailable:signupAdminRecipients(env).length > 0 && recoveryEmailConfigured(env), ...sessionFallback }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
   return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
@@ -1563,9 +1648,14 @@ async function resumeApi(request, env) {
     const title = s(body.title); const name = s(body.name); const phone = s(body.phone, 40);
     if (!title || !name || !phone) return json({ error:'이력서 제목·성함·연락처는 필수입니다.' }, 400);
     const visibility = ['public','proposal','private'].includes(body.visibility) ? body.visibility : 'private';
+    const contactVisibility = body.contactVisibility === 'ticket' ? 'ticket' : 'private';
     const completion = Math.max(0, Math.min(100, Number(body.completion) || 0));
     // 구조화 핵심 필드 외 나머지(경력·학력·소개 등)는 detail JSON으로 저장.
-    const detail = body.detail && typeof body.detail === 'object' ? body.detail : {};
+    const detail = body.detail && typeof body.detail === 'object' ? { ...body.detail } : {};
+    // 연락처는 구조화 컬럼에만 저장한다. detail_json에 중복 저장하면 공개 응답에서
+    // 이름·전화·이메일을 하나씩 가려도 JSON 내부에서 다시 노출될 수 있다.
+    delete detail.name; delete detail.phone; delete detail.email; delete detail.consent;
+    detail.contactVisibility = contactVisibility;
     const requestedId = s(body.resumeId, 100);
     let existing = null;
     if (requestedId) {
@@ -1584,7 +1674,7 @@ async function resumeApi(request, env) {
       await env.DB.prepare('INSERT INTO resumes (id, account_id, title, profession, specialty, name, phone, email, desired_regions, completion, visibility, status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(...fields).run();
     }
     try { await env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'resume_update', existing ? '이력서를 수정했습니다.' : '이력서를 등록했습니다.', title).run(); } catch {}
-    return json({ saved:true, id, completion, visibility }, existing ? 200 : 201);
+    return json({ saved:true, id, completion, visibility, contactVisibility }, existing ? 200 : 201);
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }
@@ -1700,11 +1790,19 @@ async function talentDetailApi(request, env, pathname) {
   // 기본값이 private이라, 이 필터가 없으면 '구직 공개'를 선택하지 않은 의사의 연락처까지
   // 열람권만 있으면 resume-<id>로 긁어갈 수 있다(본인이 공개하지 않은 정보 유출).
   if (resumeId) {
-    const r = await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND (account_id = ? OR visibility IN ('public','proposal'))").bind(resumeId, account?.id || '').first();
+    const r = await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND (account_id = ? OR ? = 1 OR visibility IN ('public','proposal'))").bind(resumeId, account?.id || '', isAdmin ? 1 : 0).first();
     if (r) {
       if (!isOwner) try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
       const { detailJson, ...rest } = r;
-      return json({ unlocked:true, accessReason:isOwner ? 'owner' : (isAdmin ? 'admin' : 'ticket'), detail:{ ...rest, detail:parseJsonObject(detailJson) } });
+      const storedDetail = parseJsonObject(detailJson) || {};
+      const safeDetail = { ...storedDetail };
+      delete safeDetail.name; delete safeDetail.phone; delete safeDetail.email;
+      const accessReason = isOwner ? 'owner' : (isAdmin ? 'admin' : 'ticket');
+      // 작성자·관리자는 운영 목적상 연락처를 확인할 수 있지만, 병원 열람권은 작성자가
+      // 명시적으로 '열람권 구매 병원에 공개'를 고른 경우에만 연락처를 받는다.
+      const revealContact = isOwner || isAdmin || storedDetail.contactVisibility === 'ticket';
+      const protectedContact = accessReason === 'ticket' && !revealContact;
+      return json({ unlocked:true, accessReason, contactProtected:protectedContact, detail:{ ...rest, name:revealContact ? rest.name : '', phone:revealContact ? rest.phone : '', email:revealContact ? rest.email : '', detail:safeDetail } });
     }
   }
   // 실제 이력서가 없더라도(정적 샘플 등) 열람 사실은 기록해 빈도 집계에 반영.
@@ -2337,10 +2435,25 @@ async function publicSiteOperationsApi(request, env) {
   } catch {}
   return json({ settings, features, contents });
 }
-async function adminConsoleApi(request, env) {
+async function hospitalVerificationDocumentApi(request, env, pathname) {
+  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
-  if (request.method !== 'GET') return json({ error:'관리자 콘솔은 DB 기록 조회 전용입니다.' }, 405);
+  try { await ensureHospitalVerificationSchema(env); } catch { return json({ error:'병원 인증 저장소를 사용할 수 없습니다.' }, 503); }
+  const relativePath = pathname.slice('/api/admin-hospital-verifications/'.length);
+  const requestId = decodeURIComponent(relativePath.endsWith('/document') ? relativePath.slice(0, -'/document'.length) : relativePath);
+  const record = await env.DB.prepare('SELECT document_key AS documentKey, original_filename AS originalFilename, content_type AS contentType FROM hospital_verification_requests WHERE id=? LIMIT 1').bind(requestId).first();
+  if (!record) return json({ error:'제출 서류를 찾을 수 없습니다.' }, 404);
+  const storage = env.UPLOADS || env.BACKUPS;
+  if (!storage) return json({ error:'제출 서류 저장소를 사용할 수 없습니다.' }, 503);
+  const object = await storage.get(record.documentKey);
+  if (!object) return json({ error:'제출 서류 파일을 찾을 수 없습니다.' }, 404);
+  return new Response(object.body, { status:200, headers:{ 'content-type':record.contentType || 'application/octet-stream', 'content-disposition':'inline; filename="business-registration"', 'cache-control':'private, no-store', 'x-content-type-options':'nosniff' } });
+}
+async function adminConsoleApi(request, env, ctx) {
+  const admin = await adminIdentity(request, env);
+  if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
+  if (!['GET','PATCH'].includes(request.method)) return json({ error:'지원하지 않는 요청입니다.' }, 405);
   try {
     await ensureAccountSchema(env);
     await ensureConsultationSchema(env);
@@ -2348,8 +2461,39 @@ async function adminConsoleApi(request, env) {
     await ensureAdminConsoleSchema(env);
     await ensureMemberCenterSchema(env);
     await ensureCommerceSchema(env);
+    await ensureHospitalVerificationSchema(env);
   } catch {
     return json({ error:'관리자 데이터 저장소를 사용할 수 없습니다.' }, 503);
+  }
+  if (request.method === 'PATCH') {
+    if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+    let body;
+    try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    const action = body.action;
+    const payload = body.payload && typeof body.payload === 'object' ? body.payload : {};
+    // 관리자의 유일한 변경 권한: 병원 가입 서류 승인/반려. 공고·결제·회원 상태는 계속 읽기 전용이다.
+    if (action !== 'hospital_verification_review') return json({ error:'관리자 콘솔은 병원 가입 인증 외에는 DB 기록 조회 전용입니다.' }, 405);
+    const id = String(payload.id || '').trim();
+    const status = payload.status === 'approved' ? 'approved' : payload.status === 'rejected' ? 'rejected' : '';
+    const note = String(payload.reviewNote || '').trim().slice(0,1000);
+    if (!id || !status || (status === 'rejected' && !note)) return json({ error:'승인 결과를 확인해주세요. 반려 시 사유가 필요합니다.' }, 400);
+    const record = await env.DB.prepare("SELECT h.id, h.account_id AS accountId, h.hospital_name AS hospitalName, h.status, c.email_normalized AS email FROM hospital_verification_requests h JOIN auth_credentials c ON c.account_id=h.account_id WHERE h.id=? LIMIT 1").bind(id).first();
+    if (!record) return json({ error:'병원 인증 요청을 찾을 수 없습니다.' }, 404);
+    if (record.status !== 'pending') return json({ error:'이미 처리된 병원 인증 요청입니다.' }, 409);
+    const verificationStatus = status === 'approved' ? 'verified' : 'rejected';
+    const notificationTitle = status === 'approved' ? '병원 회원 승인이 완료되었습니다' : '병원 회원 서류 확인이 필요합니다';
+    const notificationBody = status === 'approved' ? '이제 로그인해 채용공고 등록과 병원 회원 기능을 이용할 수 있습니다.' : (note || '제출 서류를 다시 확인해주세요.');
+    const statements = [
+      env.DB.prepare("UPDATE hospital_verification_requests SET status=?, review_note=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'").bind(status, note, admin.email, id),
+      env.DB.prepare("UPDATE account_admin_profiles SET verification_status=?, admin_note=?, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(verificationStatus, note, admin.email, record.accountId),
+      env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, 'service', ?, ?, '/login')").bind(crypto.randomUUID(), record.accountId, notificationTitle, notificationBody)
+    ];
+    if (status === 'rejected') statements.push(env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(record.accountId));
+    await env.DB.batch(statements);
+    await writeAdminAudit(env, admin, 'hospital_verification_review', record.hospitalName || id, { id, status, note });
+    const emailTask = sendHospitalVerificationDecisionEmail(env, { email:record.email, status, note, origin:new URL(request.url).origin }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(emailTask); else await emailTask;
+    return json({ saved:true, id, status, verificationStatus });
   }
   if (request.method === 'GET') {
     const [accounts, consultations, cases, categories, contentCount, auditCount, paymentMetrics, settingsResult, featuresResult, categoryResult, contentResult, memberResult, paymentResult, transactionResult, refundResult, auditResult, consultationResult, caseResult, resumeResult, recoveryResult] = await Promise.all([
@@ -2374,6 +2518,10 @@ async function adminConsoleApi(request, env) {
       env.DB.prepare("SELECT r.id, r.title, r.profession, r.specialty, r.name, r.phone, r.email, r.desired_regions AS desiredRegions, r.completion, r.visibility, r.status, r.created_at AS createdAt, r.updated_at AS updatedAt, a.role accountRole FROM resumes r JOIN accounts a ON a.id=r.account_id ORDER BY r.updated_at DESC LIMIT 300").all().catch(() => ({ results: [] })),
       env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email_normalized AS email, status, created_at AS createdAt, updated_at AS updatedAt FROM account_recovery_requests ORDER BY created_at DESC LIMIT 300").all().catch(() => ({ results: [] }))
     ]);
+    const [verificationResult, verificationMetric] = await Promise.all([
+      env.DB.prepare("SELECT h.id, h.account_id AS accountId, h.hospital_name AS hospitalName, h.representative_name AS representativeName, h.business_number AS businessNumber, h.address, h.original_filename AS originalFilename, h.content_type AS contentType, h.file_size AS fileSize, h.file_sha256 AS fileSha256, h.status, h.review_note AS reviewNote, h.reviewed_by AS reviewedBy, h.submitted_at AS submittedAt, h.reviewed_at AS reviewedAt, c.email_normalized AS email, COALESCE(mp.phone,'') AS phone FROM hospital_verification_requests h JOIN auth_credentials c ON c.account_id=h.account_id LEFT JOIN member_profiles mp ON mp.account_id=h.account_id ORDER BY CASE h.status WHEN 'pending' THEN 0 ELSE 1 END, h.submitted_at DESC LIMIT 300").all(),
+      env.DB.prepare("SELECT SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending FROM hospital_verification_requests").first()
+    ]);
     const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
     const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
     return json({
@@ -2382,7 +2530,7 @@ async function adminConsoleApi(request, env) {
         accounts:Number(accounts?.total || 0), doctors:Number(accounts?.doctors || 0), hospitals:Number(accounts?.hospitals || 0),
         consultations:Number(consultations?.total || 0), activeCases:Number(cases?.active || 0), hiredCases:Number(cases?.hired || 0),
         categories:Number(categories?.total || 0), contents:Number(contentCount?.total || 0), auditLogs:Number(auditCount?.total || 0),
-        payments:Number(paymentMetrics?.total || 0), pendingPayments:Number(paymentMetrics?.pending || 0), paidRevenue:Number(paymentMetrics?.paid_revenue || 0), refundedPayments:Number(paymentMetrics?.refunded || 0)
+        payments:Number(paymentMetrics?.total || 0), pendingPayments:Number(paymentMetrics?.pending || 0), paidRevenue:Number(paymentMetrics?.paid_revenue || 0), refundedPayments:Number(paymentMetrics?.refunded || 0), pendingHospitalVerifications:Number(verificationMetric?.pending || 0)
       },
       settings, features,
       categories:(categoryResult.results || []).map(row => ({ ...row, enabled:Boolean(row.enabled) })),
@@ -2400,7 +2548,8 @@ async function adminConsoleApi(request, env) {
       }),
       cases:caseResult.results || [],
       resumes:resumeResult.results || [],
-      recoveryRequests:recoveryResult.results || []
+      recoveryRequests:recoveryResult.results || [],
+      hospitalVerifications:(verificationResult.results || []).map(row => ({ ...row, documentUrl:'/api/admin-hospital-verifications/' + encodeURIComponent(row.id) + '/document' }))
     });
   }
   if (request.method !== 'PATCH') return json({ error:'지원하지 않는 요청입니다.' }, 405);
@@ -2609,7 +2758,8 @@ async function responseFor(request, env, ctx) {
   if (pathname === '/api/consultations' || pathname.startsWith('/api/consultations/')) return consultationApi(request, env, pathname);
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
   if (pathname === '/api/talent-access-audit') return talentAccessAuditApi(request, env);
-  if (pathname === '/api/admin-console') return adminConsoleApi(request, env);
+  if (pathname === '/api/admin-console') return adminConsoleApi(request, env, ctx);
+  if (pathname.startsWith('/api/admin-hospital-verifications/') && pathname.endsWith('/document')) return hospitalVerificationDocumentApi(request, env, pathname);
   if (pathname === '/api/uploads' || pathname.startsWith('/api/uploads/')) return uploadApi(request, env, pathname);
   if (pathname === '/api/admin-backups') return adminBackupsApi(request, env);
   if (pathname === '/api/data-protection-health') return dataProtectionHealthApi(request, env);
