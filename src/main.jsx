@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BarChart3, BriefcaseBusiness, Building2,
+  Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
   Bell, CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Clock3,
   CreditCard, Crown, Eye, FileCheck2, FileText, Heart, HeartPulse, LockKeyhole, LogOut, Mail, MapPin, Menu, MessageCircle, Microscope, Phone, Pill,
   PencilLine, Plus, ScanLine, Search, ShieldCheck, Smile, Sparkles, Stethoscope, Target, Trash2, TrendingUp, TriangleAlert, Upload, UserRound,
@@ -1501,7 +1501,6 @@ function HomePage({ liveJobs = jobs }) {
         <p>초빙정보부터 비공개 이직상담, 전담 헤드헌팅까지. 병원과 의료진을 가장 잘 맞는 조건으로 잇습니다.</p>
         <div className="home-video-hero-actions">
           <Link className="button primary" to="/jobs">의사 초빙정보 보기 <ArrowRight /></Link>
-          <Link className="button glass" to="/headhunting?role=doctor">헤드헌터 상담</Link>
         </div>
       </div>
     </section>
@@ -1768,7 +1767,7 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
       eyebrow="DOCTOR RECRUITMENT"
       title={<><span className="jobs-hero-part">조건부터 비교하는</span>{' '}<span className="jobs-hero-part">의사 초빙정보</span></>}
       description={<><span className="jobs-description-part">봉직의·원장·검진·비임상 포지션을</span>{' '}<span className="jobs-description-part">진료과와 지역, 근무조건으로 찾고</span>{' '}<span className="jobs-description-part">비공개 조건은 의사 전담 헤드헌터에게 확인하세요.</span></>}
-    ><Link className="button outline" to="/headhunting">헤드헌팅 상담 <ArrowRight /></Link></PageHero>
+    />
     <nav className="job-hub-nav jobs-hub-nav" aria-label="채용정보 공고 등록"><div><strong className="job-hub-title">채용정보</strong>{authLoading ? <span className="job-hub-register auth-action-pending" aria-hidden="true" /> : <Link className="job-hub-register" to={canRegisterAds ? '/advertise' : '/signup/hospital?next=/advertise'}>공고 등록</Link>}</div></nav>
     <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={siteCategories.departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={siteCategories.regions} /></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
       <div className="doctor-condition-filter" role="group" aria-label="의사 초빙 상세조건">{doctorConditions.map((item) => <button key={item} type="button" className={condition === item ? 'active' : ''} aria-pressed={condition === item} onClick={() => setCondition(item)}>{item}</button>)}</div>
@@ -1778,11 +1777,9 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
         {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> PREMIUM DOCTOR RECRUITMENT</span><strong>먼저 확인할 추천 초빙정보</strong><small>메인 추천 공고와 핵심 조건을 한 화면에서 빠르게 비교하세요</small></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 추천 공고 등록' : '회원가입 후 등록'} <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div>{authLoading ? <span className="tier-apply-button basic auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button>}</div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
-        <div className="decision-nudge"><div><span><Crown /> HEADHUNTING</span><h3>{saved.length ? `찜한 ${saved.length}개 공고, 조건을 헤드헌터와 정리해보세요` : '원하는 조건을 헤드헌터에게 바로 상담하세요'}</h3><p>근무·보수·거리·진료 범위 등 중요하게 보는 조건을 전문 헤드헌터가 함께 맞춰드립니다.</p></div><Link className="button dark" to="/headhunting" onClick={() => trackConversion('jobs_headhunting_nudge', { savedCount: saved.length })}>헤드헌터에게 상담하기 <ArrowRight /></Link></div>
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
     <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} authLoading={authLoading} />
-    <ConversionBanner title="공개된 공고에 원하는 조건이 없나요?" description="등록되지 않은 비공개 포지션까지 함께 찾아드립니다." />
   </>;
 }
 
@@ -2084,31 +2081,7 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
             </p>
           </div>
         )}
-        <div className="decision-nudge report-nudge">
-          <div>
-            <span>
-              <BarChart3 /> HEADHUNTING
-            </span>
-            <h3>
-              {saved.length
-                ? `찜한 ${saved.length}명 의료인, 채용 조건을 헤드헌터와 맞춰보세요`
-                : "원하는 인재 조건을 헤드헌터에게 바로 의뢰하세요"}
-            </h3>
-            <p>
-              전문과목·경력·희망 지역·입사 시점 등 채용 조건을 전문 헤드헌터가
-              함께 정리하고 후보를 추천해드립니다.
-            </p>
-          </div>
-          <Link className="button dark" to="/headhunting">
-            헤드헌터에게 의뢰하기 <ArrowRight />
-          </Link>
-        </div>
       </section>
-      <ConversionBanner
-        title="찾는 인재가 따로 있으신가요?"
-        description="채용 조건을 남기면 공개되지 않은 인재풀까지 확인해드립니다."
-        hospital
-      />
       {selectedTalent && (
         <TalentDetailModal
           person={selectedTalent}
@@ -3466,8 +3439,8 @@ function AdvertisePage({ qa, auth }) {
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
   };
   return <>
-    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 기본 공고 또는 메인 추천 공고로 게시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a><Link className="button glass" to="/headhunting?role=hospital">헤드헌터 채용 상담</Link></PageHero>
-    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul>{authLoading ? <span className={`button ${item.featured ? 'primary' : 'outline'} full auth-action-pending price-action-pending`} aria-hidden="true" /> : <button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button>}</article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div><div className="headhunt-plan"><div><span><UsersRound /></span><div><small>SUCCESS-BASED RECRUITING</small><h3>공고만으로 어려운 채용은 전담 헤드헌팅</h3><p>필요한 진료과와 조건을 바탕으로 후보 발굴부터 협상까지 맡아드립니다.</p></div></div><Link className="button dark" to="/headhunting?role=hospital">별도 견적 상담</Link></div></section>
+    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 기본 공고 또는 메인 추천 공고로 게시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a></PageHero>
+    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul>{authLoading ? <span className={`button ${item.featured ? 'primary' : 'outline'} full auth-action-pending price-action-pending`} aria-hidden="true" /> : <button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button>}</article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시·성과 확인','공고 공개 후 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>광고 운영 안내</strong><br />공고 내용과 이미지 사용 권한에 대한 책임은 등록 병원에 있습니다. 의료법·채용 관련 법령이나 운영정책을 위반한 공고는 게시 후 숨김 또는 삭제될 수 있습니다.</p></div></section>
   </>;
 }
@@ -3503,7 +3476,6 @@ function AboutPage() {
     <section className="section story-layout"><div><span className="section-kicker">WHY MEDIHELPERS</span><h2>초빙공고 너머의<br />진짜 사정을 이해합니다</h2></div><div><p>의사의 이직은 생활과 가족, 진료 철학까지 함께 움직이는 결정입니다. 병원의 의사 채용 역시 단순히 빈자리를 채우는 일이 아니라 환자와 조직의 미래를 정하는 일입니다.</p><p>그래서 메디헬퍼스는 거대한 익명 게시판 대신, 의사 전담 헤드헌터가 양측의 이야기를 직접 듣고 필요한 정보만 안전하게 연결하는 방식을 선택했습니다.</p></div></section>
     <section className="section soft"><div className="value-grid"><div><span>01</span><ShieldCheck /><h3>신뢰를 먼저</h3><p>개인정보와 내부정보를 함부로 공개하지 않고 동의를 기준으로 움직입니다.</p></div><div><span>02</span><UserRoundSearch /><h3>사람이 직접</h3><p>자동 추천만으로 끝내지 않고 담당자가 조건과 맥락을 확인합니다.</p></div><div><span>03</span><Target /><h3>좋은 결과까지</h3><p>소개 건수보다 만족스러운 입사와 채용 완료를 목표로 합니다.</p></div></div></section>
     <section className="section contact-section"><div className="contact-card"><span className="section-kicker">CONTACT</span><h2>어떤 고민부터 이야기할까요?</h2><p>이직을 아직 결정하지 않았거나 의사 채용 조건이 정리되지 않았어도 괜찮습니다.</p><div><a href="tel:0513425463"><Phone /> <span><small>전화 상담</small><strong>051-342-5463</strong></span></a><a href="mailto:hr@medihelpers.co.kr"><Mail /> <span><small>이메일</small><strong>hr@medihelpers.co.kr</strong></span></a></div></div><div className="policy-card"><h3>개인정보와 서비스 운영 원칙</h3><ul><li>상담 정보는 요청한 상담과 매칭 목적으로만 사용합니다.</li><li>의사 프로필은 본인 동의 없이 병원에 공개하지 않습니다.</li><li>공고 내용과 이미지 권리에 대한 책임은 등록 병원에 있습니다.</li><li>광고비와 헤드헌팅 비용은 계약·결제 전에 명확히 안내합니다.</li></ul><p>정식 회원 기능과 결제 도입 전에 이용약관, 개인정보처리방침, 환불정책을 법률 검토 후 별도 게시합니다.</p></div></section>
-    <ConversionBanner />
   </>;
 }
 
@@ -3517,10 +3489,6 @@ function ResumeAccessGate({ signedIn = false }) {
 
 function ResumeRoute() {
   return <ResumePage />;
-}
-
-function ConversionBanner({ title = '좋은 연결을 찾고 계신가요?', description = '이직과 채용, 어느 쪽이든 전담 헤드헌터가 먼저 듣겠습니다.', hospital = false }) {
-  return <section className="conversion"><div><small>MEDIHELPERS CONCIERGE</small><h2>{title}</h2><p>{description}</p></div><div><a className="button light" href="tel:0513425463"><Phone size={17} /> 전화 상담</a><Link className="button glass" to={hospital ? '/headhunting?role=hospital' : '/headhunting'}>무료 상담 신청 <ArrowRight size={17} /></Link></div></section>;
 }
 
 // 전역 알림 표시. browserStorage의 notify()가 쏘는 커스텀 이벤트를 받아 화면 우하단에 띄운다.
