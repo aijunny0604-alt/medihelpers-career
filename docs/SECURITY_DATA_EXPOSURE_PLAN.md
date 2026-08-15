@@ -38,7 +38,7 @@
 |---|---|:--:|:--:|:--:|
 | 공개 요약 | hospital, title, dept, region, type, badge, deadline, summary(요약), benefits(대표) | ✅ | ✅ | ✅ |
 | 기본 조건 | pay(급여), workHours, daysOff | ❌ | ✅ | ✅ |
-| 상세 조건 | 보수구조·실근무표·진료강도·입사판단(`doctorDecisionGroups`) | ❌ | ❌ | ✅ |
+| 상세 조건 | 보수·계약, 근무 일정, 입사 조건(`doctorDecisionGroups`) | ❌ | ❌ | ✅ |
 | 병원 식별 | businessNumber, representative, fullAddress, doctorCount, equipment, beds | ❌ | 부분 | ✅ |
 
 > ※ 경계는 초안. BILLING/AUTH 원칙("의사 인증 시 핵심정보 무료")과 맞춰 확정 필요.

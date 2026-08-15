@@ -940,7 +940,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
       [job.representative, job.businessNumber].filter(Boolean).join(" · "),
     ],
     ["근무 의사 수", job.doctorCount],
-    ["수술 및 외래건수(일)", job.dailyVolume],
     ["개원연도", job.established],
     ["재직인원", job.staffCount],
     ["의료설비", job.equipment],
@@ -980,20 +979,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
             (job.summary?.includes("야간 진료 없이")
               ? "야간 진료 없음"
               : "횟수·수당 병원 확인 필요"),
-        ],
-      ],
-    },
-    {
-      title: "진료 강도",
-      icon: Stethoscope,
-      rows: [
-        ["주요 진료범위", job.focus],
-        ["일평균 환자·검사", job.dailyVolume || "병원 확인 필요"],
-        ["시술·검사 비중", job.equipment ? `${job.equipment} 활용` : "병원 확인 필요"],
-        [
-          "지원 인력",
-          [job.doctorCount, job.staffCount].filter(Boolean).join(" · ") ||
-            "간호·보조 인력 구성 확인 필요",
         ],
       ],
     },
@@ -1105,7 +1090,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               </span>
             </div>
             <p className="decision-sheet-intro">
-              공개 요약보다 구체적인 보수 구조, 실제 근무표, 진료 범위와 입사 조건을 한 화면에서 확인합니다.
+              공개 요약보다 구체적인 보수 구조, 근무 일정과 입사 조건을 한 화면에서 확인합니다.
             </p>
             <div className="decision-sheet-grid">
               {doctorDecisionGroups.map(({ title, icon: Icon, rows }) => (
@@ -1131,11 +1116,11 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                   </> : hospitalViewer ? <>
                     <small>DOCTOR MEMBERS ONLY</small>
                     <strong>상세조건은 의료인 회원만 볼 수 있습니다</strong>
-                    <p>현재 로그인한 병원회원 계정에서는 보수·근무표·진료조건을 열람하거나 지원할 수 없습니다.</p>
+                    <p>현재 로그인한 병원회원 계정에서는 보수·근무 일정·채용 조건을 열람하거나 지원할 수 없습니다.</p>
                   </> : <>
                     <small>MEMBERS ONLY</small>
                     <strong>로그인 후 상세조건 열람</strong>
-                    <p>보수·실제 근무표·진료 강도·입사 판단 정보가 의료인 회원에게 모두 공개됩니다.</p>
+                    <p>보수·근무 일정·입사 조건이 의료인 회원에게 공개됩니다.</p>
                     <Link className="button primary" to={`/signup/doctor?next=${encodeURIComponent(`/jobs/${job.id}`)}`}>로그인 · 회원가입 <ArrowRight /></Link>
                   </>}
                 </div>
