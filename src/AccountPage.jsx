@@ -313,7 +313,7 @@ function PrivacyCopy({ memberType }) {
     <dl>
       <div><dt>수집 목적</dt><dd>회원 식별과 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의 처리, 결제·계약 내역 관리</dd></div>
       <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 담당자 직책, 병원명, 대표자명, 사업자등록번호, 주소, 사업자등록증 제출 파일' : ', 의료 직군, 전문 분야, 활동 지역'}</dd></div>
-      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증 제출본과 인증 이력은 사기 방지·분쟁 대응을 위해 제출 또는 최종 처리 후 3년까지 접근을 제한해 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
+      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증 제출본과 인증 이력은 제출 또는 최종 처리 후 3년까지 접근을 제한해 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
       <div><dt>동의 거부</dt><dd>동의를 거부할 수 있으나 필수정보 수집에 동의하지 않으면 회원가입과 계정 기반 서비스를 이용할 수 없습니다.</dd></div>
       <div><dt>선택 정보</dt><dd>출생연도와 성별은 선택 항목이며 입력하지 않아도 가입할 수 있습니다. 광고성 정보 수신 동의도 가입 필수 동의와 분리해 별도로 받습니다.</dd></div>
     </dl>
@@ -536,7 +536,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
             {businessDocument && <button type="button" className="hospital-document-remove" aria-label="첨부 파일 삭제" onClick={() => setBusinessDocument(null)}><X /></button>}
           </div>
           {errors.businessDocument && <p className="signup-field-error" role="alert">{errors.businessDocument}</p>}
-          <p className="hospital-document-privacy"><ShieldCheck /> 제출본은 공개되지 않으며 관리자 인증 화면에서만 열람합니다. 인증 이력과 제출본은 사기 방지·분쟁 대응을 위해 최대 3년 보관 후 파기합니다.</p>
+          <p className="hospital-document-privacy"><ShieldCheck /> 제출본은 공개되지 않으며 관리자 인증 화면에서만 열람합니다.</p>
         </section>
       </> : <>
         <section className="signup-form-section individual-account-section">

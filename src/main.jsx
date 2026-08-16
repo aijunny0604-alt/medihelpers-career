@@ -385,7 +385,6 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
           <Link className="button primary" to={`/login?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인</Link>
           {hospitalNeed && <Link className="button outline" to={`/signup?next=${encodeURIComponent(getRoute())}`}><Building2 size={16} /> 회원가입</Link>}
         </div>
-        <span className="auth-gate-note"><ShieldCheck size={14} /> 경쟁 업체의 무단 열람을 막기 위해 회원 인증 후 공개합니다.</span>
       </div>
     </div>
   </div>;
@@ -3493,7 +3492,7 @@ function AdvertisePage({ qa, auth }) {
   return <>
     <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 메인 광고 또는 베이직 광고로 게시됩니다. 메인 광고는 채용정보 최상단 우선 노출 영역에, 베이직 광고는 전체 초빙공고 목록에 표시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a></PageHero>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul>{authLoading ? <span className={`button ${item.featured ? 'primary' : 'outline'} full auth-action-pending price-action-pending`} aria-hidden="true" /> : <button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button>}</article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div></section>
-    <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시','결제 완료 후 공고가 바로 공개됩니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>광고 운영 안내</strong><br />공고 내용과 이미지 사용 권한에 대한 책임은 등록 병원에 있습니다. 의료법·채용 관련 법령이나 운영정책을 위반한 공고는 게시 후 숨김 또는 삭제될 수 있습니다.</p></div></section>
+    <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시','결제 완료 후 공고가 바로 공개됩니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div></section>
   </>;
 }
 
