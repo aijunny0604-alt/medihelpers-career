@@ -1538,7 +1538,7 @@ function HomePage({ liveJobs = jobs }) {
         </div>
       </div>
     </section>
-    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">NEW DOCTOR POSITIONS</span><h2>새로 등록된 채용공고</h2><p>베이직 광고로 등록된 최신 공고입니다. 메인 광고는 채용정보 최상단에서 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 병원채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{latestStandardJobs.map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div><div className="home-job-feed-more"><Link className="button primary" to="/jobs">모든 채용공고 검색하기 <Search size={17} /></Link></div></section>
+    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">BASIC RECRUITMENT AD</span><h2>베이직 광고 초빙공고</h2><p>베이직 광고 상품으로 등록된 공고입니다. 메인 광고는 채용정보 최상단에서 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 병원채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{latestStandardJobs.map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div><div className="home-job-feed-more"><Link className="button primary" to="/jobs">모든 채용공고 검색하기 <Search size={17} /></Link></div></section>
   </>;
 }
 

@@ -23,7 +23,7 @@ test('premium cards use the expanded responsive grid rotation component', () => 
   assert.match(mainSource, /지금 주목할 메인 광고/);
   assert.match(mainSource, /getAdTierPresentation\(job\.adTier\)\?\.key === 'main'/);
   assert.match(mainSource, /getAdTierPresentation\(job\.adTier\)\?\.key !== 'main'/);
-  assert.match(mainSource, /새로 등록된 채용공고/);
+  assert.match(mainSource, /베이직 광고 초빙공고/);
   assert.match(mainSource, /function useServerSyncedSavedItems/);
   assert.match(mainSource, /loadSavedFromServer\(kind\)/);
   assert.doesNotMatch(mainSource, /AD · 병원 브랜드 광고/);
