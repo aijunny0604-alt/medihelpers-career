@@ -5867,3 +5867,6 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .job-location-canvas{display:none;width:100%;height:320px;border:1px solid #dbe5ef;border-radius:16px;overflow:hidden}
 .job-location-canvas.is-ready{display:block}
 @media(max-width:600px){.job-location-canvas{height:240px}}
+
+/* 병원이 작성한 상세 모집요강은 줄바꿈·목록을 입력 그대로 보여준다. */
+.job-summary-text{white-space:pre-line}

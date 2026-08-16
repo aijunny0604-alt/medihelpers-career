@@ -76,11 +76,11 @@ export default function JobLocationMap({ address, hospital, mapUrl }) {
 
   return (
     <div className="job-location-map">
+      {/* 상단 '근무지 위치' 블록과 중복되지 않게, 지도 위에는 주소만 간단히 표기한다. */}
       <div className="job-location-head">
         <MapPin size={16} />
-        <strong>근무지</strong>
         <span>{query}</span>
-        {mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer noopener">지도에서 보기</a>}
+        {mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer noopener">큰 지도로 보기</a>}
       </div>
       {/* 지도가 준비되기 전/실패 시에는 빈 회색칸이 남지 않도록 감춘다. */}
       <div ref={hostRef} className={`job-location-canvas ${ready ? 'is-ready' : ''}`} aria-label={`${hospital || ''} 위치 지도`} />

@@ -1166,7 +1166,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <h3>병원 정보</h3>
               </div>
             </div>
-            <p>{job.summary}</p>
+            <p className="job-summary-text">{job.summary}</p>
             <div className="institution-profile-layout">
               <div className="hospital-photo-gallery">
                 {hospitalPhotos.length > 0 ? (
@@ -1244,7 +1244,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <h3>포지션과 근무조건</h3>
               </div>
             </div>
-            <p>{job.summary}</p>
+            <p className="job-summary-text">{job.summary}</p>
             <div className="job-detail-copy">
               <div><h4>근무조건</h4><p>급여조건은 {job.pay}이며, 근무시간은 {job.workHours || job.schedule}입니다. {job.daysOff || "휴무일은 상담을 통해 조율합니다."}</p></div>
               <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 지원 후 병원 채용담당자와 직접 확인합니다.</p></div>
