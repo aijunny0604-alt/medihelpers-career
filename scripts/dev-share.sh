@@ -21,7 +21,18 @@ taskkill //F //IM cloudflared.exe >/dev/null 2>&1
 sleep 3
 
 echo "[2/4] Cloudflare 타깃 빌드"
-npm run build:cf >/dev/null 2>&1 || { echo "빌드 실패"; exit 1; }
+# 프로세스를 죽여도 dist-cf 폴더 핸들이 잠깐 남아 rmdir이 EBUSY로 죽는다.
+# 이름을 먼저 바꿔 두면(rename은 잠긴 폴더에도 통한다) 빌드가 새 폴더를 깨끗이 만든다.
+if [ -d dist-cf ]; then
+  mv dist-cf "dist-cf-stale-$$" 2>/dev/null && rm -rf "dist-cf-stale-$$" 2>/dev/null || true
+fi
+BUILD_LOG=$(npm run build:cf 2>&1) || { echo "빌드 실패"; echo "$BUILD_LOG" | tail -20; exit 1; }
+# "built in"만 보고 성공으로 넘기면 안 된다 — EBUSY는 그 뒤에 터진다.
+if echo "$BUILD_LOG" | grep -q "EBUSY"; then
+  echo "빌드 산출물이 잠겨서 갱신되지 않았습니다(EBUSY). 열려 있는 터미널·탐색기를 닫고 다시 실행하세요."
+  exit 1
+fi
+[ -d dist-cf/public ] || { echo "빌드 산출물이 없습니다"; exit 1; }
 
 echo "[3/4] 로컬 설정·스키마 준비"
 cd dist-cf

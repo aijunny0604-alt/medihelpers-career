@@ -35,6 +35,9 @@
 
 - 배포 전 `npm run build`(Sites) 또는 `npm run build:cf`(Cloudflare) 성공을 확인합니다.
 - ⚠️ **`build:cf`는 `EBUSY`로 조용히 실패할 수 있습니다.** `dist-cf`를 쓰는 프로세스(로컬 `wrangler dev`의 workerd, 그 안에서 띄운 `cloudflared`)가 폴더를 잠그면 빌드는 "built in"으로 성공처럼 보이지만 산출물이 갱신되지 않습니다. **"코드를 고쳤는데 화면이 그대로"의 실제 원인**입니다. 빌드 전 해당 프로세스를 종료하고, 산출물 타임스탬프가 갱신됐는지 확인하세요(`scripts/dev-share.sh`가 자동 처리).
+  - 프로세스를 모두 죽여도 폴더 핸들이 잠시 남아 `rmdir`이 계속 실패할 수 있습니다. **rename은 잠긴 폴더에도 통하므로** `mv dist-cf dist-cf-stale-$$ && rm -rf dist-cf-stale-$$`로 우회합니다(스크립트에 반영됨).
+  - 빌드 로그에 `built in`이 찍혀도 뒤에 `EBUSY`가 따라오면 실패입니다. 성공 판정은 `EBUSY` 부재 + `dist-cf/public` 존재로 확인하세요.
+  - `build:cf`는 `dist-cf/wrangler.toml`을 새로 생성하므로 로컬용 환경변수(`ACCOUNT_HASH_SECRET`·`SIGNUP_ENABLED`·`LEGAL_DOCUMENT_STATUS`)와 `database_id`가 매번 초기화됩니다. 재빌드 후에는 반드시 다시 채워야 로그인·가입이 동작합니다.
 - `npm test` 통과를 확인합니다(현재 157건).
 - 기존 `.openai/hosting.json`의 프로젝트 연결을 유지합니다.
 - D1 바인딩 `DB`는 재생성·재연결하지 않고 R2 바인딩 `BACKUPS`를 유지합니다. Sites의 병원 이미지 업로드는 이 저장소의 `hospitals/` 경로를 사용하며, Cloudflare는 전용 `UPLOADS` 바인딩을 우선 사용합니다.
