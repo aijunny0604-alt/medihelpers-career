@@ -211,7 +211,8 @@ function navigate(path, options = {}) {
       let tries = 0;
       const restore = () => {
         const reachable = document.documentElement.scrollHeight - window.innerHeight;
-        if (reachable >= top || tries > 30) {
+        // 목표까지 갈 수 있는 높이가 확보되면 복원한다. 그 전에 부르면 값이 잘린다.
+        if (reachable >= top || tries > 90) {
           jumpScrollTo(top);
           return;
         }
