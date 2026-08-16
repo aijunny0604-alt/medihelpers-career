@@ -2010,7 +2010,7 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
         <div className="talent-grid talent-portal-list">
           {visibleTalent.map((person) => (
             <article className="talent-card" key={person.code}>
-              <div className="talent-verified-head">{person.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
+              <div className="talent-verified-head"></div>
               <div className="talent-top">
                 <span className="avatar">
                   <UserRound />
@@ -2595,7 +2595,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 <div className="medical-staff-job-main">
                   {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
                       실명은 열람권을 서버가 검증하는 상세(TalentDetailModal)에서만 공개된다. */}
-                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small>{person.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
+                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small></div>
                   <h3>{person.dept || '전문 인력'} · {person.career || '경력 협의'}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
                 </div>

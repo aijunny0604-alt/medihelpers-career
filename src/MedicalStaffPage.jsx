@@ -132,7 +132,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa, auth }) {
       <button className="medical-staff-back" onClick={() => go('/headhunting')}><ArrowLeft /> 초빙 정보란</button>
       <section className="medical-staff-detail-hero">
         <div>
-          <div className="medical-staff-detail-tags"><span className="medical-staff-detail-role">{job.role}</span>{job.verifiedByHeadhunter && <span className="tag tag-verified"><ShieldCheck /> 헤드헌터 인증</span>}</div>
+          <div className="medical-staff-detail-tags"><span className="medical-staff-detail-role">{job.role}</span></div>
           <p>{job.hospital}</p>
           <h1>{job.title}</h1>
           <div className="medical-staff-detail-meta"><span><MapPin /> {job.region}</span><span><BriefcaseBusiness /> {job.type}</span><span><CalendarDays /> {job.deadline}</span></div>
