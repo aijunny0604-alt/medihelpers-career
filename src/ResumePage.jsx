@@ -7,6 +7,7 @@ import { appendStoredRecord } from './browserStorage.js';
 import { withBase } from './basePath.js';
 import { uploadResumePhoto, validateResumePhoto } from './resumePhotoUpload.js';
 import { dropImageFiles, pasteImageFiles } from './imageInput.js';
+import { invalidateSiteOperations } from './siteOperations.js';
 
 // 초간편 이력서 — 의료인 누구나(의사·간호·의료기사·약무·행정) 자유롭게 몇 줄로 작성.
 // 직군도 자유 텍스트, 면허번호·술기·근무형태 선택지 없이 본인이 원하는 만큼만 적는다.
@@ -172,6 +173,9 @@ export default function ResumePage() {
       return;
     }
     setSubmitting(false);
+    // 구직 공개(visibility=public)로 등록하면 인재 목록이 바뀐다.
+    // 캐시를 버려야 의료인 구인구직 페이지로 이동했을 때 방금 올린 글이 바로 보인다.
+    invalidateSiteOperations();
     setCompleted(true);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };

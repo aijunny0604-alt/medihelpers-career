@@ -22,7 +22,7 @@ import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
 import AdminConsolePage from './AdminConsolePage.jsx';
 import JobPostBoardPage from './JobPostBoardPage.jsx';
 import { PrivacyPolicyPage, RefundPolicyPage, TermsPage, WithdrawalPolicyPage } from './LegalPages.jsx';
-import { isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
+import { invalidateSiteOperations, isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment } from './inicisPay.js';
@@ -2994,6 +2994,8 @@ function Checkout({ plan }) {
       if (!approveResponse.ok || !approveResult.approved) {
         throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
       }
+      // 결제 완료 = 공고 즉시 공개. 목록 캐시를 버려야 /jobs 로 이동했을 때 새 공고가 바로 보인다.
+      invalidateSiteOperations();
       appendStoredRecord("medihelpers_ad_requests", {
         id: result.order?.orderNumber || `AD-${Date.now()}`,
         planId: plan.id,

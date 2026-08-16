@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { withBase } from './basePath.js';
 import ImageUpload from './ImageUpload.jsx';
-import { HEADHUNT_BOARD_CHANNEL, isHeadhuntBoardContent } from './siteOperations.js';
+import { HEADHUNT_BOARD_CHANNEL, invalidateSiteOperations, isHeadhuntBoardContent } from './siteOperations.js';
 
 // 아빠(헤드헌터·관리자) 전용 공고 게시판.
 // 관리자 콘솔의 복잡한 통합 관리 대신, "공고 올리기 + 내가 올린 공고 관리"만 담은 간편 전용 페이지.
@@ -120,6 +120,7 @@ export default function JobPostBoardPage() {
     };
     try {
       await callConsole(isUpdate ? 'content_update' : 'content_create', record);
+      invalidateSiteOperations();
       setMessage(publish ? '✅ 공고를 게시했습니다. 사이트에 바로 노출됩니다.' : '임시저장했습니다.');
       setEditing(null);
       await refresh();

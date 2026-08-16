@@ -8,13 +8,31 @@ export const defaultSiteOperations = {
 
 let cached = defaultSiteOperations;
 let pending;
+let fetchedAt = 0;
+// 공고를 등록·수정한 뒤 목록으로 이동해도 예전 캐시가 그대로 보이던 문제가 있었다.
+// (한 번 받아오면 다시 요청하지 않아, 브라우저를 새로고침해야만 새 공고가 보였다)
+// 짧은 TTL을 두고, 등록 성공 시에는 invalidateSiteOperations()로 즉시 캐시를 버린다.
+const OPERATIONS_TTL_MS = 15000;
 
-function loadOperations() {
-  if (!pending) pending = fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin' })
-    .then((response) => response.ok ? response.json() : Promise.reject(new Error('site operations unavailable')))
-    .then((value) => { cached = { ...defaultSiteOperations, ...value, settings:{ ...defaultSiteOperations.settings, ...(value.settings || {}) }, features:{ ...defaultSiteOperations.features, ...(value.features || {}) } }; return cached; })
-    .catch(() => cached);
+function loadOperations(force = false) {
+  const stale = force || !pending || (Date.now() - fetchedAt > OPERATIONS_TTL_MS);
+  if (stale) {
+    pending = fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin' })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('site operations unavailable')))
+      .then((value) => {
+        cached = { ...defaultSiteOperations, ...value, settings:{ ...defaultSiteOperations.settings, ...(value.settings || {}) }, features:{ ...defaultSiteOperations.features, ...(value.features || {}) } };
+        fetchedAt = Date.now();
+        return cached;
+      })
+      .catch(() => cached);
+  }
   return pending;
+}
+
+// 공고·이력서 등록처럼 공개 목록이 바뀌는 작업 직후 호출해 다음 조회가 서버를 다시 보게 한다.
+export function invalidateSiteOperations() {
+  pending = undefined;
+  fetchedAt = 0;
 }
 
 export function useSiteOperations() {
