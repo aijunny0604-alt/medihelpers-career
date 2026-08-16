@@ -19,7 +19,7 @@
 ## Current State
 
 - 2026-08-14 최신 공개본: OpenAI Sites v272 · 소스 커밋 `9a3a871`
-- ⚠️ **2026-08-16 기준 미배포 49커밋**(배포본 기준 커밋 `ac7863d` 이후). 결제 즉시 공고 공개, 병원 사업자등록증 인증, 광고 등급 구분, 관리자 콘솔 읽기 전용, 그리고 2026-08-16 등록 오류 수정 6건이 아직 공개본에 반영되지 않았습니다. 배포 전까지 공개본에서는 "등록해도 목록에 안 보임" 증상이 남아 있습니다.
+- ⚠️ **2026-08-16 기준 미배포 60커밋**(배포본 기준 커밋 `ac7863d` 이후). 결제 즉시 공고 공개, 병원 사업자등록증 인증, 광고 등급 구분, 관리자 콘솔 읽기 전용, 2026-08-16 등록 오류 수정 6건, 광고 용어 통일·근무지 지도·문구 정리가 아직 공개본에 반영되지 않았습니다. 배포 전까지 공개본에서는 "등록해도 목록에 안 보임" 증상이 남아 있습니다.
 - 배포 경로 메모: Sites 소스 저장소(`origin`, `git.chatgpt-team.site`)는 별도 자격증명이 필요합니다. 자격증명이 없으면 `git ls-remote`가 401로 실패하고, 비대화형 환경에서는 로그인 창에 응답할 수 없어 배포가 불가합니다. 이 경우 Codex 세션에서 배포하거나 `CLOUDFLARE_MIGRATION.md`의 이전을 진행합니다.
 - 공개 URL: https://medihelpers-career.junnyai.chatgpt.site
 
@@ -34,7 +34,8 @@
 ## Current Rules
 
 - 배포 전 `npm run build`(Sites) 또는 `npm run build:cf`(Cloudflare) 성공을 확인합니다.
-- `npm test` 통과를 확인합니다(현재 132건).
+- ⚠️ **`build:cf`는 `EBUSY`로 조용히 실패할 수 있습니다.** `dist-cf`를 쓰는 프로세스(로컬 `wrangler dev`의 workerd, 그 안에서 띄운 `cloudflared`)가 폴더를 잠그면 빌드는 "built in"으로 성공처럼 보이지만 산출물이 갱신되지 않습니다. **"코드를 고쳤는데 화면이 그대로"의 실제 원인**입니다. 빌드 전 해당 프로세스를 종료하고, 산출물 타임스탬프가 갱신됐는지 확인하세요(`scripts/dev-share.sh`가 자동 처리).
+- `npm test` 통과를 확인합니다(현재 157건).
 - 기존 `.openai/hosting.json`의 프로젝트 연결을 유지합니다.
 - D1 바인딩 `DB`는 재생성·재연결하지 않고 R2 바인딩 `BACKUPS`를 유지합니다. Sites의 병원 이미지 업로드는 이 저장소의 `hospitals/` 경로를 사용하며, Cloudflare는 전용 `UPLOADS` 바인딩을 우선 사용합니다.
 - 배포 후 `/api/data-protection-health`에서 `configured:true`와 최근 성공 시각을 확인합니다.
