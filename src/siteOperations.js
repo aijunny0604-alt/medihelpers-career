@@ -33,11 +33,28 @@ function loadOperations(force = false) {
 export function invalidateSiteOperations() {
   pending = undefined;
   fetchedAt = 0;
+  // 다음 화면이 곧바로 최신 목록을 쓰도록 미리 새로 받아둔다(등록 → 목록 이동 사이의 공백 제거).
+  try { loadOperations(true); } catch {}
 }
 
 export function useSiteOperations() {
   const [operations, setOperations] = useState(cached);
-  useEffect(() => { let active = true; loadOperations().then((value) => active && setOperations(value)); return () => { active = false; }; }, []);
+  useEffect(() => {
+    let active = true;
+    const sync = () => { loadOperations().then((value) => active && setOperations(value)); };
+    sync();
+    // SPA는 페이지를 오가도 이 훅이 다시 마운트되지 않는다(의존성이 비어 있어 1회만 실행).
+    // 그래서 공고를 등록하고 목록으로 이동해도 예전 캐시가 계속 보였다.
+    // 경로 변경·탭 복귀 시 다시 확인해서 TTL이 지났거나 무효화됐으면 서버를 새로 조회한다.
+    window.addEventListener('popstate', sync);
+    const onVisible = () => { if (document.visibilityState === 'visible') sync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      window.removeEventListener('popstate', sync);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
   return operations;
 }
 
