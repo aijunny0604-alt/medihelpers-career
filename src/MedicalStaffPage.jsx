@@ -48,7 +48,7 @@ export const sampleJobs = [
   { id:'ms-12', role:'간호조무사', title:'피부과 시술 보조 간호조무사', hospital:'해운대 더클린의원', region:'부산 해운대', type:'주 5일', career:'경력 1년↑', pay:'월 290만원~', deadline:'D-4', summary:'피부 시술 준비와 환자 안내를 꼼꼼하게 담당할 간호조무사를 채용합니다.', workHours:'주 5일 · 평일 10:00~19:00', daysOff:'일요일 휴무 · 주중 1일 휴무', responsibilities:['피부 시술 준비와 보조','환자 안내 및 사후관리 설명','시술실 소독과 물품 관리'], requirements:['간호조무사 자격 소지자','피부과 경력 1년 이상','고객 응대가 원활한 분'], benefits:['시술 인센티브','유니폼 지급','직원 시술 할인'] },
 ];
 
-const defaultBenefits = ['4대보험 및 퇴직금', '연차·경조휴가', '직원 교육 지원'];
+const defaultBenefits = ['4대보험', '연차·경조휴가', '직원 교육 지원'];
 
 function go(path) {
   window.history.pushState({}, '', withBase(path));

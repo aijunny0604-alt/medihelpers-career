@@ -980,7 +980,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
           job.benefits?.find((item) => item.includes("인센티브")) ||
             "적용 여부 병원 확인 필요",
         ],
-        ["퇴직금·계약기간", "별도 지급 및 계약기간 병원 확인 필요"],
       ],
     },
     {
