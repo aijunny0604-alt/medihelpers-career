@@ -58,6 +58,22 @@ if (inlineAssets) {
   await cp(sourceDir, `${outRoot}/public`, { recursive: true });
   await cp('drizzle', `${outRoot}/drizzle`, { recursive: true });
 }
+// OpenAI Sites 런타임이 요구하는 named export 묶음.
+// Cloudflare Workers는 default export 외의 named export도 핸들러로 해석하려 해서
+// `buildId` 같은 문자열 export가 있으면 부팅 자체가 실패한다("not of type 'function or ExportedHandler'").
+// 따라서 Sites 타깃일 때만 내보낸다.
+const sitesOnlyExports = target === 'cloudflare' ? '' : [
+  "export const buildId = 'medihelpers-static';",
+  'export const hasMiddleware = false;',
+  "export const pageRoutes = [{ pattern: '/', patternParts: [], isDynamic: false, params: [] }];",
+  "export const vinextConfig = { basePath: '', assetPrefix: '', trailingSlash: false, redirects: [], rewrites: { beforeFiles: [], afterFiles: [], fallback: [] }, headers: [], i18n: null, images: {} };",
+  'export function normalizeDataRequest(request) { return { request, normalizedPathname: new URL(request.url).pathname, isDataReq: false }; }',
+  "export function matchPageRoute(url) { const pathname = new URL(url, 'https://site.local').pathname; return !pathname.includes('.') ? { route: pageRoutes[0], params: {} } : null; }",
+  'export function matchApiRoute() { return null; }',
+  'export async function runMiddleware() { return { continue: true }; }',
+  "export async function handleApiRoute() { return new Response('Not Found', { status: 404 }); }",
+  "export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }",
+].join('\n');
 const server = `const html = ${JSON.stringify(html)};
 const css = ${JSON.stringify(css)};
 const js = ${JSON.stringify(js)};
@@ -2853,16 +2869,7 @@ export default {
     }
   }
 };
-export const buildId = 'medihelpers-static';
-export const hasMiddleware = false;
-export const pageRoutes = [{ pattern: '/', patternParts: [], isDynamic: false, params: [] }];
-export const vinextConfig = { basePath: '', assetPrefix: '', trailingSlash: false, redirects: [], rewrites: { beforeFiles: [], afterFiles: [], fallback: [] }, headers: [], i18n: null, images: {} };
-export function normalizeDataRequest(request) { return { request, normalizedPathname: new URL(request.url).pathname, isDataReq: false }; }
-export function matchPageRoute(url) { const pathname = new URL(url, 'https://site.local').pathname; return !pathname.includes('.') ? { route: pageRoutes[0], params: {} } : null; }
-export function matchApiRoute() { return null; }
-export async function runMiddleware() { return { continue: true }; }
-export async function handleApiRoute() { return new Response('Not Found', { status: 404 }); }
-export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }
+${sitesOnlyExports}
 ${inlineAssets ? '' : `
 // [Cloudflare Workers] 진입점은 위의 \`export default { fetch }\`를 그대로 사용한다.
 // env로 D1(DB)·시크릿·ASSETS 바인딩이 주입된다.`}
