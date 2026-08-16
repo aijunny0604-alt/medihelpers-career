@@ -142,16 +142,17 @@ export const talent = [
   { code: 'MH-P-3142', name: '양○○', identityConsent: false, staffType: 'medical', profession: '물리치료사', dept: '재활치료', career: '경력 8년', region: '경기·인천', preference: '재활병원 / 당직 없음', available: '협의', verified: true, licenseName: '물리치료사 면허', introduction: '재활병원에서 8년간 근무한 물리치료사입니다. 당직 없는 근무를 희망합니다.', skills: '도수치료, 운동치료, 신경계 재활, 통증 관리', careers: [{ institution: '○○재활병원', department: '물리치료실', position: '수석 물리치료사', start: '2017-02', current: true, duties: '도수·운동 치료 및 신규 교육' }] }
 ];
 
+// 메인 광고를 먼저 보여준다(추천 상품이 앞). 설명은 '어디에 노출되는지'만 남기고 군더더기 제거.
 export const adPlans = [
   {
-    id: 'basic', name: '베이직 광고', price: 59000, unit: '30일', label: '초기 파트너 가격',
-    description: '필요한 정보를 빠르게 알리고 지원과 상담을 받아보세요.',
-    features: ['채용정보 목록 30일 노출', '진료과·지역 검색 노출', '결제 완료 즉시 게시', '지원·상담 연결']
+    id: 'featured', name: '메인 광고', price: 149000, unit: '30일', label: '추천', featured: true,
+    description: '채용정보 최상단 우선 노출 영역에 게시됩니다.',
+    features: ['최상단 우선 노출 영역 게시', '병원 로고·배너 강조', '진료과·지역 검색 노출', '결제 즉시 게시']
   },
   {
-    id: 'featured', name: '메인 광고', price: 149000, unit: '30일', label: '더 많은 노출이 필요할 때', featured: true,
-    description: '베이직 광고에 메인 우선 노출과 브랜드 강조를 더합니다.',
-    features: ['베이직 광고의 모든 기능', '병원 브랜드 이미지 강조 노출', '메인 채용 우선 노출', '채용정보 목록 상단 강조', '주간 성과 요약', '1회 공고 수정 지원']
+    id: 'basic', name: '베이직 광고', price: 59000, unit: '30일',
+    description: '전체 초빙공고 목록에 게시됩니다.',
+    features: ['전체 초빙공고 목록 게시', '진료과·지역 검색 노출', '결제 즉시 게시']
   }
 ];
 

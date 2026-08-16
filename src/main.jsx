@@ -49,7 +49,8 @@ installAuthenticatedFetch();
 
 const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
-const recruitmentTypes = ['전체 초빙', '봉직의', '원장·센터장', '검진·판독', '비임상·기업'];
+const RECRUITMENT_TYPES = ['봉직의', '대진의', '당직의', '기타'];
+const recruitmentTypes = ['전체 초빙', ...RECRUITMENT_TYPES];
 const doctorConditions = ['전체 조건', '주 4일', '당직 협의', '숙소 지원', '검진 중심'];
 const TALENT_PAGE_SIZE = 12;
 function useSiteCategories() {
@@ -698,7 +699,7 @@ function JobCard({
   const adTierPresentation = getAdTierPresentation(job.adTier);
   // 관리자가 등록한 DB 공고(id가 admin- 접두)만 카드에서 직접 수정·삭제 가능.
   const adminManageable = Boolean(manageJob) && String(job.id).startsWith("admin-");
-  // 프리미엄 광고 카드는 등록 배너를 우선하고, 일반 공고는 병원 로고를 우선한다.
+  // 프리미엄 광고 카드는 등록 배너를 우선하고, 베이직 광고는 병원 로고를 우선한다.
   const brandSource = isAd
     ? job.cardBanner || job.banner || job.logo
     : job.logo || job.cardBanner || job.banner;
@@ -1538,7 +1539,7 @@ function HomePage({ liveJobs = jobs }) {
         </div>
       </div>
     </section>
-    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">NEW DOCTOR POSITIONS</span><h2>새로 등록된 채용공고</h2><p>최신 일반 공고만 간결하게 확인하고, 전체 목록에서는 더 자세히 검색·비교할 수 있습니다.</p></div><Link className="button outline" to="/jobs">전체 병원채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{latestStandardJobs.map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div><div className="home-job-feed-more"><Link className="button primary" to="/jobs">모든 채용공고 검색하기 <Search size={17} /></Link></div></section>
+    <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">NEW DOCTOR POSITIONS</span><h2>새로 등록된 채용공고</h2><p>베이직 광고로 등록된 최신 공고입니다. 메인 광고는 채용정보 최상단에서 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 병원채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{latestStandardJobs.map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div><div className="home-job-feed-more"><Link className="button primary" to="/jobs">모든 채용공고 검색하기 <Search size={17} /></Link></div></section>
   </>;
 }
 
@@ -1548,12 +1549,15 @@ const STANDARD_STEP = 12;
 const PREMIUM_ROTATION_MS = 7000;
 const PREMIUM_GRID_SLOTS = { mobile: 2, tablet: 4, desktop: 6 };
 
+// 초빙 유형은 업계 표준(메디게이트·블루닥)과 같은 4종으로 통일한다.
+// 공고에 recruitmentType이 지정돼 있으면 그대로 쓰고, 없으면 제목·업무에서 추정한다.
 function getRecruitmentType(job) {
-  const text = `${job.title} ${job.focus} ${job.facilityType}`;
-  if (/기업|제약|Medical|비임상/i.test(text)) return '비임상·기업';
-  if (/검진|판독|영상/.test(text)) return '검진·판독';
-  if (/원장|과장|센터장/.test(text)) return '원장·센터장';
-  return '봉직의';
+  if (RECRUITMENT_TYPES.includes(job.recruitmentType)) return job.recruitmentType;
+  const text = `${job.title} ${job.focus} ${job.facilityType} ${job.type || ''}`;
+  if (/대진/.test(text)) return '대진의';
+  if (/당직|야간 당직|온콜/.test(text)) return '당직의';
+  if (/봉직|전문의|원장|과장|센터장|진료의|판독/.test(text)) return '봉직의';
+  return '기타';
 }
 
 function matchesDoctorCondition(job, condition) {
@@ -3481,9 +3485,9 @@ function AdvertisePage({ qa, auth }) {
     navigate(canRegisterAds ? target : `/signup/hospital?next=${encodeURIComponent(target)}`);
   };
   return <>
-    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 베이직 광고 또는 메인 광고로 게시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a></PageHero>
+    <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 메인 광고 또는 베이직 광고로 게시됩니다. 메인 광고는 채용정보 최상단 우선 노출 영역에, 베이직 광고는 전체 초빙공고 목록에 표시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a></PageHero>
     <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul>{authLoading ? <span className={`button ${item.featured ? 'primary' : 'outline'} full auth-action-pending price-action-pending`} aria-hidden="true" /> : <button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '회원가입 후 신청'}</button>}</article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div></section>
-    <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시·성과 확인','공고 공개 후 상담·지원 반응을 확인합니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>광고 운영 안내</strong><br />공고 내용과 이미지 사용 권한에 대한 책임은 등록 병원에 있습니다. 의료법·채용 관련 법령이나 운영정책을 위반한 공고는 게시 후 숨김 또는 삭제될 수 있습니다.</p></div></section>
+    <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시','결제 완료 후 공고가 바로 공개됩니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div><div className="legal-note"><ShieldCheck /><p><strong>광고 운영 안내</strong><br />공고 내용과 이미지 사용 권한에 대한 책임은 등록 병원에 있습니다. 의료법·채용 관련 법령이나 운영정책을 위반한 공고는 게시 후 숨김 또는 삭제될 수 있습니다.</p></div></section>
   </>;
 }
 

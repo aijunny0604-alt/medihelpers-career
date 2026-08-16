@@ -43,9 +43,12 @@ test('AD_TIER_ORDER exposes the simplified two-level catalog', () => {
 });
 
 test('the public ad catalog has only basic and main featured plans', () => {
-  assert.deepEqual(adPlans.map((plan) => plan.id), ['basic', 'featured']);
-  assert.deepEqual(adPlans.map((plan) => plan.name), ['베이직 광고', '메인 광고']);
+  // 추천 상품(메인 광고)을 먼저 보여준다.
+  assert.deepEqual(adPlans.map((plan) => plan.id), ['featured', 'basic']);
+  assert.deepEqual(adPlans.map((plan) => plan.name), ['메인 광고', '베이직 광고']);
   assert.doesNotMatch(JSON.stringify(adPlans), /집중 채용|전담 컨설턴트|인재풀/);
+  // 지키기 어려운 성과·리포트 약속 문구는 상품 설명에 넣지 않는다.
+  assert.doesNotMatch(JSON.stringify(adPlans), /성과|리포트|반응 확인/);
 });
 
 test('balancedOrder returns the exact same multiset (no loss, no duplication)', () => {
