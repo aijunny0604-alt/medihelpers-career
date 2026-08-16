@@ -1886,6 +1886,18 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
       syncSavedToServer(code, 'talent');
       return next;
     });
+  // 상세는 모달이 아니라 페이지다. 선택되면 목록 대신 상세만 그린다.
+  if (selectedTalent) {
+    return (
+      <section className="section talent-detail-view">
+        <TalentDetailModal
+          person={selectedTalent}
+          canViewIdentity={canViewIdentity}
+          onClose={() => setSelectedTalent(null)}
+        />
+      </section>
+    );
+  }
   return (
     <>
       {!embedded && (
@@ -2093,13 +2105,6 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
           </div>
         )}
       </section>
-      {selectedTalent && (
-        <TalentDetailModal
-          person={selectedTalent}
-          canViewIdentity={canViewIdentity}
-          onClose={() => setSelectedTalent(null)}
-        />
-      )}
     </>
   );
 }
@@ -2174,12 +2179,14 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
   const d = unlock.detail || (unlock.unlocked ? demoDetail : null) || {};
   const ownerAccess = unlock.accessReason === 'owner' || Boolean(person.ownerView);
   return (
-    <Modal
-      wide
-      variant="talent-detail-modal"
-      label={`${talentDisplayName(person, canViewIdentity)} 의사 프로필`}
-      onClose={onClose}
-    >
+    <div className="talent-detail-shell">
+      <button type="button" className="talent-detail-back" onClick={onClose}>
+        <ArrowLeft /> 구직 인재 목록으로
+      </button>
+      <article
+        className="talent-detail-page"
+        aria-label={`${talentDisplayName(person, canViewIdentity)} 의사 프로필`}
+      >
       <div className="talent-detail-hero">
         <span className="talent-detail-avatar"><UserRound /></span>
         <div>
@@ -2283,7 +2290,8 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           )}
         </div>
       </div>
-    </Modal>
+      </article>
+    </div>
   );
 }
 
@@ -2547,6 +2555,15 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const doctorCount = all.filter((p) => (p.staffType || 'doctor') === 'doctor').length;
   const medicalCount = all.filter((p) => p.staffType === 'medical').length;
 
+  // 상세는 모달이 아니라 별도 페이지다. 선택되면 목록 대신 상세만 그린다.
+  if (selected) {
+    return (
+      <section className="section talent-detail-view">
+        <TalentDetailModal person={selected} canViewIdentity={canViewIdentity} onClose={closeTalent} />
+      </section>
+    );
+  }
+
   return (
     <section className="section headhunt-board-section jobseeker-board-section">
       <div className="section-head centered">
@@ -2621,7 +2638,6 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
         )}
       </div>
 
-      {selected && <TalentDetailModal person={selected} canViewIdentity={canViewIdentity} onClose={closeTalent} />}
     </section>
   );
 }
