@@ -5882,7 +5882,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 인재 상세: 화면 크기에 따라 자연스럽게 줄어들도록. 큰 모니터에서는 과하게 퍼지지 않게,
    노트북(1280 전후)에서는 화면을 꽉 채우지 않게 여백을 남긴다. */
 /* 좁은 모니터에서는 좌우 숨통을 확보한다(카드가 화면에 딱 붙지 않게). */
-@media(max-width:1400px){ .talent-detail-shell{max-width:calc(100vw - 200px)} }
+@media(max-width:1360px){ .talent-detail-shell{max-width:calc(100vw - 280px)} }
 @media(max-width:1200px){ .talent-detail-shell{max-width:calc(100vw - 120px)} }
 @media(max-width:900px){ .talent-detail-shell{max-width:calc(100vw - 48px)} }
 @media(max-width:560px){ .talent-detail-shell{max-width:calc(100vw - 28px)} .talent-detail-page{border-radius:14px} }
