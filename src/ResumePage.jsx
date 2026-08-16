@@ -24,6 +24,8 @@ export default function ResumePage() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingResume, setLoadingResume] = useState(!createNew);
   const [submitError, setSubmitError] = useState('');
+  // 401/403(로그인 만료·권한)일 때만 로그인 버튼을 함께 띄운다.
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [savedResumeId, setSavedResumeId] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
@@ -135,7 +137,7 @@ export default function ResumePage() {
     // 예전에는 서버가 401·403·413을 돌려줘도 catch에서 조용히 삼키고 무조건 완료 화면을 띄웠다.
     // 의사 입장에서는 이력서가 등록된 줄 알지만 실제로는 저장되지 않아 제안을 못 받는다.
     setSubmitting(true);
-    setSubmitError('');
+    setSubmitError(''); setNeedsLogin(false);
     try {
       const photoUrl = photoFile ? await uploadResumePhoto(photoFile) : form.photoUrl;
       const response = await fetch(withBase('/api/resumes'), {
@@ -161,8 +163,18 @@ export default function ResumePage() {
         // 서버가 이유를 알려주면 그대로 보여준다(로그인 필요·회원유형·용량 초과 등).
         let message = '';
         try { message = (await response.json())?.error || ''; } catch {}
-        setSubmitError(message || '이력서를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        // 401/403은 로그인 만료·권한 문제다. 폼을 다 채운 뒤에야 조용히 실패하면
+        // "등록이 안 된다"로만 보이므로, 이유와 함께 로그인 화면으로 갈 수 있게 안내한다.
+        if (response.status === 401 || response.status === 403) {
+          setSubmitError(message || '로그인이 필요합니다. 의료인 회원으로 로그인한 뒤 다시 등록해 주세요.');
+          setNeedsLogin(true);
+        } else {
+          setSubmitError(message || '이력서를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        }
         setSubmitting(false);
+        window.requestAnimationFrame(() => {
+          document.querySelector('.form-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
         return;
       }
       const result = await response.json().catch(() => ({}));
@@ -234,7 +246,10 @@ export default function ResumePage() {
           <label className="resume-consent"><input type="checkbox" checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>이력서 등록과 채용 매칭을 위한 개인정보 수집·이용에 동의합니다.</span></label>
         </div>}
         <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
-        {submitError && <p className="form-error" role="alert">{submitError}</p>}
+        {submitError && <p className="form-error" role="alert">
+          {submitError}
+          {needsLogin && <> <a className="button primary" href={withBase(`/login?next=${encodeURIComponent('/resume')}`)} style={{ marginLeft: 8 }}>로그인하러 가기</a></>}
+        </p>}
       </section>
       <aside className="resume-preview"><small>LIVE PREVIEW</small><div className={`resume-preview-avatar ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="프로필 사진" /> : <UserRound />}</div><h3>{form.title || '이력서 제목을 입력해주세요'}</h3><span className="resume-preview-role">{form.profession || '직군 미입력'}{form.specialty ? ` · ${form.specialty}` : ''}</span><dl><div><dt>희망 지역</dt><dd>{form.desiredRegions || form.region || '미입력'}</dd></div><div><dt>희망 보수</dt><dd>{form.salary || '협의'}</dd></div></dl><div className="resume-preview-privacy"><LockKeyhole /><span><strong>연락처 {form.contactVisibility === 'ticket' ? '조건부 공개' : '비공개'}</strong><small>{form.contactVisibility === 'ticket' ? '열람권을 구매한 병원에만 공개됩니다.' : '열람권을 구매해도 공개되지 않습니다.'}</small></span></div></aside>
     </form>
