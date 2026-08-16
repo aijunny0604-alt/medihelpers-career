@@ -2517,10 +2517,17 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   // 열람권 결제 완료 후 /medical-staff?open=코드 로 진입하면 그 인재 상세를 바로 연다(목록으로 안 돌아가게).
   const openCode = useMemo(() => new URLSearchParams(route.split('?')[1] || '').get('open') || '', [route]);
   useEffect(() => {
-    if (!openCode) return;
-    const found = all.find((p) => (p.detailId || p.code) === openCode || p.code === openCode);
-    if (found) setSelected(found);
+    const found = openCode ? all.find((p) => (p.detailId || p.code) === openCode || p.code === openCode) : null;
+    // URL이 상세의 단일 출처다. ?open= 이 있으면 열고, 없으면(뒤로가기 등) 닫는다.
+    setSelected(found || null);
   }, [openCode, all]);
+  // 상세를 URL(?open=코드)로 연다. 모달만 띄우면 주소 공유·뒤로가기·새로고침이 모두 안 됐다.
+  const openTalent = (person) => {
+    const code = person.detailId || person.code || '';
+    if (!code) { setSelected(person); return; }
+    navigate(`/medical-staff?open=${encodeURIComponent(code)}`);
+  };
+  const closeTalent = () => navigate('/medical-staff');
   // 진료과·지역 옵션은 실제 데이터에서 동적으로 뽑는다.
   const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.dept).filter(Boolean)))], [all]);
   const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.region).filter(Boolean)))], [all]);
@@ -2587,8 +2594,8 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 role="button"
                 tabIndex={0}
                 aria-label={`${person.dept || '구직 인재'} 상세 보기`}
-                onClick={() => setSelected(person)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(person); } }}
+                onClick={() => openTalent(person)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTalent(person); } }}
               >
                 <span className={`medical-staff-role jobseeker-role ${kind === '의료인' ? 'medical' : 'doctor'}`}>{kind}</span>
                 <div className="medical-staff-job-main">
@@ -2615,7 +2622,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
         )}
       </div>
 
-      {selected && <TalentDetailModal person={selected} canViewIdentity={canViewIdentity} onClose={() => setSelected(null)} />}
+      {selected && <TalentDetailModal person={selected} canViewIdentity={canViewIdentity} onClose={closeTalent} />}
     </section>
   );
 }
