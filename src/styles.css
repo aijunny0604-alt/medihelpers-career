@@ -570,8 +570,8 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
   padding-bottom: 13px;
   border-bottom: 1px solid #e1e8f1;
 }
-.standard-heading strong { color: #223754; font-size: 18px; }
-.standard-heading span { color: #8793a4; font-size: 12px; font-weight: 650; }
+.standard-heading strong { color: #132b4d; font-size: 25px; }
+.standard-heading span { color: #687990; font-size: 13px; font-weight: 400; }
 
 /* 진료과 빠른 필터 스트립 (균형 노출) */
 .specialty-strip {
