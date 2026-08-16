@@ -5901,3 +5901,6 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .result-row,
 .headhunt-board .hb-cards > *,
 .admin-data-toolbar{ border-radius:16px; }
+/* 남은 편차 정리: 결과 박스 18→16px, 진료과 칩도 조건 칩과 같은 pill로 */
+.jobs-page .result-row{ border-radius:16px }
+.specialty-chip{ border-radius:999px }
