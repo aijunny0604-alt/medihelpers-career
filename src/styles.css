@@ -5857,3 +5857,13 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .owned-ad-edit-footer>div{display:flex;align-items:center;gap:11px}.owned-ad-edit-footer>div:first-child>svg{width:25px;color:#0c9d82}.owned-ad-edit-footer span{display:flex;flex-direction:column}.owned-ad-edit-footer strong{color:#183353;font-size:12px}.owned-ad-edit-footer small{margin-top:3px;color:#78889c;font-size:10px}.owned-ad-edit-footer .button{min-height:43px}
 @media(max-width:920px){.owned-ad-image-grid{grid-template-columns:1fr}.owned-ad-edit-page{max-width:none}}
 @media(max-width:720px){.owned-ad-edit-heading{flex-direction:column}.owned-ad-edit-heading h2{font-size:27px}.owned-ad-edit-heading>.button{width:100%}.owned-ad-form-grid{grid-template-columns:1fr}.owned-ad-form-grid label.wide{grid-column:auto}.owned-ad-edit-form .member-panel{padding:19px 16px}.owned-ad-image-field{grid-template-columns:1fr}.owned-ad-image-preview{width:100%;max-width:310px;aspect-ratio:3/1}.owned-ad-edit-footer{position:static;align-items:stretch;flex-direction:column}.owned-ad-edit-footer>div:last-child{display:grid;grid-template-columns:1fr 1fr}.owned-ad-edit-footer .button{width:100%}.owned-ad-saved{grid-template-columns:36px minmax(0,1fr)}.owned-ad-saved>a{grid-column:2}}
+
+/* 공고 상세 근무지 지도(카카오맵). 앱키가 없으면 캔버스가 비어 있으므로 숨긴다. */
+.job-location-map{grid-column:1/-1;margin-top:14px}
+.job-location-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:13px;color:#4a5a70}
+.job-location-head strong{color:#16263c}
+.job-location-head span{color:#5f6d81}
+.job-location-head a{margin-left:auto;color:#1263e8;font-weight:800}
+.job-location-canvas{display:none;width:100%;height:320px;border:1px solid #dbe5ef;border-radius:16px;overflow:hidden}
+.job-location-canvas.is-ready{display:block}
+@media(max-width:600px){.job-location-canvas{height:240px}}

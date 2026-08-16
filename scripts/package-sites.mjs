@@ -2433,7 +2433,11 @@ async function publicSiteOperationsApi(request, env) {
       const detail = parseJsonObject(r.detailJson) || {};
       const career = detail.experienceYears ? String(detail.experienceYears) : (detail.career || '');
       // 직군으로 의사/의료인 구분: 의사는 인재정보(/talent), 의료인은 의료인 채용 페이지에 노출.
-      const isDoctor = /의사|전문의|의사직/.test(String(r.profession || ''));
+      // '의사 / 간호·의료인' 탭 분류. 직군은 이력서에서 목록으로 고르므로 정확히 매칭한다.
+      // (간호조무사·치과위생사처럼 '사'로 끝나지만 의사가 아닌 직군을 의사로 넣지 않도록 주의)
+      const professionText = String(r.profession || '').trim();
+      const isDoctor = ['의사', '치과의사', '한의사'].includes(professionText)
+        || /(?:^|[^가-힣])(전문의|봉직의|원장)/.test(professionText);
       contents.push({
         id: 'resume-' + r.id, contentType: 'talent_profile', title: '', subtitle: '', visibility: 'public', updatedAt: r.updatedAt,
         payload: {
@@ -2823,14 +2827,14 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
     'content-security-policy': [
       "default-src 'self'",
       // 이니시스 결제창 + 다음(카카오) 우편번호 검색 스크립트를 허용한다.
-      "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com https://t1.daumcdn.net https://ssl.daumcdn.net",
+      "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com https://t1.daumcdn.net https://ssl.daumcdn.net https://dapi.kakao.com",
       // 구글 폰트(Manrope·Noto Sans KR)를 허용해야 한다. 빼면 CSP가 스타일시트를 막아
       // 사이트 전체가 대체 글꼴로 렌더된다(배포본에서 실제로 발생했던 회귀).
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
-      "connect-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      "connect-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com https://dapi.kakao.com https://*.daumcdn.net https://*.kakao.com",
       // 카카오 우편번호 스크립트의 현재 운영 iframe은 postcode.map.kakao.com을 사용한다.
       // 이전 daum.net 주소도 호환성을 위해 유지한다.
       "frame-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com https://postcode.map.kakao.com https://postcode.map.daum.net",

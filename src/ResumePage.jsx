@@ -10,7 +10,11 @@ import { dropImageFiles, pasteImageFiles } from './imageInput.js';
 import { invalidateSiteOperations } from './siteOperations.js';
 
 // 초간편 이력서 — 의료인 누구나(의사·간호·의료기사·약무·행정) 자유롭게 몇 줄로 작성.
-// 직군도 자유 텍스트, 면허번호·술기·근무형태 선택지 없이 본인이 원하는 만큼만 적는다.
+// 면허번호·술기·근무형태 선택지 없이 본인이 원하는 만큼만 적는다.
+
+// 의료 직군은 회원가입과 같은 목록을 쓴다(표기 통일 → 게시판 의사/의료인 분류·검색 정확도).
+// 목록에 없으면 '기타 (직접 입력)'으로 자유 입력한다.
+const PROFESSION_OPTIONS = ['의사', '치과의사', '한의사', '간호사', '간호조무사', '방사선사', '임상병리사', '물리치료사', '작업치료사', '치과위생사', '약사', '응급구조사', '병원 행정·원무'];
 const steps = [
   { id: 'basic', label: '기본정보', icon: UserRound },
   { id: 'intro', label: '경력·소개', icon: FileText },
@@ -222,7 +226,20 @@ export default function ResumePage() {
           </div>
           <div className="resume-form-grid">
             <label className="wide"><span>이력서 제목 *</span><input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="예: 병동 간호사 · 부산경남 이직 희망" /></label>
-            <label><span>의료 직군 *</span><input required value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 간호사, 의사, 방사선사, 약사, 원무" /></label>
+            {/* 직군은 목록에서 고른다. 자유 입력이면 표기가 제각각이라(의사/전문의/의사직…)
+                구직 게시판의 '의사 / 간호·의료인' 분류와 검색 필터가 어긋난다.
+                목록에 없는 직군은 '기타'를 고르고 직접 입력한다. */}
+            <label><span>의료 직군 *</span>
+              <select required value={PROFESSION_OPTIONS.includes(form.profession) ? form.profession : (form.profession ? '기타' : '')}
+                onChange={(e) => update('profession', e.target.value === '기타' ? '' : e.target.value)}>
+                <option value="">직군을 선택해주세요</option>
+                {PROFESSION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                <option value="기타">기타 (직접 입력)</option>
+              </select>
+            </label>
+            {!PROFESSION_OPTIONS.includes(form.profession) && (
+              <label><span>직군 직접 입력 *</span><input required value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 응급구조사, 영양사" /></label>
+            )}
             <label><span>전문분야·주요 업무</span><input value={form.specialty} onChange={(e) => update('specialty', e.target.value)} placeholder="예: 병동 간호, 소화기내과, MRI" /></label>
             <label><span>이름 *</span><input required value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="홍길동" /></label>
             <label><span>휴대폰 *</span><input required type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="010-0000-0000" /></label>

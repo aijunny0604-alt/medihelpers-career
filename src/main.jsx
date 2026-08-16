@@ -23,6 +23,7 @@ import AdminConsolePage from './AdminConsolePage.jsx';
 import JobPostBoardPage from './JobPostBoardPage.jsx';
 import { PrivacyPolicyPage, RefundPolicyPage, TermsPage, WithdrawalPolicyPage } from './LegalPages.jsx';
 import { invalidateSiteOperations, isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
+import JobLocationMap from './JobLocationMap.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment } from './inicisPay.js';
@@ -1226,6 +1227,12 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
             >
               지도에서 보기 <ArrowRight />
             </a>
+            {/* 주소가 있으면 카카오맵을 바로 띄운다(앱키 없으면 위 링크만 남고 조용히 생략). */}
+            <JobLocationMap
+              address={job.fullAddress || job.location}
+              hospital={job.hospital}
+              mapUrl={mapUrl}
+            />
           </section>
           <section>
             <div className="detail-section-title compact">
@@ -1776,9 +1783,9 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> MAIN RECRUITMENT AD</span><strong>메인 광고</strong><small>메인 광고는 이 우선 노출 영역에, 베이직 광고는 아래 전체 채용정보 목록에 표시됩니다.</small><div className="ad-tier-guide" aria-label="채용 광고 등급 안내"><span><AdTierBadge tier="featured" /> 메인 영역 우선 노출</span><span><AdTierBadge tier="basic" /> 전체 목록 기본 노출</span></div></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 광고 등록' : '회원가입 후 등록'} <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> MAIN RECRUITMENT AD</span><strong>적극 초빙 중인 병·의원</strong><small>메인 광고를 신청한 병원입니다. 채용을 서두르는 곳이라 연락이 빠릅니다.</small><div className="ad-tier-guide" aria-label="채용 광고 등급 안내"><span><AdTierBadge tier="featured" /> 메인 영역 우선 노출</span><span><AdTierBadge tier="basic" /> 전체 목록 기본 노출</span></div></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 광고 등록' : '회원가입 후 등록'} <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
-        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ACTIVE DOCTOR POSITIONS</small><strong>진행 중 의사 초빙공고</strong><span>진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}</span></div>{authLoading ? <span className="tier-apply-button basic auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button>}</div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
+        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>ALL DOCTOR POSITIONS</small><strong>전체 초빙공고</strong><span>베이직 광고 포함 · 진료과·지역 균형순 · {visibleStandard.length}/{orderedStandard.length}건</span></div>{authLoading ? <span className="tier-apply-button basic auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '회원가입 후 등록'} <ArrowRight /></button>}</div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
     <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} authLoading={authLoading} />
@@ -3311,13 +3318,14 @@ function Checkout({ plan }) {
               </div>
               <label className="wide-field">
                 <span>
-                  추가 안내 <i>선택</i>
+                  상세 모집요강 <i>선택</i>
                 </span>
                 <textarea
                   name="introduction"
-                  rows="4"
-                  placeholder="당직, 휴무, 인센티브 등 꼭 알릴 내용만 자유롭게 적어주세요."
+                  rows="14"
+                  placeholder={"병원 소개, 모집 배경, 진료 환경, 복리후생, 접수 방법 등 자유롭게 길게 작성하실 수 있습니다.\n\n예)\n[모집 부문]\n- 영상의학과 판독 전문의 1명\n\n[근무 조건]\n- 주 5일 08:30~17:30 (협의 가능)\n- 당직 없음 / 연차·학회 참석 지원\n\n[복리후생]\n- 학술연구비 지원, 가족 진료비 감면, 장기근속자 포상\n\n[접수 방법]\n- 이메일 접수 후 개별 연락"}
                 />
+                <small className="field-hint">줄바꿈과 목록이 공고 상세에 그대로 표시됩니다. 아래에서 홍보 이미지도 함께 올릴 수 있습니다.</small>
               </label>
               </section>
               <section className="ad-form-section ad-form-final">
