@@ -12,9 +12,12 @@ cd "$(dirname "$0")/.."
 
 PORT="${PORT:-8790}"
 
-echo "[1/4] 이전 서버 정리"
+echo "[1/4] 이전 서버·터널 정리"
+# cloudflared를 dist-cf 안에서 실행하면 그 폴더를 잠가서 다음 빌드가 EBUSY로 실패한다.
+# (증상: 코드를 고쳐도 화면이 그대로 = 산출물이 갱신되지 않음) 반드시 함께 종료한다.
 powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter 'Name=\"node.exe\"' | Where-Object { \$_.CommandLine -like '*wrangler*' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }" >/dev/null 2>&1
 taskkill //F //IM workerd.exe >/dev/null 2>&1
+taskkill //F //IM cloudflared.exe >/dev/null 2>&1
 sleep 3
 
 echo "[2/4] Cloudflare 타깃 빌드"
