@@ -180,15 +180,54 @@ function useScrollMotion(route) {
   }, [route]);
 }
 
-function navigate(path) {
+// html{scroll-behavior:smooth}가 걸려 있으면 scrollTo({behavior:'auto'})를 줘도
+// 부드럽게 움직이고, 그 애니메이션 도중 화면이 바뀌면서 중간값에 멈추거나 0으로 잘린다.
+// 위치를 옮기는 순간만 CSS를 끄고 즉시 이동시킨다.
+function jumpScrollTo(top) {
+  const root = document.documentElement;
+  const previous = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';
+  window.scrollTo({ top, behavior: 'auto' });
+  root.style.scrollBehavior = previous;
+}
+
+// 구직 인재 목록의 스크롤 위치. 상세는 목록을 대체해 렌더하므로 목록 컴포넌트가
+// 언마운트된다 — useRef에 담으면 복귀 시점에 0으로 초기화되어 복원이 깨진다.
+let talentBoardScrollTop = 0;
+
+function navigate(path, options = {}) {
   const reducedMotion = motionIsReduced();
   const commitNavigation = () => {
     if (getRoute() !== path) window.history.pushState({}, '', withBase(path));
     window.dispatchEvent(new PopStateEvent('popstate'));
     const navigation = new CustomEvent('medihelpers:navigate', { cancelable: true });
     window.dispatchEvent(navigation);
+    if (navigation.defaultPrevented) return;
+    // 목록 복귀처럼 보던 위치로 돌아가야 하는 이동은 예외.
+    // 목록이 다시 그려지기 전에는 문서가 짧아 scrollTo가 잘려 0으로 떨어진다.
+    // 목표 위치만큼 높이가 확보될 때까지 몇 프레임 기다렸다 복원한다.
+    if (typeof options.restoreScroll === 'number' && options.restoreScroll > 0) {
+      const top = options.restoreScroll;
+      let tries = 0;
+      const restore = () => {
+        const reachable = document.documentElement.scrollHeight - window.innerHeight;
+        if (reachable >= top || tries > 30) {
+          jumpScrollTo(top);
+          return;
+        }
+        tries += 1;
+        window.requestAnimationFrame(restore);
+      };
+      window.requestAnimationFrame(restore);
+      return;
+    }
     // 페이지 이동 시에는 즉시 최상단으로. smooth로 스르륵 올라가면 어지러움을 유발한다.
-    if (!navigation.defaultPrevented) window.scrollTo({ top: 0, behavior: 'auto' });
+    jumpScrollTo(0);
+    // 새 화면이 이전 화면보다 짧으면 브라우저가 스크롤을 자동 보정해 0이 아닌 값으로 남는다.
+    // 다음 프레임에 한 번 더 올려 확실히 최상단에서 시작하게 한다.
+    window.requestAnimationFrame(() => {
+      if (window.scrollY > 0) jumpScrollTo(0);
+    });
   };
   const currentPage = document.querySelector('.route-stage');
   if (reducedMotion || !currentPage) return commitNavigation();
@@ -1815,6 +1854,8 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
   const [selectedTalent, setSelectedTalent] = useState(null);
   // 열람권 결제 완료 후 /talent?open=코드 로 진입하면 그 인재 상세를 바로 연다(목록으로 안 돌아가게).
   const openCode = useMemo(() => new URLSearchParams(route.split('?')[1] || '').get('open') || '', [route]);
+  // 상세를 열기 전 목록 위치를 기억한다. 돌아왔을 때 맨 위면 고른 사람을 다시 찾아야 한다.
+  const talentListScrollRef = useRef(0);
   useEffect(() => {
     if (!openCode) return;
     const found = sourceTalent.find((p) => (p.detailId || p.code) === openCode || p.code === openCode);
@@ -1893,7 +1934,11 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
         <TalentDetailModal
           person={selectedTalent}
           canViewIdentity={canViewIdentity}
-          onClose={() => setSelectedTalent(null)}
+          onClose={() => {
+            const top = talentListScrollRef.current;
+            setSelectedTalent(null);
+            window.requestAnimationFrame(() => jumpScrollTo(top));
+          }}
         />
       </section>
     );
@@ -2070,7 +2115,9 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
                 type="button"
                 className="button talent-profile-open full"
                 onClick={() => {
+                  talentListScrollRef.current = window.scrollY;
                   setSelectedTalent(person);
+                  jumpScrollTo(0);
                   trackConversion("talent_profile_open", {
                     candidate: person.code,
                   });
@@ -2529,12 +2576,17 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
     setSelected(found || null);
   }, [openCode, all]);
   // 상세를 URL(?open=코드)로 연다. 모달만 띄우면 주소 공유·뒤로가기·새로고침이 모두 안 됐다.
+  // 목록에서 한참 내려가 고른 사람을 보고 돌아왔는데 맨 위면 처음부터 다시 찾아야 한다.
+  // 목록을 떠날 때 위치를 기억했다가 복귀 시 되돌린다.
+  // 저장소는 컴포넌트 밖(talentBoardScrollTop)이다. 상세는 목록을 대체해 렌더하므로
+  // 이 컴포넌트가 통째로 다시 마운트되고, useRef에 담으면 복귀 시 0으로 초기화된다.
   const openTalent = (person) => {
     const code = person.detailId || person.code || '';
+    talentBoardScrollTop = window.scrollY;
     if (!code) { setSelected(person); return; }
     navigate(`/medical-staff?open=${encodeURIComponent(code)}`);
   };
-  const closeTalent = () => navigate('/medical-staff');
+  const closeTalent = () => navigate('/medical-staff', { restoreScroll: talentBoardScrollTop });
   // 진료과·지역 옵션은 실제 데이터에서 동적으로 뽑는다.
   const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.dept).filter(Boolean)))], [all]);
   const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.region).filter(Boolean)))], [all]);
