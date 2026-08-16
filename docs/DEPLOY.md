@@ -19,6 +19,8 @@
 ## Current State
 
 - 2026-08-14 최신 공개본: OpenAI Sites v272 · 소스 커밋 `9a3a871`
+- ⚠️ **2026-08-16 기준 미배포 49커밋**(배포본 기준 커밋 `ac7863d` 이후). 결제 즉시 공고 공개, 병원 사업자등록증 인증, 광고 등급 구분, 관리자 콘솔 읽기 전용, 그리고 2026-08-16 등록 오류 수정 6건이 아직 공개본에 반영되지 않았습니다. 배포 전까지 공개본에서는 "등록해도 목록에 안 보임" 증상이 남아 있습니다.
+- 배포 경로 메모: Sites 소스 저장소(`origin`, `git.chatgpt-team.site`)는 별도 자격증명이 필요합니다. 자격증명이 없으면 `git ls-remote`가 401로 실패하고, 비대화형 환경에서는 로그인 창에 응답할 수 없어 배포가 불가합니다. 이 경우 Codex 세션에서 배포하거나 `CLOUDFLARE_MIGRATION.md`의 이전을 진행합니다.
 - 공개 URL: https://medihelpers-career.junnyai.chatgpt.site
 
 - 기본 공개본: OpenAI Sites 프로젝트 `medihelpers-career` (**테스트 전용 — 실결제 불가**)
