@@ -2787,6 +2787,23 @@ const SAMPLE_BANNER_TEMPLATES = [
   { id: "surgical-teal", name: "서지컬 티얼", tone: "수술·정형·전문병원", src: "/banners/templates/surgical-teal-v1.jpg" },
 ];
 
+// 공고 등록 폼에서 필수 입력이 빠졌을 때 "무엇이 비었는지" 한국어로 알려주기 위한 이름표.
+const AD_FIELD_LABELS = {
+  hospital: "병원·기관명",
+  manager: "담당자 성함",
+  phone: "연락처",
+  email: "이메일",
+  address: "병원 주소",
+  department: "초빙 분야(진료과)",
+  representative: "대표자명",
+  businessNumber: "사업자등록번호",
+  salaryBasis: "보수 조건",
+  exactHours: "근무 시간",
+  specialties: "진료 분야",
+  introduction: "병원 소개",
+  terms: "결제·게시 동의",
+};
+
 function Checkout({ plan }) {
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
@@ -2908,6 +2925,17 @@ function Checkout({ plan }) {
       });
       return;
     }
+    // 필수 입력이 비면 브라우저 기본 검증이 제출을 조용히 막아 "버튼이 안 눌린다"로 보인다.
+    // 어떤 칸이 비었는지 한국어로 알려주고 그 칸으로 이동시킨다.
+    const firstInvalid = event.currentTarget.querySelector(":invalid");
+    if (firstInvalid) {
+      setSubmitError(`${AD_FIELD_LABELS[firstInvalid.name] || "필수 항목"}을(를) 입력한 뒤 다시 시도해주세요.`);
+      window.requestAnimationFrame(() => {
+        firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+        try { firstInvalid.focus({ preventScroll: true }); } catch { firstInvalid.focus(); }
+      });
+      return;
+    }
     const formData = new FormData(event.currentTarget);
     formData.delete("brandImage");
     const data = {
@@ -3026,7 +3054,8 @@ function Checkout({ plan }) {
             <li><b>2</b><span>채용조건 입력</span></li>
             <li><b>3</b><span>결제·게시 안내</span></li>
           </ol>
-          <form className="checkout-grid" onSubmit={submit}>
+          {/* noValidate: 브라우저 기본 말풍선 대신 아래 안내(submitError)로 무엇이 비었는지 알려준다. */}
+          <form className="checkout-grid" onSubmit={submit} noValidate>
             <div className="checkout-form">
               <section className="ad-form-section">
                 <div className="ad-form-section-head">

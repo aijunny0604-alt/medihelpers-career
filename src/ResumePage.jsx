@@ -108,7 +108,19 @@ export default function ResumePage() {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!form.consent) return;
+    // 동의를 안 하면 예전에는 조용히 return 해서 "등록 버튼이 안 먹는다"로 보였다.
+    // 이유를 알려주고 동의 항목으로 이동시킨다.
+    if (!form.consent) {
+      setSubmitError('개인정보 수집·이용 동의에 체크해야 이력서를 등록할 수 있습니다.');
+      window.requestAnimationFrame(() => {
+        const box = document.querySelector('input[type="checkbox"][name="consent"], .resume-consent input[type="checkbox"], input[type="checkbox"]');
+        if (box) {
+          box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          try { box.focus({ preventScroll: true }); } catch { box.focus(); }
+        }
+      });
+      return;
+    }
     const snapshot = {
       id: `RES-${Date.now()}`,
       createdAt: new Date().toISOString(),
@@ -214,7 +226,7 @@ export default function ResumePage() {
           <fieldset className="resume-visibility resume-contact-visibility"><legend>연락처 공개 설정</legend>{[['private','연락처 비공개 (권장)','병원이 이력서 열람권을 구매해도 전화번호와 이메일은 공개하지 않습니다. 플랫폼 메시지로 먼저 연락받습니다.'],['ticket','열람권 구매 병원에 공개','병원 회원이 내 이력서 열람권을 구매하면 전화번호와 이메일을 확인할 수 있습니다.']].map(([value,title,copy]) => <label key={value} className={form.contactVisibility === value ? 'active' : ''}><input type="radio" name="contactVisibility" value={value} checked={form.contactVisibility === value} onChange={(e) => update('contactVisibility', e.target.value)} /><span><strong>{title}</strong><small>{copy}</small></span>{form.contactVisibility === value && <Check />}</label>)}</fieldset>
           <label className="resume-consent"><input type="checkbox" checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>이력서 등록과 채용 매칭을 위한 개인정보 수집·이용에 동의합니다.</span></label>
         </div>}
-        <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={!form.consent || submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
+        <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
         {submitError && <p className="form-error" role="alert">{submitError}</p>}
       </section>
       <aside className="resume-preview"><small>LIVE PREVIEW</small><div className={`resume-preview-avatar ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="프로필 사진" /> : <UserRound />}</div><h3>{form.title || '이력서 제목을 입력해주세요'}</h3><span className="resume-preview-role">{form.profession || '직군 미입력'}{form.specialty ? ` · ${form.specialty}` : ''}</span><dl><div><dt>희망 지역</dt><dd>{form.desiredRegions || form.region || '미입력'}</dd></div><div><dt>희망 보수</dt><dd>{form.salary || '협의'}</dd></div></dl><div className="resume-preview-privacy"><LockKeyhole /><span><strong>연락처 {form.contactVisibility === 'ticket' ? '조건부 공개' : '비공개'}</strong><small>{form.contactVisibility === 'ticket' ? '열람권을 구매한 병원에만 공개됩니다.' : '열람권을 구매해도 공개되지 않습니다.'}</small></span></div></aside>
