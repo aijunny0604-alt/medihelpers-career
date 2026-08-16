@@ -31,7 +31,10 @@ export default function ResumePage() {
   const [form, setForm] = useState({
     title: '', profession: '', name: '', phone: '', email: '', region: '', photoUrl: '',
     specialty: '', desiredRegions: '', salary: '',
-    introduction: '', visibility: 'proposal', contactVisibility: 'private', consent: false
+    // 이 화면의 진입점이 '구직글 등록'이므로 기본값은 구직 게시판에 노출되는 public.
+    // (기본이 proposal이면 등록해도 목록에 안 떠서 "등록이 안 된다"로 오해된다.
+    //  연락처는 여전히 기본 비공개라 개인정보는 그대로 보호된다.)
+    introduction: '', visibility: 'public', contactVisibility: 'private', consent: false
   });
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
