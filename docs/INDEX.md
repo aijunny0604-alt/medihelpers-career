@@ -6,6 +6,7 @@
 
 ## Current State
 
+- `UPDATE_2026-08-21_TALENT_DETAIL_PAGE.md`: 구직 인재 모달의 독립 상세 페이지 전환과 헤드헌터 인증 표시 제거
 - `UPDATE_2026-08-15_HOSPITAL_VERIFICATION_AND_CONTACT_PRIVACY.md`: 의료인 연락처 공개 선택, 열람권과 연락처 권한 분리, 병원 사업자등록증 제출·관리자 승인
 - `UPDATE_2026-08-09_ROLE_AND_DIRECT_PUBLICATION.md`: 회원가입 역할 저장·로그인 자동 분류, 병원 광고 결제 후 즉시 게시, 하단 링크 정리
 - `STATUS.md`: 마지막 작업일, 배포 상태, 구현·미구현 범위
