@@ -2822,7 +2822,9 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
   }`}
   if (!pathname.includes('.')) return new Response(htmlDocument(request), { status: 200, headers: {
     'content-type': 'text/html; charset=utf-8',
-    'cache-control': 'public, max-age=60',
+    // 로그인·권한 로직이 바뀐 뒤 다른 PC가 이전 HTML을 재사용하지 않도록 SPA 문서는
+    // 캐시하지 않는다. 해시가 붙은 CSS/JS 자산은 아래의 immutable 정책을 그대로 쓴다.
+    'cache-control': 'no-store, max-age=0, must-revalidate',
     // [보안] 기본 보안 헤더. 이니시스 결제창(stdpay/stgstdpay)은 반드시 허용해야 결제가 동작한다.
     'content-security-policy': [
       "default-src 'self'",
