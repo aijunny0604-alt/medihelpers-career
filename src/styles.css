@@ -2188,9 +2188,10 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .talent-portal-list .talent-card dt{font-size:14px;font-weight:700}
 .talent-portal-list .talent-card dd{min-width:0;text-align:left;font-size:14px;line-height:1.55;overflow-wrap:anywhere;word-break:keep-all}
 .talent-profile-open{min-height:48px!important;border:1px solid #b9d9d1!important;border-radius:10px!important;background:#f2faf8!important;color:#087f69!important;font-size:14px!important;font-weight:800!important;display:flex!important;align-items:center;justify-content:center;gap:8px;transition:background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease}.talent-profile-open svg{width:17px}.talent-profile-open:hover{border-color:#62b6a2!important;background:#e7f7f3!important;box-shadow:0 7px 18px rgba(25,128,104,.1);transform:translateY(-1px)}
-.modal-card.talent-detail-modal{width:min(1160px,96vw);border:1px solid #d9e7e3;box-shadow:0 38px 110px rgba(8,29,49,.32)}.modal-card.talent-detail-modal:before{content:'';position:absolute;z-index:4;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#1263e8,#1ca889 64%,#8bd8c5)}.talent-detail-hero{padding:34px 42px 28px;background:linear-gradient(125deg,#f1f8ff 0%,#f4fbf8 58%,#fff 100%);border-bottom:1px solid #dde9e6;display:flex;align-items:center;gap:20px}.talent-detail-avatar{width:72px;height:72px;border-radius:22px;background:#fff;color:#138b74;display:grid;place-items:center;box-shadow:0 10px 26px rgba(31,100,86,.12);flex:0 0 auto}.talent-detail-avatar svg{width:34px;height:34px}.talent-detail-hero>div{min-width:0}.talent-verified{display:inline-flex;align-items:center;gap:6px;margin-bottom:7px;color:#0f9479;font-size:12px;font-weight:800}.talent-verified svg{width:16px}.talent-detail-hero small{display:block;color:#8492a5;font:750 12px 'Manrope';letter-spacing:.3px}.talent-detail-hero h2{margin:4px 0 6px;padding-right:45px;color:#11294a;font-size:30px;letter-spacing:-1px}.talent-detail-hero p{margin:0;color:#68788d;font-size:14px}.talent-detail-body{padding:28px 42px 36px}.talent-detail-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:26px}.talent-detail-summary>div{min-height:86px;padding:17px 19px;border:1px solid #dce7ee;border-radius:13px;background:#fbfdff;display:flex;flex-direction:column;justify-content:center}.talent-detail-summary span{color:#8491a3;font-size:12px;font-weight:700}.talent-detail-summary strong{margin-top:5px;color:#203653;font-size:16px;line-height:1.45;word-break:keep-all}.talent-detail-columns{display:grid;grid-template-columns:1.22fr .78fr;gap:15px}.talent-detail-section{padding:22px 23px;border:1px solid #e0e7ef;border-radius:15px;background:#fff}.talent-detail-title{display:flex;align-items:center;gap:11px;margin-bottom:14px}.talent-detail-title>span{width:40px;height:40px;border-radius:11px;background:#eaf3ff;color:#1263e8;display:grid;place-items:center}.talent-detail-title>span svg{width:20px}.talent-detail-title>div{min-width:0;display:flex;flex-direction:column}.talent-detail-title small{color:#6d8fba;font:800 10px 'Manrope';letter-spacing:.8px}.talent-detail-title h3{margin:2px 0 0;color:#1b314f;font-size:17px}.talent-focus-copy{margin:0 0 16px;color:#596b82;font-size:15px;line-height:1.75}.talent-strength-list{display:flex;flex-wrap:wrap;gap:8px}.talent-strength-list span{padding:8px 10px;border-radius:8px;background:#eff8f5;color:#157d69;font-size:13px;font-weight:750;display:flex;align-items:center;gap:5px}.talent-strength-list svg{width:14px}.talent-consult-status .talent-detail-title>span{background:#edf9f5;color:#14a080}.talent-consult-status ul{list-style:none;margin:0;padding:0;display:grid;gap:11px}.talent-consult-status li{display:flex;align-items:center;gap:8px;color:#455a74;font-size:14px;font-weight:650}.talent-consult-status li svg{width:17px;color:#17a183;flex:0 0 auto}.talent-detail-private{margin-top:15px;padding:20px 22px;border:1px solid #e8dfc7;border-radius:15px;background:linear-gradient(115deg,#fbf7ee,#fffdf8);display:flex;align-items:flex-start;gap:15px}.talent-private-icon{width:42px;height:42px;border-radius:12px;background:#fff;color:#9b7625;display:grid;place-items:center;box-shadow:0 6px 15px rgba(104,78,23,.08);flex:0 0 auto}.talent-private-icon svg{width:20px}.talent-detail-private small{color:#927025;font-size:12px;font-weight:800}.talent-detail-private h3{margin:4px 0 5px;color:#473c29;font-size:16px;line-height:1.5}.talent-detail-private p{margin:0;color:#7a705e;font-size:13px;line-height:1.65}.talent-detail-actions{margin-top:24px;display:flex;justify-content:flex-end;gap:9px}.talent-detail-actions .button{min-height:50px;padding-inline:22px;font-size:14px}.talent-detail-actions .button svg{width:17px}
+.talent-detail-page{min-height:100vh;padding:120px max(24px,calc((100vw - 1240px)/2)) 80px;background:linear-gradient(180deg,#f4f8fc 0%,#fff 55%)}.talent-detail-page-shell{overflow:hidden;border:1px solid #d9e7e3;border-radius:24px;background:#fff;box-shadow:0 26px 70px rgba(8,29,49,.12)}.talent-detail-back{display:inline-flex;align-items:center;gap:7px;margin:24px 32px 0;color:#46617e;font-size:14px;font-weight:800}.talent-detail-back svg{width:17px}.talent-detail-hero{padding:34px 42px 28px;background:linear-gradient(125deg,#f1f8ff 0%,#f4fbf8 58%,#fff 100%);border-bottom:1px solid #dde9e6;display:flex;align-items:center;gap:20px}.talent-detail-avatar{width:72px;height:72px;border-radius:22px;background:#fff;color:#138b74;display:grid;place-items:center;box-shadow:0 10px 26px rgba(31,100,86,.12);flex:0 0 auto}.talent-detail-avatar svg{width:34px;height:34px}.talent-detail-hero>div{min-width:0}.talent-verified{display:inline-flex;align-items:center;gap:6px;margin-bottom:7px;color:#0f9479;font-size:12px;font-weight:800}.talent-verified svg{width:16px}.talent-detail-hero small{display:block;color:#8492a5;font:750 12px 'Manrope';letter-spacing:.3px}.talent-detail-hero h2{margin:4px 0 6px;color:#11294a;font-size:30px;letter-spacing:-1px}.talent-detail-hero p{margin:0;color:#68788d;font-size:14px}.talent-detail-body{padding:28px 42px 36px}.talent-detail-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:26px}.talent-detail-summary>div{min-height:86px;padding:17px 19px;border:1px solid #dce7ee;border-radius:13px;background:#fbfdff;display:flex;flex-direction:column;justify-content:center}.talent-detail-summary span{color:#8491a3;font-size:12px;font-weight:700}.talent-detail-summary strong{margin-top:5px;color:#203653;font-size:16px;line-height:1.45;word-break:keep-all}.talent-detail-columns{display:grid;grid-template-columns:1.22fr .78fr;gap:15px}.talent-detail-section{padding:22px 23px;border:1px solid #e0e7ef;border-radius:15px;background:#fff}.talent-detail-title{display:flex;align-items:center;gap:11px;margin-bottom:14px}.talent-detail-title>span{width:40px;height:40px;border-radius:11px;background:#eaf3ff;color:#1263e8;display:grid;place-items:center}.talent-detail-title>span svg{width:20px}.talent-detail-title>div{min-width:0;display:flex;flex-direction:column}.talent-detail-title small{color:#6d8fba;font:800 10px 'Manrope';letter-spacing:.8px}.talent-detail-title h3{margin:2px 0 0;color:#1b314f;font-size:17px}.talent-focus-copy{margin:0 0 16px;color:#596b82;font-size:15px;line-height:1.75}.talent-strength-list{display:flex;flex-wrap:wrap;gap:8px}.talent-strength-list span{padding:8px 10px;border-radius:8px;background:#eff8f5;color:#157d69;font-size:13px;font-weight:750;display:flex;align-items:center;gap:5px}.talent-strength-list svg{width:14px}.talent-consult-status .talent-detail-title>span{background:#edf9f5;color:#14a080}.talent-consult-status ul{list-style:none;margin:0;padding:0;display:grid;gap:11px}.talent-consult-status li{display:flex;align-items:center;gap:8px;color:#455a74;font-size:14px;font-weight:650}.talent-consult-status li svg{width:17px;color:#17a183;flex:0 0 auto}.talent-detail-private{margin-top:15px;padding:20px 22px;border:1px solid #e8dfc7;border-radius:15px;background:linear-gradient(115deg,#fbf7ee,#fffdf8);display:flex;align-items:flex-start;gap:15px}.talent-private-icon{width:42px;height:42px;border-radius:12px;background:#fff;color:#9b7625;display:grid;place-items:center;box-shadow:0 6px 15px rgba(104,78,23,.08);flex:0 0 auto}.talent-private-icon svg{width:20px}.talent-detail-private small{color:#927025;font-size:12px;font-weight:800}.talent-detail-private h3{margin:4px 0 5px;color:#473c29;font-size:16px;line-height:1.5}.talent-detail-private p{margin:0;color:#7a705e;font-size:13px;line-height:1.65}.talent-detail-actions{margin-top:24px;display:flex;justify-content:flex-end;gap:9px}.talent-detail-actions .button{min-height:50px;padding-inline:22px;font-size:14px}.talent-detail-actions .button svg{width:17px}
+.talent-detail-back:focus-visible{outline:3px solid rgba(18,99,232,.28);outline-offset:4px;border-radius:6px}
 @media(max-width:520px){.talent-portal-list .talent-card dl>div,.talent-portal-list .talent-card dl>div:nth-child(2){grid-template-columns:88px minmax(0,1fr);gap:12px}.talent-portal-list .talent-card dt,.talent-portal-list .talent-card dd{font-size:13px}}
-@media(max-width:780px){.talent-detail-hero{padding:28px 22px 22px;align-items:flex-start}.talent-detail-avatar{width:56px;height:56px;border-radius:17px}.talent-detail-avatar svg{width:27px}.talent-detail-hero h2{font-size:23px}.talent-detail-hero p{font-size:13px;line-height:1.55}.talent-detail-body{padding:20px 18px 28px}.talent-detail-summary{grid-template-columns:1fr}.talent-detail-summary>div{min-height:68px}.talent-detail-columns{grid-template-columns:1fr}.talent-detail-section{padding:19px 17px}.talent-detail-private{padding:18px 16px}.talent-detail-actions{display:grid;grid-template-columns:1fr}.talent-detail-actions .button{width:100%}}
+@media(max-width:780px){.talent-detail-page{padding:90px 14px 48px}.talent-detail-page-shell{border-radius:18px}.talent-detail-back{margin:18px 20px 0}.talent-detail-hero{padding:24px 20px 22px;align-items:flex-start}.talent-detail-avatar{width:56px;height:56px;border-radius:17px}.talent-detail-avatar svg{width:27px}.talent-detail-hero h2{font-size:23px}.talent-detail-hero p{font-size:13px;line-height:1.55}.talent-detail-body{padding:20px 18px 28px}.talent-detail-summary{grid-template-columns:1fr}.talent-detail-summary>div{min-height:68px}.talent-detail-columns{grid-template-columns:1fr}.talent-detail-section{padding:19px 17px}.talent-detail-private{padding:18px 16px}.talent-detail-actions{display:grid;grid-template-columns:1fr}.talent-detail-actions .button{width:100%}}
 
 /* Keep the two audience choices compact enough to scan together with the next section. */
 @media(min-width:781px){
@@ -3733,45 +3734,6 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .decision-sheet-gate strong{color:#173252;font-size:15px}
 .decision-sheet-gate span{margin-top:4px;color:#76859a;font-size:12px;line-height:1.55}
 .decision-sheet-gate .button{min-height:48px;flex:0 0 auto}
-.headhunter-verified-note{
-  margin-top:17px;
-  padding:18px 19px;
-  border:1px solid #bfe1d7;
-  border-radius:15px;
-  background:#f2faf7;
-  display:grid;
-  grid-template-columns:40px minmax(0,1fr) auto;
-  align-items:center;
-  gap:13px;
-}
-.headhunter-verified-note>span{
-  width:40px;
-  height:40px;
-  border-radius:12px;
-  background:#fff;
-  color:#139777;
-  display:grid;
-  place-items:center;
-}
-.headhunter-verified-note>span svg{width:21px}
-.headhunter-verified-note>div{display:flex;min-width:0;flex-direction:column}
-.headhunter-verified-note small{color:#14896f;font-size:9px;font-weight:850;letter-spacing:.8px}
-.headhunter-verified-note strong{margin-top:3px;color:#23483f;font-size:14px}
-.headhunter-verified-note p{margin:4px 0 0!important;color:#627a72!important;font-size:12px!important;line-height:1.6!important}
-.headhunter-verified-note>a{
-  min-height:43px;
-  padding:0 13px;
-  border-radius:11px;
-  background:#159579;
-  color:#fff;
-  font-size:12px;
-  font-weight:800;
-  white-space:nowrap;
-  display:flex;
-  align-items:center;
-  gap:5px;
-}
-.headhunter-verified-note>a svg{width:15px}
 
 .membership-detail-catalog{
   max-width:1300px;
@@ -3870,8 +3832,6 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .decision-sheet-grid dl>div{grid-template-columns:98px minmax(0,1fr)}
   .decision-sheet-gate{align-items:stretch;flex-direction:column}
   .decision-sheet-gate .button{width:100%}
-  .headhunter-verified-note{grid-template-columns:38px 1fr}
-  .headhunter-verified-note>a{grid-column:1/3;justify-content:center}
   .membership-detail-catalog{padding:26px 20px;border-radius:19px}
   .membership-detail-heading h2{font-size:23px}
   .membership-detail-grid{grid-template-columns:1fr}
@@ -4920,15 +4880,6 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .talent-career-head strong{font-size:14px;color:#16233a}.talent-career-head span{font-size:13px;color:#5a6a80}.talent-career-head em{margin-left:auto;font-size:12px;color:#8a93a2;font-style:normal}
 .talent-career-item p{margin:6px 0 0;font-size:13px;color:#5a6a80;line-height:1.6}
 
-/* 헤드헌터 인증 공고 배지 (아빠가 검증한 초빙공고 — 금색 방패) */
-.tag.tag-verified{display:inline-flex;align-items:center;gap:4px;
-  background:linear-gradient(135deg,#f6d879,#e0a92e);color:#5a3d00;font-weight:800;
-  border:1px solid #d99e1f;box-shadow:0 1px 3px rgba(190,140,20,.25)}
-.tag.tag-verified svg{width:13px;height:13px}
-/* 프리미엄 광고 카드에서도 항상 보이도록 카드 좌상단에 띄운다 */
-.job-card{position:relative}
-.tag.tag-verified.job-verified-float{position:absolute;top:12px;left:12px;z-index:3;
-  font-size:11.5px;padding:4px 9px;border-radius:8px}
 
 /* 관리자 상단 고정(pin) 토글·배지 */
 .admin-pin-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -4938,12 +4889,10 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 /* 인증 배지 위치 정리: 제목 밀림 방지 */
 .ms-job-top-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ms-job-top-row .tag-verified{font-size:11px;padding:2px 8px}
 /* 인재 카드 인증 배지: 카드 최상단 별도 줄. 배지 없어도 같은 높이 슬롯을 예약해 카드 높이 통일 */
 .talent-grid{align-items:stretch}
 .talent-card{display:flex;flex-direction:column}
 .talent-verified-head{min-height:22px;margin-bottom:10px;display:flex;align-items:center}
-.talent-verified-head .tag-verified{display:inline-flex;font-size:10.5px;padding:3px 9px}
 
 /* 헤드헌팅 상담 역할 선택 — 고급 카드형 */
 .role-select-guide{display:flex;align-items:center;gap:13px;padding:14px 16px;margin-bottom:14px;border-radius:14px;background:linear-gradient(120deg,#eef4ff,#f2fbf8);border:1px solid #dbe7f5}
