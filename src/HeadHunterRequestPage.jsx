@@ -212,7 +212,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
           <strong>{isDirectApplication ? "병원 직접 지원 · 헤드헌터 미개입" : "상담 접수 무료 · 결제 없음"}</strong>
         </div>
       </header>
-      {isHeadhuntPostInquiry && <section className="quick-linked-post" aria-label="문의할 맞춤 헤드헌팅 공고"><span><Handshake /></span><div><small>HEADHUNTER VERIFIED POST</small><strong>{headhuntPostTitle || "맞춤 헤드헌팅 공고"}</strong><p>{[headhuntPostHospital, headhuntPostSpecialty].filter(Boolean).join(" · ")} · 이 문의는 담당 의사 헤드헌터에게 전달됩니다.</p></div></section>}
+      {isHeadhuntPostInquiry && <section className="quick-linked-post" aria-label="문의할 맞춤 헤드헌팅 공고"><span><Handshake /></span><div><small>HEADHUNTING INQUIRY</small><strong>{headhuntPostTitle || "맞춤 헤드헌팅 공고"}</strong><p>{[headhuntPostHospital, headhuntPostSpecialty].filter(Boolean).join(" · ")} · 이 문의는 담당 의사 헤드헌터에게 전달됩니다.</p></div></section>}
       {isDirectApplication && <section className="quick-linked-post direct" aria-label="지원할 병원 유료 채용광고"><span><BriefcaseBusiness /></span><div><small>DIRECT HOSPITAL APPLICATION</small><strong>병원 유료 채용광고 직접 지원</strong><p>지원 내용은 공고를 등록한 병원에 전달되며 헤드헌터 상담과 분리됩니다.</p></div></section>}
       <section className="quick-request-process">
         <div>

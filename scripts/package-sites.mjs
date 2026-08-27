@@ -966,6 +966,8 @@ async function authApi(request, env, pathname, ctx) {
     if (!['doctor','hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error:'회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
+    const phoneDigits = String(body.phone || '').replace(/[^0-9]/g, '');
+    if (!/^01[016789][0-9]{7,8}$/.test(phoneDigits)) return json({ error:'필수 연락처를 정확히 입력해주세요. 예: 010-1234-5678' }, 400);
     if (body.role === 'hospital') {
       const hospitalName = String(body.hospitalName || '').trim();
       const representativeName = String(body.representativeName || '').trim();
@@ -1002,7 +1004,9 @@ async function authApi(request, env, pathname, ctx) {
     let hash;
     try { hash = await passwordHash(password, salt); } catch { return json({ error:'가입 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503); }
     const displayName = String(body.displayName || body.name || '').trim().slice(0, 80);
-    const phone = String(body.phone || '').trim().slice(0, 40);
+    const phone = phoneDigits.length === 11
+      ? phoneDigits.slice(0, 3) + '-' + phoneDigits.slice(3, 7) + '-' + phoneDigits.slice(7)
+      : phoneDigits.slice(0, 3) + '-' + phoneDigits.slice(3, 6) + '-' + phoneDigits.slice(6);
     const organization = String(body.organization || body.hospitalName || body.specialty || '').trim().slice(0, 160);
     const jobTitle = String(body.jobTitle || body.hospitalRole || body.professionType || '').trim().slice(0, 160);
     let verificationRecord = null;
@@ -1321,7 +1325,7 @@ async function uploadApi(request, env, pathname) {
     const accountKey = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(accountKey).first();
     const purposeRaw = String(request.headers.get('x-upload-purpose') || 'photo').toLowerCase();
-    const purpose = (purposeRaw === 'banner' || purposeRaw === 'logo' || purposeRaw === 'facility' || purposeRaw === 'resume-profile') ? purposeRaw : 'photo';
+    const purpose = (purposeRaw === 'banner' || purposeRaw === 'logo' || purposeRaw === 'facility' || purposeRaw === 'poster' || purposeRaw === 'resume-profile') ? purposeRaw : 'photo';
     const isResumeProfile = purpose === 'resume-profile';
     // 병원 광고 이미지는 병원·관리자, 이력서 증명사진은 의료인 본인만 업로드한다.
     const isAdmin = Boolean(await adminIdentity(request, env));
@@ -1874,6 +1878,9 @@ function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail
   const facilityPhotos = Array.isArray(meta.hospitalPhotoUrls)
     ? meta.hospitalPhotoUrls.map(value => cleanOrderValue(value, 800)).filter(Boolean).slice(0, 6)
     : [];
+  const posterImages = Array.isArray(meta.posterImageUrls)
+    ? meta.posterImageUrls.map(value => cleanOrderValue(value, 800)).filter(Boolean).slice(0, 3)
+    : [];
   const facility = cleanOrderValue(meta.facility || facilityPhotos[0], 800);
   return {
     id:'ad-order-' + id,
@@ -1893,6 +1900,7 @@ function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail
       banner,
       facility,
       facilityPhotos,
+      posterImages,
       hospital,
       facilityType:cleanOrderValue(meta.facilityType, 100),
       address,
@@ -2824,7 +2832,9 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
   }`}
   if (!pathname.includes('.')) return new Response(htmlDocument(request), { status: 200, headers: {
     'content-type': 'text/html; charset=utf-8',
-    'cache-control': 'public, max-age=60',
+    // 로그인·권한 로직이 바뀐 뒤 다른 PC가 이전 HTML을 재사용하지 않도록 SPA 문서는
+    // 캐시하지 않는다. 해시가 붙은 CSS/JS 자산은 아래의 immutable 정책을 그대로 쓴다.
+    'cache-control': 'no-store, max-age=0, must-revalidate',
     // [보안] 기본 보안 헤더. 이니시스 결제창(stdpay/stgstdpay)은 반드시 허용해야 결제가 동작한다.
     'content-security-policy': [
       "default-src 'self'",

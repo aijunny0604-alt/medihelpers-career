@@ -44,6 +44,7 @@ import { installAuthenticatedFetch } from './authTransport.js';
 import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
 import { imageFilesFromTransfer, pasteImageFiles } from './imageInput.js';
 import { getAdTierPresentation } from './adTierPresentation.js';
+import { formatKoreanPhone } from './signupFields.js';
 
 installAuthenticatedFetch();
 
@@ -205,7 +206,6 @@ function jumpScrollTo(top) {
 
 // 구직 인재 목록의 스크롤 위치. 상세는 목록을 대체해 렌더하므로 목록 컴포넌트가
 // 언마운트된다 — useRef에 담으면 복귀 시점에 0으로 초기화되어 복원이 깨진다.
-let talentBoardScrollTop = 0;
 
 function navigate(path, options = {}) {
   const reducedMotion = motionIsReduced();
@@ -760,7 +760,9 @@ function JobCard({
     : job.brandFit || (job.logo ? "mark" : "mark");
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const mood = getHospitalMood(job);
-  const restricted = isAd || job.badge === "비공개";
+  // 공개 채용공고는 광고 등급과 관계없이 누구나 조건을 확인한다.
+  // 헤드헌터가 별도로 관리하는 비공개 포지션만 잠금 대상으로 남긴다.
+  const restricted = job.badge === "비공개";
   const qaUnlocked =
     restricted && qa?.active && qa.info.capabilities.privateDetails;
   const moveCardLight = (event) => {
@@ -800,7 +802,6 @@ function JobCard({
             : `${job.hospital} ${job.title} 상세보기`
         }
       />
-      {/* 채용정보(/jobs) 메인 공고는 병원이 올리는 광고라 헤드헌터 인증 배지를 표시하지 않는다. */}
       <div className={`job-top ${adTierPresentation ? 'has-ad-tier' : ''}`}>
         <div>
           {adTierPresentation ? <AdTierBadge tier={job.adTier} /> : (
@@ -985,17 +986,17 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
   // 병원이 비용을 낸 광고 공고는 널리 알리는 것이 목적이므로 급여·조건을 공개한다.
   // 비공개 헤드헌팅 포지션(badge === "비공개")만 상담 후 공개 대상으로 잠근다.
   const restricted = job.badge === "비공개";
-  // 로그인한 의사 회원이면 급여·상세조건을 무료로 본다(의사 대상 유료 멤버십은 폐지됨).
-  // 비회원은 잠금(가입 유도).
+  // 공개 공고는 비회원에게도 전체 조건을 제공한다. 비공개 포지션만 의료인·관리자에게 연다.
   const memberUnlocked = qa?.active
-    ? Boolean(qa.info.capabilities.doctor || qa.info.capabilities.admin)
-    : Boolean(viewerAccess.signedIn && (viewerAccess.role === 'doctor' || viewerAccess.isAdmin));
+    ? Boolean(!restricted || qa.info.capabilities.doctor || qa.info.capabilities.admin)
+    : Boolean(!restricted || (viewerAccess.signedIn && (viewerAccess.role === 'doctor' || viewerAccess.isAdmin)));
   const hospitalViewer = Boolean(!viewerAccess.loading && viewerAccess.signedIn && viewerAccess.role === 'hospital' && !viewerAccess.isAdmin);
   const qaUnlocked =
     restricted && memberUnlocked;
   const locked = restricted && !qaUnlocked;
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   const hospitalPhotos = job.hospitalPhotos || [];
+  const posterImages = job.posterImages || (job.poster ? [job.poster] : []);
   const detailBanner = job.banner || job.cardBanner;
   const detailLogo = job.logo && job.logo !== detailBanner ? job.logo : "";
   const institutionFacts = [
@@ -1146,7 +1147,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
               <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
-            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span>{viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span>{restricted && viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : restricted && hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
           </section>
           <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
             <div className="decision-sheet-head">
@@ -1155,7 +1156,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : hospitalViewer ? <><LockKeyhole /> 의료인 회원 전용</> : <><LockKeyhole /> 로그인 후 열람</>}
+                {!restricted ? <><BadgeCheck /> 누구나 전체 열람</> : viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : hospitalViewer ? <><LockKeyhole /> 의료인 회원 전용</> : <><LockKeyhole /> 로그인 후 열람</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
@@ -1195,17 +1196,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 </div>
               )}
             </div>
-            {memberUnlocked && job.badge === "비공개" && (
-              <div className="headhunter-verified-note">
-                <span><BadgeCheck /></span>
-                <div>
-                  <small>HEADHUNTER CHECK NOTE</small>
-                  <strong>공고 등록정보와 공개 조건을 기준으로 정리했습니다</strong>
-                  <p>{job.summary} 환자 수·당직 수당처럼 ‘확인 필요’로 표시된 항목은 지원 전 담당자가 병원에 다시 확인합니다.</p>
-                </div>
-                <Link to={`/headhunting?job=${job.id}`}>조건 확인·협상 요청 <ArrowRight /></Link>
-              </div>
-            )}
           </section>
           <section className="hospital-profile">
             <div className="detail-section-title">
@@ -1296,6 +1286,23 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               </div>
             </div>
             <p className="job-summary-text">{job.summary}</p>
+            {posterImages.length > 0 && (
+              <div className="job-poster-detail" aria-label={`${job.hospital} 채용 홍보 자료`}>
+                <header>
+                  <span><FileText /></span>
+                  <div><small>RECRUITMENT POSTER</small><h4>채용 홍보 자료</h4></div>
+                  <em>{posterImages.length}장</em>
+                </header>
+                <div>
+                  {posterImages.map((poster, index) => (
+                    <a key={`${poster}-${index}`} href={poster} target="_blank" rel="noreferrer" aria-label={`${index + 1}번 채용 홍보 이미지 원본 보기`}>
+                      <img src={poster} alt={`${job.hospital} 채용 홍보 이미지 ${index + 1}`} loading="lazy" />
+                      <span>원본 크게 보기 <ArrowRight /></span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="job-detail-copy">
               <div><h4>근무조건</h4><p>급여조건은 {job.pay}이며, 근무시간은 {job.workHours || job.schedule}입니다. {job.daysOff || "휴무일은 상담을 통해 조율합니다."}</p></div>
               <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 지원 후 병원 채용담당자와 직접 확인합니다.</p></div>
@@ -1864,20 +1871,6 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
   const [keyword, setKeyword] = useState("");
   const [talentSort, setTalentSort] = useState("recent");
   const [talentVisible, setTalentVisible] = useState(TALENT_PAGE_SIZE);
-  const [selectedTalent, setSelectedTalent] = useState(null);
-  // 열람권 결제 완료 후 /talent?open=코드 로 진입하면 그 인재 상세를 바로 연다(목록으로 안 돌아가게).
-  const openCode = useMemo(() => new URLSearchParams(route.split('?')[1] || '').get('open') || '', [route]);
-  // 상세를 열기 전 목록 위치를 기억한다. 돌아왔을 때 맨 위면 고른 사람을 다시 찾아야 한다.
-  const talentListScrollRef = useRef(0);
-  useEffect(() => {
-    if (!openCode) return;
-    const found = sourceTalent.find((p) => (p.detailId || p.code) === openCode || p.code === openCode);
-    if (found) {
-      // 다른 탭에 가려 안 보이지 않도록 전체 탭으로 전환한 뒤 상세를 연다.
-      setStaffFilter('all');
-      setSelectedTalent(found);
-    }
-  }, [openCode, sourceTalent]);
   const qaIdentityAccess = Boolean(
     qa?.active &&
       canRevealTalentIdentity(qa.info.capabilities, true),
@@ -1940,22 +1933,6 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
       syncSavedToServer(code, 'talent');
       return next;
     });
-  // 상세는 모달이 아니라 페이지다. 선택되면 목록 대신 상세만 그린다.
-  if (selectedTalent) {
-    return (
-      <section className="section talent-detail-view">
-        <TalentDetailModal
-          person={selectedTalent}
-          canViewIdentity={canViewIdentity}
-          onClose={() => {
-            const top = talentListScrollRef.current;
-            setSelectedTalent(null);
-            window.requestAnimationFrame(() => jumpScrollTo(top));
-          }}
-        />
-      </section>
-    );
-  }
   return (
     <>
       {!embedded && (
@@ -2078,7 +2055,6 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
         <div className="talent-grid talent-portal-list">
           {visibleTalent.map((person) => (
             <article className="talent-card" key={person.code}>
-              <div className="talent-verified-head"></div>
               <div className="talent-top">
                 <span className="avatar">
                   <UserRound />
@@ -2128,9 +2104,7 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
                 type="button"
                 className="button talent-profile-open full"
                 onClick={() => {
-                  talentListScrollRef.current = window.scrollY;
-                  setSelectedTalent(person);
-                  jumpScrollTo(0);
+                  navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`);
                   trackConversion("talent_profile_open", {
                     candidate: person.code,
                   });
@@ -2200,7 +2174,7 @@ const talentProfileGuide = {
   },
 };
 
-function TalentDetailModal({ person, canViewIdentity, onClose }) {
+function TalentDetailPage({ person, canViewIdentity }) {
   const guide = talentProfileGuide[person.dept] || {
     focus: `${person.preference} 조건을 중심으로 새로운 근무지를 검토합니다.`,
     strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
@@ -2239,14 +2213,9 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
   const d = unlock.detail || (unlock.unlocked ? demoDetail : null) || {};
   const ownerAccess = unlock.accessReason === 'owner' || Boolean(person.ownerView);
   return (
-    <div className="talent-detail-shell">
-      <button type="button" className="talent-detail-back" onClick={onClose}>
-        <ArrowLeft /> 구직 인재 목록으로
-      </button>
-      <article
-        className="talent-detail-page"
-        aria-label={`${talentDisplayName(person, canViewIdentity)} 의사 프로필`}
-      >
+    <main className="talent-detail-page">
+      <div className="talent-detail-page-shell">
+      <Link className="talent-detail-back" to="/medical-staff"><ArrowLeft /> 구직 인재 목록</Link>
       <div className="talent-detail-hero">
         <span className="talent-detail-avatar"><UserRound /></span>
         <div>
@@ -2338,7 +2307,7 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
         )}
 
         <div className="talent-detail-actions">
-          <button type="button" className="button outline" onClick={onClose}>목록 계속 보기</button>
+          <Link className="button outline" to="/medical-staff">목록 계속 보기</Link>
           {ownerAccess ? (
             <Link className="button primary" to="/resume">내 구직글 수정 <ArrowRight /></Link>
           ) : unlock.unlocked ? (
@@ -2350,8 +2319,8 @@ function TalentDetailModal({ person, canViewIdentity, onClose }) {
           )}
         </div>
       </div>
-      </article>
-    </div>
+      </div>
+    </main>
   );
 }
 
@@ -2568,43 +2537,23 @@ function HeadhuntBoard({ operations, qa }) {
 }
 
 // 구직 게시판 — 의사·의료인이 직접 올린 구직글(이력서 '구직 공개' 선택분)을 게시판으로 노출.
-// 행 클릭 시 TalentDetailModal(열람권 자동 연동): 병원은 열람권 결제 후 이름·연락처·상세를 본다.
+// 행 클릭 시 독립 상세 페이지로 이동한다. 병원은 열람권 결제 후 이름·연락처·상세를 본다.
 function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route = '' }) {
   const all = useMemo(() => [...liveTalent, ...medicalTalent], [liveTalent, medicalTalent]);
   const [filter, setFilter] = useState('all');
   const [dept, setDept] = useState('전체');
   const [region, setRegion] = useState('전체');
   const [keyword, setKeyword] = useState('');
-  const [selected, setSelected] = useState(null);
   // 구직글 작성 권한은 앱에서 이미 확인한 공용 로그인 상태를 사용한다.
   // 페이지 안에서 /api/account를 다시 조회하면 처음 비회원 버튼이 나타났다 사라지는 경쟁 상태가 생긴다.
   const authLoading = auth.status === 'loading';
   const isHospitalMember = auth.role === 'hospital';
   const canWriteJobSeeker = auth.role === 'doctor';
-  // 열람권 결제 완료 후 /medical-staff?open=코드 로 진입하면 그 인재 상세를 바로 연다(목록으로 안 돌아가게).
-  const openCode = useMemo(() => new URLSearchParams(route.split('?')[1] || '').get('open') || '', [route]);
-  useEffect(() => {
-    const found = openCode ? all.find((p) => (p.detailId || p.code) === openCode || p.code === openCode) : null;
-    // URL이 상세의 단일 출처다. ?open= 이 있으면 열고, 없으면(뒤로가기 등) 닫는다.
-    setSelected(found || null);
-  }, [openCode, all]);
-  // 상세를 URL(?open=코드)로 연다. 모달만 띄우면 주소 공유·뒤로가기·새로고침이 모두 안 됐다.
-  // 목록에서 한참 내려가 고른 사람을 보고 돌아왔는데 맨 위면 처음부터 다시 찾아야 한다.
-  // 목록을 떠날 때 위치를 기억했다가 복귀 시 되돌린다.
-  // 저장소는 컴포넌트 밖(talentBoardScrollTop)이다. 상세는 목록을 대체해 렌더하므로
-  // 이 컴포넌트가 통째로 다시 마운트되고, useRef에 담으면 복귀 시 0으로 초기화된다.
-  const openTalent = (person) => {
-    const code = person.detailId || person.code || '';
-    talentBoardScrollTop = window.scrollY;
-    if (!code) { setSelected(person); return; }
-    navigate(`/medical-staff?open=${encodeURIComponent(code)}`);
-  };
-  const closeTalent = () => navigate('/medical-staff', { restoreScroll: talentBoardScrollTop });
   // 진료과·지역 옵션은 실제 데이터에서 동적으로 뽑는다.
   const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.dept).filter(Boolean)))], [all]);
   const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.region).filter(Boolean)))], [all]);
 
-  // 열람권(실명·연락처 열람) 여부 — 병원 회원이 결제했으면 true. TalentDetailModal이 상세는 재확인함.
+  // 열람권(실명·연락처 열람) 여부 — 독립 상세 페이지가 서버에서 상세 권한을 재확인한다.
   const qaIdentityAccess = Boolean(qa?.active && canRevealTalentIdentity(qa.info.capabilities, true));
   const canViewIdentity = qa?.active
     ? qaIdentityAccess
@@ -2619,15 +2568,6 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const total = rows.length;
   const doctorCount = all.filter((p) => (p.staffType || 'doctor') === 'doctor').length;
   const medicalCount = all.filter((p) => p.staffType === 'medical').length;
-
-  // 상세는 모달이 아니라 별도 페이지다. 선택되면 목록 대신 상세만 그린다.
-  if (selected) {
-    return (
-      <section className="section talent-detail-view">
-        <TalentDetailModal person={selected} canViewIdentity={canViewIdentity} onClose={closeTalent} />
-      </section>
-    );
-  }
 
   return (
     <section className="section headhunt-board-section jobseeker-board-section">
@@ -2675,13 +2615,13 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 role="button"
                 tabIndex={0}
                 aria-label={`${person.dept || '구직 인재'} 상세 보기`}
-                onClick={() => openTalent(person)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTalent(person); } }}
+                onClick={() => navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`); } }}
               >
                 <span className={`medical-staff-role jobseeker-role ${kind === '의료인' ? 'medical' : 'doctor'}`}>{kind}</span>
                 <div className="medical-staff-job-main">
                   {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
-                      실명은 열람권을 서버가 검증하는 상세(TalentDetailModal)에서만 공개된다. */}
+                      실명은 서버가 권한을 검증하는 독립 상세 페이지에서만 공개된다. */}
                   <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small></div>
                   <h3>{person.dept || '전문 인력'} · {person.career || '경력 협의'}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
@@ -2905,6 +2845,8 @@ function Checkout({ plan, auth }) {
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [finalActionVisible, setFinalActionVisible] = useState(false);
+  const finalActionRef = useRef(null);
   const [method, setMethod] = useState("card");
   const [facilityType, setFacilityType] = useState("");
   const [facilityError, setFacilityError] = useState("");
@@ -2915,7 +2857,19 @@ function Checkout({ plan, auth }) {
   const [brandError, setBrandError] = useState("");
   const [facilityPhotos, setFacilityPhotos] = useState([]);
   const [photoError, setPhotoError] = useState("");
+  const [posterImages, setPosterImages] = useState([]);
+  const [posterError, setPosterError] = useState("");
   const [activeDrop, setActiveDrop] = useState("");
+  useEffect(() => {
+    const target = finalActionRef.current;
+    if (!target || typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFinalActionVisible(entry.isIntersecting),
+      { threshold: 0.18 },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => () => {
     if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
   }, [brandPreview]);
@@ -2984,6 +2938,37 @@ function Checkout({ plan, auth }) {
   };
   const selectFacilityPhotos = (event) =>
     chooseFacilityPhotos(event.currentTarget.files, event.currentTarget);
+  const choosePosterImages = (files, input) => {
+    const selected = [...(files || [])];
+    setPosterError("");
+    const available = Math.max(0, 3 - posterImages.length);
+    if (!available) {
+      setPosterError("웹포스터·홍보 이미지는 최대 3장까지 등록할 수 있습니다.");
+      if (input) input.value = "";
+      return;
+    }
+    const valid = selected
+      .filter(
+        (file) =>
+          ["image/png", "image/jpeg", "image/webp"].includes(file.type) &&
+          file.size <= JOB_IMAGE_MAX_BYTES,
+      )
+      .slice(0, available);
+    if (valid.length !== selected.length) {
+      setPosterError("PNG·JPG·WEBP 이미지만 장당 5MB 이하로, 최대 3장까지 등록해주세요.");
+    }
+    setPosterImages((current) => [
+      ...current,
+      ...valid.map((file) => ({
+        name: file.name,
+        url: URL.createObjectURL(file),
+        file,
+      })),
+    ]);
+    if (input) input.value = "";
+  };
+  const selectPosterImages = (event) =>
+    choosePosterImages(event.currentTarget.files, event.currentTarget);
   const dropZoneProps = (target, onFiles) => ({
     onDragEnter: (event) => {
       event.preventDefault();
@@ -3009,6 +2994,12 @@ function Checkout({ plan, auth }) {
     setFacilityPhotos((current) => {
       URL.revokeObjectURL(current[index].url);
       return current.filter((_, photoIndex) => photoIndex !== index);
+    });
+  };
+  const removePosterImage = (index) => {
+    setPosterImages((current) => {
+      URL.revokeObjectURL(current[index].url);
+      return current.filter((_, imageIndex) => imageIndex !== index);
     });
   };
   const submit = async (event) => {
@@ -3047,6 +3038,7 @@ function Checkout({ plan, auth }) {
       logoName: brandFile?.name || "",
       bannerName: brandTemplate ? brandTemplate.split("/").pop() : "",
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
+      posterImageNames: posterImages.map((image) => image.name),
       premiumBrandMode: brandFile ? "single-brand-image" : brandTemplate ? "sample-banner" : "auto-wordmark",
     };
     setSubmitting(true);
@@ -3056,11 +3048,15 @@ function Checkout({ plan, auth }) {
       const hospitalPhotoUrls = await Promise.all(
         facilityPhotos.map((photo) => uploadJobImage(photo.file, "facility")),
       );
+      const posterImageUrls = await Promise.all(
+        posterImages.map((image) => uploadJobImage(image.file, "poster")),
+      );
       data.brandImageUrl = brandImageUrl;
       data.logo = brandImageUrl;
       data.banner = brandTemplate;
       data.hospitalPhotoUrls = hospitalPhotoUrls;
       data.facility = hospitalPhotoUrls[0] || "";
+      data.posterImageUrls = posterImageUrls;
       const response = await fetch("/api/payment-orders", {
         method: "POST",
         credentials: "same-origin",
@@ -3332,7 +3328,13 @@ function Checkout({ plan, auth }) {
                     required
                     name="phone"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    maxLength={13}
                     placeholder="010-0000-0000"
+                    onInput={(event) => {
+                      event.currentTarget.value = formatKoreanPhone(event.currentTarget.value);
+                    }}
                   />
                 </label>
                 <label>
@@ -3414,7 +3416,7 @@ function Checkout({ plan, auth }) {
               </div>
               <label className="wide-field">
                 <span>
-                  상세 모집요강 <i>선택</i>
+                  상세내용 <i>선택</i>
                 </span>
                 <textarea
                   name="introduction"
@@ -3423,6 +3425,53 @@ function Checkout({ plan, auth }) {
                 />
                 <small className="field-hint">줄바꿈과 목록이 공고 상세에 그대로 표시됩니다. 아래에서 홍보 이미지도 함께 올릴 수 있습니다.</small>
               </label>
+              <section
+                className={`job-poster-upload ${activeDrop === "poster" ? "is-dragging" : ""}`}
+                {...dropZoneProps("poster", choosePosterImages)}
+                aria-label="웹포스터와 홍보 이미지 업로드"
+              >
+                <div className="job-poster-upload-head">
+                  <div>
+                    <span><FileText /></span>
+                    <div>
+                      <strong>웹포스터·홍보 이미지</strong>
+                      <small>선택사항 · 세로형·가로형 모두 가능 · PNG·JPG·WEBP · 장당 5MB · 최대 3장</small>
+                    </div>
+                  </div>
+                  <label>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                      onChange={selectPosterImages}
+                    />
+                    <Upload /> 이미지 업로드
+                  </label>
+                </div>
+                {posterImages.length ? (
+                  <div className="job-poster-preview">
+                    {posterImages.map((image, index) => (
+                      <figure key={`${image.name}-${index}`}>
+                        <img src={image.url} alt={`웹포스터 미리보기 ${index + 1}`} />
+                        <button
+                          type="button"
+                          onClick={() => removePosterImage(index)}
+                          aria-label={`${image.name} 삭제`}
+                        >
+                          <X />
+                        </button>
+                        <figcaption>{image.name}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="job-poster-empty">
+                    <Upload />
+                    <div><strong>클릭·드래그 또는 Ctrl+V로 이미지 추가</strong><span>등록한 자료는 공고 상세내용 아래에 원본 비율로 표시됩니다.</span></div>
+                  </div>
+                )}
+                {posterError && <em>{posterError}</em>}
+              </section>
               </section>
               <section className="ad-form-section ad-form-final">
                 <div className="ad-form-section-head">
@@ -3448,7 +3497,7 @@ function Checkout({ plan, auth }) {
                   </button>
                 </div>
               </div>
-              <label className="consent">
+              <label className="consent ad-checkout-consent">
                 <input required type="checkbox" name="terms" value="agreed" />
                 <span>
                   결제 처리, 공고 게시 및 개인정보 수집·이용에 동의합니다. 병원
@@ -3456,6 +3505,16 @@ function Checkout({ plan, auth }) {
                 </span>
               </label>
               {submitError && <p className="form-error" role="alert">{submitError}</p>}
+              <div className="ad-form-submit-panel" ref={finalActionRef}>
+                <div>
+                  <small>최종 확인</small>
+                  <strong>{plan.name} · {plan.price.toLocaleString()}원</strong>
+                  <span>입력 내용을 확인한 뒤 결제와 동시에 공고가 게시됩니다.</span>
+                </div>
+                <button className="button primary" type="submit" disabled={submitting}>
+                  {submitting ? "결제와 공고 게시를 처리 중…" : "결제하고 바로 게시하기"} <ArrowRight size={18} />
+                </button>
+              </div>
               </section>
             </div>
             <aside className="order-summary">
@@ -3484,6 +3543,15 @@ function Checkout({ plan, auth }) {
                 <ShieldCheck /> 결제 성공 시 공고가 채용정보에 즉시 공개됩니다.
               </p>
             </aside>
+            <div className={`ad-submit-dock ${finalActionVisible ? "is-hidden" : ""}`} aria-label="공고 등록 바로가기" aria-hidden={finalActionVisible}>
+              <div>
+                <small>{plan.name}</small>
+                <strong>{plan.price.toLocaleString()}원</strong>
+              </div>
+              <button className="button primary" type="submit" disabled={submitting} tabIndex={finalActionVisible ? -1 : undefined}>
+                {submitting ? "처리 중…" : "결제하고 게시하기"} <ArrowRight size={17} />
+              </button>
+            </div>
           </form>
         </>
       )}
@@ -3544,7 +3612,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
   };
   if (done) {
     // 결제 완료 → 방금 결제한 그 인재의 이력서 상세를 바로 연다(목록으로 되돌아가지 않게 open 파라미터).
-    const openHref = talentId ? `/medical-staff?open=${encodeURIComponent(talentId)}` : '/medical-staff';
+    const openHref = talentId ? `/medical-staff/talents/${encodeURIComponent(talentId)}` : '/medical-staff';
     return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '방금 결제한 의료인의 이력서를 바로 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 의료인 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/medical-staff">의료인 채용으로 <ArrowRight /></Link>}<Link className="button outline" to="/medical-staff">의료인 목록</Link></div></div></section>;
   }
   return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}{plan.unlockCount > 1 ? ` · ${plan.unlockCount}명` : ''}</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 결제 완료 시 이력서 상세가 열립니다. 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
@@ -3732,6 +3800,16 @@ export function App() {
   }
   // 의료인 채용 = 채용공고 + 구직 의료인 인재(열람권). 로그인 회원 전용(비회원·경쟁사 정보 수집 차단).
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} auth={auth} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} route={route} />} /></AuthGate>;
+  else if (path.startsWith('/medical-staff/talents/')) {
+    const talentId = decodeURIComponent(path.slice('/medical-staff/talents/'.length));
+    const person = allTalent.find((item) => (item.detailId || item.code) === talentId || item.code === talentId);
+    const canViewIdentity = qa?.active
+      ? canRevealTalentIdentity(qa.info.capabilities, true)
+      : canRevealTalentIdentity({ hospital: auth.role === 'hospital', admin: Boolean(auth.isAdmin), signedIn: auth.status === 'member' }, auth.status === 'member');
+    page = operations.features.medicalStaffHub === false || !person
+      ? <NotFoundPage />
+      : <AuthGate auth={auth} title="구직 인재 상세는 회원 전용입니다" description="로그인 후 구직 인재의 경력과 희망 조건을 안전하게 확인할 수 있습니다."><TalentDetailPage person={person} canViewIdentity={canViewIdentity} /></AuthGate>;
+  }
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
     : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="의료인 채용 상세정보는 로그인 후 안전하게 확인할 수 있습니다."><MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} auth={auth} /></AuthGate>;

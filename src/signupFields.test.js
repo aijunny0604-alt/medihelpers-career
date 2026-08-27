@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   allConsentsAccepted,
   clearDraftFields,
@@ -140,6 +141,16 @@ test('휴대폰 포맷팅: 숫자 입력을 010-XXXX-XXXX 형태로 정규화한
   // 잘못된 번호는 검증에서 거부한다
   assert.ok(validateField('phone', { phone: '02-123-4567' }));
   assert.equal(validateField('phone', { phone: '010-1234-5678' }), '');
+});
+
+test('회원가입 연락처는 필수 표기·자동 하이픈·서버 검증을 함께 제공한다', () => {
+  const accountPage = fs.readFileSync(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  const server = fs.readFileSync(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  assert.match(accountPage, /<b>\*\(필수\)<\/b>/);
+  assert.match(accountPage, /phone: true, maxLength: 13/);
+  assert.match(accountPage, /required={!meta\.optional}/);
+  assert.match(server, /const phoneDigits = String\(body\.phone \|\| ''\)\.replace/);
+  assert.match(server, /필수 연락처를 정확히 입력해주세요/);
 });
 
 test('초기화: clearDraftFields 는 PII 없는 깨끗한 draft와 false 동의를 반환한다', () => {
