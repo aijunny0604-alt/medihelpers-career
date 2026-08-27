@@ -125,20 +125,28 @@ async function handle(method, path, bodyText) {
 
   // 결제 주문 생성
   if (path === '/api/payment-orders' && method === 'POST') {
+    const session = read(LS.authSession, null);
+    if (!session?.email) return jsonRes({ error:'로그인한 회원만 결제를 신청할 수 있습니다.' }, 401);
     const product = CATALOG[String(body.productId || '')];
     if (!product) return jsonRes({ error: '알 수 없는 상품입니다.' }, 400);
+    if (['doctor_ad', 'talent_search'].includes(product.type) && session.role !== 'hospital') {
+      return jsonRes({ error:product.type === 'doctor_ad' ? '병원 회원만 공고 상품을 신청할 수 있습니다.' : '인재 열람권은 병원 회원만 구매할 수 있습니다.' }, 403);
+    }
     const orderNumber = 'MOCK-' + Date.now().toString(36).toUpperCase();
     const orders = read(LS.orders, {});
-    orders[orderNumber] = { orderNumber, productId: body.productId, amount: product.amount, status: 'pending', metadata: body.metadata || {}, createdAt: new Date().toISOString() };
+    orders[orderNumber] = { orderNumber, ownerEmail:session.email, productId: body.productId, amount: product.amount, status: 'pending', metadata: body.metadata || {}, createdAt: new Date().toISOString() };
     write(LS.orders, orders);
     return jsonRes({ order: { orderNumber, status: 'pending', totalAmount: product.amount }, inicis: { configured: false } });
   }
 
   // 결제 승인(가상) + 열람권 부여
   if (path === '/api/payment-approve' && method === 'POST') {
+    const session = read(LS.authSession, null);
+    if (!session?.email) return jsonRes({ error:'로그인한 회원만 결제를 승인할 수 있습니다.' }, 401);
     const orders = read(LS.orders, {});
     const order = orders[body.orderNumber];
     if (!order) return jsonRes({ error: '주문을 찾을 수 없습니다.' }, 404);
+    if (order.ownerEmail && order.ownerEmail !== session.email) return jsonRes({ error:'해당 주문을 승인할 권한이 없습니다.' }, 403);
     order.status = 'paid';
     orders[body.orderNumber] = order;
     write(LS.orders, orders);

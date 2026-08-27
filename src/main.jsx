@@ -53,6 +53,18 @@ const RECRUITMENT_TYPES = ['봉직의', '대진의', '당직의', '기타'];
 const recruitmentTypes = ['전체 초빙', ...RECRUITMENT_TYPES];
 const doctorConditions = ['전체 조건', '주 4일', '당직 협의', '숙소 지원', '검진 중심'];
 const TALENT_PAGE_SIZE = 12;
+
+// 공고 신청 권한은 역할 문자열만으로 추측하지 않는다. 공용 인증 조회가 실제 회원
+// 세션과 병원 계정을 함께 확인한 경우에만 등록 화면과 제출 동작을 연다.
+function isActiveHospitalMember(auth) {
+  return Boolean(
+    auth?.status === 'member' &&
+    auth?.account?.role === 'hospital' &&
+    auth?.role === 'hospital' &&
+    !auth?.isAdmin
+  );
+}
+
 function useSiteCategories() {
   const [categories, setCategories] = useState({ departments, regions, medicalRoles:[] });
   useEffect(() => {
@@ -1758,7 +1770,7 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
   const adAuth = auth;
   const authLoading = adAuth.status === 'loading';
-  const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
+  const canRegisterAds = isActiveHospitalMember(adAuth);
   const requestAdPlan = (plan) => {
     if (authLoading) return;
     const target = `/advertise/apply?plan=${plan.id}`;
@@ -2889,7 +2901,7 @@ const AD_FIELD_LABELS = {
   terms: "결제·게시 동의",
 };
 
-function Checkout({ plan }) {
+function Checkout({ plan, auth }) {
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -3002,6 +3014,12 @@ function Checkout({ plan }) {
   const submit = async (event) => {
     event.preventDefault();
     setSubmitError("");
+    // 화면이 열린 뒤 로그아웃되거나 오래된 화면이 남아 있어도 업로드·주문 요청을
+    // 시작하지 않는다. 서버도 같은 권한을 다시 검사한다.
+    if (!isActiveHospitalMember(auth)) {
+      setSubmitError("로그인한 병원 회원만 공고를 등록할 수 있습니다.");
+      return;
+    }
     if (!facilityType) {
       setFacilityError("기관 유형을 선택해주세요.");
       setSubmitError("기관 유형을 선택한 뒤 다시 요청해주세요.");
@@ -3539,7 +3557,7 @@ function TalentUnlockPage({ route, qa, auth }) {
   // 실제 로그인 세션 기준으로 판단해야 한다. qa.active만 보면 QA 프리뷰가 아닌
   // 진짜 병원 계정은 영영 열람권을 못 사서 결제가 막힌다(실제로 그런 버그였음).
   if (auth.status === 'loading') return <section className="section auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
-  const canUnlock = Boolean(auth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
+  const canUnlock = isActiveHospitalMember(auth);
   return <>
     <PageHero tone="membership" eyebrow="TALENT RESUME UNLOCK" title="인재 이력서 열람권" description="구직 공개에 동의한 의사·의료인 후보의 연락처와 이력서 상세를 병원 회원이 열람합니다." />
     {canUnlock
@@ -3552,7 +3570,7 @@ function AdvertisePage({ qa, auth }) {
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청을 못 한다.
   const adAuth = auth;
   const authLoading = adAuth.status === 'loading';
-  const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
+  const canRegisterAds = isActiveHospitalMember(adAuth);
   const requestPlan = (nextPlan) => {
     if (authLoading) return;
     const target = `/advertise/apply?plan=${nextPlan.id}`;
@@ -3571,7 +3589,7 @@ function AdvertiseApplyPage({ route, qa, auth }) {
   // 실제 로그인 세션 기준. qa.active만 보면 진짜 병원 계정이 광고 신청 페이지에서 막힌다.
   const adAuth = auth;
   if (adAuth.status === 'loading') return <section className="ad-apply-page auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
-  const canRegisterAds = Boolean(adAuth.role === 'hospital' || (qa.active && qa.info.capabilities.hospital));
+  const canRegisterAds = isActiveHospitalMember(adAuth);
   if (!canRegisterAds) {
     const next = `/advertise/apply?plan=${plan.id}`;
     return (
@@ -3587,7 +3605,7 @@ function AdvertiseApplyPage({ route, qa, auth }) {
       </section>
     );
   }
-  return <Checkout plan={plan} />;
+  return <Checkout plan={plan} auth={adAuth} />;
 }
 
 function AboutPage() {

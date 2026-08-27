@@ -1,5 +1,16 @@
 # TEST
 
+## 비회원·미승인 병원 공고 등록 차단 회귀 검증 (2026-08-28)
+
+- 비로그인 상태에서 `/advertise/apply?plan=basic`과 `/advertise/apply?plan=featured`를 직접 열어도 등록 폼이 렌더되지 않고 병원회원 안내만 표시되는지 확인합니다.
+- 등록 폼을 연 뒤 로그아웃해도 제출 시 이미지 업로드와 `POST /api/payment-orders`가 시작되지 않는지 검사합니다.
+- 비로그인 `POST /api/payment-orders`는 HTTP 401, 의료인·관리자 및 승인되지 않은 병원 계정은 HTTP 403을 반환하는지 검사합니다.
+- `verification_status=verified`인 실제 병원 회원만 베이직·메인 광고 주문을 만들 수 있는지 검사합니다. `unverified`, `pending`, `rejected`는 모두 승인 전 상태로 취급합니다.
+- 로컬 개발 API도 운영 서버와 같은 로그인·역할·주문 소유자 검사를 적용하는지 정적 회귀 테스트로 확인합니다.
+- `npm test`: **161/161 통과**
+- `npm run build`, `node --check dist/server/index.js`, `git diff --check`: 통과
+- Sites `project_id`, D1 `DB`, R2 `BACKUPS` 바인딩은 변경하지 않았습니다.
+
 ## 인재 상세 페이지 전환·반응형·스크롤 복원 검증 (2026-08-16)
 
 - 상세(`/medical-staff?open=<코드>`)에 모달 요소(`.modal-card`·`.modal-backdrop`)가 남지 않고, 상세가 열린 동안 목록(`.headhunt-board`)이 함께 렌더되지 않는지 확인합니다. 목록이 뒤에 비쳐 보이면 사용자는 페이지가 아니라 모달로 인식합니다.

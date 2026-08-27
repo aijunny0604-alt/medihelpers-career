@@ -853,7 +853,7 @@ async function createTestAccountSession(env, accountKey) {
   }
   await env.DB.batch([
     env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
-    env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, last_login_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.email, definition.displayName),
+    env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, verification_status, last_login_at) VALUES (?, ?, ?, 'active', ?, CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', verification_status=excluded.verification_status, last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.email, definition.displayName, definition.role === 'hospital' ? 'verified' : 'unverified'),
     env.DB.prepare("INSERT INTO member_profiles (account_id, display_name) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.displayName),
     env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'terms', termsVersion),
     env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'age_confirmation', termsVersion),
@@ -947,8 +947,10 @@ async function authApi(request, env, pathname, ctx) {
       return json({ error:'이메일 또는 비밀번호가 올바르지 않습니다.' }, 401);
     }
     if (credential.status !== 'active') return json({ error:credential.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
-    if (credential.role === 'hospital' && credential.verificationStatus === 'pending') return json({ error:'사업자등록증을 검토 중입니다. 관리자 승인 후 로그인할 수 있습니다.', code:'HOSPITAL_APPROVAL_PENDING' }, 403);
-    if (credential.role === 'hospital' && credential.verificationStatus === 'rejected') return json({ error:'병원 인증이 보류되었습니다. 제출 서류를 확인하려면 메디헬퍼스로 문의해주세요.', code:'HOSPITAL_APPROVAL_REJECTED' }, 403);
+    if (credential.role === 'hospital' && credential.verificationStatus !== 'verified') {
+      if (credential.verificationStatus === 'rejected') return json({ error:'병원 인증이 보류되었습니다. 제출 서류를 확인하려면 메디헬퍼스로 문의해주세요.', code:'HOSPITAL_APPROVAL_REJECTED' }, 403);
+      return json({ error:'사업자등록증을 검토 중입니다. 관리자 승인 후 로그인할 수 있습니다.', code:'HOSPITAL_APPROVAL_PENDING' }, 403);
+    }
     await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     await env.DB.prepare('UPDATE account_admin_profiles SET last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     // [보안] 관리자 계정은 세션·쿠키 수명을 12시간으로 단축(탈취 시 노출 시간 축소).
@@ -1978,9 +1980,9 @@ async function paymentOrderApi(request, env) {
   const identity = await authenticatedUser(request, env);
   if (!identity) return json({ error:'로그인한 회원만 결제를 신청할 수 있습니다.' }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
-  try { await ensureAccountSchema(env); await ensureCommerceSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'결제 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  try { await ensureAccountSchema(env); await ensureCommerceSchema(env); await ensureMemberCenterSchema(env); await ensureHospitalVerificationSchema(env); } catch { return json({ error:'결제 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
-  const account = await env.DB.prepare("SELECT a.id, a.role, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
+  const account = await env.DB.prepare("SELECT a.id, a.role, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   if (!account) return json({ error:'회원가입을 완료한 뒤 이용해주세요.' }, 403);
   if (account.status !== 'active') return json({ error:'이용할 수 없는 회원 계정입니다.' }, 403);
   if (request.method === 'GET') {
@@ -1997,7 +1999,7 @@ async function paymentOrderApi(request, env) {
   const product = Object.hasOwn(paymentProductCatalog, productId) ? paymentProductCatalog[productId] : null;
   if (!product || typeof product.amount !== 'number') return json({ error:'신청 상품을 확인해주세요.' }, 400);
   if (product.legacy) return json({ error:'현재 판매하지 않는 상품입니다. 메인 광고를 선택해주세요.' }, 400);
-  if (product.type === 'doctor_ad' && account.role !== 'hospital') return json({ error:'병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
+  if (product.type === 'doctor_ad' && (account.role !== 'hospital' || account.verificationStatus !== 'verified')) return json({ error:'승인된 병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
   // [정책] 인재 열람권은 병원 회원만 구매한다(의사가 결제해도 열람 권한은 병원에만 부여되므로 애초에 막는다).
   if (product.type === 'talent_search' && account.role !== 'hospital') return json({ error:'인재 열람권은 병원 회원만 구매할 수 있습니다.' }, 403);
   const totalAmount = product.amount;
