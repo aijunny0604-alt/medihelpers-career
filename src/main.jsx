@@ -709,7 +709,9 @@ function JobCard({
     : job.brandFit || (job.logo ? "mark" : "mark");
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const mood = getHospitalMood(job);
-  const restricted = isAd || job.badge === "비공개";
+  // 공개 채용공고는 광고 등급과 관계없이 누구나 조건을 확인한다.
+  // 헤드헌터가 별도로 관리하는 비공개 포지션만 잠금 대상으로 남긴다.
+  const restricted = job.badge === "비공개";
   const qaUnlocked =
     restricted && qa?.active && qa.info.capabilities.privateDetails;
   const moveCardLight = (event) => {
@@ -933,11 +935,10 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
   // 병원이 비용을 낸 광고 공고는 널리 알리는 것이 목적이므로 급여·조건을 공개한다.
   // 비공개 헤드헌팅 포지션(badge === "비공개")만 상담 후 공개 대상으로 잠근다.
   const restricted = job.badge === "비공개";
-  // 로그인한 의사 회원이면 급여·상세조건을 무료로 본다(의사 대상 유료 멤버십은 폐지됨).
-  // 비회원은 잠금(가입 유도).
+  // 공개 공고는 비회원에게도 전체 조건을 제공한다. 비공개 포지션만 의료인·관리자에게 연다.
   const memberUnlocked = qa?.active
-    ? Boolean(qa.info.capabilities.doctor || qa.info.capabilities.admin)
-    : Boolean(viewerAccess.signedIn && (viewerAccess.role === 'doctor' || viewerAccess.isAdmin));
+    ? Boolean(!restricted || qa.info.capabilities.doctor || qa.info.capabilities.admin)
+    : Boolean(!restricted || (viewerAccess.signedIn && (viewerAccess.role === 'doctor' || viewerAccess.isAdmin)));
   const hospitalViewer = Boolean(!viewerAccess.loading && viewerAccess.signedIn && viewerAccess.role === 'hospital' && !viewerAccess.isAdmin);
   const qaUnlocked =
     restricted && memberUnlocked;
@@ -1095,7 +1096,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
               <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
-            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span>{viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span>{restricted && viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : restricted && hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
           </section>
           <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
             <div className="decision-sheet-head">
@@ -1104,7 +1105,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : hospitalViewer ? <><LockKeyhole /> 의료인 회원 전용</> : <><LockKeyhole /> 로그인 후 열람</>}
+                {!restricted ? <><BadgeCheck /> 누구나 전체 열람</> : viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : hospitalViewer ? <><LockKeyhole /> 의료인 회원 전용</> : <><LockKeyhole /> 로그인 후 열람</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
