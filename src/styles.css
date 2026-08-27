@@ -1452,7 +1452,7 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .signup-form-section header p{margin:0;color:#77869a;font-size:13px;line-height:1.55}
 .signup-form-section .signup-field-grid{margin:0}
 .signup-field label{display:flex;align-items:center;gap:6px}
-.signup-field label>b{color:#e04c5f;font-size:12px}
+.signup-field label>b{color:#d74458;font-size:11px;font-weight:900;letter-spacing:-.1px;white-space:nowrap}
 .signup-field label>small{padding:2px 7px;border-radius:20px;background:#eef2f6;color:#7d8999;font-size:10px;font-weight:800}
 .signup-field select{width:100%;min-height:58px;padding:0 44px 0 18px;border:1px solid #d4ddeb;border-radius:14px;background:#fff;color:#1a2c46;font-size:16px;outline:0}
 .signup-field select:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(18,99,232,.1)}

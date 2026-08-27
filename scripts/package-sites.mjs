@@ -964,6 +964,8 @@ async function authApi(request, env, pathname, ctx) {
     if (!['doctor','hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error:'회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
+    const phoneDigits = String(body.phone || '').replace(/[^0-9]/g, '');
+    if (!/^01[016789][0-9]{7,8}$/.test(phoneDigits)) return json({ error:'필수 연락처를 정확히 입력해주세요. 예: 010-1234-5678' }, 400);
     if (body.role === 'hospital') {
       const hospitalName = String(body.hospitalName || '').trim();
       const representativeName = String(body.representativeName || '').trim();
@@ -1000,7 +1002,9 @@ async function authApi(request, env, pathname, ctx) {
     let hash;
     try { hash = await passwordHash(password, salt); } catch { return json({ error:'가입 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503); }
     const displayName = String(body.displayName || body.name || '').trim().slice(0, 80);
-    const phone = String(body.phone || '').trim().slice(0, 40);
+    const phone = phoneDigits.length === 11
+      ? phoneDigits.slice(0, 3) + '-' + phoneDigits.slice(3, 7) + '-' + phoneDigits.slice(7)
+      : phoneDigits.slice(0, 3) + '-' + phoneDigits.slice(3, 6) + '-' + phoneDigits.slice(6);
     const organization = String(body.organization || body.hospitalName || body.specialty || '').trim().slice(0, 160);
     const jobTitle = String(body.jobTitle || body.hospitalRole || body.professionType || '').trim().slice(0, 160);
     let verificationRecord = null;

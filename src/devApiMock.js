@@ -100,6 +100,8 @@ async function handle(method, path, bodyText) {
     }
     const accounts = read(LS.authAccounts, {});
     if (path === '/api/auth/register') {
+      const phoneDigits = String(body.phone || '').replace(/\D/g, '');
+      if (!/^01[016789]\d{7,8}$/.test(phoneDigits)) return jsonRes({ error:'필수 연락처를 정확히 입력해주세요. 예: 010-1234-5678' }, 400);
       if (accounts[email]) return jsonRes({ error: '이미 가입된 이메일입니다.' }, 409);
       const role = body.role === 'hospital' ? 'hospital' : 'doctor';
       if (role === 'hospital' && !body.businessDocumentName) return jsonRes({ error:'사업자등록증 파일을 첨부해주세요.' }, 400);

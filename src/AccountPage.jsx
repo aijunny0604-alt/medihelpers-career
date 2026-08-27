@@ -64,7 +64,7 @@ const roleContent = {
 // autocomplete / inputMode / label 은 접근성과 입력 편의를 위해 필드별로 지정합니다.
 const FIELD_META = {
   name: { label: '담당자 성명', type: 'text', autoComplete: 'name', placeholder: '예: 홍길동' },
-  phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, hint: '상담·채용 연락에만 사용하며, 별도의 휴대폰 인증 절차는 없습니다.' },
+  phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, maxLength: 13, hint: '숫자만 입력해도 하이픈이 자동으로 표시됩니다. 상담·채용 연락에만 사용합니다.' },
   email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.' },
   password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8자 이상', hint: '영문과 숫자를 포함해 8자 이상으로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
@@ -230,13 +230,15 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
   const hintId = `${fieldId}-hint`;
   const describedBy = [meta.hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
   return <div className={`signup-field ${meta.wide ? 'wide' : ''} ${error ? 'has-error' : ''}`}>
-    <label htmlFor={fieldId}>{meta.label}{meta.optional ? <small>선택</small> : <b>*</b>}</label>
+    <label htmlFor={fieldId}>{meta.label}{meta.optional ? <small>선택</small> : <b>*(필수)</b>}</label>
     {meta.addressSearch ? <div className="signup-address-row">
       <input
         id={fieldId}
         name={fieldId}
         type="text"
         readOnly
+        required={!meta.optional}
+        aria-required={!meta.optional ? 'true' : undefined}
         placeholder={meta.placeholder}
         value={value}
         onClick={() => openAddressSearch((addr) => { onChange(addr); onBlur?.(); })}
@@ -248,6 +250,8 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
       id={fieldId}
       name={fieldId}
       value={value}
+      required={!meta.optional}
+      aria-required={!meta.optional ? 'true' : undefined}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
       aria-invalid={error ? 'true' : undefined}
@@ -261,8 +265,11 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
       type={meta.type}
       autoComplete={meta.autoComplete}
       inputMode={meta.inputMode}
+      maxLength={meta.maxLength}
       placeholder={meta.placeholder}
       value={value}
+      required={!meta.optional}
+      aria-required={!meta.optional ? 'true' : undefined}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
       aria-invalid={error ? 'true' : undefined}
