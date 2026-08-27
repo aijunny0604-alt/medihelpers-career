@@ -3302,6 +3302,9 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .ad-apply-page .order-summary li{font-size:14px}.ad-apply-page .price-row strong{font-size:21px}
 .ad-apply-page .order-summary .button{min-height:58px;font-size:16px}
 .ad-apply-page .secure-note{font-size:12px!important}
+.ad-form-submit-panel{margin-top:26px;padding:20px 22px;border:1px solid #c9dcf5;border-radius:17px;background:linear-gradient(125deg,#f3f8ff 0%,#fff 58%,#edf9f6 100%);display:flex;align-items:center;justify-content:space-between;gap:24px;box-shadow:0 12px 28px rgba(24,66,120,.07)}
+.ad-form-submit-panel>div{min-width:0;display:flex;flex-direction:column}.ad-form-submit-panel small{color:var(--blue);font:800 11px 'Manrope';letter-spacing:.8px}.ad-form-submit-panel strong{margin-top:4px;color:#142b4a;font-size:19px;letter-spacing:-.45px}.ad-form-submit-panel span{margin-top:4px;color:#6f7f94;font-size:13px;line-height:1.55;word-break:keep-all}.ad-form-submit-panel .button{min-width:250px;min-height:58px;flex:0 0 auto;font-size:16px}
+.ad-submit-dock{display:none}
 .ad-apply-success{max-width:800px;margin:60px auto;padding:72px 45px;border:1px solid #dce6f2;border-radius:25px;background:#fff;box-shadow:0 24px 60px rgba(35,64,100,.1)}
 .ad-apply-success h2{font-size:32px}.ad-apply-success-actions{display:flex;justify-content:center;gap:10px}
 .ad-apply-success-receipt{width:min(520px,100%);margin:0 auto 24px;padding:8px 20px;border:1px solid #dce7f2;border-radius:16px;background:#f7faff;text-align:left}.ad-apply-success-receipt>div{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-top:1px solid #e2eaf3}.ad-apply-success-receipt>div:first-child{border-top:0}.ad-apply-success-receipt dt{color:#75869a;font-size:12px;font-weight:750}.ad-apply-success-receipt dd{margin:0;color:#17375d;font-size:13px;font-weight:900}
@@ -3311,22 +3314,28 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .ad-apply-gate-card p{margin:0 0 25px;color:#738197;font-size:15px;line-height:1.7}.ad-apply-gate-card .button{min-height:57px}.ad-apply-gate-back{display:inline-block;margin-top:18px;color:#60738d;font-size:14px;font-weight:800}
 
 @media(max-width:1440px){
+  .ad-apply-page{padding-bottom:132px}
   .ad-apply-page .checkout-grid{grid-template-columns:1fr}
   .ad-apply-page .order-summary{position:static;order:0}
   .single-brand-guide{grid-template-columns:1fr 1fr}.single-brand-guide strong{grid-column:1/-1}
+  .ad-submit-dock{position:fixed;z-index:155;left:50%;bottom:18px;width:min(calc(100% - 36px),940px);min-height:78px;padding:11px 12px 11px 21px;border:1px solid rgba(171,195,227,.84);border-radius:20px;background:rgba(255,255,255,.96);box-shadow:0 20px 54px rgba(18,50,91,.2),0 2px 8px rgba(18,50,91,.08);backdrop-filter:blur(18px);display:flex;align-items:center;justify-content:space-between;gap:18px;transform:translateX(-50%);opacity:1;transition:opacity .22s ease,transform .28s cubic-bezier(.22,1,.36,1);will-change:transform,opacity}
+  .ad-submit-dock.is-hidden{pointer-events:none;opacity:0;transform:translate(-50%,calc(100% + 38px))}
+  .ad-submit-dock>div{min-width:0;display:flex;flex-direction:column}.ad-submit-dock small{overflow:hidden;color:#72839a;font-size:12px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}.ad-submit-dock strong{margin-top:2px;color:#132d50;font:850 20px 'Manrope'}.ad-submit-dock .button{min-width:230px;min-height:56px;flex:0 0 auto;border-radius:14px;font-size:16px;box-shadow:0 11px 24px rgba(18,99,232,.22)}
 }
 @media(max-width:1180px){
   .single-brand-upload{grid-template-columns:1fr}
   .single-brand-upload .banner-preview{width:100%}
 }
 @media(max-width:780px){
-  .ad-apply-page{padding:30px 15px 80px}
+  .ad-apply-page{padding:30px 15px 120px}
   .ad-apply-header{align-items:flex-start;padding:28px 23px;flex-direction:column}.ad-apply-help{min-width:0;width:100%}
   .ad-apply-header h1{font-size:34px}.ad-apply-header p{font-size:15px}
   .ad-apply-steps{height:auto;padding:17px 20px;gap:8px}.ad-apply-steps li{font-size:12px}.ad-apply-steps li:not(:last-child):after{display:none}.ad-apply-steps b{width:27px;height:27px}.ad-apply-steps span{display:none}
   .ad-apply-page .checkout-grid{padding:14px}.ad-form-section{padding:23px 18px}.ad-form-section-head>em{display:none}
   .single-brand-upload{grid-template-columns:1fr;padding:14px}.single-brand-guide{grid-template-columns:1fr}.single-brand-guide strong{grid-column:auto}
   .facility-upload-head{align-items:flex-start;flex-direction:column}.facility-photo-preview{grid-template-columns:1fr 1fr}
+  .ad-form-submit-panel{align-items:stretch;flex-direction:column;padding:18px;gap:16px}.ad-form-submit-panel .button{width:100%;min-width:0}
+  .ad-submit-dock{bottom:max(10px,env(safe-area-inset-bottom));width:calc(100% - 20px);min-height:70px;padding:8px 8px 8px 14px;border-radius:17px;gap:10px}.ad-submit-dock small{font-size:10px}.ad-submit-dock strong{font-size:16px}.ad-submit-dock .button{min-width:0;min-height:52px;padding-inline:16px;border-radius:12px;font-size:14px}
   .ad-apply-success{margin:25px auto;padding:48px 22px}.ad-apply-success-actions{flex-direction:column}
   .ad-apply-gate-card{padding:42px 24px}.ad-apply-gate-card h1{font-size:29px}
 }
@@ -5410,6 +5419,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 16px 42px rgba(24,56,96,.1)!important;
   transition:transform .32s cubic-bezier(.16,1,.3,1),box-shadow .32s cubic-bezier(.16,1,.3,1),border-color .24s ease!important;
 }
+@media(max-width:420px){.ad-submit-dock>div{max-width:105px}.ad-submit-dock .button{padding-inline:13px;font-size:13px}.ad-form-submit-panel strong{font-size:17px}}
+@media(prefers-reduced-motion:reduce){.ad-submit-dock{transition:none}}
 /* 병원 배너가 주인공이 되도록 색 띠 대신 얇은 경계와 표면광만 남긴다. */
 :is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad .ad-brand-stage{
   background:linear-gradient(180deg,rgba(251,253,255,.98),#fff)!important;
