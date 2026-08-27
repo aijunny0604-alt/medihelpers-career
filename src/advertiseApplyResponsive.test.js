@@ -19,6 +19,13 @@ test('공고 등록 연락처는 숫자 입력을 휴대폰 하이픈 형식으�
   assert.match(applyPage, /name="phone"[\s\S]*?inputMode="numeric"[\s\S]*?maxLength=\{13\}[\s\S]*?formatKoreanPhone\(event\.currentTarget\.value\)/);
 });
 
+test('공고 등록 최종 동의 체크박스는 문구와 나란히 정렬된다', () => {
+  assert.match(applyPage, /className="consent ad-checkout-consent"/);
+  assert.match(styles, /\.ad-apply-page \.checkout-form \.ad-checkout-consent\{[^}]*grid-template-columns:22px minmax\(0,1fr\)[^}]*align-items:start/);
+  assert.match(styles, /\.ad-apply-page \.checkout-form \.ad-checkout-consent input\{[^}]*width:22px!important[^}]*height:22px!important[^}]*min-height:22px!important/);
+  assert.match(styles, /\.ad-apply-page \.checkout-form \.ad-checkout-consent input:checked\{[^}]*background:var\(--blue\)/);
+});
+
 test('작은 노트북에서는 결제 요약과 입력 영역을 세로로 배치한다', () => {
   assert.match(styles, /@media\(max-width:1440px\)\{[\s\S]*?\.ad-apply-page \.checkout-grid\{grid-template-columns:1fr\}/);
   assert.match(styles, /@media\(max-width:1180px\)\{[\s\S]*?\.single-brand-upload\{grid-template-columns:1fr\}/);

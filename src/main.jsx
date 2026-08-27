@@ -3330,7 +3330,7 @@ function Checkout({ plan }) {
                   </button>
                 </div>
               </div>
-              <label className="consent">
+              <label className="consent ad-checkout-consent">
                 <input required type="checkbox" name="terms" value="agreed" />
                 <span>
                   결제 처리, 공고 게시 및 개인정보 수집·이용에 동의합니다. 병원
