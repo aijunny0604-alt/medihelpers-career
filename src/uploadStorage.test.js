@@ -47,10 +47,31 @@ test('hospital job checkout uploads selected images before creating its payment 
   assert.match(mainSource, /data\.hospitalPhotoUrls = hospitalPhotoUrls/);
 });
 
+test('hospital job checkout uploads web posters with preview and removal controls', () => {
+  assert.match(mainSource, /웹포스터·홍보 이미지/);
+  assert.match(mainSource, /posterImages\.map\(\(image\) => uploadJobImage\(image\.file, "poster"\)\)/);
+  assert.match(mainSource, /data\.posterImageUrls = posterImageUrls/);
+  assert.match(mainSource, /removePosterImage\(index\)/);
+  assert.match(serverSource, /purposeRaw === 'poster'/);
+});
+
 test('hospital job records retain uploaded image URLs for public cards', () => {
   assert.match(serverSource, /const logo = cleanOrderValue\(meta\.logo \|\| meta\.brandImageUrl/);
   assert.match(serverSource, /facilityPhotos,/);
   assert.match(serverSource, /facility,/);
+});
+
+test('hospital job records retain up to three poster images for public details', () => {
+  assert.match(serverSource, /const posterImages = Array\.isArray\(meta\.posterImageUrls\)/);
+  assert.match(serverSource, /slice\(0, 3\)/);
+  assert.match(serverSource, /posterImages,/);
+  assert.match(mainSource, /className="job-poster-detail"/);
+});
+
+test('public doctor job mapping carries facility and poster galleries to JobDetail', () => {
+  const operationsSource = readFileSync(new URL('./siteOperations.js', import.meta.url), 'utf8');
+  assert.match(operationsSource, /hospitalPhotos:Array\.isArray\(p\.facilityPhotos\)/);
+  assert.match(operationsSource, /posterImages:Array\.isArray\(p\.posterImages\)/);
 });
 
 test('hospital job checkout can persist a selected sample banner', () => {

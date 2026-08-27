@@ -1323,7 +1323,7 @@ async function uploadApi(request, env, pathname) {
     const accountKey = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(accountKey).first();
     const purposeRaw = String(request.headers.get('x-upload-purpose') || 'photo').toLowerCase();
-    const purpose = (purposeRaw === 'banner' || purposeRaw === 'logo' || purposeRaw === 'facility' || purposeRaw === 'resume-profile') ? purposeRaw : 'photo';
+    const purpose = (purposeRaw === 'banner' || purposeRaw === 'logo' || purposeRaw === 'facility' || purposeRaw === 'poster' || purposeRaw === 'resume-profile') ? purposeRaw : 'photo';
     const isResumeProfile = purpose === 'resume-profile';
     // 병원 광고 이미지는 병원·관리자, 이력서 증명사진은 의료인 본인만 업로드한다.
     const isAdmin = Boolean(await adminIdentity(request, env));
@@ -1876,6 +1876,9 @@ function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail
   const facilityPhotos = Array.isArray(meta.hospitalPhotoUrls)
     ? meta.hospitalPhotoUrls.map(value => cleanOrderValue(value, 800)).filter(Boolean).slice(0, 6)
     : [];
+  const posterImages = Array.isArray(meta.posterImageUrls)
+    ? meta.posterImageUrls.map(value => cleanOrderValue(value, 800)).filter(Boolean).slice(0, 3)
+    : [];
   const facility = cleanOrderValue(meta.facility || facilityPhotos[0], 800);
   return {
     id:'ad-order-' + id,
@@ -1895,6 +1898,7 @@ function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail
       banner,
       facility,
       facilityPhotos,
+      posterImages,
       hospital,
       facilityType:cleanOrderValue(meta.facilityType, 100),
       address,

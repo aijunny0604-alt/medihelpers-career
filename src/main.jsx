@@ -944,6 +944,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
   const locked = restricted && !qaUnlocked;
   const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${job.hospital} ${job.location}`)}`;
   const hospitalPhotos = job.hospitalPhotos || [];
+  const posterImages = job.posterImages || (job.poster ? [job.poster] : []);
   const detailBanner = job.banner || job.cardBanner;
   const detailLogo = job.logo && job.logo !== detailBanner ? job.logo : "";
   const institutionFacts = [
@@ -1233,6 +1234,23 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               </div>
             </div>
             <p className="job-summary-text">{job.summary}</p>
+            {posterImages.length > 0 && (
+              <div className="job-poster-detail" aria-label={`${job.hospital} 채용 홍보 자료`}>
+                <header>
+                  <span><FileText /></span>
+                  <div><small>RECRUITMENT POSTER</small><h4>채용 홍보 자료</h4></div>
+                  <em>{posterImages.length}장</em>
+                </header>
+                <div>
+                  {posterImages.map((poster, index) => (
+                    <a key={`${poster}-${index}`} href={poster} target="_blank" rel="noreferrer" aria-label={`${index + 1}번 채용 홍보 이미지 원본 보기`}>
+                      <img src={poster} alt={`${job.hospital} 채용 홍보 이미지 ${index + 1}`} loading="lazy" />
+                      <span>원본 크게 보기 <ArrowRight /></span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="job-detail-copy">
               <div><h4>근무조건</h4><p>급여조건은 {job.pay}이며, 근무시간은 {job.workHours || job.schedule}입니다. {job.daysOff || "휴무일은 상담을 통해 조율합니다."}</p></div>
               <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 지원 후 병원 채용담당자와 직접 확인합니다.</p></div>
@@ -2787,6 +2805,8 @@ function Checkout({ plan }) {
   const [brandError, setBrandError] = useState("");
   const [facilityPhotos, setFacilityPhotos] = useState([]);
   const [photoError, setPhotoError] = useState("");
+  const [posterImages, setPosterImages] = useState([]);
+  const [posterError, setPosterError] = useState("");
   const [activeDrop, setActiveDrop] = useState("");
   useEffect(() => {
     const target = finalActionRef.current;
@@ -2866,6 +2886,37 @@ function Checkout({ plan }) {
   };
   const selectFacilityPhotos = (event) =>
     chooseFacilityPhotos(event.currentTarget.files, event.currentTarget);
+  const choosePosterImages = (files, input) => {
+    const selected = [...(files || [])];
+    setPosterError("");
+    const available = Math.max(0, 3 - posterImages.length);
+    if (!available) {
+      setPosterError("웹포스터·홍보 이미지는 최대 3장까지 등록할 수 있습니다.");
+      if (input) input.value = "";
+      return;
+    }
+    const valid = selected
+      .filter(
+        (file) =>
+          ["image/png", "image/jpeg", "image/webp"].includes(file.type) &&
+          file.size <= JOB_IMAGE_MAX_BYTES,
+      )
+      .slice(0, available);
+    if (valid.length !== selected.length) {
+      setPosterError("PNG·JPG·WEBP 이미지만 장당 5MB 이하로, 최대 3장까지 등록해주세요.");
+    }
+    setPosterImages((current) => [
+      ...current,
+      ...valid.map((file) => ({
+        name: file.name,
+        url: URL.createObjectURL(file),
+        file,
+      })),
+    ]);
+    if (input) input.value = "";
+  };
+  const selectPosterImages = (event) =>
+    choosePosterImages(event.currentTarget.files, event.currentTarget);
   const dropZoneProps = (target, onFiles) => ({
     onDragEnter: (event) => {
       event.preventDefault();
@@ -2891,6 +2942,12 @@ function Checkout({ plan }) {
     setFacilityPhotos((current) => {
       URL.revokeObjectURL(current[index].url);
       return current.filter((_, photoIndex) => photoIndex !== index);
+    });
+  };
+  const removePosterImage = (index) => {
+    setPosterImages((current) => {
+      URL.revokeObjectURL(current[index].url);
+      return current.filter((_, imageIndex) => imageIndex !== index);
     });
   };
   const submit = async (event) => {
@@ -2923,6 +2980,7 @@ function Checkout({ plan }) {
       logoName: brandFile?.name || "",
       bannerName: brandTemplate ? brandTemplate.split("/").pop() : "",
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
+      posterImageNames: posterImages.map((image) => image.name),
       premiumBrandMode: brandFile ? "single-brand-image" : brandTemplate ? "sample-banner" : "auto-wordmark",
     };
     setSubmitting(true);
@@ -2932,11 +2990,15 @@ function Checkout({ plan }) {
       const hospitalPhotoUrls = await Promise.all(
         facilityPhotos.map((photo) => uploadJobImage(photo.file, "facility")),
       );
+      const posterImageUrls = await Promise.all(
+        posterImages.map((image) => uploadJobImage(image.file, "poster")),
+      );
       data.brandImageUrl = brandImageUrl;
       data.logo = brandImageUrl;
       data.banner = brandTemplate;
       data.hospitalPhotoUrls = hospitalPhotoUrls;
       data.facility = hospitalPhotoUrls[0] || "";
+      data.posterImageUrls = posterImageUrls;
       const response = await fetch("/api/payment-orders", {
         method: "POST",
         credentials: "same-origin",
@@ -3305,6 +3367,53 @@ function Checkout({ plan }) {
                 />
                 <small className="field-hint">줄바꿈과 목록이 공고 상세에 그대로 표시됩니다. 아래에서 홍보 이미지도 함께 올릴 수 있습니다.</small>
               </label>
+              <section
+                className={`job-poster-upload ${activeDrop === "poster" ? "is-dragging" : ""}`}
+                {...dropZoneProps("poster", choosePosterImages)}
+                aria-label="웹포스터와 홍보 이미지 업로드"
+              >
+                <div className="job-poster-upload-head">
+                  <div>
+                    <span><FileText /></span>
+                    <div>
+                      <strong>웹포스터·홍보 이미지</strong>
+                      <small>선택사항 · 세로형·가로형 모두 가능 · PNG·JPG·WEBP · 장당 5MB · 최대 3장</small>
+                    </div>
+                  </div>
+                  <label>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                      onChange={selectPosterImages}
+                    />
+                    <Upload /> 이미지 업로드
+                  </label>
+                </div>
+                {posterImages.length ? (
+                  <div className="job-poster-preview">
+                    {posterImages.map((image, index) => (
+                      <figure key={`${image.name}-${index}`}>
+                        <img src={image.url} alt={`웹포스터 미리보기 ${index + 1}`} />
+                        <button
+                          type="button"
+                          onClick={() => removePosterImage(index)}
+                          aria-label={`${image.name} 삭제`}
+                        >
+                          <X />
+                        </button>
+                        <figcaption>{image.name}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="job-poster-empty">
+                    <Upload />
+                    <div><strong>클릭·드래그 또는 Ctrl+V로 이미지 추가</strong><span>등록한 자료는 공고 상세내용 아래에 원본 비율로 표시됩니다.</span></div>
+                  </div>
+                )}
+                {posterError && <em>{posterError}</em>}
+              </section>
               </section>
               <section className="ad-form-section ad-form-final">
                 <div className="ad-form-section-head">
