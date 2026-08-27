@@ -44,6 +44,7 @@ import { installAuthenticatedFetch } from './authTransport.js';
 import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
 import { imageFilesFromTransfer, pasteImageFiles } from './imageInput.js';
 import { getAdTierPresentation } from './adTierPresentation.js';
+import { formatKoreanPhone } from './signupFields.js';
 
 installAuthenticatedFetch();
 
@@ -3207,7 +3208,13 @@ function Checkout({ plan }) {
                     required
                     name="phone"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    maxLength={13}
                     placeholder="010-0000-0000"
+                    onInput={(event) => {
+                      event.currentTarget.value = formatKoreanPhone(event.currentTarget.value);
+                    }}
                   />
                 </label>
                 <label>

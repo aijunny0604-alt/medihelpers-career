@@ -14,6 +14,11 @@ test('공고 등록 필수 항목은 별표 대신 빨간 필수 문구를 사�
   assert.match(styles, /\.ad-apply-page \.required-label\{[^}]*color:#d93b4d/);
 });
 
+test('공고 등록 연락처는 숫자 입력을 휴대폰 하이픈 형식으로 자동 정리한다', () => {
+  assert.match(source, /import \{ formatKoreanPhone \} from '\.\/signupFields\.js';/);
+  assert.match(applyPage, /name="phone"[\s\S]*?inputMode="numeric"[\s\S]*?maxLength=\{13\}[\s\S]*?formatKoreanPhone\(event\.currentTarget\.value\)/);
+});
+
 test('작은 노트북에서는 결제 요약과 입력 영역을 세로로 배치한다', () => {
   assert.match(styles, /@media\(max-width:1440px\)\{[\s\S]*?\.ad-apply-page \.checkout-grid\{grid-template-columns:1fr\}/);
   assert.match(styles, /@media\(max-width:1180px\)\{[\s\S]*?\.single-brand-upload\{grid-template-columns:1fr\}/);
