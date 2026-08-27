@@ -3277,7 +3277,7 @@ function Checkout({ plan }) {
               </div>
               <label className="wide-field">
                 <span>
-                  상세 모집요강 <i>선택</i>
+                  상세내용 <i>선택</i>
                 </span>
                 <textarea
                   name="introduction"

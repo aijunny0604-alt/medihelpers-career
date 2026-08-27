@@ -5399,24 +5399,32 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .payment-result-notice button{flex:0 0 auto;padding:10px 18px;border:1px solid currentColor;border-radius:10px;background:transparent;color:inherit;font-size:13px;font-weight:750;cursor:pointer}
 .payment-result-notice button:hover{background:rgba(255,255,255,.6)}
 
-/* ── 광고(프리미엄) 공고 카드: 금색은 상단 얇은 라인 한 줄로만 ── */
-.unified-job-grid .job-card.premium-ad,
-.unified-job-grid .job-card.premium-ad.ad-featured,
-.unified-job-grid .job-card.premium-ad.ad-spotlight{
-  border-top:3px solid #c89b2d!important;
-  border-right-color:#e6ecf5!important;
-  border-bottom-color:#e6ecf5!important;
-  border-left-color:#e6ecf5!important;
+/* ── 유료 공고 카드: 등급은 배지로, 카드 외곽은 중립적인 1px 선으로 표현 ── */
+:is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad,
+:is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad.ad-featured,
+:is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad.ad-spotlight{
+  border:1px solid #dce6f1!important;
+  background:
+    radial-gradient(circle at 94% 2%,color-mix(in srgb,var(--job-color) 8%,transparent),transparent 29%),
+    linear-gradient(180deg,#fff 0%,#fbfdff 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 16px 42px rgba(24,56,96,.1)!important;
+  transition:transform .32s cubic-bezier(.16,1,.3,1),box-shadow .32s cubic-bezier(.16,1,.3,1),border-color .24s ease!important;
 }
-/* 로고 스테이지는 병원 로고가 주인공 — 금색 틴트 대신 중립 배경 */
-.unified-job-grid .job-card.premium-ad .ad-brand-stage{
-  background:linear-gradient(180deg,#fbfcfe,#fff)!important;
-  border-color:#e8edf5!important;
+/* 병원 배너가 주인공이 되도록 색 띠 대신 얇은 경계와 표면광만 남긴다. */
+:is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad .ad-brand-stage{
+  background:linear-gradient(180deg,rgba(251,253,255,.98),#fff)!important;
+  border:1px solid #e1e9f2!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 26px rgba(24,56,96,.07)!important;
 }
-.unified-job-grid .job-card.premium-ad:hover{
-  border-right-color:#cddcf1!important;
-  border-bottom-color:#cddcf1!important;
-  border-left-color:#cddcf1!important;
+@media(hover:hover) and (pointer:fine){
+  :is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad:hover{
+    transform:translateY(-5px)!important;
+    border-color:#c8d7e7!important;
+    box-shadow:inset 0 1px 0 #fff,0 24px 56px rgba(24,56,96,.15)!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  html:not(.force-motion) :is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad:hover{transform:none!important}
 }
 
 /* 전역 알림(토스트) — 관심공고 저장 실패처럼 화면에 붙일 자리가 없는 알림을 표시한다. */
@@ -5771,9 +5779,10 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 @media(max-width:560px){.premium-rotation-page .job-card.job-card-compact{min-height:370px;padding:15px 16px}.premium-rotation-page .job-card-compact h3{min-height:54px;font-size:18px}.premium-rotation-page .job-card-compact .meta{font-size:12.5px}.premium-rotation-page .job-card-compact .job-bottom>span{font-size:13px}.premium-rotation-page .job-card-compact .job-bottom strong,.premium-rotation-page .job-card-compact .card-action{font-size:12.5px}}
 .monitor-kind.recovery{background:#fff0e4;color:#a85517}
 
-/* Paid recruitment tiers must remain unmistakable on cards and detail pages. */
-.unified-job-grid .job-card[data-ad-tier="main"]{border-top-color:#c89b2d!important}
-.unified-job-grid .job-card[data-ad-tier="basic"]{border-top-color:#2f82dc!important}
+/* 유료 등급은 두꺼운 색 띠 없이 배지와 표면 농도로 구분한다. */
+:is(.unified-job-grid,.premium-rotation-page) .job-card[data-ad-tier]{border-top-width:1px!important}
+:is(.unified-job-grid,.premium-rotation-page) .job-card[data-ad-tier="main"]{border-color:#d6e1ed!important;box-shadow:inset 0 1px 0 #fff,0 18px 46px rgba(26,58,97,.12)!important}
+:is(.unified-job-grid,.premium-rotation-page) .job-card[data-ad-tier="basic"]{border-color:#dce6f1!important;box-shadow:inset 0 1px 0 #fff,0 12px 32px rgba(26,58,97,.075)!important}
 .ad-tier-badge.ad-tier-main{border-color:#e6c66f!important;background:#fff5d9!important;color:#8a5a00!important}
 .ad-tier-badge.ad-tier-basic{border-color:#bdd6f7!important;background:#edf5ff!important;color:#155fb9!important}
 .ad-tier-badge svg{color:inherit!important}
@@ -5817,5 +5826,20 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .job-location-canvas.is-ready{display:block}
 @media(max-width:600px){.job-location-canvas{height:240px}}
 
-/* 병원이 작성한 상세 모집요강은 줄바꿈·목록을 입력 그대로 보여준다. */
+/* 병원이 작성한 상세내용은 줄바꿈·목록을 입력 그대로 보여준다. */
 .job-summary-text{white-space:pre-line}
+
+/* 작은 화면의 고정 채용 바로가기: 브랜드 문구가 글자 단위로 찌그러지지 않게 한다. */
+@media(max-width:620px){
+  .smart-ad-dock{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+  .smart-ad-dock-brand{min-width:0;overflow:hidden}
+  .smart-ad-dock-brand span{min-width:0;overflow:hidden}
+  .smart-ad-dock-brand strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .smart-ad-dock-cta,.smart-ad-dock-cta.auth-action-pending{width:auto;min-width:118px;max-width:142px;flex:0 0 auto}
+}
+@media(max-width:420px){
+  .smart-ad-dock{grid-template-columns:40px minmax(0,1fr)}
+  .smart-ad-dock-brand{width:40px;padding:0}
+  .smart-ad-dock-brand span{display:none}
+  .smart-ad-dock-cta,.smart-ad-dock-cta.auth-action-pending{width:100%;min-width:0;max-width:none}
+}
