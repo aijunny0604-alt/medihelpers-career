@@ -9,6 +9,8 @@
 - 로컬 개발 API도 운영 서버와 같은 로그인·역할·주문 소유자 검사를 적용하는지 정적 회귀 테스트로 확인합니다.
 - `npm test`: **174/174 통과**
 - `npm run build`, `node --check dist/server/index.js`, `git diff --check`: 통과
+- 운영 새 쿠키 검증: 비회원 베이직·메인 `POST /api/payment-orders` 각각 HTTP `401`; 의료인 베이직 주문 HTTP `403`; 의료인 `/api/resumes`, 병원 `/api/member-center`, 관리자 `/api/admin-console` 각각 HTTP `200`.
+- 최종 운영 배포: Sites version `301`, GitHub 기준 브랜치와 동일 커밋.
 - Sites `project_id`, D1 `DB`, R2 `BACKUPS` 바인딩은 변경하지 않았습니다.
 
 ## 공개 채용공고 비회원 열람 회귀 검증 (2026-08-27)
