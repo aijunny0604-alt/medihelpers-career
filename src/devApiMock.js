@@ -8,6 +8,7 @@ const LS = {
   unlocks: 'devmock_talent_unlocks',
   creditPool: 'devmock_talent_credits', // 팩 열람권 크레딧 { total, used }
   resumes: 'devmock_resumes',
+  jobSeekerPosts: 'devmock_job_seeker_posts',
   authAccounts: 'devmock_auth_accounts', // { [email]: { role, password } }
   authSession: 'devmock_auth_session', // { email, role } | null
   adminContents: 'devmock_admin_contents', // 관리자가 올린 공고·콘텐츠 (로컬에서도 실제 저장·노출)
@@ -189,10 +190,12 @@ async function handle(method, path, bodyText) {
     if (unlocks[talentId]) {
       // 실제 이력서(resume-<id>)만 서버 상세를 흉내. 정적 데모(MH-...)는 detail:null로 반환해
       // 클라이언트가 data.js의 데모 상세로 폴백하게 한다(실제 서버 동작과 동일).
-      const resumeId = talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '';
+      const postId = talentId.startsWith('seeker-') ? talentId.slice('seeker-'.length) : '';
+      const post = postId ? read(LS.jobSeekerPosts, {})[postId] : null;
+      const resumeId = post?.resumeId || (talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '');
       const resume = resumeId ? read(LS.resumes, {})[resumeId] : null;
       const source = resume ? { name:resume.name, phone:resume.phone, email:resume.email, specialty:resume.specialty, desiredRegions:resume.desiredRegions, detail:resume.detail || {} } : talentId.startsWith('resume-') ? mockDetailFor(talentId) : null;
-      const contactProtected = Boolean(resume && resume.contactVisibility !== 'ticket');
+      const contactProtected = Boolean(resume && (post ? post.contactVisibility !== 'ticket' : resume.contactVisibility !== 'ticket'));
       const detail = source ? { ...source, name:contactProtected ? '' : source.name, phone:contactProtected ? '' : source.phone, email:contactProtected ? '' : source.email } : null;
       return jsonRes({ unlocked: true, contactProtected, detail });
     }
@@ -209,6 +212,27 @@ async function handle(method, path, bodyText) {
   }
   if (path === '/api/resumes' && method === 'GET') {
     return jsonRes({ resumes: Object.values(read(LS.resumes, {})) });
+  }
+
+  if (path === '/api/job-seeker-posts' || path.startsWith('/api/job-seeker-posts/')) {
+    const session = read(LS.authSession, null);
+    if (!session) return jsonRes({ error:'구직글은 의료인 회원 로그인 후 관리할 수 있습니다.' }, 401);
+    if (session.role !== 'doctor' || String(session.email || '').startsWith('admin@')) return jsonRes({ error:'구직글은 의사·의료인 회원만 등록할 수 있습니다.' }, 403);
+    const posts = read(LS.jobSeekerPosts, {});
+    const id = path === '/api/job-seeker-posts' ? '' : decodeURIComponent(path.slice('/api/job-seeker-posts/'.length));
+    if (method === 'GET') return id ? (posts[id] ? jsonRes({ signedIn:true, post:posts[id] }) : jsonRes({ error:'본인 구직글을 찾을 수 없습니다.' }, 404)) : jsonRes({ signedIn:true, posts:Object.values(posts).filter((post) => post.status !== 'deleted') });
+    if (method === 'DELETE') {
+      if (!posts[id]) return jsonRes({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
+      posts[id].status = 'deleted'; write(LS.jobSeekerPosts, posts);
+      return jsonRes({ deleted:true, id });
+    }
+    if (method === 'POST' || method === 'PATCH') {
+      const nextId = id || `JSP-${Date.now().toString(36).toUpperCase()}`;
+      if (!body.resumeId || !read(LS.resumes, {})[body.resumeId]) return jsonRes({ error:'연동할 본인 이력서를 선택해주세요.' }, 404);
+      posts[nextId] = { ...(posts[nextId] || {}), ...body, id:nextId, status:'active', updatedAt:new Date().toISOString() };
+      write(LS.jobSeekerPosts, posts);
+      return jsonRes({ saved:true, created:method === 'POST', post:posts[nextId] }, method === 'POST' ? 201 : 200);
+    }
   }
 
   // 목 계정 — 서버 /api/account 계약과 동일한 형태로 반환.
@@ -283,7 +307,9 @@ async function handle(method, path, bodyText) {
       const sess = read(LS.authSession, null) || {};
       const role = sess.role === 'doctor' ? 'doctor' : 'hospital';
       const isAdmin = String(sess.email || '').toLowerCase() === 'admin@medihelpers.co.kr';
-      return jsonRes({ signedIn: true, isAdmin, account: { role }, identity: { email: sess.email || '' }, orders });
+      const resumes = Object.values(read(LS.resumes, {}));
+      const jobSeekerPosts = Object.values(read(LS.jobSeekerPosts, {})).filter((post) => post.status !== 'deleted').map((post) => ({ ...post, resumeTitle:resumes.find((resume) => resume.id === post.resumeId)?.title || post.resumeId }));
+      return jsonRes({ signedIn: true, isAdmin, account: { role }, identity: { email: sess.email || '' }, orders, resume:resumes[0] || null, jobSeekerPosts });
     }
     if (path === '/api/talent-access-audit') return jsonRes({ viewers: [], alerts: [], recent: [] });
     if (path === '/api/site-operations') {
@@ -291,6 +317,12 @@ async function handle(method, path, bodyText) {
       // 로컬에서도 /jobs·/medical-staff 목록에 실제로 뜨게 한다(배포 서버 동작과 동일).
       const adminContents = read(LS.adminContents, []);
       const publicContents = adminContents.filter((c) => c.status === 'published' && (c.visibility || 'public') === 'public');
+      const currentRole = read(LS.authSession, null)?.role || '';
+      const resumes = read(LS.resumes, {});
+      Object.values(read(LS.jobSeekerPosts, {})).filter((post) => post.status === 'active').forEach((post) => {
+        const resume = resumes[post.resumeId] || {};
+        publicContents.push({ id:`seeker-${post.id}`, contentType:'talent_profile', title:post.title || '', subtitle:post.summary || '', visibility:'public', payload:{ code:`MH-${String(post.id).slice(-6)}`, profession:resume.profession || '', staffType:['의사','치과의사','한의사'].includes(resume.profession) ? 'doctor' : 'medical', dept:post.specialty || resume.specialty || resume.profession || '', career:resume.detail?.experienceYears || '경력 확인 필요', region:post.desiredRegion || resume.desiredRegions || '', preference:post.employmentType || '', available:post.availableFrom || '협의', linkedResumeId:post.resumeId, jobSeekerPostId:post.id, ownerView:currentRole === 'doctor' } });
+      });
       return jsonRes({
         settings: { siteName: '메디헬퍼스', supportPhone: '051-342-5463', supportEmail: 'hr@medihelpers.co.kr', announcement: '' },
         features: { doctorRecruitment: true, talentSearch: true, resumeRegistration: true, medicalStaffHub: true, paidCareerService: false, adRegistration: true },

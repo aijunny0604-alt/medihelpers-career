@@ -88,7 +88,7 @@ export default function MedicalStaffPage({ operations, medicalTalent = [], talen
   const isDoctor = auth?.role === 'doctor';
   return <div className="medical-staff-hub medical-staff-seek-only">
     <section className="medical-staff-hero seek-hero">
-      <div><span><UsersRound /> MEDICAL PROFESSIONALS</span><h1>의료인 구인구직<br /><em>구직 중인 의료인 인재</em></h1><p>의사·간호·의료기사·약무 등 의료인이 직접 공개한 <b>구직 이력서</b>입니다. 구직글은 별도 복사본이 아니라 본인이 관리하는 이력서와 바로 연동됩니다.</p>{isDoctor && <div className="medical-staff-actions"><button onClick={() => go('/resume?staff=1&publish=1')}><FileText /> 내 이력서로 구직글 등록 <ArrowRight /></button></div>}</div>
+      <div><span><UsersRound /> MEDICAL PROFESSIONALS</span><h1>의료인 구인구직<br /><em>구직 중인 의료인 인재</em></h1><p>의사·간호·의료기사·약무 등 의료인이 직접 등록한 <b>구직 게시글</b>입니다. 작성할 때 저장된 이력서를 선택해 연결합니다.</p>{isDoctor && <div className="medical-staff-actions"><button onClick={() => go('/job-seeker-posts/new')}><FileText /> 새 구직글 등록 <ArrowRight /></button></div>}</div>
     </section>
     {talentSection}
   </div>;

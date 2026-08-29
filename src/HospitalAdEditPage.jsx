@@ -106,7 +106,7 @@ export default function HospitalAdEditPage({ ad }) {
         <EditableImage label="병원 로고·브랜드 이미지" description="병원명 옆과 브랜드 영역에 사용됩니다." purpose="logo" value={form.logo} file={logoFile} onChange={setLogoFile} onRemove={() => { setLogoFile(null); update('logo',''); }} />
         <EditableImage label="채용공고 배너" description="목록 카드와 공고 상세 상단에 사용되는 3:1 배너입니다." purpose="banner" value={form.banner} file={bannerFile} onChange={setBannerFile} onRemove={() => { setBannerFile(null); update('banner',''); }} />
       </div></section>
-      <div className="owned-ad-edit-footer"><div><ShieldCheck /><span><strong>본인 공고만 수정할 수 있습니다</strong><small>서버가 로그인 계정과 결제 주문의 소유권을 다시 확인합니다.</small></span></div><div><a className="button outline" href={withBase('/mypage?tab=ads')}>취소</a><button className="button primary" type="submit" disabled={submitting}>{submitting ? '저장 중…' : '수정내용 저장'} <ArrowRight /></button></div></div>
+      <div className="owned-ad-edit-footer"><div><ShieldCheck /><span><strong>유료 병원 공고는 내용 수정만 가능합니다</strong><small>광고 계약·결제 이력을 보호하기 위해 직접 삭제할 수 없습니다. 게시 중단이나 환불은 고객센터에 문의해주세요.</small></span></div><div><a className="button outline" href={withBase('/mypage?tab=ads')}>취소</a><button className="button primary" type="submit" disabled={submitting}>{submitting ? '저장 중…' : '수정내용 저장'} <ArrowRight /></button></div></div>
       {error && <p className="form-error" role="alert">{error}</p>}
     </form>
   </section>;

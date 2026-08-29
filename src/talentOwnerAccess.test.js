@@ -25,5 +25,5 @@ test('the server unlocks only the matching resume owner without spending a hospi
   assert.match(server, /account_id = \? OR \? = 1 OR visibility IN/);
   assert.match(page, /내 글 · 무료/);
   assert.match(page, /ownerAccess \? 'MY POST · 작성자 무료 열람'/);
-  assert.match(page, /to="\/resume">내 구직글 수정/);
+  assert.match(page, /job-seeker-posts\/\$\{encodeURIComponent\(person\.jobSeekerPostId\)\}\/edit/);
 });

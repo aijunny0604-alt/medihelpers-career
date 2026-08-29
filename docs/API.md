@@ -21,9 +21,11 @@
 | `/api/admin-console` | GET·PATCH | 관리자 | 통합 운영 데이터와 관리 작업 |
 | `/api/payment-approve` | POST | 주문 소유자 / PG 리턴 | 결제 승인 확정(금액·서명·멱등성 검증). 광고 주문은 승인 성공 즉시 공고를 `published`로 전환. 키 미설정 시 테스트(가상) 승인 |
 | `/api/resumes` | GET·POST | 의료인 회원 | 본인 이력서 목록 조회·신규 등록·수정(최대 20개 반환, 공개 범위 선택) |
+| `/api/job-seeker-posts` | GET·POST | 의료인 회원 | 본인 구직글 목록 조회·등록. 본인 소유 이력서 선택 필수, 관리자 작성 차단 |
+| `/api/job-seeker-posts/:id` | GET·PATCH·DELETE | 작성 의료인 | 본인 구직글 조회·수정·소프트 삭제. 다른 계정 접근 차단 |
 | `/api/uploads` | POST | 병원·관리자 / 의료인 | 병원 광고 이미지 또는 의료인 이력서 프로필 사진 업로드. `x-upload-purpose: resume-profile`은 의료인 본인만 허용 |
 | `/api/saved-jobs` | GET·POST | 회원 | 관심공고 조회(jobId 배열)·토글 |
-| `/api/talent-detail/:id` | GET | 병원(열람권)·관리자 | 인재 상세. **공개(public/proposal) 이력서만** 실명·연락처 제공, 열람 감사 기록 |
+| `/api/talent-detail/:id` | GET | 작성자·병원(열람권)·관리자 | 활성 구직글에 연결된 이력서 상세. 병원 연락처는 게시글이 `ticket`일 때만 제공, 열람 감사 기록 |
 | `/api/talent-access-audit` | GET | 관리자 | 병원별 열람량·이상 열람 감사 |
 
 ## 결제·열람권 규칙 (코드 기준)
@@ -45,6 +47,8 @@
 - 상담은 인증 계정 이메일로 회원 내역에 연결하며 가입 계정이 있으면 역할도 검사합니다. `ACCOUNT_HASH_SECRET`이 약하면 검사를 건너뛰지 않고 **503으로 차단**(fail-closed)합니다.
 - 의료인 상담·공고 지원에서 `payload.resumeId`를 보내면 서버가 로그인 계정의 이력서 소유권을 확인합니다. 접수 기록에는 서버가 조회한 제목과 이력서 스냅샷을 함께 저장하므로 이후 원본이 수정되어도 접수 당시 제출 내용을 확인할 수 있습니다.
 - `owned_ad_update`는 병원회원만 사용할 수 있고 `contentRecordId`에 연결된 광고 주문의 `account_id`가 로그인 계정과 같은지 확인합니다. 제목·병원 정보·채용 조건·이미지만 갱신하며 결제금액·상품등급·노출기간은 기존 값을 보존합니다.
+- 병원 유료 공고는 직접 삭제할 수 없습니다. `owned_ad_delete` 요청은 `PAID_AD_DELETE_FORBIDDEN`과 HTTP 403을 반환합니다.
+- 구직글 CRUD는 의료인 역할과 게시글·이력서의 `account_id`를 모두 재검사합니다. 공개 `/api/site-operations`에는 익명 조건과 참조 ID만 포함하고 연락처는 넣지 않습니다.
 - 이력서 신규 추가는 `POST /api/resumes`에 `createNew: true`, 특정 이력서 수정은 본인 소유 `resumeId`를 보냅니다. 기존 클라이언트는 별도 값이 없을 때 최근 이력서를 수정하는 방식으로 호환됩니다.
 - 이력서 증명사진은 R2의 `profiles/<account_id>/resume-profile/…`에 저장하고 이력서 `detail.photoUrl`에 연결합니다. 사진 URL은 공개 캐시하지 않으며 본인·관리자 또는 해당 후보 열람권을 가진 병원만 조회할 수 있습니다.
 - 후보 추천은 동의(`consent_status='granted'`)가 확인된 건만 병원에 노출합니다.

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const main = readFileSync(new URL('./main.jsx', import.meta.url), 'utf8');
 const resume = readFileSync(new URL('./ResumePage.jsx', import.meta.url), 'utf8');
+const jobSeekerPost = readFileSync(new URL('./JobSeekerPostPage.jsx', import.meta.url), 'utf8');
 const medicalStaff = readFileSync(new URL('./MedicalStaffPage.jsx', import.meta.url), 'utf8');
 const operations = readFileSync(new URL('./siteOperations.js', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
@@ -36,9 +37,11 @@ test('의료인 이력서는 가입 정보로 빈 칸을 채우고 저장된 이
   assert.match(server, /const profession = s\(body\.profession \|\| registrationProfile\?\.professionType/);
 });
 
-test('구직글은 별도 복사본 없이 공개 이력서 ID와 연결된다', () => {
-  assert.match(medicalStaff, /\/resume\?staff=1&publish=1/);
-  assert.match(resume, /publishAsJobSeeker \? 'public'/);
+test('구직글은 전용 페이지에서 본인 이력서를 선택해 연결한다', () => {
+  assert.match(medicalStaff, /\/job-seeker-posts\/new/);
+  assert.match(jobSeekerPost, /\/api\/resumes/);
+  assert.match(jobSeekerPost, /resumeId/);
+  assert.match(server, /job_seeker_posts p JOIN resumes r/);
   assert.match(server, /linkedResumeId: r\.id/);
   assert.match(operations, /linkedResumeId: p\.linkedResumeId \|\| ''/);
 });

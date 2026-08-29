@@ -12,7 +12,7 @@ test('hospital ad editing is routed from the owned-ad card to a standalone page'
   assert.match(mainSource, /path\.startsWith\('\/mypage\/ads\/'\)/);
   assert.match(memberCenterSource, /<HospitalAdEditPage ad=\{selectedOwnedAd\}/);
   assert.match(memberCenterSource, /`\/mypage\/ads\/\$\{encodeURIComponent\(item\.contentRecordId\)\}\/edit`/);
-  assert.match(memberCenterSource, /공고 수정/);
+  assert.match(memberCenterSource, /공고 (?:내용 )?수정/);
 });
 
 test('server checks the logged-in hospital account and paid order before an update', () => {

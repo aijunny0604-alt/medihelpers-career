@@ -16,6 +16,7 @@ import HeroSelect from './CustomSelect.jsx';
 import QaPreviewPage from './QaPreviewPage.jsx';
 import ConsultationAdminPage from './ConsultationAdminPage.jsx';
 import MemberCenterPage from './MemberCenterPage.jsx';
+import JobSeekerPostPage from './JobSeekerPostPage.jsx';
 import AccountRecoveryPage from './AccountRecoveryPage.jsx';
 import MedicalStaffPage, { MedicalStaffDetailPage } from './MedicalStaffPage.jsx';
 import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
@@ -2199,7 +2200,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
       .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), accessReason: body.accessReason || "", contactProtected: Boolean(body.contactProtected), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
       .catch(() => active && setUnlock({ loading: false, unlocked: false, accessReason: "", contactProtected: false, detail: null, limited: false, message: "" }));
     return () => { active = false; };
-  }, [person.code]);
+  }, [person.code, person.detailId]);
   // 서버 상세(실제 이력서)가 있으면 그것, 없으면(정적 데모 인재) person 자체의 상세 필드로 폴백.
   // [보안] 실명·연락처는 절대 클라이언트 데이터에서 만들지 않는다.
   // 예전에는 person.fullName/phone/email을 그대로 썼는데, 그 값들이 정적 번들에 포함돼
@@ -2319,7 +2320,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
         <div className="talent-detail-actions">
           <Link className="button outline" to="/medical-staff">목록 계속 보기</Link>
           {ownerAccess ? (
-            <Link className="button primary" to="/resume">내 구직글 수정 <ArrowRight /></Link>
+            <Link className="button primary" to={person.jobSeekerPostId ? `/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit` : '/resume'}>내 구직글 수정 <ArrowRight /></Link>
           ) : unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
           ) : unlock.limited ? (
@@ -2554,6 +2555,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const [dept, setDept] = useState('전체');
   const [region, setRegion] = useState('전체');
   const [keyword, setKeyword] = useState('');
+  const [deletedPostIds, setDeletedPostIds] = useState(() => new Set());
   // 구직글 작성 권한은 앱에서 이미 확인한 공용 로그인 상태를 사용한다.
   // 페이지 안에서 /api/account를 다시 조회하면 처음 비회원 버튼이 나타났다 사라지는 경쟁 상태가 생긴다.
   const authLoading = auth.status === 'loading';
@@ -2570,6 +2572,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
     : canRevealTalentIdentity({ hospital: auth.role === 'hospital', admin: Boolean(auth.isAdmin), signedIn: auth.status === 'member' }, auth.status === 'member');
 
   const rows = all.filter((p) =>
+    !deletedPostIds.has(p.jobSeekerPostId) &&
     (filter === 'all' || (filter === 'doctor' ? (p.staffType || 'doctor') === 'doctor' : p.staffType === 'medical')) &&
     (dept === '전체' || p.dept === dept) &&
     (region === '전체' || p.region === region) &&
@@ -2578,6 +2581,19 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const total = rows.length;
   const doctorCount = all.filter((p) => (p.staffType || 'doctor') === 'doctor').length;
   const medicalCount = all.filter((p) => p.staffType === 'medical').length;
+  const deleteOwnPost = async (event, person) => {
+    event.stopPropagation();
+    const id = person.jobSeekerPostId;
+    if (!id || !window.confirm('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
+    try {
+      const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(id)}`), { method:'DELETE', credentials:'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || '구직글을 삭제하지 못했습니다.');
+      setDeletedPostIds((current) => new Set([...current, id]));
+      invalidateSiteOperations();
+      notify('구직글을 삭제했습니다.', 'ok');
+    } catch (error) { notify(error.message); }
+  };
 
   return (
     <section className="section headhunt-board-section jobseeker-board-section">
@@ -2604,7 +2620,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 ? <span className="headhunt-board-write auth-action-pending" aria-hidden="true" />
                 : isHospitalMember
                   ? <span className="headhunt-board-write is-empty" aria-hidden="true" />
-                  : <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume?publish=1' : '/signup/doctor?next=/resume?publish=1')}><FileText /> {canWriteJobSeeker ? '내 이력서로 구직글 등록' : '의료인 회원으로 등록'}</a>}
+                   : <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/job-seeker-posts/new' : '/signup/doctor?next=/job-seeker-posts/new')}><FileText /> {canWriteJobSeeker ? '새 구직글 등록' : '의료인 회원으로 등록'}</a>}
             </div>
           </div>
         </div>
@@ -2626,7 +2642,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 tabIndex={0}
                 aria-label={`${person.dept || '구직 인재'} 상세 보기`}
                 onClick={() => navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`); } }}
+                onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`); } }}
               >
                 <span className={`medical-staff-role jobseeker-role ${kind === '의료인' ? 'medical' : 'doctor'}`}>{kind}</span>
                 <div className="medical-staff-job-main">
@@ -2639,7 +2655,9 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 <span className="medical-staff-career">{person.region || '전국'}</span>
                 <strong className="jobseeker-availability">{person.availability || '협의'}</strong>
                 <span className={`medical-staff-deadline js-lock ${(canViewIdentity || person.ownerView) ? 'open' : ''}`}>{person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : canViewIdentity ? <><Eye size={14} /> 열람 가능</> : <><LockKeyhole size={14} /> 열람권</>}</span>
-                <span className="medical-staff-row-action">{person.ownerView ? '내 글 보기' : '상세 보기'} <ArrowRight /></span>
+                {person.ownerView && person.jobSeekerPostId
+                  ? <span className="medical-staff-row-action jobseeker-owner-actions"><button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit`); }}><PencilLine /> 수정</button><button type="button" onClick={(event) => deleteOwnPost(event, person)}><Trash2 /> 삭제</button></span>
+                  : <span className="medical-staff-row-action">상세 보기 <ArrowRight /></span>}
               </article>
             );
           })}</div>
@@ -3824,6 +3842,11 @@ export function App() {
   }
   // 의료인 채용 = 채용공고 + 구직 의료인 인재(열람권). 로그인 회원 전용(비회원·경쟁사 정보 수집 차단).
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} auth={auth} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} route={route} />} /></AuthGate>;
+  else if (path === '/job-seeker-posts/new') page = <AuthGate auth={auth} need="doctor" title="구직글 등록은 의사·의료인 회원 전용입니다" description="로그인 후 저장된 이력서를 선택해 구직글을 등록할 수 있습니다."><JobSeekerPostPage /></AuthGate>;
+  else if (path.startsWith('/job-seeker-posts/') && path.endsWith('/edit')) {
+    const postId = decodeURIComponent(path.slice('/job-seeker-posts/'.length, -'/edit'.length));
+    page = <AuthGate auth={auth} need="doctor" title="구직글 수정은 작성자 전용입니다" description="로그인한 본인이 작성한 구직글만 수정할 수 있습니다."><JobSeekerPostPage postId={postId} /></AuthGate>;
+  }
   else if (path.startsWith('/medical-staff/talents/')) {
     const talentId = decodeURIComponent(path.slice('/medical-staff/talents/'.length));
     const person = allTalent.find((item) => (item.detailId || item.code) === talentId || item.code === talentId);

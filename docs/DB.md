@@ -1,10 +1,18 @@
 # DB
 
+## 2026-08-29 구직글 게시 원장
+
+- `job_seeker_posts`: 의료인 작성자, 선택 이력서, 게시 제목·소개·희망 진료과·지역·입사 가능 시점·근무 형태, 연락처 공개 설정, 게시 상태와 생성·수정 시각을 보관합니다.
+- `contact_visibility='private'`는 병원 열람권보다 우선합니다. `ticket`일 때만 유효한 열람권을 가진 병원에 원본 이력서 연락처를 조건부로 제공합니다.
+- 삭제는 `status='deleted'` 소프트 삭제이며 공개 목록에서 제외합니다. `member_activity`에 생성·수정·삭제 이벤트가 남습니다.
+- `(account_id,resume_id)` 활성 부분 유니크 인덱스로 같은 이력서를 동시에 여러 구직글로 게시하지 못하게 합니다.
+- 기존 `resumes.visibility='public'` 레코드는 `JSP-{resumeId}`로 한 번 이관합니다. D1 마이그레이션은 `drizzle/0012_job_seeker_posts.sql`, 백업 스키마는 `0012`입니다.
+
 ## 2026-08-29 역할별 가입 기본값 연동
 
 - `member_registration_profiles`: 의료인은 직군·전문분야·지역 등, 병원은 담당자 직책·부서·홈페이지 등 회원가입 당시 역할별 기본값을 JSON으로 보관합니다. 로그인한 본인의 공고·이력서 자동입력에만 사용합니다.
 - 이름·전화·소속·직책은 기존 `member_profiles`, 병원명·대표자·사업자번호·주소와 승인 상태는 `hospital_verification_requests`가 원본입니다.
-- 병원 사업자등록증 파일 원본과 저장 키는 자동입력 응답에 포함하지 않습니다. 이력서 공개 목록은 별도 개인정보 사본을 만들지 않고 `resumes.id`를 `linkedResumeId`로 참조합니다.
+- 병원 사업자등록증 파일 원본과 저장 키는 자동입력 응답에 포함하지 않습니다. 구직글은 개인정보 사본을 만들지 않고 `resumes.id`를 `linkedResumeId`로 참조합니다.
 - 기존 운영 DB는 `ensureMemberCenterSchema`가 새 테이블 존재를 확인하고 `CREATE TABLE IF NOT EXISTS` 묶음을 한 번 실행하므로 수동 D1 재연결이 필요하지 않습니다.
 
 ## 2026-08-15 추가 보안 모델

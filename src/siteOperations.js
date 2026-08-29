@@ -91,10 +91,12 @@ export function operationalTalent(contents = []) {
     const p = item.payload || {};
     // 이력서 자동 노출 인재(fromResume)는 payload의 익명 필드를 그대로 사용. 실명은 없음.
     return {
-      // 상세(연락처·이력서) 조회 키. 이력서 자동노출 인재는 'resume-<id>' 형태(서버 talent-detail가 이 키로 이력서 조회).
+      // 상세(연락처·이력서) 조회 키. 구직글은 'seeker-<id>' 형태로 서버에서 원본 이력서를 해석한다.
       detailId: item.id || p.code || '',
       // 구직글의 원본 이력서 ID. 목록·상세·마이페이지가 동일한 이력서를 가리킨다.
       linkedResumeId: p.linkedResumeId || '',
+      jobSeekerPostId: p.jobSeekerPostId || '',
+      summary: p.summary || item.subtitle || '',
       code: p.code || `관리-${String(index + 1).padStart(3, '0')}`,
       name: p.name || '',
       fullName: item.title || p.name || '',
@@ -104,6 +106,7 @@ export function operationalTalent(contents = []) {
       region: p.region || p.primary || '전국',
       preference: p.preference || p.description || '조건 협의',
       available: p.available || '협의',
+      availability: p.available || '협의',
       verified: p.fromResume ? true : Boolean(p.verified),
       ownerView: Boolean(p.ownerView),
       staffType: p.staffType || 'doctor',

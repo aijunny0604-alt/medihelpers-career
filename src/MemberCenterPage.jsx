@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, BadgeCheck, Bell, BriefcaseBusiness, Building2, CalendarDays, Clock3,
-  Check, ChevronRight, CircleCheck, CreditCard, FileText, Heart, KeyRound,
+  Check, ChevronRight, CircleCheck, CreditCard, Eye, FileText, Heart, KeyRound,
   LockKeyhole, LogOut, Mail, MapPin, MessageCircle, Phone, Receipt, Settings, ShieldCheck, Stethoscope,
   TriangleAlert, UserRound, X
 } from 'lucide-react';
@@ -95,7 +95,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
   const [tab, setTab] = useState(requestedAdEditId ? 'ads' : requestedTab || 'overview');
   const [accountState, setAccountState] = useState({ loading: !qa.active, signedIn: qa.active && qa.info.capabilities.signedIn, role: qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor || qa.info.capabilities.membership ? 'doctor' : qa.info.capabilities.admin ? 'admin' : '', identity: {} });
   const [profile, setProfile] = useState(null);
-  const [serverData, setServerData] = useState({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, recommendedCandidates: [] });
+  const [serverData, setServerData] = useState({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [] });
   const [saved, setSaved] = useState('');
   const [saveBusy, setSaveBusy] = useState(false);
   // 저장 결과가 성공인지 실패인지 화면에서 구분하기 위한 판단(문구 기준).
@@ -141,7 +141,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
     if (auth?.status === 'guest') {
       setAccountState({ loading:false, signedIn:false, role:'', identity:{} });
       setProfile(null);
-      setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, recommendedCandidates: [] });
+      setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [] });
       return;
     }
     // 상단 테스트 계정 전환 직후 이전 역할의 대시보드·프로필을 남기지 않는다.
@@ -153,7 +153,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
       isAdmin:Boolean(auth?.isAdmin)
     });
     setProfile(auth?.profile || null);
-    setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, recommendedCandidates: [] });
+    setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [] });
     let cancelled = false;
     // 로그인 직후 세션 쿠키가 아직 자리잡지 않아 401이 날 수 있다(느린 PC·네트워크).
     // 한 번의 실패로 바로 '불러오지 못했습니다'를 띄우지 말고, 짧게 몇 번 재시도한다.
@@ -168,7 +168,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
             setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
             if (data.profile) setProfile(data.profile);
             if (data.notifications) setNotifications(data.notifications);
-            setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, recommendedCandidates: data.recommendedCandidates || [] });
+            setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, jobSeekerPosts: data.jobSeekerPosts || [], recommendedCandidates: data.recommendedCandidates || [] });
             return;
           }
           // 세션 반영 지연과 일시적인 서버·저장소 오류는 잠깐 뒤 재시도한다.
@@ -313,6 +313,17 @@ export default function MemberCenterPage({ route, qa, auth }) {
   }] : []);
   // 역할에 맞는 카드 목록(병원=광고 주문, 의사=이력서).
   const recordCards = role === 'hospital' ? ads : resumeCards;
+  const jobSeekerPosts = role === 'doctor' ? (serverData.jobSeekerPosts || []) : [];
+  const deleteJobSeekerPost = async (post) => {
+    if (!post?.id || !window.confirm('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
+    try {
+      const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(post.id)}`), { method:'DELETE', credentials:'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || '구직글을 삭제하지 못했습니다.');
+      setServerData((current) => ({ ...current, jobSeekerPosts:current.jobSeekerPosts.filter((item) => item.id !== post.id) }));
+      notify('구직글을 삭제했습니다.', 'ok');
+    } catch (error) { notify(error.message); }
+  };
   const payments = qa.active ? demo.payments : serverData.orders.map((item) => {
     const total = Number(item.totalAmount || 0);
     const supply = Number(item.supplyAmount || Math.round(total / 1.1));
@@ -478,8 +489,12 @@ export default function MemberCenterPage({ route, qa, auth }) {
 
         {tab === 'notifications' && <><div className="member-page-head"><div><small>NOTIFICATIONS</small><h2>알림함</h2><p>지원서, 상담 진행과 상대방 메시지를 놓치지 않도록 모았습니다.</p></div>{serverData.unreadCount > 0 && <button type="button" className="button outline" onClick={() => markAlertRead(null, true)}>모두 읽음 처리</button>}</div>{serverData.alerts.length ? <section className="member-panel member-alert-list">{serverData.alerts.map((alert) => <button type="button" key={alert.id} className={alert.readAt ? 'read' : 'unread'} onClick={() => markAlertRead(alert)}><span><Bell /></span><div><small>{String(alert.createdAt || '').slice(0,16).replace('T',' ')}</small><strong>{alert.title}</strong><p>{alert.body}</p></div>{!alert.readAt && <em>NEW</em>}<ChevronRight /></button>)}</section> : <div className="member-empty member-empty-large"><Bell /><strong>아직 도착한 알림이 없습니다</strong><p>새 지원서나 상담 메시지가 오면 이곳과 상단 알림 버튼에 표시됩니다.</p></div>}</>}
 
-        {(tab === 'ads' || tab === 'resume') && <><div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '게시 상태와 노출 기간을 확인합니다.' : '이력서 공개 범위와 구직 활동 상태를 관리합니다.'}</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/resume')}>{role === 'hospital' ? '공고 등록' : '이력서 수정'} <ArrowRight /></a></div>{recordCards.length ? <div className="member-record-grid">{recordCards.map((item) => <article key={item.contentRecordId || item.id || item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl>
-                  <a className="button outline" href={withBase(role === 'hospital' && item.contentRecordId ? `/mypage/ads/${encodeURIComponent(item.contentRecordId)}/edit` : role === 'hospital' ? '/request/hiring' : '/resume')}>{role === 'hospital' && item.contentRecordId ? '공고 수정' : role === 'hospital' ? '담당자에게 문의' : '저장된 이력서 수정'} <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 공개 범위와 상담 현황을 이곳에서 관리할 수 있습니다.'}</p></div>}<section className="member-panel" id="member-saved-jobs"><div className="member-panel-head"><div><h3>관심 공고</h3><p>하트로 저장한 공고입니다. 로그인하면 다른 기기에서도 동일하게 보입니다.</p></div><a className="button outline" href={withBase('/jobs')}>공고 더 보기 <ArrowRight /></a></div>{savedJobs.length ? <div className="member-saved-jobs">{savedJobs.map((item) => <a key={item.jobId || item.id} href={withBase(`/jobs?open=${encodeURIComponent(item.jobId || item.id)}`)}><span><Heart /></span><div><strong>{item.title || item.jobId || item.id}</strong><small>{[item.dept, item.region].filter(Boolean).join(' · ') || '저장한 공고'}</small></div><ChevronRight /></a>)}</div> : <div className="member-empty"><Heart /><strong>저장한 공고가 없습니다</strong><p>채용 공고에서 하트를 누르면 이곳에 모입니다.</p></div>}</section></>}
+        {(tab === 'ads' || tab === 'resume') && <>
+          <div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '유료 공고는 삭제 없이 내용 수정과 노출 기간 확인만 제공합니다.' : '저장 이력서와 별도 구직글을 한곳에서 관리합니다.'}</p></div><div className="member-page-head-actions"><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/job-seeker-posts/new')}>{role === 'hospital' ? '공고 등록' : '새 구직글 등록'} <ArrowRight /></a>{role === 'doctor' && <a className="button outline" href={withBase('/resume')}>이력서 관리</a>}</div></div>
+          {role === 'doctor' && <section className="member-panel member-job-seeker-posts"><div className="member-panel-head"><div><h3>내 구직글</h3><p>연동 이력서와 연락처 공개 설정을 확인하고 수정·삭제할 수 있습니다.</p></div></div>{jobSeekerPosts.length ? <div className="member-job-seeker-grid">{jobSeekerPosts.map((post) => <article key={post.id}><div><span><BriefcaseBusiness /></span><em className="good">게시 중</em></div><small>연동 이력서 · {post.resumeTitle || post.resumeId}</small><h3>{post.title}</h3><p>{[post.specialty, post.desiredRegion, post.availableFrom].filter(Boolean).join(' · ') || '조건 협의'}</p><p className="member-post-privacy">{post.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 병원에 연락처 공개</> : <><LockKeyhole /> 연락처 비공개</>}</p><div className="member-post-actions"><a className="button outline" href={withBase(`/job-seeker-posts/${encodeURIComponent(post.id)}/edit`)}>수정</a><button type="button" className="button danger" onClick={() => deleteJobSeekerPost(post)}>삭제</button></div></article>)}</div> : <div className="member-empty"><BriefcaseBusiness /><strong>등록한 구직글이 없습니다</strong><p>새 구직글에서 저장된 이력서를 선택해 게시할 수 있습니다.</p></div>}</section>}
+          {recordCards.length ? <div className="member-record-grid">{recordCards.map((item) => <article key={item.contentRecordId || item.id || item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl><a className="button outline" href={withBase(role === 'hospital' && item.contentRecordId ? `/mypage/ads/${encodeURIComponent(item.contentRecordId)}/edit` : role === 'hospital' ? '/request/hiring' : '/resume')}>{role === 'hospital' && item.contentRecordId ? '공고 내용 수정' : role === 'hospital' ? '담당자에게 문의' : '저장된 이력서 수정'} <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 구직글에 연결해 사용할 수 있습니다.'}</p></div>}
+          <section className="member-panel" id="member-saved-jobs"><div className="member-panel-head"><div><h3>관심 공고</h3><p>하트로 저장한 공고입니다. 로그인하면 다른 기기에서도 동일하게 보입니다.</p></div><a className="button outline" href={withBase('/jobs')}>공고 더 보기 <ArrowRight /></a></div>{savedJobs.length ? <div className="member-saved-jobs">{savedJobs.map((item) => <a key={item.jobId || item.id} href={withBase(`/jobs?open=${encodeURIComponent(item.jobId || item.id)}`)}><span><Heart /></span><div><strong>{item.title || item.jobId || item.id}</strong><small>{[item.dept, item.region].filter(Boolean).join(' · ') || '저장한 공고'}</small></div><ChevronRight /></a>)}</div> : <div className="member-empty"><Heart /><strong>저장한 공고가 없습니다</strong><p>채용 공고에서 하트를 누르면 이곳에 모입니다.</p></div>}</section>
+        </>}
 
         {tab === 'inquiries' && <><div className="member-page-head"><div><small>MESSAGES & MATCHING</small><h2>{role === 'hospital' ? '문의·후보 연결' : '상담·제안 내역'}</h2><p>{role === 'hospital' ? '의사 문의와 헤드헌터의 후보 추천을 확인합니다. 내역을 누르면 독립 상세 페이지에서 원문과 답변을 볼 수 있습니다.' : '헤드헌터 상담과 병원 제안 진행 상태를 확인합니다. 내역을 누르면 독립 상세 페이지에서 내용을 볼 수 있습니다.'}</p></div></div>{inquiries.length ? <section className="member-panel member-table-panel"><div className="member-table-head"><span>보낸 사람</span><span>문의 내용</span><span>접수일</span><span>상태</span></div>{inquiries.map((item) => <button type="button" className="member-inquiry-row" key={`${item.source}-${item.subject}`} onClick={() => openInquiry(item)}><strong>{item.name}</strong><div><b>{item.subject}</b><small>{memberFacingInquiryLabel(item)}</small></div><time>{item.time}</time><span className="member-inquiry-state"><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></span></button>)}</section> : <div className="member-empty member-empty-large"><MessageCircle /><strong>아직 상담·문의 내역이 없습니다</strong><p>새로운 상담이나 문의가 접수되면 진행 상태와 함께 표시됩니다.</p></div>}<div className="member-privacy-note"><ShieldCheck /><div><strong>{role === 'hospital' ? '의사 실명과 연락처는 동의 후 공개됩니다' : '내 실명과 연락처는 동의한 병원에만 전달됩니다'}</strong><p>메디헬퍼스 헤드헌터가 연결 범위를 확인한 뒤 필요한 정보만 안전하게 전달합니다.</p></div></div></>}
 
