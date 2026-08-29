@@ -14,6 +14,8 @@ test('헤드헌팅 공고 문의와 병원 유료광고 직접 지원을 서로 
   assert.match(requestPage, /isHeadhuntPostInquiry/);
   assert.match(requestPage, /isDirectApplication/);
   assert.match(requestPage, /헤드헌터 미개입/);
+  assert.match(requestPage, /병원 채용담당자에게 전하실 말씀/);
+  assert.match(requestPage, /해당 병원의 채용 지원 확인 목적으로만 사용/);
   assert.match(server, /payload\.submissionChannel = payload\.headhuntPostId \? 'headhunt_board' : payload\.jobId \? 'paid_job_direct'/);
   assert.match(server, /payload\.submissionChannel !== 'paid_job_direct'/);
   assert.match(server, /directJobRow\.ownerRole !== 'hospital'/);

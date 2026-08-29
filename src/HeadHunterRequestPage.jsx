@@ -429,7 +429,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
         </div>
         {isDoctor && <ResumeSubmitPicker selectedId={selectedResumeId} onSelect={setSelectedResumeId} onLoaded={setResumes} optional={!(appliedJobId || headhuntPostId)} />}
         <label className="quick-message">
-          <span>{isDoctor ? "헤드헌터에게 전하실 말씀" : "기타 전하실 말씀"}</span>
+          <span>{isDirectApplication ? "병원 채용담당자에게 전하실 말씀" : isHeadhuntPostInquiry ? "담당 헤드헌터에게 전하실 말씀" : isDoctor ? "헤드헌터에게 전하실 말씀" : "기타 전하실 말씀"}</span>
           <textarea
             name="message"
             rows="6"
@@ -444,7 +444,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
           <input required name="privacy" type="checkbox" value="agreed" />
           <span>
             <strong>개인정보 수집·이용에 동의합니다. *</strong>
-            입력 정보는 헤드헌팅 상담과 채용 매칭 목적으로만 사용하며, 상담 종료 또는 목적 달성 후 지체 없이 파기합니다.
+            {isDirectApplication ? "입력 정보는 해당 병원의 채용 지원 확인 목적으로만 사용하며, 채용 절차 종료 또는 목적 달성 후 지체 없이 파기합니다." : "입력 정보는 헤드헌팅 상담과 채용 매칭 목적으로만 사용하며, 상담 종료 또는 목적 달성 후 지체 없이 파기합니다."}
           </span>
         </label>
         {submitError && <p className="quick-submit-error" role="alert">{submitError}</p>}
