@@ -91,6 +91,24 @@ function getRoute() {
   return `${pathname}${window.location.search}`;
 }
 
+function returnFromAccessNotice(fallback = '/') {
+  let sameSitePreviousPage = false;
+  try {
+    sameSitePreviousPage = Boolean(document.referrer)
+      && new URL(document.referrer).origin === window.location.origin
+      && window.history.length > 1;
+  } catch {}
+  if (sameSitePreviousPage) return window.history.back();
+  navigate(fallback);
+}
+
+function AccessNoticeActions({ fallback = '/' }) {
+  return <div className="access-notice-actions">
+    <button type="button" className="button primary" onClick={() => returnFromAccessNotice(fallback)}><ArrowLeft size={17} /> 뒤로가기</button>
+    <Link className="button outline" to="/">홈으로</Link>
+  </div>;
+}
+
 function useRoute() {
   const [route, setRoute] = useState(getRoute);
   useEffect(() => {
@@ -403,16 +421,6 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
       : hospitalNeed && auth.role === 'doctor'
         ? '현재 의료인회원으로 로그인되어 있습니다. 병원 전용 채용 기능은 병원회원 계정에서 이용할 수 있습니다.'
         : '현재 로그인한 계정 유형에서는 이 화면을 이용할 수 없습니다.';
-    const returnFromRoleNotice = () => {
-      let sameSitePreviousPage = false;
-      try {
-        sameSitePreviousPage = Boolean(document.referrer)
-          && new URL(document.referrer).origin === window.location.origin
-          && window.history.length > 1;
-      } catch {}
-      if (sameSitePreviousPage) return window.history.back();
-      navigate(doctorNeed ? '/jobs' : hospitalNeed ? '/medical-staff' : '/');
-    };
     return <section className="auth-gate auth-role-mismatch">
       <div className="auth-gate-card">
         <span className="auth-gate-icon"><LockKeyhole /></span>
@@ -420,31 +428,23 @@ function AuthGate({ auth, need = 'member', title, description, children }) {
         <h2>{title || (hospitalNeed ? '병원 회원 전용입니다' : doctorNeed ? '의료인 회원 전용입니다' : '회원 전용입니다')}</h2>
         <p>{description || roleNotice}</p>
         <span className="auth-gate-note"><ShieldCheck size={14} /> {roleNotice}</span>
-        <div className="auth-gate-actions">
-          <button type="button" className="button primary" onClick={returnFromRoleNotice} aria-label="이전 페이지로 돌아가기"><ArrowLeft size={17} /> 뒤로 가기</button>
-        </div>
+        <AccessNoticeActions fallback={doctorNeed ? '/jobs' : hospitalNeed ? '/medical-staff' : '/'} />
       </div>
     </section>;
   }
-  return <div className="auth-gate-wrap">
-    <div className="auth-gate-blurred" aria-hidden="true">{children}</div>
-    <div className="auth-gate-overlay">
+  return <section className="auth-gate auth-access-notice">
       <div className="auth-gate-card">
         <span className="auth-gate-icon"><LockKeyhole /></span>
         <small>{hospitalNeed ? 'HOSPITAL MEMBERS ONLY' : doctorNeed ? 'DOCTOR MEMBERS ONLY' : 'MEMBERS ONLY'}</small>
         <h2>{title || (hospitalNeed ? '병원 회원 전용입니다' : doctorNeed ? '의사 회원 전용입니다' : '회원 전용입니다')}</h2>
         <p>{description || (hospitalNeed
-          ? '의료진 인재정보 열람은 병원 회원에게만 제공됩니다. 병원 회원으로 로그인하거나 가입 후 이용해 주세요.'
+          ? '의료진 인재정보 열람은 병원 회원에게만 제공됩니다.'
           : doctorNeed
-          ? '이력서 등록·구직 활동은 의사·의료인 회원 전용입니다. 병원 회원은 이용할 수 없으며, 인재 채용은 채용정보·인재정보를 이용해 주세요.'
-          : '로그인 후 이용할 수 있는 화면입니다. 로그인하거나 회원가입 후 다시 시도해 주세요.')}</p>
-        <div className="auth-gate-actions">
-          <Link className="button primary" to={`/login?next=${encodeURIComponent(getRoute())}`}><UserRound size={16} /> 로그인</Link>
-          {hospitalNeed && <Link className="button outline" to={`/signup?next=${encodeURIComponent(getRoute())}`}><Building2 size={16} /> 회원가입</Link>}
-        </div>
+          ? '이력서 등록·구직 활동은 의사·의료인 회원 전용입니다. 현재 권한에서는 이용할 수 없습니다.'
+          : '회원 전용 화면으로 현재 권한에서는 이용할 수 없습니다.')}</p>
+        <AccessNoticeActions fallback={doctorNeed ? '/jobs' : hospitalNeed ? '/medical-staff' : '/'} />
       </div>
-    </div>
-  </div>;
+  </section>;
 }
 
 function Link({ to, className = '', children, onClick, ...anchorProps }) {
@@ -1167,7 +1167,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {!restricted ? <><BadgeCheck /> 누구나 전체 열람</> : viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : hospitalViewer ? <><LockKeyhole /> 의료인 회원 전용</> : <><LockKeyhole /> 로그인 후 열람</>}
+                {!restricted ? <><BadgeCheck /> 누구나 전체 열람</> : viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : <><LockKeyhole /> 의료인 회원 전용</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
@@ -1181,7 +1181,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                     {rows.map(([label, value]) => (
                       <div key={label}>
                         <dt>{label}</dt>
-                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label={hospitalViewer ? '의료인 회원만 공개' : '로그인 후 공개'}>{hospitalViewer ? '의료인 회원 전용' : '로그인 후 공개'}</span>}</dd>
+                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="의료인 회원만 공개">의료인 회원 전용</span>}</dd>
                       </div>
                     ))}
                   </dl>
@@ -1200,9 +1200,9 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                     <p>현재 로그인한 병원회원 계정에서는 보수·근무 일정·채용 조건을 열람하거나 지원할 수 없습니다.</p>
                   </> : <>
                     <small>MEMBERS ONLY</small>
-                    <strong>로그인 후 상세조건 열람</strong>
+                    <strong>의료인 회원 전용 상세조건</strong>
                     <p>보수·근무 일정·입사 조건이 의료인 회원에게 공개됩니다.</p>
-                    <Link className="button primary" to={`/signup/doctor?next=${encodeURIComponent(`/jobs/${job.id}`)}`}>로그인 · 회원가입 <ArrowRight /></Link>
+                    <span className="decision-sheet-access-note">의료인 회원 권한에서만 확인할 수 있습니다.</span>
                   </>}
                 </div>
               )}
@@ -1362,18 +1362,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                     <LockKeyhole /> 채용 사유·면접 절차
                   </span>
                 </div>
-                {viewerAccess.loading ? <div className="doctor-only-aside-note"><LockKeyhole /><strong>회원 권한 확인 중</strong><span>현재 로그인 정보를 확인하고 있습니다.</span></div> : hospitalViewer ? <div className="doctor-only-aside-note"><LockKeyhole /><strong>의료인 회원 전용</strong><span>병원회원 계정에서는 상세조건을 열람할 수 없습니다.</span></div> : <Link
-                    className="button primary full"
-                    to={`/signup/doctor?next=/jobs/${job.id}`}
-                    onClick={() =>
-                      trackConversion("job_unlock_cta", {
-                        jobId: job.id,
-                        offer: "verified_doctor_free",
-                      })
-                    }
-                  >
-                    의료인 회원 로그인·가입
-                  </Link>}
+                    {viewerAccess.loading ? <div className="doctor-only-aside-note"><LockKeyhole /><strong>회원 권한 확인 중</strong><span>현재 로그인 정보를 확인하고 있습니다.</span></div> : <div className="doctor-only-aside-note"><LockKeyhole /><strong>의료인 회원 전용</strong><span>현재 회원 권한에서는 상세조건을 열람할 수 없습니다.</span></div>}
                 <small className="value-hint">
                   {hospitalViewer ? '의료인 구직자를 위한 보호 정보입니다.' : '열람료 없이 상세조건과 상담을 이용할 수 있어요.'}
                 </small>
@@ -3673,7 +3662,7 @@ function TalentUnlockPage({ route, qa, auth }) {
     <PageHero tone="membership" eyebrow="TALENT RESUME UNLOCK" title="인재 이력서 열람권" description="구직 공개에 동의한 의사·의료인 후보의 연락처와 이력서 상세를 병원 회원이 열람합니다." />
     {canUnlock
       ? <TalentUnlockCheckout plan={plan} talentId={talentId} auth={auth} />
-      : <section className="section ad-apply-gate"><div className="ad-apply-gate-card"><span><Building2 /></span><small>HOSPITAL ACCOUNT REQUIRED</small><h1>병원 회원 로그인 후<br />열람권을 구매할 수 있어요</h1><p>후보 개인정보 보호를 위해 병원 회원만 인재 이력서 열람권을 결제할 수 있습니다.</p><Link className="button primary full" to={`/signup/hospital?next=${encodeURIComponent(route)}`}>로그인·병원 회원가입 <ArrowRight /></Link><Link className="ad-apply-gate-back" to="/medical-staff">인재 목록 다시 보기</Link></div></section>}
+      : <section className="section ad-apply-gate"><div className="ad-apply-gate-card"><span><Building2 /></span><small>HOSPITAL MEMBERS ONLY</small><h1>인재 이력서 열람권은<br />병원 회원 전용입니다</h1><p>후보 개인정보 보호를 위해 현재 회원 권한에서는 이 화면을 이용할 수 없습니다.</p><AccessNoticeActions fallback="/medical-staff" /></div></section>}
   </>;
 }
 
@@ -3702,16 +3691,14 @@ function AdvertiseApplyPage({ route, qa, auth }) {
   if (adAuth.status === 'loading') return <section className="ad-apply-page auth-gate auth-gate-loading"><div className="auth-gate-card"><span className="auth-gate-spinner" aria-hidden="true" /><p>병원 회원 권한을 확인하고 있습니다…</p></div></section>;
   const canRegisterAds = isActiveHospitalMember(adAuth);
   if (!canRegisterAds) {
-    const next = `/advertise/apply?plan=${plan.id}`;
     return (
       <section className="ad-apply-page ad-apply-gate">
         <div className="ad-apply-gate-card">
           <span><Building2 /></span>
-          <small>HOSPITAL ACCOUNT REQUIRED</small>
-          <h1>병원 회원 로그인 후<br />공고를 등록할 수 있어요</h1>
-          <p>병원 정보와 담당자 연락처를 안전하게 관리하기 위해 병원 회원만 초빙공고를 접수할 수 있습니다.</p>
-          <Link className="button primary full" to={`/signup/hospital?next=${encodeURIComponent(next)}`}>로그인·병원 회원가입 <ArrowRight /></Link>
-          <Link className="ad-apply-gate-back" to="/advertise">광고 상품 다시 보기</Link>
+          <small>HOSPITAL MEMBERS ONLY</small>
+          <h1>초빙공고 등록은<br />병원 회원 전용입니다</h1>
+          <p>병원 정보와 담당자 연락처를 안전하게 관리하기 위해 현재 회원 권한에서는 이 화면을 이용할 수 없습니다.</p>
+          <AccessNoticeActions fallback="/advertise" />
         </div>
       </section>
     );
@@ -3733,7 +3720,7 @@ function NotFoundPage() {
 }
 
 function ResumeAccessGate({ signedIn = false }) {
-  return <section className="resume-access-gate"><span><LockKeyhole /></span><small>MEDICAL PROFESSIONALS ONLY</small><h1>{signedIn ? '의료인 회원 전용 화면입니다' : '이력서 등록은 의료인 회원 로그인 후 이용할 수 있습니다'}</h1><p>{signedIn ? '현재 로그인한 병원 회원 계정으로는 이력서를 등록할 수 없습니다. 의료인 회원 계정으로 다시 로그인해주세요.' : '민감한 경력과 구직 정보를 안전하게 관리하기 위해 의료인 회원 확인 후 등록 화면을 열어드립니다.'}</p><div><Link className="button primary" to="/signup/doctor?next=/resume"><UserRound /> 의료인 회원 로그인·가입</Link><Link className="button outline" to="/jobs">채용공고 먼저 보기</Link></div><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
+  return <section className="resume-access-gate"><span><LockKeyhole /></span><small>MEDICAL PROFESSIONALS ONLY</small><h1>이력서 등록은 의료인 회원 전용입니다</h1><p>{signedIn ? '현재 로그인한 회원 유형에서는 이력서를 등록할 수 없습니다.' : '현재 권한에서는 이력서 등록 화면을 이용할 수 없습니다.'}</p><AccessNoticeActions fallback="/jobs" /><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
 }
 
 function ResumeRoute({ auth }) {
@@ -3842,8 +3829,8 @@ export function App() {
     page = post ? <HeadhuntPostDetailPage post={post} /> : <NotFoundPage />;
   }
   // 의료인 채용 = 채용공고 + 구직 의료인 인재(열람권). 로그인 회원 전용(비회원·경쟁사 정보 수집 차단).
-  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 로그인 후 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} auth={auth} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} route={route} />} /></AuthGate>;
-  else if (path === '/job-seeker-posts/new') page = <AuthGate auth={auth} need="doctor" title="구직글 등록은 의사·의료인 회원 전용입니다" description="로그인 후 저장된 이력서를 선택해 구직글을 등록할 수 있습니다."><JobSeekerPostPage /></AuthGate>;
+  else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 회원 권한에서만 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} auth={auth} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} route={route} />} /></AuthGate>;
+  else if (path === '/job-seeker-posts/new') page = <AuthGate auth={auth} need="doctor" title="구직글 등록은 의사·의료인 회원 전용입니다" description="의료인 회원은 저장된 이력서를 선택해 구직글을 등록할 수 있습니다."><JobSeekerPostPage /></AuthGate>;
   else if (path.startsWith('/job-seeker-posts/') && path.endsWith('/edit')) {
     const postId = decodeURIComponent(path.slice('/job-seeker-posts/'.length, -'/edit'.length));
     page = <AuthGate auth={auth} need="doctor" title="구직글 수정은 작성자 전용입니다" description="로그인한 본인이 작성한 구직글만 수정할 수 있습니다."><JobSeekerPostPage postId={postId} /></AuthGate>;
@@ -3856,11 +3843,11 @@ export function App() {
       : canRevealTalentIdentity({ hospital: auth.role === 'hospital', admin: Boolean(auth.isAdmin), signedIn: auth.status === 'member' }, auth.status === 'member');
     page = operations.features.medicalStaffHub === false || !person
       ? <NotFoundPage />
-      : <AuthGate auth={auth} title="구직 인재 상세는 회원 전용입니다" description="로그인 후 구직 인재의 경력과 희망 조건을 안전하게 확인할 수 있습니다."><TalentDetailPage person={person} canViewIdentity={canViewIdentity} /></AuthGate>;
+      : <AuthGate auth={auth} title="구직 인재 상세는 회원 전용입니다" description="회원 권한에서만 구직 인재의 경력과 희망 조건을 확인할 수 있습니다."><TalentDetailPage person={person} canViewIdentity={canViewIdentity} /></AuthGate>;
   }
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
-    : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="의료인 채용 상세정보는 로그인 후 안전하게 확인할 수 있습니다."><MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} auth={auth} /></AuthGate>;
+    : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="의료인 채용 상세정보는 회원 권한에서만 확인할 수 있습니다."><MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} auth={auth} /></AuthGate>;
   else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} auth={auth} />;
   // /advertise/post(무료 직접게시)는 폐지 — 상단 ROUTE_ALIASES에서 /advertise로 정규화됨(도달 불가).
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} auth={auth} />;

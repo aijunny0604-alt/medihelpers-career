@@ -5926,3 +5926,14 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 @media(max-width:1200px){.jobseeker-owner-actions{grid-column:3/5;justify-self:stretch}}
 @media(max-width:800px){.job-seeker-editor{padding:28px 14px 72px}.job-seeker-editor-card{padding:20px}.job-seeker-resume-list,.job-seeker-editor-grid,.job-seeker-contact-options,.member-job-seeker-grid{grid-template-columns:1fr}.job-seeker-editor-heading{align-items:flex-start;flex-wrap:wrap}.job-seeker-editor-heading .button{width:100%;justify-content:center}.job-seeker-editor-actions{align-items:stretch;flex-direction:column-reverse}.job-seeker-editor-actions>div,.job-seeker-editor-actions>.button{width:100%}.job-seeker-editor-actions>div .button{flex:1}.jobseeker-owner-actions{grid-column:1/-1;justify-self:stretch}.job-seeker-editor-state{padding:34px 20px}.job-seeker-editor-state>div{flex-direction:column}}
 .jobseeker-contact-private{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:7px;background:#fff0ef;color:#d92d20;font-size:12px;font-weight:900}.jobseeker-contact-private svg{width:13px;height:13px}.member-post-privacy.is-private{color:#d92d20!important;font-weight:900}
+
+/* 권한 안내 화면은 가입 유도 없이 설명과 안전한 이동 수단만 제공합니다. */
+.access-notice-actions{width:100%;margin-top:26px;display:flex;justify-content:center;gap:10px}
+.access-notice-actions .button{min-width:150px;min-height:52px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.ad-apply-gate-card .access-notice-actions{margin-top:0}
+.auth-access-notice{min-height:calc(100vh - 76px);background:linear-gradient(145deg,#f6f9fd,#fff)}
+.auth-gate-card>.access-notice-actions{margin-bottom:0}
+.quick-auth-navigation{margin-top:28px;display:flex;justify-content:center;gap:10px}
+.quick-auth-navigation .button{min-width:150px;min-height:52px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.decision-sheet-access-note{margin-top:8px;padding:10px 14px;border-radius:10px;background:#eef4fc;color:#536984;font-size:12px;font-weight:800}
+@media(max-width:560px){.access-notice-actions,.quick-auth-navigation{flex-direction:column}.access-notice-actions .button,.quick-auth-navigation .button{width:100%}}

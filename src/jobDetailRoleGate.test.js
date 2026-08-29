@@ -13,7 +13,7 @@ test('only private headhunting positions keep the doctor-member gate', async () 
   assert.match(source, /const hospitalViewer = Boolean\(/);
   assert.match(source, /상세조건은 의료인 회원만 볼 수 있습니다/);
   assert.match(source, /현재 로그인한 병원회원 계정에서는 보수·근무 일정·채용 조건을 열람하거나 지원할 수 없습니다/);
-  assert.match(source, /hospitalViewer \? <div className="doctor-only-aside-note"/);
+  assert.match(source, /<div className="doctor-only-aside-note"><LockKeyhole \/><strong>의료인 회원 전용<\/strong>/);
   assert.match(source, /hospitalViewer \? <em className="doctor-only-role-note"/);
 });
 
@@ -26,10 +26,12 @@ test('hospital job details omit subjective workload and treatment-intensity sect
   assert.doesNotMatch(source, /수술 및 외래건수\(일\)/);
 });
 
-test('anonymous visitors only see the login path on private positions', async () => {
+test('private positions explain the medical-member restriction without auth promotion', async () => {
   const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const jobDetail = source.slice(source.indexOf('function JobDetail('), source.indexOf('function JobDetailRoute'));
 
-  assert.match(source, /로그인 후 상세조건 열람/);
-  assert.match(source, /로그인 · 회원가입/);
-  assert.match(source, /to=\{`\/signup\/doctor\?next=/);
+  assert.match(jobDetail, /의료인 회원 전용 상세조건/);
+  assert.match(jobDetail, /의료인 회원 권한에서만 확인할 수 있습니다/);
+  assert.doesNotMatch(jobDetail, /로그인 · 회원가입/);
+  assert.doesNotMatch(jobDetail, /to=\{`\/signup\/doctor\?next=/);
 });

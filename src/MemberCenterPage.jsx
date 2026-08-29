@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, BadgeCheck, Bell, BriefcaseBusiness, Building2, CalendarDays, Clock3,
+  ArrowLeft, ArrowRight, BadgeCheck, Bell, BriefcaseBusiness, Building2, CalendarDays, Clock3,
   Check, ChevronRight, CircleCheck, CreditCard, Eye, FileText, Heart, KeyRound,
   LockKeyhole, LogOut, Mail, MapPin, MessageCircle, Phone, Receipt, Settings, ShieldCheck, Stethoscope,
   TriangleAlert, UserRound, X
@@ -72,9 +72,15 @@ function MemberGate({ failed = false, alreadySignedIn = false }) {
   // 불러오기 실패와 '로그인 필요'는 다른 상황이다. 예전에는 둘 다 로그인 안내가 떠서,
   // 서버 오류로 못 불러온 회원이 로그인을 반복해도 같은 화면만 보게 됐다.
   if (failed) {
-    return <section className="member-gate"><span><TriangleAlert /></span><small>TEMPORARY ERROR</small><h1>회원 정보를 잠시 불러오지 못했습니다</h1><p>{alreadySignedIn ? '로그인은 정상적으로 유지되어 있습니다. 회원 데이터 연결이 지연되고 있으니 잠시 후 다시 시도해 주세요.' : '일시적인 연결 오류입니다. 새로고침 후에도 같은 화면이 보이면 고객센터로 문의해 주세요.'}</p><div><button className="button primary" type="button" onClick={() => window.location.reload()}>다시 연결</button>{alreadySignedIn ? <a className="button outline" href={withBase('/')}>메인으로</a> : <a className="button outline" href={withBase('/login?next=/mypage')}>로그인</a>}</div></section>;
+    return <section className="member-gate"><span><TriangleAlert /></span><small>TEMPORARY ERROR</small><h1>회원 정보를 잠시 불러오지 못했습니다</h1><p>{alreadySignedIn ? '로그인은 정상적으로 유지되어 있습니다. 회원 데이터 연결이 지연되고 있으니 잠시 후 다시 시도해 주세요.' : '일시적인 연결 오류입니다. 새로고침 후에도 같은 화면이 보이면 고객센터로 문의해 주세요.'}</p><div><button className="button primary" type="button" onClick={() => window.location.reload()}>다시 연결</button><a className="button outline" href={withBase('/')}>홈으로</a></div></section>;
   }
-  return <section className="member-gate"><span><LockKeyhole /></span><small>MEMBERS ONLY</small><h1>로그인 후 내 활동을<br />한곳에서 관리하세요</h1><p>공고·상담·결제·이력서와 회원정보는 본인 계정에서만 확인할 수 있습니다.</p><div><a className="button primary" href={withBase('/login?next=/mypage')}>로그인 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입</a></div></section>;
+  const goBack = () => {
+    try {
+      if (document.referrer && new URL(document.referrer).origin === window.location.origin && window.history.length > 1) return window.history.back();
+    } catch {}
+    window.location.assign(withBase('/'));
+  };
+  return <section className="member-gate"><span><LockKeyhole /></span><small>MEMBERS ONLY</small><h1>마이페이지는<br />회원 전용 화면입니다</h1><p>현재 권한에서는 공고·상담·결제·이력서와 회원정보를 확인할 수 없습니다.</p><div><button className="button primary" type="button" onClick={goBack}><ArrowLeft /> 뒤로가기</button><a className="button outline" href={withBase('/')}>홈으로</a></div></section>;
 }
 
 export default function MemberCenterPage({ route, qa, auth }) {
