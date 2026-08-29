@@ -20,7 +20,7 @@ test('repeated top and bottom consultation CTAs are removed from public pages', 
   assert.match(advertise, /광고 상품 선택/);
   assert.doesNotMatch(advertise, /헤드헌터 채용 상담|별도 견적 상담|headhunt-plan/);
 
-  assert.match(medicalStaff, /의료인 이력서·구직 글 등록/);
+  assert.match(medicalStaff, /내 이력서로 구직글 등록/);
   assert.doesNotMatch(medicalStaff, /헤드헌터 이직 상담|병원 · 인재 채용 상담/);
 
   assert.doesNotMatch(source, /function ConversionBanner/);

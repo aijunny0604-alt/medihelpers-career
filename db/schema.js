@@ -105,6 +105,13 @@ export const memberCenterSchemaStatements = [
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
   )`,
+  // 가입 폼에서 받은 역할별 기본값. 로그인한 본인의 공고·이력서 폼에서만 재사용한다.
+  `CREATE TABLE IF NOT EXISTS member_registration_profiles (
+    account_id TEXT PRIMARY KEY,
+    profile_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS member_preferences (
     account_id TEXT PRIMARY KEY,
     email_notifications INTEGER NOT NULL DEFAULT 1,

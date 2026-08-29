@@ -293,7 +293,8 @@ async function ensureConsultationSchema(env) {
   return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
 }
 async function ensureMemberCenterSchema(env) {
-  return ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM inquiry_messages LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
+  // 기존 운영 DB에도 가입정보 연동 테이블을 추가하도록 새 테이블을 probe로 사용한다.
+  return ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM member_registration_profiles LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
 }
 async function ensureCommerceSchema(env) {
   return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
@@ -1035,11 +1036,15 @@ async function authApi(request, env, pathname, ctx) {
         return json({ error:'사업자등록증을 안전하게 보관하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503);
       }
     }
+    const registrationProfile = body.role === 'hospital'
+      ? { hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), website:String(body.website || '').trim().slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
+      : { professionType:String(body.professionType || '').trim().slice(0,160), specialty:String(body.specialty || '').trim().slice(0,200), region:String(body.region || '').trim().slice(0,120), birthYear:String(body.birthYear || '').trim().slice(0,4), gender:String(body.gender || '').trim().slice(0,30) };
     const records = [
       env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
       env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations),
       env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, verification_status, last_login_at) VALUES (?, ?, ?, 'active', ?, ?) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', verification_status=excluded.verification_status, last_login_at=excluded.last_login_at, updated_at=CURRENT_TIMESTAMP").bind(account.id, email, displayName, body.role === 'hospital' ? 'pending' : 'unverified', body.role === 'hospital' ? null : new Date().toISOString()),
       env.DB.prepare("INSERT INTO member_profiles (account_id, display_name, phone, organization, job_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, phone=excluded.phone, organization=excluded.organization, job_title=excluded.job_title, updated_at=CURRENT_TIMESTAMP").bind(account.id, displayName, phone, organization, jobTitle),
+      env.DB.prepare("INSERT INTO member_registration_profiles (account_id, profile_json) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET profile_json=excluded.profile_json, updated_at=CURRENT_TIMESTAMP").bind(account.id, JSON.stringify(registrationProfile)),
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'terms', termsVersion),
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'age_confirmation', termsVersion),
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'privacy_notice_ack', privacyNoticeVersion)
@@ -1166,12 +1171,27 @@ async function accountApi(request, env, ctx) {
     const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
     const row = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
     if (row) await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, last_login_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(row.id, identity.email, identity.displayName || '').run();
-    // 폼 자동 채움용 프로필(이름·연락처·소속). 상담·결제·공고 신청 화면에서 재입력을 줄인다.
+    // 증빙 원본/저장 키는 제외하고 로그인한 본인에게만 가입 시 작성한 기본값을 반환한다.
     let profile = null;
+    let registrationProfile = null;
+    let hospitalProfile = null;
     if (row) {
-      try { profile = await env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id = ?').bind(row.id).first(); } catch { profile = null; }
+      try {
+        if (row.role === 'hospital') await ensureHospitalVerificationSchema(env);
+        const statements = [
+          env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id = ?').bind(row.id),
+          env.DB.prepare('SELECT profile_json AS profileJson FROM member_registration_profiles WHERE account_id = ?').bind(row.id),
+        ];
+        if (row.role === 'hospital') statements.push(
+          env.DB.prepare('SELECT hospital_name AS hospitalName, representative_name AS representativeName, business_number AS businessNumber, address, status AS verificationStatus FROM hospital_verification_requests WHERE account_id = ? ORDER BY submitted_at DESC LIMIT 1').bind(row.id)
+        );
+        const results = await env.DB.batch(statements);
+        profile = results[0]?.results?.[0] || null;
+        registrationProfile = parseJsonObject(results[1]?.results?.[0]?.profileJson) || null;
+        hospitalProfile = row.role === 'hospital' ? (results[2]?.results?.[0] || null) : null;
+      } catch { profile = null; registrationProfile = null; hospitalProfile = null; }
     }
-    return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity, isAdmin, profile: profile || null, email: identity.email, welcomeEmailAvailable, adminSignupEmailAvailable });
+    return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity, isAdmin, profile:profile || null, registrationProfile:registrationProfile || null, hospitalProfile:hospitalProfile || null, email: identity.email, welcomeEmailAvailable, adminSignupEmailAvailable });
   }
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
   if (!enabled) return json({ error: '회원가입은 법무 검토 완료 후 열립니다.' }, 503);
@@ -1667,7 +1687,23 @@ async function resumeApi(request, env) {
     if (length > 131072) return json({ error:'이력서 내용이 너무 큽니다.' }, 413);
     let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
     const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0, max);
-    const title = s(body.title); const name = s(body.name); const phone = s(body.phone, 40);
+    let memberProfile = null;
+    let registrationProfile = null;
+    try {
+      const results = await env.DB.batch([
+        env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id=? LIMIT 1').bind(account.id),
+        env.DB.prepare('SELECT profile_json AS profileJson FROM member_registration_profiles WHERE account_id=? LIMIT 1').bind(account.id),
+      ]);
+      memberProfile = results[0]?.results?.[0] || null;
+      registrationProfile = parseJsonObject(results[1]?.results?.[0]?.profileJson) || null;
+    } catch {}
+    const name = s(body.name || memberProfile?.name);
+    const phone = s(body.phone || memberProfile?.phone, 40);
+    const email = s(body.email || identity.email);
+    const profession = s(body.profession || registrationProfile?.professionType || memberProfile?.jobTitle);
+    const specialty = s(body.specialty || registrationProfile?.specialty || memberProfile?.organization);
+    const desiredRegions = s(body.desiredRegions || registrationProfile?.region);
+    const title = s(body.title || (name ? name + ' 이력서' : ''));
     if (!title || !name || !phone) return json({ error:'이력서 제목·성함·연락처는 필수입니다.' }, 400);
     const visibility = ['public','proposal','private'].includes(body.visibility) ? body.visibility : 'private';
     const contactVisibility = body.contactVisibility === 'ticket' ? 'ticket' : 'private';
@@ -1688,10 +1724,10 @@ async function resumeApi(request, env) {
       existing = await env.DB.prepare('SELECT id FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
     }
     const id = existing?.id || ('RES-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase());
-    const fields = [id, account.id, title, s(body.profession), s(body.specialty), name, phone, s(body.email), s(body.desiredRegions), completion, visibility, 'draft-review', JSON.stringify(detail).slice(0, 120000)];
+    const fields = [id, account.id, title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, 'draft-review', JSON.stringify(detail).slice(0, 120000)];
     if (existing) {
       await env.DB.prepare('UPDATE resumes SET title=?, profession=?, specialty=?, name=?, phone=?, email=?, desired_regions=?, completion=?, visibility=?, detail_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-        .bind(title, s(body.profession), s(body.specialty), name, phone, s(body.email), s(body.desiredRegions), completion, visibility, JSON.stringify(detail).slice(0,120000), id).run();
+        .bind(title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, JSON.stringify(detail).slice(0,120000), id).run();
     } else {
       await env.DB.prepare('INSERT INTO resumes (id, account_id, title, profession, specialty, name, phone, email, desired_regions, completion, visibility, status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(...fields).run();
     }
@@ -2042,13 +2078,34 @@ async function paymentOrderApi(request, env) {
   const taxAmount = totalAmount - supplyAmount;
   const id = crypto.randomUUID();
   const orderNumber = createOrderNumber();
-  const customerName = cleanOrderValue(body.customerName);
-  const customerEmail = cleanOrderValue(body.customerEmail || identity.email);
-  const customerPhone = cleanOrderValue(body.customerPhone);
+  let customerName = cleanOrderValue(body.customerName);
+  let customerEmail = cleanOrderValue(body.customerEmail || identity.email);
+  let customerPhone = cleanOrderValue(body.customerPhone);
   const paymentMethod = ['card','transfer'].includes(body.paymentMethod) ? body.paymentMethod : 'card';
   const metadata = body.metadata && typeof body.metadata === 'object' ? { ...body.metadata } : {};
   let adContentRecord = null;
   if (product.type === 'doctor_ad') {
+    // 공고 폼 자동입력에만 의존하지 않고, 로그인한 병원의 승인 정보를 서버에서도
+    // 빈 필드에 보완한다. 오래 열린 화면이나 직접 API 요청에서도 가입정보 연결이 유지된다.
+    try {
+      const linked = await env.DB.batch([
+        env.DB.prepare('SELECT display_name AS name, phone, organization FROM member_profiles WHERE account_id=? LIMIT 1').bind(account.id),
+        env.DB.prepare('SELECT hospital_name AS hospitalName, representative_name AS representativeName, business_number AS businessNumber, address FROM hospital_verification_requests WHERE account_id=? AND status=? ORDER BY submitted_at DESC LIMIT 1').bind(account.id, 'approved'),
+      ]);
+      const member = linked[0]?.results?.[0] || {};
+      const hospital = linked[1]?.results?.[0] || {};
+      metadata.hospital ||= hospital.hospitalName || member.organization || '';
+      metadata.manager ||= member.name || '';
+      metadata.phone ||= member.phone || '';
+      metadata.email ||= identity.email || '';
+      metadata.address ||= hospital.address || '';
+      metadata.representative ||= hospital.representativeName || '';
+      metadata.businessNumber ||= hospital.businessNumber || '';
+      metadata.accountProfileLinked = true;
+      customerName ||= metadata.manager;
+      customerEmail ||= metadata.email;
+      customerPhone ||= metadata.phone;
+    } catch {}
     try { await ensureAdminConsoleSchema(env); } catch { return json({ error:'공고 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     adContentRecord = adOrderContentRecord({ id, orderNumber, productId, productName:product.name, metadata, ownerEmail:identity.email });
     metadata.contentRecordId = adContentRecord.id;
@@ -2486,6 +2543,7 @@ async function publicSiteOperationsApi(request, env) {
           region: r.desiredRegions || '',
           preference: detail.workTypes ? (Array.isArray(detail.workTypes) ? detail.workTypes.join('·') : String(detail.workTypes)) : '',
           available: detail.available || '협의', identityConsent: false, fromResume: true,
+          linkedResumeId: r.id,
           ownerView: Boolean(viewerAccount?.id && viewerAccount.id === r.accountId),
         },
       });

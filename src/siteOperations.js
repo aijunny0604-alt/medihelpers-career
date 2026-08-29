@@ -93,6 +93,8 @@ export function operationalTalent(contents = []) {
     return {
       // 상세(연락처·이력서) 조회 키. 이력서 자동노출 인재는 'resume-<id>' 형태(서버 talent-detail가 이 키로 이력서 조회).
       detailId: item.id || p.code || '',
+      // 구직글의 원본 이력서 ID. 목록·상세·마이페이지가 동일한 이력서를 가리킨다.
+      linkedResumeId: p.linkedResumeId || '',
       code: p.code || `관리-${String(index + 1).padStart(3, '0')}`,
       name: p.name || '',
       fullName: item.title || p.name || '',

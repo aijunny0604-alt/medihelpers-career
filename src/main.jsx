@@ -277,7 +277,7 @@ function useAuthGate(qa) {
   const requestSequence = useRef(0);
   const [state, setState] = useState({
     status: 'loading', role: '', isAdmin: false, isHospital: false,
-    account: null, identity: {}, profile: {}, email: '',
+    account: null, identity: {}, profile: {}, registrationProfile: {}, hospitalProfile: {}, email: '',
     signupEnabled: false, testAccountsEnabled: true,
     welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
   });
@@ -290,7 +290,7 @@ function useAuthGate(qa) {
         isAdmin: Boolean(caps.admin),
         isHospital: Boolean(caps.hospital),
         account: caps.signedIn ? { role: caps.hospital ? 'hospital' : 'doctor' } : null,
-        identity: {}, profile: {}, email: '', signupEnabled: true,
+        identity: {}, profile: {}, registrationProfile: {}, hospitalProfile: {}, email: '', signupEnabled: true,
         testAccountsEnabled: true, welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
       });
       return undefined;
@@ -308,6 +308,8 @@ function useAuthGate(qa) {
         account: result.account || null,
         identity: result.identity || {},
         profile: result.profile || {},
+        registrationProfile: result.registrationProfile || {},
+        hospitalProfile: result.hospitalProfile || {},
         email: result.email || result.identity?.email || '',
         signupEnabled: Boolean(result.signupEnabled),
         testAccountsEnabled: result.testAccountsEnabled !== false,
@@ -345,7 +347,7 @@ function useAuthGate(qa) {
       if (result.signedOut) {
         setState((current) => ({
           ...current, status:'guest', role:'', isAdmin:false, isHospital:false,
-          account:null, identity:{}, profile:{}, email:''
+          account:null, identity:{}, profile:{}, registrationProfile:{}, hospitalProfile:{}, email:''
         }));
       } else if (result.signedIn || result.account) {
         const role = result.account?.role || '';
@@ -360,6 +362,8 @@ function useAuthGate(qa) {
           profile:result.identity?.displayName
             ? { name:result.identity.displayName, displayName:result.identity.displayName }
             : {},
+          registrationProfile:current.registrationProfile || {},
+          hospitalProfile:current.hospitalProfile || {},
           email:result.identity?.email || current.email,
         }));
       }
@@ -2600,7 +2604,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 ? <span className="headhunt-board-write auth-action-pending" aria-hidden="true" />
                 : isHospitalMember
                   ? <span className="headhunt-board-write is-empty" aria-hidden="true" />
-                  : <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume' : '/signup/doctor?next=/resume')}><FileText /> {canWriteJobSeeker ? '구직글 등록' : '의료인 회원으로 등록'}</a>}
+                  : <a className="button primary headhunt-board-write" href={withBase(canWriteJobSeeker ? '/resume?publish=1' : '/signup/doctor?next=/resume?publish=1')}><FileText /> {canWriteJobSeeker ? '내 이력서로 구직글 등록' : '의료인 회원으로 등록'}</a>}
             </div>
           </div>
         </div>
@@ -2848,6 +2852,7 @@ const AD_FIELD_LABELS = {
 };
 
 function Checkout({ plan, auth }) {
+  const accountProfile = useAccountProfile(auth);
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -3169,6 +3174,10 @@ function Checkout({ plan, auth }) {
           {/* noValidate: 브라우저 기본 말풍선 대신 아래 안내(submitError)로 무엇이 비었는지 알려준다. */}
           <form className="checkout-grid" onSubmit={submit} noValidate>
             <div className="checkout-form">
+              {(accountProfile.hospitalName || accountProfile.name || accountProfile.phone) && <div className="account-prefill-notice" role="status">
+                <CircleCheck />
+                <span><strong>회원가입 정보를 불러왔습니다</strong><small>병원명·담당자·연락처·주소가 자동으로 입력되며, 이번 공고에 맞게 수정할 수 있습니다.</small></span>
+              </div>}
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
                   <span>01</span>
@@ -3301,6 +3310,7 @@ function Checkout({ plan, auth }) {
                     required
                     name="hospital"
                     placeholder="병원명을 입력해주세요"
+                    defaultValue={accountProfile.hospitalName}
                   />
                 </label>
                 <label data-field="facility-type">
@@ -3331,7 +3341,7 @@ function Checkout({ plan, auth }) {
                 </label>
                 <label>
                   <span>담당자명 <b className="required-label">필수</b></span>
-                  <input required name="manager" placeholder="담당자 성함" />
+                  <input required name="manager" placeholder="담당자 성함" defaultValue={accountProfile.name} />
                 </label>
                 <label>
                   <span>연락처 <b className="required-label">필수</b></span>
@@ -3343,6 +3353,7 @@ function Checkout({ plan, auth }) {
                     autoComplete="tel"
                     maxLength={13}
                     placeholder="010-0000-0000"
+                    defaultValue={accountProfile.phone}
                     onInput={(event) => {
                       event.currentTarget.value = formatKoreanPhone(event.currentTarget.value);
                     }}
@@ -3355,6 +3366,7 @@ function Checkout({ plan, auth }) {
                     name="email"
                     type="email"
                     placeholder="billing@hospital.co.kr"
+                    defaultValue={accountProfile.email}
                   />
                 </label>
                 <label>
@@ -3363,11 +3375,12 @@ function Checkout({ plan, auth }) {
                     required
                     name="address"
                     placeholder="예: 부산광역시 연제구"
+                    defaultValue={accountProfile.address}
                   />
                 </label>
                 <label>
                   <span>홈페이지 <i>선택</i></span>
-                  <input name="website" type="url" placeholder="https://hospital.co.kr" />
+                  <input name="website" type="url" placeholder="https://hospital.co.kr" defaultValue={accountProfile.website} />
                 </label>
                 <label>
                   <span>진료과목 <i>선택</i></span>
@@ -3375,11 +3388,11 @@ function Checkout({ plan, auth }) {
                 </label>
                 <label>
                   <span>대표자명 <i>선택</i></span>
-                  <input name="representative" placeholder="대표자 성함" />
+                  <input name="representative" placeholder="대표자 성함" defaultValue={accountProfile.representativeName} />
                 </label>
                 <label>
                   <span>사업자번호 <i>선택</i></span>
-                  <input name="businessNumber" inputMode="numeric" placeholder="000-00-00000" />
+                  <input name="businessNumber" inputMode="numeric" placeholder="000-00-00000" defaultValue={accountProfile.businessNumber} />
                 </label>
                 <label>
                   <span>개원연도 <i>선택</i></span>
@@ -3704,8 +3717,8 @@ function ResumeAccessGate({ signedIn = false }) {
   return <section className="resume-access-gate"><span><LockKeyhole /></span><small>MEDICAL PROFESSIONALS ONLY</small><h1>{signedIn ? '의료인 회원 전용 화면입니다' : '이력서 등록은 의료인 회원 로그인 후 이용할 수 있습니다'}</h1><p>{signedIn ? '현재 로그인한 병원 회원 계정으로는 이력서를 등록할 수 없습니다. 의료인 회원 계정으로 다시 로그인해주세요.' : '민감한 경력과 구직 정보를 안전하게 관리하기 위해 의료인 회원 확인 후 등록 화면을 열어드립니다.'}</p><div><Link className="button primary" to="/signup/doctor?next=/resume"><UserRound /> 의료인 회원 로그인·가입</Link><Link className="button outline" to="/jobs">채용공고 먼저 보기</Link></div><aside><ShieldCheck /><span><strong>병원 회원과 비회원은 등록할 수 없습니다.</strong><small>등록한 이력서는 공개 범위를 직접 선택하고 메디헬퍼스 헤드헌터 상담에 활용할 수 있습니다.</small></span></aside></section>;
 }
 
-function ResumeRoute() {
-  return <ResumePage />;
+function ResumeRoute({ auth }) {
+  return <ResumePage auth={auth} />;
 }
 
 // 전역 알림 표시. browserStorage의 notify()가 쏘는 커스텀 이벤트를 받아 화면 우하단에 띄운다.
@@ -3837,7 +3850,7 @@ export function App() {
   else if (path === '/signup/welcome') page = <SignupWelcomePage auth={auth} />;
   else if (path === '/signup/doctor') page = <AccountPage memberType="doctor" auth={auth} />;
   else if (path === '/signup/hospital') page = <AccountPage memberType="hospital" auth={auth} />;
-  else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} need="doctor" title="이력서 등록은 의사·의료인 회원 전용입니다" description="이력서에는 개인정보가 포함되어 의사·의료인 회원만 안전하게 작성할 수 있습니다. 병원 회원은 인재 채용을 위해 채용정보·인재정보를 이용해 주세요."><ResumeRoute /></AuthGate>;
+  else if (path === '/resume') page = operations.features.resumeRegistration === false ? <NotFoundPage /> : <AuthGate auth={auth} need="doctor" title="이력서 등록은 의사·의료인 회원 전용입니다" description="이력서에는 개인정보가 포함되어 의사·의료인 회원만 안전하게 작성할 수 있습니다. 병원 회원은 인재 채용을 위해 채용정보·인재정보를 이용해 주세요."><ResumeRoute auth={auth} /></AuthGate>;
   else if (path === '/request/job-seeker') page = <HeadHunterRequestPage mode="doctor" qa={qa} auth={auth} />;
   else if (path === '/request/hiring') page = <HeadHunterRequestPage mode="hospital" qa={qa} auth={auth} />;
   else if (path === '/signup' || path === '/account') page = <AccountPage auth={auth} />;

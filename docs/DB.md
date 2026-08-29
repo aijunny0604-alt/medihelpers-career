@@ -1,5 +1,12 @@
 # DB
 
+## 2026-08-29 역할별 가입 기본값 연동
+
+- `member_registration_profiles`: 의료인은 직군·전문분야·지역 등, 병원은 담당자 직책·부서·홈페이지 등 회원가입 당시 역할별 기본값을 JSON으로 보관합니다. 로그인한 본인의 공고·이력서 자동입력에만 사용합니다.
+- 이름·전화·소속·직책은 기존 `member_profiles`, 병원명·대표자·사업자번호·주소와 승인 상태는 `hospital_verification_requests`가 원본입니다.
+- 병원 사업자등록증 파일 원본과 저장 키는 자동입력 응답에 포함하지 않습니다. 이력서 공개 목록은 별도 개인정보 사본을 만들지 않고 `resumes.id`를 `linkedResumeId`로 참조합니다.
+- 기존 운영 DB는 `ensureMemberCenterSchema`가 새 테이블 존재를 확인하고 `CREATE TABLE IF NOT EXISTS` 묶음을 한 번 실행하므로 수동 D1 재연결이 필요하지 않습니다.
+
 ## 2026-08-15 추가 보안 모델
 
 - `hospital_verification_requests`: 병원 가입의 사업자등록증 제출 메타데이터와 `pending/approved/rejected` 상태, 검토 사유·관리자·시각을 기록합니다. 원본 파일은 D1에 넣지 않고 기존 비공개 R2에 보관합니다.
