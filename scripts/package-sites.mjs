@@ -1873,8 +1873,13 @@ function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail
   const address = cleanOrderValue(meta.address, 300);
   const salaryBasis = cleanOrderValue(meta.salaryBasis, 300);
   const description = cleanOrderValue(meta.introduction || meta.verifiedNote, 4000);
-  const logo = cleanOrderValue(meta.logo || meta.brandImageUrl, 800);
-  const banner = cleanOrderValue(meta.banner, 800);
+  const singleBrandImage = cleanOrderValue(meta.brandImageUrl, 800);
+  const usesSingleBrandBanner = meta.premiumBrandMode === 'single-brand-image' && Boolean(singleBrandImage);
+  const logo = usesSingleBrandBanner ? '' : cleanOrderValue(meta.logo, 800);
+  const banner = usesSingleBrandBanner ? singleBrandImage : cleanOrderValue(meta.banner, 800);
+  const brandImageLayout = usesSingleBrandBanner
+    ? 'full-banner'
+    : cleanOrderValue(meta.brandImageLayout, 40) || (banner ? 'template-overlay' : '');
   const facilityPhotos = Array.isArray(meta.hospitalPhotoUrls)
     ? meta.hospitalPhotoUrls.map(value => cleanOrderValue(value, 800)).filter(Boolean).slice(0, 6)
     : [];
@@ -1898,6 +1903,7 @@ function adOrderContentRecord({ id, productId, productName, metadata, ownerEmail
       description,
       logo,
       banner,
+      brandImageLayout,
       facility,
       facilityPhotos,
       posterImages,
@@ -1978,6 +1984,27 @@ async function syncAdOrderContentRecords(env) {
 async function publishLegacyPaidAdContentRecords(env) {
   try {
     await env.DB.prepare("UPDATE admin_content_records SET status='published', published_at=COALESCE(published_at,CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE status='draft' AND id IN (SELECT COALESCE(NULLIF(json_extract(metadata_json,'$.contentRecordId'),''), 'ad-order-' || id) FROM payment_orders WHERE product_type='doctor_ad' AND status='paid')").run();
+  } catch {}
+}
+// 과거 등록 화면은 한 장짜리 병원 브랜드 이미지를 logo 필드에 저장해
+// 메인 카드에서 작게 축소했다. 해당 주문만 한 번 찾아 3:1 전체 배너로 정규화한다.
+async function migrateSingleBrandImageBanners(env) {
+  try {
+    const marker = await env.DB.prepare("SELECT setting_value AS value FROM site_settings WHERE setting_key='migration_single_brand_banner_v1' LIMIT 1").first();
+    if (marker?.value === 'completed') return;
+    const rows = await env.DB.prepare("SELECT id, metadata_json AS metadataJson FROM payment_orders WHERE product_type='doctor_ad' ORDER BY created_at DESC LIMIT 500").all();
+    const statements = [];
+    for (const row of rows.results || []) {
+      const meta = parseJsonObject(row.metadataJson);
+      const image = cleanOrderValue(meta.brandImageUrl, 800);
+      if (meta.premiumBrandMode !== 'single-brand-image' || !image) continue;
+      const contentRecordId = cleanOrderValue(meta.contentRecordId || ('ad-order-' + String(row.id || '')), 180);
+      if (!contentRecordId) continue;
+      statements.push(env.DB.prepare("UPDATE admin_content_records SET payload_json=json_set(json_remove(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END, '$.logo'), '$.banner', ?, '$.brandImageLayout', 'full-banner'), updated_at=CURRENT_TIMESTAMP WHERE id=?")
+        .bind(image, contentRecordId));
+    }
+    statements.push(env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value, updated_by) VALUES ('migration_single_brand_banner_v1','completed','system') ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_by='system', updated_at=CURRENT_TIMESTAMP"));
+    for (let index = 0; index < statements.length; index += 50) await env.DB.batch(statements.slice(index, index + 50));
   } catch {}
 }
 function createOrderNumber() {
@@ -2390,6 +2417,7 @@ async function publicSiteOperationsApi(request, env) {
   await seedAdminConsole(env);
   // 이전 버전에서 결제 완료 후 공개 전 상태로 남은 공고도 첫 공개 조회 때 자동 게시한다.
   await publishLegacyPaidAdContentRecords(env);
+  await migrateSingleBrandImageBanners(env);
   const allowedVisibility = new Set(['public']);
   const identity = await authenticatedUser(request, env);
   let viewerAccount = null;

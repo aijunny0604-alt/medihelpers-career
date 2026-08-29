@@ -758,6 +758,7 @@ function JobCard({
   const brandFit = job.cardBanner || job.banner
     ? "banner"
     : job.brandFit || (job.logo ? "mark" : "mark");
+  const isFullBrandBanner = job.brandImageLayout === "full-banner";
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
   const mood = getHospitalMood(job);
   // 공개 채용공고는 광고 등급과 관계없이 누구나 조건을 확인한다.
@@ -786,7 +787,7 @@ function JobCard({
   };
   return (
     <article
-      className={`job-card ${variant ? `job-card-${variant}` : ""} ${preview ? "advertisement-preview-card" : ""} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? "has-brand-logo" : "has-brand-wordmark"} ${brandFit === "banner" ? "has-brand-banner" : ""}` : ""}`}
+      className={`job-card ${variant ? `job-card-${variant}` : ""} ${preview ? "advertisement-preview-card" : ""} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? "has-brand-logo" : "has-brand-wordmark"} ${brandFit === "banner" ? "has-brand-banner" : ""} ${isFullBrandBanner ? "brand-full-banner" : ""}` : ""}`}
       style={isAd ? hospitalMoodStyle(job) : { "--job-color": job.color }}
       data-brand-mood={isAd ? mood.id : undefined}
       data-ad-tier={adTierPresentation?.key}
@@ -844,9 +845,11 @@ function JobCard({
                 source={brandSource}
                 fit={brandFit}
               />
-              <div className="ad-hospital-caption">
-                <strong>{job.hospital}</strong>
-              </div>
+              {!isFullBrandBanner && (
+                <div className="ad-hospital-caption">
+                  <strong>{job.hospital}</strong>
+                </div>
+              )}
             </>
           ) : (
             <div className="hospital-wordmark">
@@ -999,6 +1002,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
   const posterImages = job.posterImages || (job.poster ? [job.poster] : []);
   const detailBanner = job.banner || job.cardBanner;
   const detailLogo = job.logo && job.logo !== detailBanner ? job.logo : "";
+  const isFullBrandBanner = job.brandImageLayout === "full-banner";
   const institutionFacts = [
     ["기관명", job.institutionName || job.hospital],
     ["주소", job.fullAddress || job.location],
@@ -1124,11 +1128,13 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
           <div className="detail-hero-banner" aria-label={`${job.hospital} 채용 배너`}>
             <img src={detailBanner} alt="" />
             {adTierPresentation && <span className={`detail-banner-chip ad-tier-${adTierPresentation.key}`}>{adTierPresentation.label}</span>}
-            <div>
-              <small>MEDIHELPERS RECRUIT</small>
-              <strong>{job.hospital}</strong>
-              <span>{job.dept} 채용</span>
-            </div>
+            {!isFullBrandBanner && (
+              <div>
+                <small>MEDIHELPERS RECRUIT</small>
+                <strong>{job.hospital}</strong>
+                <span>{job.dept} 채용</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -3035,8 +3041,8 @@ function Checkout({ plan, auth }) {
     const data = {
       ...Object.fromEntries(formData.entries()),
       brandImageName: brandFile?.name || "",
-      logoName: brandFile?.name || "",
-      bannerName: brandTemplate ? brandTemplate.split("/").pop() : "",
+      logoName: "",
+      bannerName: brandFile?.name || (brandTemplate ? brandTemplate.split("/").pop() : ""),
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
       posterImageNames: posterImages.map((image) => image.name),
       premiumBrandMode: brandFile ? "single-brand-image" : brandTemplate ? "sample-banner" : "auto-wordmark",
@@ -3044,7 +3050,7 @@ function Checkout({ plan, auth }) {
     setSubmitting(true);
     let paymentWindowOpened = false;
     try {
-      const brandImageUrl = await uploadJobImage(brandFile, "logo");
+      const brandImageUrl = await uploadJobImage(brandFile, "banner");
       const hospitalPhotoUrls = await Promise.all(
         facilityPhotos.map((photo) => uploadJobImage(photo.file, "facility")),
       );
@@ -3052,8 +3058,13 @@ function Checkout({ plan, auth }) {
         posterImages.map((image) => uploadJobImage(image.file, "poster")),
       );
       data.brandImageUrl = brandImageUrl;
-      data.logo = brandImageUrl;
-      data.banner = brandTemplate;
+      data.logo = "";
+      data.banner = brandImageUrl || brandTemplate;
+      data.brandImageLayout = brandImageUrl
+        ? "full-banner"
+        : brandTemplate
+          ? "template-overlay"
+          : "";
       data.hospitalPhotoUrls = hospitalPhotoUrls;
       data.facility = hospitalPhotoUrls[0] || "";
       data.posterImageUrls = posterImageUrls;
@@ -3161,7 +3172,7 @@ function Checkout({ plan, auth }) {
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
                   <span>01</span>
-                  <div><h2>병원 브랜드 이미지</h2><p>로고와 배너를 따로 올릴 필요 없이 한 장만 등록하면 됩니다.</p></div>
+                  <div><h2>병원 배너 이미지</h2><p>가로형 이미지 한 장을 등록하면 공고 카드 전체 폭에 크게 표시됩니다.</p></div>
                   <em>선택사항</em>
                 </div>
                 <div className={`single-brand-upload ${activeDrop === "brand" ? "is-dragging" : ""}`} {...dropZoneProps("brand", (files) => chooseBrand(files?.[0]))}>
@@ -3169,7 +3180,7 @@ function Checkout({ plan, auth }) {
                   {brandPreview ? (
                     <img
                       src={brandPreview}
-                      alt="선택한 병원 브랜드 이미지 미리보기"
+                      alt="선택한 병원 배너 이미지 미리보기"
                     />
                   ) : (
                     <div>
@@ -3181,7 +3192,7 @@ function Checkout({ plan, auth }) {
                 </div>
                 <label>
                   <span>
-                    병원 브랜드 이미지 <i>공고 목록과 상세 페이지에 공통 사용</i>
+                    병원 배너 이미지 <i>공고 목록과 상세 페이지에 공통 사용</i>
                   </span>
                   <input
                     name="brandImage"

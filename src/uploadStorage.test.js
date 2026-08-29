@@ -42,7 +42,7 @@ test('home and jobs cards open a shareable full-page JobDetail route', () => {
 test('hospital job checkout uploads selected images before creating its payment order', () => {
   assert.match(uploadSource, /fetch\(withBase\('\/api\/uploads'\)/);
   assert.match(uploadSource, /'x-upload-purpose': purpose/);
-  assert.match(mainSource, /await uploadJobImage\(brandFile, "logo"\)/);
+  assert.match(mainSource, /await uploadJobImage\(brandFile, "banner"\)/);
   assert.match(mainSource, /facilityPhotos\.map\(\(photo\) => uploadJobImage\(photo\.file, "facility"\)\)/);
   assert.match(mainSource, /data\.hospitalPhotoUrls = hospitalPhotoUrls/);
 });
@@ -56,7 +56,9 @@ test('hospital job checkout uploads web posters with preview and removal control
 });
 
 test('hospital job records retain uploaded image URLs for public cards', () => {
-  assert.match(serverSource, /const logo = cleanOrderValue\(meta\.logo \|\| meta\.brandImageUrl/);
+  assert.match(serverSource, /const usesSingleBrandBanner = meta\.premiumBrandMode === 'single-brand-image'/);
+  assert.match(serverSource, /const banner = usesSingleBrandBanner \? singleBrandImage/);
+  assert.match(serverSource, /brandImageLayout,/);
   assert.match(serverSource, /facilityPhotos,/);
   assert.match(serverSource, /facility,/);
 });
@@ -76,9 +78,19 @@ test('public doctor job mapping carries facility and poster galleries to JobDeta
 
 test('hospital job checkout can persist a selected sample banner', () => {
   assert.match(mainSource, /const SAMPLE_BANNER_TEMPLATES = \[/);
-  assert.match(mainSource, /data\.banner = brandTemplate/);
+  assert.match(mainSource, /data\.banner = brandImageUrl \|\| brandTemplate/);
   assert.match(mainSource, /premiumBrandMode: brandFile \? "single-brand-image" : brandTemplate \? "sample-banner"/);
-  assert.match(serverSource, /const banner = cleanOrderValue\(meta\.banner/);
+  assert.match(serverSource, /cleanOrderValue\(meta\.banner/);
+});
+
+test('single uploaded brand artwork fills the card banner and legacy orders migrate once', () => {
+  assert.match(mainSource, /data\.logo = ""/);
+  assert.match(mainSource, /data\.brandImageLayout = brandImageUrl/);
+  assert.match(mainSource, /job\.brandImageLayout === "full-banner"/);
+  assert.match(serverSource, /async function migrateSingleBrandImageBanners/);
+  assert.match(serverSource, /migration_single_brand_banner_v1/);
+  assert.match(serverSource, /'\$\.brandImageLayout', 'full-banner'/);
+  assert.match(serverSource, /await migrateSingleBrandImageBanners\(env\)/);
 });
 
 test('job detail displays the selected banner in its hero heading', () => {

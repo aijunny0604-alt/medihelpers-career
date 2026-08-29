@@ -1,5 +1,16 @@
 # TEST
 
+## 업로드 배너 크기·기존 데이터 보정 회귀 검증 (2026-08-29)
+
+- 공고 등록의 한 장짜리 브랜드 파일이 `logo`가 아닌 `banner` 목적으로 업로드되고 `full-banner` 레이아웃으로 저장되는지 검사합니다.
+- 동적 공고 매핑이 `brandImageLayout`을 카드와 상세 페이지까지 전달하는지 검사합니다.
+- 완성형 업로드 배너는 3:1 스테이지를 가득 채우고 중복 병원명 오버레이를 렌더하지 않으며, 샘플 배너는 기존 오버레이를 유지하는지 검사합니다.
+- 과거 `single-brand-image` 주문만 일회성 마이그레이션 대상이 되고, 기존 로고 필드를 제거한 뒤 배너와 레이아웃을 설정하는지 검사합니다.
+- `npm test`: **175/175 통과**
+- `npm run build`, `node --check dist/server/index.js`, `git diff --check`: 통과
+- 최종 운영 배포: Sites version `302`, GitHub 기준 브랜치와 동일 커밋.
+- Sites `project_id`, D1 `DB`, R2 `BACKUPS` 바인딩은 변경하지 않았습니다.
+
 ## 비회원·미승인 병원 공고 등록 차단 회귀 검증 (2026-08-28)
 
 - 비로그인 상태에서 `/advertise/apply?plan=basic`과 `/advertise/apply?plan=featured`를 직접 열어도 등록 폼이 렌더되지 않고 병원회원 안내만 표시되는지 확인합니다.

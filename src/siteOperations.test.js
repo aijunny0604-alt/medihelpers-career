@@ -61,7 +61,7 @@ test('노출 종료일 당일에는 아직 노출된다(그날 자정까지)', (
 test('업로드한 병원 로고·배너·시설 사진 URL이 공개 공고 카드 데이터로 전달된다', () => {
   const withAssets = [
     { id:'a1', contentType:'doctor_job', title:'로고 공고', subtitle:'A병원', payload:{ department:'내과', logo:'/api/uploads/hospitals/x/logo/1.png' } },
-    { id:'a2', contentType:'doctor_job', title:'배너 공고', subtitle:'B병원', payload:{ department:'내과', banner:'/api/uploads/hospitals/x/banner/2.png' } },
+    { id:'a2', contentType:'doctor_job', title:'배너 공고', subtitle:'B병원', payload:{ department:'내과', banner:'/api/uploads/hospitals/x/banner/2.png', brandImageLayout:'full-banner' } },
     { id:'m2', contentType:'medical_job', title:'간호사 로고', subtitle:'C병원', payload:{ role:'간호사', logo:'/api/uploads/hospitals/x/logo/3.png', facility:'/api/uploads/hospitals/x/facility/4.png' } },
   ];
   const [logoJob, bannerJob] = operationalDoctorJobs(withAssets);
@@ -70,6 +70,7 @@ test('업로드한 병원 로고·배너·시설 사진 URL이 공개 공고 카
   assert.equal(logoJob.brandFit, 'mark');
   assert.equal(bannerJob.banner, '/api/uploads/hospitals/x/banner/2.png');
   assert.equal(bannerJob.brandFit, 'banner');
+  assert.equal(bannerJob.brandImageLayout, 'full-banner');
   const [medical] = operationalMedicalJobs(withAssets);
   assert.equal(medical.logo, '/api/uploads/hospitals/x/logo/3.png');
   assert.equal(medical.facility, '/api/uploads/hospitals/x/facility/4.png');
