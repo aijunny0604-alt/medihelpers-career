@@ -11,14 +11,14 @@
 ## 2026-08-29 역할별 가입 기본값 연동
 
 - `member_registration_profiles`: 의료인은 직군·전문분야·지역 등, 병원은 담당자 직책·부서·홈페이지 등 회원가입 당시 역할별 기본값을 JSON으로 보관합니다. 로그인한 본인의 공고·이력서 자동입력에만 사용합니다.
-- 이름·전화·소속·직책은 기존 `member_profiles`, 병원명·대표자·사업자번호·주소와 승인 상태는 `hospital_verification_requests`가 원본입니다.
+- 이름·전화·소속·직책은 기존 `member_profiles`, 병원명·대표자·사업자번호·주소와 사업자등록증 제출 이력은 `hospital_verification_requests`가 원본입니다.
 - 병원 사업자등록증 파일 원본과 저장 키는 자동입력 응답에 포함하지 않습니다. 구직글은 개인정보 사본을 만들지 않고 `resumes.id`를 `linkedResumeId`로 참조합니다.
 - 기존 운영 DB는 `ensureMemberCenterSchema`가 새 테이블 존재를 확인하고 `CREATE TABLE IF NOT EXISTS` 묶음을 한 번 실행하므로 수동 D1 재연결이 필요하지 않습니다.
 
-## 2026-08-15 추가 보안 모델
+## 2026-08-30 병원 제출 이력·연락처 보호 모델
 
-- `hospital_verification_requests`: 병원 가입의 사업자등록증 제출 메타데이터와 `pending/approved/rejected` 상태, 검토 사유·관리자·시각을 기록합니다. 원본 파일은 D1에 넣지 않고 기존 비공개 R2에 보관합니다.
-- 병원 계정은 `account_admin_profiles.verification_status`로 로그인 가능 여부를 판정합니다. 승인 전 세션을 발급하지 않습니다.
+- `hospital_verification_requests`: 병원 가입의 사업자등록증 제출 메타데이터를 기록합니다. 신규 행은 `approved/system-auto`로 저장하며 `pending/rejected` 값은 과거 호환용으로만 남습니다. 원본 파일은 D1에 넣지 않고 기존 비공개 R2에 보관합니다.
+- `account_admin_profiles.verification_status`는 과거 데이터 호환 필드이며 더 이상 로그인 게이트가 아닙니다. 기존 병원 값은 `verified`로 정규화하고 실제 계정 차단은 `status=suspended/withdrawn`으로 처리합니다.
 - `member_resumes.contact_visibility`는 `private` 또는 `ticket`입니다. `private`이면 유효한 `talent_unlocks`가 있어도 병원 응답에서 실명·전화·이메일을 제거합니다.
 - 이력서 `detail_json`에는 연락처 사본을 저장하지 않아 중첩 응답이나 이전 UI 경로로 우회 노출되지 않게 합니다.
 - 새 테이블은 기존 `ensure*Schema` 런타임 초기화와 D1 백업 스키마 v0011에 포함되며 별도 수동 마이그레이션은 필요하지 않습니다.

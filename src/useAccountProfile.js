@@ -20,8 +20,8 @@ export function useAccountProfile(auth) {
     department: registrationProfile.department || '',
     website: registrationProfile.website || '',
     fax: registrationProfile.fax || '',
-    // 병원 회원가입 때 관리자 승인을 위해 제출한 기관 정보입니다. 원본 증빙 파일은
-    // 포함하지 않고 로그인한 본인의 공고 등록 폼 자동입력에 필요한 값만 사용합니다.
+    // 병원 회원가입 때 제출한 기관 정보입니다. 원본 증빙 파일은 포함하지 않고
+    // 로그인한 본인의 공고 등록 폼 자동입력에 필요한 값만 사용합니다.
     hospitalName: hospitalProfile.hospitalName || profile.organization || '',
     representativeName: hospitalProfile.representativeName || '',
     businessNumber: hospitalProfile.businessNumber || '',

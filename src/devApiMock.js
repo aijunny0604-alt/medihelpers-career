@@ -59,18 +59,6 @@ async function handle(method, path, bodyText) {
   // 관리자 공고·콘텐츠 CRUD — 로컬에서도 실제 저장되어 목록·사이트에 노출되도록 localStorage에 반영.
   if (path === '/api/admin-console' && method === 'PATCH') {
     const { action, payload = {} } = body;
-    if (action === 'hospital_verification_review') {
-      const requests = read(LS.hospitalVerifications, []);
-      const request = requests.find((item) => item.id === payload.id);
-      if (!request) return jsonRes({ error:'병원 인증 요청을 찾을 수 없습니다.' }, 404);
-      if (payload.status === 'rejected' && !String(payload.reviewNote || '').trim()) return jsonRes({ error:'반려 사유를 입력해주세요.' }, 400);
-      request.status = payload.status; request.reviewNote = payload.reviewNote || ''; request.reviewedAt = new Date().toISOString();
-      write(LS.hospitalVerifications, requests);
-      const accounts = read(LS.authAccounts, {});
-      if (accounts[request.email]) accounts[request.email].verificationStatus = payload.status === 'approved' ? 'verified' : 'rejected';
-      write(LS.authAccounts, accounts);
-      return jsonRes({ saved:true, id:request.id, status:request.status });
-    }
     const seed = [
       { id: 'c1', contentType: 'doctor_job', title: '소화기내과 전문의 추천채용', subtitle: '김해좋은내과병원', status: 'published', visibility: 'public', sortOrder: 100, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-18 10:00' },
       { id: 'c2', contentType: 'medical_job', title: '병동 간호사 모집', subtitle: '서울○○병원', status: 'published', visibility: 'public', sortOrder: 0, payload: {}, createdBy: 'admin', updatedBy: 'admin', updatedAt: '2026-07-17 09:00' },
@@ -106,13 +94,12 @@ async function handle(method, path, bodyText) {
       if (accounts[email]) return jsonRes({ error: '이미 가입된 이메일입니다.' }, 409);
       const role = body.role === 'hospital' ? 'hospital' : 'doctor';
       if (role === 'hospital' && !body.businessDocumentName) return jsonRes({ error:'사업자등록증 파일을 첨부해주세요.' }, 400);
-      accounts[email] = { role, password, verificationStatus:role === 'hospital' ? 'pending' : 'unverified' };
+      accounts[email] = { role, password, verificationStatus:role === 'hospital' ? 'verified' : 'unverified' };
       write(LS.authAccounts, accounts);
       if (role === 'hospital') {
         const requests = read(LS.hospitalVerifications, []);
-        requests.unshift({ id:'HV-'+Date.now(), email, hospitalName:body.hospitalName || '', representativeName:body.representativeName || '', businessNumber:String(body.businessNumber || '').replace(/[^0-9]/g,''), address:[body.address, body.addressDetail].filter(Boolean).join(' '), originalFilename:body.businessDocumentName, contentType:body.businessDocumentType, fileSize:body.businessDocumentSize, status:'pending', submittedAt:new Date().toISOString(), documentUrl:'#' });
+        requests.unshift({ id:'HV-'+Date.now(), email, hospitalName:body.hospitalName || '', representativeName:body.representativeName || '', businessNumber:String(body.businessNumber || '').replace(/[^0-9]/g,''), address:[body.address, body.addressDetail].filter(Boolean).join(' '), originalFilename:body.businessDocumentName, contentType:body.businessDocumentType, fileSize:body.businessDocumentSize, status:'approved', reviewNote:'가입 즉시 완료', reviewedBy:'system-auto', reviewedAt:new Date().toISOString(), submittedAt:new Date().toISOString(), documentUrl:'#' });
         write(LS.hospitalVerifications, requests);
-        return jsonRes({ signedIn:false, pendingApproval:true, account:{ role, verificationStatus:'pending' }, identity:{ email } }, 202);
       }
       write(LS.authSession, { email, role });
       return jsonRes({ signedIn: true, account: { role }, identity: { email } });
@@ -120,8 +107,6 @@ async function handle(method, path, bodyText) {
     // login
     const acct = accounts[email];
     if (!acct || acct.password !== password) return jsonRes({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, 401);
-    if (acct.role === 'hospital' && acct.verificationStatus === 'pending') return jsonRes({ error:'사업자등록증을 검토 중입니다. 관리자 승인 후 로그인할 수 있습니다.' }, 403);
-    if (acct.role === 'hospital' && acct.verificationStatus === 'rejected') return jsonRes({ error:'병원 인증이 보류되었습니다. 메디헬퍼스로 문의해주세요.' }, 403);
     write(LS.authSession, { email, role: acct.role });
     return jsonRes({ signedIn: true, account: { role: acct.role }, identity: { email } });
   }
@@ -321,7 +306,7 @@ async function handle(method, path, bodyText) {
       const resumes = read(LS.resumes, {});
       Object.values(read(LS.jobSeekerPosts, {})).filter((post) => post.status === 'active').forEach((post) => {
         const resume = resumes[post.resumeId] || {};
-        publicContents.push({ id:`seeker-${post.id}`, contentType:'talent_profile', title:post.title || '', subtitle:post.summary || '', visibility:'public', payload:{ code:`MH-${String(post.id).slice(-6)}`, profession:resume.profession || '', staffType:['의사','치과의사','한의사'].includes(resume.profession) ? 'doctor' : 'medical', dept:post.specialty || resume.specialty || resume.profession || '', career:resume.detail?.experienceYears || '경력 확인 필요', region:post.desiredRegion || resume.desiredRegions || '', preference:post.employmentType || '', available:post.availableFrom || '협의', linkedResumeId:post.resumeId, jobSeekerPostId:post.id, ownerView:currentRole === 'doctor' } });
+        publicContents.push({ id:`seeker-${post.id}`, contentType:'talent_profile', title:post.title || '', subtitle:post.summary || '', visibility:'public', payload:{ code:`MH-${String(post.id).slice(-6)}`, profession:resume.profession || '', staffType:['의사','치과의사','한의사'].includes(resume.profession) ? 'doctor' : 'medical', dept:post.specialty || resume.specialty || resume.profession || '', career:resume.detail?.experienceYears || '경력 확인 필요', region:post.desiredRegion || resume.desiredRegions || '', preference:post.employmentType || '', available:post.availableFrom || '협의', contactVisibility:post.contactVisibility === 'ticket' ? 'ticket' : 'private', linkedResumeId:post.resumeId, jobSeekerPostId:post.id, ownerView:currentRole === 'doctor' } });
       });
       return jsonRes({
         settings: { siteName: '메디헬퍼스', supportPhone: '051-342-5463', supportEmail: 'hr@medihelpers.co.kr', announcement: '' },
@@ -352,9 +337,9 @@ async function handle(method, path, bodyText) {
       ];
       const mockMembers = [
         { id: 'm1', role: 'doctor', email: 'doctor@example.com', fullName: '김현우', status: 'active', verificationStatus: 'verified', phone: '010-1234-5678', organization: '', jobTitle: '정형외과 전문의', consentCount: 3, orderCount: 0, lifetimeValue: 0, createdAt: '2026-07-16 09:30', lastLoginAt: '2026-07-26 08:40' },
-        { id: 'm2', role: 'hospital', email: 'hr@hospital.co.kr', fullName: '박정호', status: 'active', verificationStatus: 'pending', phone: '010-9876-5432', organization: '해운대바른척추병원', jobTitle: '채용팀장', consentCount: 3, orderCount: 2, lifetimeValue: 178000, createdAt: '2026-07-15 11:20', lastLoginAt: '2026-07-26 09:00' },
+        { id: 'm2', role: 'hospital', email: 'hr@hospital.co.kr', fullName: '박정호', status: 'active', verificationStatus: 'verified', phone: '010-9876-5432', organization: '해운대바른척추병원', jobTitle: '채용팀장', consentCount: 3, orderCount: 2, lifetimeValue: 178000, createdAt: '2026-07-15 11:20', lastLoginAt: '2026-07-26 09:00' },
       ];
-      const hospitalVerifications = read(LS.hospitalVerifications, [{ id:'hv-mock-1', email:'hr@hospital.co.kr', phone:'010-9876-5432', hospitalName:'해운대바른척추병원', representativeName:'김대표', businessNumber:'1234567890', address:'부산 해운대구', originalFilename:'사업자등록증.pdf', contentType:'application/pdf', fileSize:248000, status:'pending', submittedAt:'2026-07-26 09:00', documentUrl:'#' }]);
+      const hospitalVerifications = read(LS.hospitalVerifications, [{ id:'hv-mock-1', email:'hr@hospital.co.kr', phone:'010-9876-5432', hospitalName:'해운대바른척추병원', representativeName:'김대표', businessNumber:'1234567890', address:'부산 해운대구', originalFilename:'사업자등록증.pdf', contentType:'application/pdf', fileSize:248000, status:'approved', reviewNote:'가입 즉시 완료', reviewedBy:'system-auto', reviewedAt:'2026-07-26 09:00', submittedAt:'2026-07-26 09:00', documentUrl:'#' }]);
       return jsonRes({
         metrics: { accounts: mockMembers.length, doctors: 1, hospitals: 1, consultations: mockConsultations.length, activeCases: 1, hiredCases: 0, categories: 16, contents: contents.length, auditLogs: 2, payments: mockPayments.length, pendingPayments: 1, paidRevenue: 149000, refundedPayments: 0, pendingHospitalVerifications:hospitalVerifications.filter((item) => item.status === 'pending').length },
         contents, categories: [], features: {}, settings: {},

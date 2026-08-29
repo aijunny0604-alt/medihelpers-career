@@ -24,27 +24,33 @@ test('열람권이 있어도 비공개 연락처는 서버에서 제거한다', 
   assert.match(server, /storedDetail\.contactVisibility === 'ticket'/);
   assert.match(server, /name:revealContact \? rest\.name : ''/);
   assert.match(server, /contactProtected:protectedContact/);
-  assert.match(mainPage, /연락처는 작성자 설정으로 비공개입니다/);
+  assert.match(mainPage, /전화번호 비공개 · 열람권으로도 공개되지 않습니다/);
+  assert.match(mainPage, /전화번호 비공개 · 열람권 구매 후에도 미공개/);
+  assert.match(mainPage, /jobseeker-contact-private/);
+  assert.match(server, /p\.contact_visibility AS contactVisibility/);
 });
 
-test('병원 회원은 사업자등록증 제출 후 승인 대기 상태가 된다', () => {
+test('병원 회원은 사업자등록증 제출과 동시에 가입·로그인이 완료된다', () => {
   const schema = hospitalVerificationSchemaStatements.join('\n');
   assert.match(schema, /CREATE TABLE IF NOT EXISTS hospital_verification_requests/);
   assert.match(schema, /document_key TEXT NOT NULL UNIQUE/);
-  assert.match(schema, /status IN \('pending','approved','rejected'\)/);
+  assert.match(schema, /status TEXT NOT NULL DEFAULT 'approved'/);
   assert.match(accountPage, /requestBody\.append\('businessDocument', businessDocument\)/);
   assert.match(server, /multipart\/form-data/);
-  assert.match(server, /pendingApproval:true/);
-  assert.match(server, /HOSPITAL_APPROVAL_PENDING/);
+  assert.match(server, /body\.role === 'hospital' \? 'verified' : 'unverified'/);
+  assert.match(server, /'approved', '가입 즉시 완료', 'system-auto'/);
+  assert.match(server, /hospital-immediate-signup-v1/);
+  assert.doesNotMatch(server, /HOSPITAL_APPROVAL_PENDING|HOSPITAL_APPROVAL_REJECTED|pendingApproval:true/);
 });
 
-test('사업자등록증은 비공개 저장되고 관리자만 승인·열람한다', () => {
+test('사업자등록증은 비공개 저장되고 관리자는 제출 이력만 열람한다', () => {
   assert.match(server, /verifications\/hospitals\//);
   assert.match(server, /hospitalVerificationDocumentApi/);
   assert.match(server, /const admin = await adminIdentity\(request, env\)/);
   assert.match(server, /cache-control':'private, no-store'/);
-  assert.match(server, /action !== 'hospital_verification_review'/);
-  assert.match(adminPage, /병원 회원 가입 서류 검토/);
+  assert.doesNotMatch(server, /hospital_verification_review/);
+  assert.match(server, /관리자 콘솔은 DB 기록 조회 전용입니다/);
+  assert.match(adminPage, /병원 회원 사업자등록증 제출 이력/);
+  assert.doesNotMatch(adminPage, /onClick=\{\(\) => decide\(item, 'approved'\)\}/);
   assert.match(adminPage, /제출본 열기/);
 });
-

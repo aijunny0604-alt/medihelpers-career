@@ -2234,6 +2234,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
           <small>{talentDisplayName(person, canViewIdentity)} · {canViewIdentity ? "실명 확인" : "이름 비공개"}</small>
           <h2>{person.dept} · {person.career}</h2>
           <p>개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.</p>
+          {person.contactVisibility === 'private' && <span className="talent-phone-private-alert"><LockKeyhole /> 전화번호 비공개 · 열람권 구매 후에도 미공개</span>}
         </div>
       </div>
 
@@ -2275,7 +2276,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
               <span><BadgeCheck /></span>
               <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
             </div>
-            {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>연락처는 작성자 설정으로 비공개입니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 플랫폼 상담·메시지로 먼저 연락해주세요.</p></div></div>}
+            {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 플랫폼 상담·메시지로 먼저 연락해주세요.</p></div></div>}
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
               {d.phone && <div><dt>연락처</dt><dd><a href={`tel:${String(d.phone).replace(/\D/g, '')}`}>{d.phone}</a></dd></div>}
@@ -2311,7 +2312,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
               </> : <>
                 <small>이력서 열람권으로 열람할 수 있습니다</small>
                 <h3>경력 · 희망 조건 · 자기소개</h3>
-                <p>이력서 상세는 열람권으로 확인할 수 있습니다. 전화번호와 이메일은 작성자가 공개를 선택한 경우에만 제공됩니다.</p>
+                <p>{person.contactVisibility === 'private' ? '이 글은 전화번호 비공개 설정입니다. 열람권을 구매해도 전화번호와 이메일은 제공되지 않으며 경력·희망 조건·자기소개만 열람됩니다.' : '이력서 상세는 열람권으로 확인할 수 있습니다. 작성자가 선택한 범위에 따라 전화번호와 이메일이 제공됩니다.'}</p>
               </>}
             </div>
           </section>
@@ -2601,7 +2602,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
         <div>
           <span className="section-kicker">JOB SEEKERS BOARD</span>
           <h2>구직 중인 의사·의료인</h2>
-          <p className="headhunt-board-lead">의사·의료인이 직접 등록한 구직 이력서입니다. 병원 회원은 <b>열람권</b>을 결제하면 이름·연락처·상세 이력을 열람할 수 있습니다.</p>
+          <p className="headhunt-board-lead">의사·의료인이 직접 등록한 구직 이력서입니다. 병원 회원은 <b>열람권</b>으로 상세 이력을 볼 수 있으며, 전화번호 비공개 글은 열람권 구매 후에도 연락처가 공개되지 않습니다.</p>
         </div>
       </div>
 
@@ -2648,7 +2649,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 <div className="medical-staff-job-main">
                   {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
                       실명은 서버가 권한을 검증하는 독립 상세 페이지에서만 공개된다. */}
-                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small></div>
+                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small>{person.contactVisibility === 'private' && <span className="jobseeker-contact-private"><LockKeyhole /> 전화번호 비공개</span>}</div>
                   <h3>{person.dept || '전문 인력'} · {person.career || '경력 협의'}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
                 </div>

@@ -39,16 +39,17 @@ test('열려 있던 공고 입력 화면도 로그아웃 뒤에는 업로드와 
   assert.match(checkout, /로그인한 병원 회원만 공고를 등록할 수 있습니다/);
 });
 
-test('서버는 비회원·비승인 병원·다른 역할의 광고 주문을 거절한다', () => {
+test('서버는 비회원·다른 역할을 거절하고 병원회원은 승인 대기 없이 광고 주문을 만든다', () => {
   const paymentApi = serverSource.slice(
     serverSource.indexOf('async function paymentOrderApi'),
     serverSource.indexOf('async function paymentApproveApi'),
   );
 
   assert.match(paymentApi, /if \(!identity\).*401/);
-  assert.match(paymentApi, /account\.verificationStatus !== 'verified'/);
-  assert.match(paymentApi, /승인된 병원 회원만 공고 상품을 신청할 수 있습니다/);
-  assert.match(serverSource, /credential\.role === 'hospital' && credential\.verificationStatus !== 'verified'/);
+  assert.match(paymentApi, /product\.type === 'doctor_ad' && account\.role !== 'hospital'/);
+  assert.match(paymentApi, /병원 회원만 공고 상품을 신청할 수 있습니다/);
+  assert.doesNotMatch(paymentApi, /verificationStatus !== 'verified'/);
+  assert.doesNotMatch(serverSource, /credential\.role === 'hospital' && credential\.verificationStatus !== 'verified'/);
 });
 
 test('로컬 가상 API도 운영 서버와 같은 로그인·병원 역할 검사를 적용한다', () => {

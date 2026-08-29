@@ -18,7 +18,7 @@ test('가입 시 역할별 기본정보를 본인 계정에 저장하고 공용 
   assert.doesNotMatch(server.slice(server.indexOf('async function accountApi'), server.indexOf('async function memberCenterApi')), /documentKey/);
 });
 
-test('병원 공고 등록은 가입·승인 정보를 폼과 서버 양쪽에서 연결한다', () => {
+test('병원 공고 등록은 가입·제출 정보를 폼과 서버 양쪽에서 연결한다', () => {
   const checkout = main.slice(main.indexOf('function Checkout'), main.indexOf('function TalentUnlockCheckout'));
   assert.match(checkout, /defaultValue=\{accountProfile\.hospitalName\}/);
   assert.match(checkout, /defaultValue=\{accountProfile\.representativeName\}/);

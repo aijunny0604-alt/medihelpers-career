@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
-  FileCheck2, LockKeyhole, Mail, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, Upload, UserRound, X
+  FileCheck2, LockKeyhole, Mail, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, Upload, UserRound, X
 } from 'lucide-react';
 import { accountRoleLabel, validateSignup } from './signupModel.js';
 import {
@@ -49,8 +49,8 @@ const roleContent = {
     eyebrow: 'MEDICAL INSTITUTION',
     title: '병원 회원가입',
     description: '채용 의뢰와 메디헬퍼스 헤드헌터 상담을 위한 기관 담당자 계정입니다.',
-    afterTitle: '사업자등록증 확인 후 승인',
-    afterCopy: '가입 신청과 함께 사업자등록증 PDF 또는 이미지를 제출합니다. 관리자가 병원 정보와 서류를 확인한 뒤 로그인 권한을 승인합니다.',
+    afterTitle: '가입 즉시 병원 기능 이용',
+    afterCopy: '사업자등록증 PDF 또는 이미지는 기관 제출 이력으로 안전하게 보관되며, 별도 관리자 승인 없이 가입과 로그인이 바로 완료됩니다.',
     benefits: [
       '채용공고 등록과 노출 관리',
       '전담 헤드헌터 후보 상담',
@@ -87,7 +87,7 @@ const FIELD_META = {
   department: { label: '부서명', optional: true, type: 'text', placeholder: '예: 인사팀, 원무과' },
   hospitalName: { label: '병원·기관명', type: 'text', autoComplete: 'organization', placeholder: '예: 서울메디컬센터' },
   representativeName: { label: '대표자명', type: 'text', placeholder: '예: 김메디' },
-  businessNumber: { label: '사업자등록번호', type: 'text', inputMode: 'numeric', placeholder: '000-00-00000', hint: '10자리 숫자. 광고 결제·기관 인증 시 확인합니다.' },
+  businessNumber: { label: '사업자등록번호', type: 'text', inputMode: 'numeric', placeholder: '000-00-00000', hint: '10자리 숫자. 기관 정보와 광고 결제 내역 연결에 사용합니다.' },
   address: { label: '병원 주소', type: 'text', autoComplete: 'street-address', placeholder: '주소 검색 버튼을 눌러주세요', wide: true, addressSearch: true, readOnly: true },
   addressDetail: { label: '상세 주소', optional: true, type: 'text', placeholder: '예: 5층 인사팀', wide: true },
   website: { label: '홈페이지', optional: true, type: 'url', autoComplete: 'url', placeholder: 'https://www.hospital.co.kr' },
@@ -304,7 +304,7 @@ function TermsCopy() {
     <h4>서비스 이용약관 필수 안내</h4>
     <dl>
       <div><dt>서비스 범위</dt><dd>의사·의료인 채용정보, 인재정보, 비공개 이직상담, 병원 채용의뢰 및 관련 관리 서비스를 제공합니다.</dd></div>
-      <div><dt>계정과 인증</dt><dd>계정은 가입자 본인 또는 등록된 병원 담당자만 사용할 수 있습니다. 의료인 자격·병원 인증이 필요한 기능은 별도 확인 후 이용 권한을 부여합니다.</dd></div>
+      <div><dt>계정과 확인</dt><dd>계정은 가입자 본인 또는 등록된 병원 담당자만 사용할 수 있습니다. 의료인 자격 확인이 필요한 기능은 해당 단계에서 별도로 안내합니다. 병원 회원가입은 사업자등록증 제출과 함께 즉시 완료됩니다.</dd></div>
       <div><dt>이용자 의무</dt><dd>허위 공고, 타인의 정보 도용, 무단 연락처 수집·판매, 후보자 동의 없는 개인정보 전달을 금지합니다.</dd></div>
       <div><dt>유료 서비스</dt><dd>공고·열람·채용 상품의 금액, 제공기간, 청약철회·환불조건은 결제 전에 별도로 안내하고 확인을 받습니다.</dd></div>
       <div><dt>서비스 제한</dt><dd>약관 위반, 허위 기관·자격 정보, 개인정보 침해가 확인되면 게시물 또는 계정 이용을 제한할 수 있습니다.</dd></div>
@@ -320,11 +320,11 @@ function PrivacyCopy({ memberType }) {
     <dl>
       <div><dt>수집 목적</dt><dd>회원 식별과 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의 처리, 결제·계약 내역 관리</dd></div>
       <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 담당자 직책, 병원명, 대표자명, 사업자등록번호, 주소, 사업자등록증 제출 파일' : ', 의료 직군, 전문 분야, 활동 지역'}</dd></div>
-      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증 제출본과 인증 이력은 제출 또는 최종 처리 후 3년까지 접근을 제한해 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
+      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증 제출본과 제출 이력은 제출 후 3년까지 접근을 제한해 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
       <div><dt>동의 거부</dt><dd>동의를 거부할 수 있으나 필수정보 수집에 동의하지 않으면 회원가입과 계정 기반 서비스를 이용할 수 없습니다.</dd></div>
       <div><dt>선택 정보</dt><dd>출생연도와 성별은 선택 항목이며 입력하지 않아도 가입할 수 있습니다. 광고성 정보 수신 동의도 가입 필수 동의와 분리해 별도로 받습니다.</dd></div>
     </dl>
-    <p className="signup-legal-notice"><b>개인정보 보호책임자: 이형석</b> hr@medihelpers.co.kr · 051-342-5463. 주민등록번호와 의료인 면허번호는 가입 단계에서 수집하지 않습니다. 병원 회원의 사업자등록증은 관리자 인증 목적으로만 제한적으로 처리합니다. <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 전문</a>에서 처리위탁, 제3자 제공, 파기와 권리 행사 방법을 확인할 수 있습니다.</p>
+    <p className="signup-legal-notice"><b>개인정보 보호책임자: 이형석</b> hr@medihelpers.co.kr · 051-342-5463. 주민등록번호와 의료인 면허번호는 가입 단계에서 수집하지 않습니다. 병원 회원의 사업자등록증은 기관 제출 이력 보관 목적으로만 제한적으로 처리합니다. <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 전문</a>에서 처리위탁, 제3자 제공, 파기와 권리 행사 방법을 확인할 수 있습니다.</p>
   </>;
 }
 
@@ -337,8 +337,6 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [submittedOnce, setSubmittedOnce] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [pendingApproval, setPendingApproval] = useState(false);
   const [businessDocument, setBusinessDocument] = useState(null);
   const [documentDragging, setDocumentDragging] = useState(false);
   const formRef = useRef(null);
@@ -460,45 +458,11 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       }
       const result = await authRequest('register', requestBody);
       setDraft((current) => clearDraftFields(current));
-      if (result.pendingApproval) {
-        setPendingApproval(true);
-        setCompleted(true);
-        window.scrollTo({ top:0, behavior:'auto' });
-        return;
-      }
       onComplete(result.account, result.identity);
     } catch (requestError) {
       setErrors((current) => ({ ...current, submit: requestError.message }));
     }
   };
-
-  const resetForm = () => {
-    setCompleted(false);
-    setPendingApproval(false);
-    setBusinessDocument(null);
-    setDraft((current) => clearDraftFields(current));
-    setErrors({});
-    setTouched({});
-    setSubmittedOnce(false);
-  };
-
-  if (completed) {
-    return <section className="signup-card signup-complete-draft">
-      <span className="account-check"><FileCheck2 /></span>
-      <small>HOSPITAL VERIFICATION</small>
-      <h2>{pendingApproval ? '병원 회원 신청과 서류가 접수되었습니다' : '회원가입 신청이 접수되었습니다'}</h2>
-      <p>{pendingApproval ? '관리자가 사업자등록증과 병원 정보를 확인한 뒤 승인 결과를 가입 이메일로 알려드립니다. 승인 전에는 로그인할 수 없습니다.' : '가입 양식과 필수 동의를 확인했습니다.'}</p>
-      <dl>
-        <div><dt>선택한 회원 유형</dt><dd>{content.label}</dd></div>
-        <div><dt>현재 상태</dt><dd>{pendingApproval ? '관리자 서류 검토 중' : '접수 완료'}</dd></div>
-        <div><dt>다음 단계</dt><dd>{pendingApproval ? '승인 이메일 확인 후 로그인' : '로그인'}</dd></div>
-      </dl>
-      <div className="account-actions">
-        <a className="button primary" href={withBase('/')}>홈으로 <ArrowRight /></a>
-        <button type="button" className="button outline" onClick={resetForm}><RotateCcw size={15} /> 입력 내용 수정</button>
-      </div>
-    </section>;
-  }
 
   const consentError = submittedOnce && (errors.termsAccepted || errors.privacyAccepted || errors.ageConfirmed);
   const renderMeta = (field) => field === 'name' && memberType === 'doctor' ? { ...FIELD_META[field], label: '이름' } : FIELD_META[field];
@@ -515,7 +479,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   return <section className="signup-card signup-application">
     <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
     <h2>{content.label} 가입</h2>
-    <p>{memberType === 'hospital' ? '채용 담당자 정보와 병원 기본정보, 사업자등록증을 함께 제출합니다. 관리자 승인 후 병원 회원 로그인이 열립니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 면허·자격과 경력 상세정보는 가입 후 이력서 또는 인증 단계에서 추가할 수 있습니다.'}</p>
+    <p>{memberType === 'hospital' ? '채용 담당자 정보와 병원 기본정보, 사업자등록증을 함께 제출하면 병원 회원가입과 로그인이 바로 완료됩니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 면허·자격과 경력 상세정보는 가입 후 이력서 또는 인증 단계에서 추가할 수 있습니다.'}</p>
     <form ref={formRef} onSubmit={submit} noValidate>
       {memberType === 'hospital' ? <>
         <section className="signup-form-section">
@@ -527,7 +491,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
           <div className="signup-field-grid">{hospitalInfoFields().map(renderField)}</div>
         </section>
         <section className="signup-form-section hospital-document-section">
-          <header><span>03</span><div><h3>사업자등록증 확인</h3><p>허위 병원 계정을 막기 위해 관리자만 열람하는 인증 서류입니다.</p></div></header>
+          <header><span>03</span><div><h3>사업자등록증 제출</h3><p>기관 가입 이력을 남기기 위한 비공개 서류이며 가입 승인을 기다릴 필요는 없습니다.</p></div></header>
           <div
             id={`signup-${memberType}-businessDocument`}
             className={`hospital-document-upload ${documentDragging ? 'is-dragging' : ''} ${errors.businessDocument ? 'has-error' : ''}`}
@@ -538,12 +502,12 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
             onDrop={(event) => { event.preventDefault(); setDocumentDragging(false); chooseBusinessDocument(event.dataTransfer.files?.[0]); }}
           >
             <span className="hospital-document-icon">{businessDocument ? <FileCheck2 /> : <Upload />}</span>
-            <div><strong>{businessDocument ? businessDocument.name : '사업자등록증 파일을 선택하거나 끌어 놓으세요'}</strong><small>PDF · JPG · PNG · WEBP · 최대 10MB</small>{businessDocument && <em>{(businessDocument.size / 1024 / 1024).toFixed(2)}MB · 관리자 검토 전용</em>}</div>
+            <div><strong>{businessDocument ? businessDocument.name : '사업자등록증 파일을 선택하거나 끌어 놓으세요'}</strong><small>PDF · JPG · PNG · WEBP · 최대 10MB</small>{businessDocument && <em>{(businessDocument.size / 1024 / 1024).toFixed(2)}MB · 비공개 보관</em>}</div>
             <label className="button outline">파일 선택<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => chooseBusinessDocument(event.target.files?.[0], event.target)} /></label>
             {businessDocument && <button type="button" className="hospital-document-remove" aria-label="첨부 파일 삭제" onClick={() => setBusinessDocument(null)}><X /></button>}
           </div>
           {errors.businessDocument && <p className="signup-field-error" role="alert">{errors.businessDocument}</p>}
-          <p className="hospital-document-privacy"><ShieldCheck /> 제출본은 공개되지 않으며 관리자 인증 화면에서만 열람합니다.</p>
+          <p className="hospital-document-privacy"><ShieldCheck /> 제출본은 공개되지 않으며 관리자 DB 기록에서만 제한적으로 열람합니다. 가입은 즉시 완료됩니다.</p>
         </section>
       </> : <>
         <section className="signup-form-section individual-account-section">

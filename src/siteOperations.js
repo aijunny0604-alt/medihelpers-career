@@ -109,6 +109,7 @@ export function operationalTalent(contents = []) {
       availability: p.available || '협의',
       verified: p.fromResume ? true : Boolean(p.verified),
       ownerView: Boolean(p.ownerView),
+      contactVisibility: p.contactVisibility === 'ticket' ? 'ticket' : 'private',
       staffType: p.staffType || 'doctor',
       profession: p.profession || '',
     };

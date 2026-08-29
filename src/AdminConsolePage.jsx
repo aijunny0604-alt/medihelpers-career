@@ -99,7 +99,7 @@ const demoCategorySeed = {
 const demoCategories = Object.entries(demoCategorySeed).flatMap(([groupKey, names]) => names.map((name, index) => ({ id:`${groupKey}-${index + 1}`, groupKey, name, slug:`${groupKey}-${index + 1}`, sortOrder:(index + 1) * 10, enabled:true })));
 
 const demoData = {
-  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: catalogContents.length, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0, pendingHospitalVerifications: 1 },
+  metrics: { accounts: 128, doctors: 83, hospitals: 45, consultations: 17, activeCases: 8, hiredCases: 2, categories: 16, contents: catalogContents.length, auditLogs: 41, payments: 3, pendingPayments: 1, paidRevenue: 448000, refundedPayments: 0, pendingHospitalVerifications: 0 },
   settings: {
     siteName: '메디헬퍼스',
     supportPhone: '051-342-5463',
@@ -119,7 +119,7 @@ const demoData = {
   contents: catalogContents,
   members: [
     { id:'m1', role:'doctor', email:'doctor@example.com', fullName:'김현우', status:'active', verificationStatus:'verified', phone:'010-1234-5678', organization:'', jobTitle:'정형외과 전문의', consentCount:3, orderCount:1, lifetimeValue:39000, createdAt:'2026-07-16 09:30', lastLoginAt:'2026-07-17 15:40' },
-    { id:'m2', role:'hospital', email:'hr@samplehospital.co.kr', fullName:'박지은', status:'active', verificationStatus:'pending', phone:'010-9876-5432', organization:'샘플메디컬센터', jobTitle:'채용팀장', consentCount:3, orderCount:2, lifetimeValue:409000, createdAt:'2026-07-15 11:20', lastLoginAt:'2026-07-17 14:15' },
+    { id:'m2', role:'hospital', email:'hr@samplehospital.co.kr', fullName:'박지은', status:'active', verificationStatus:'verified', phone:'010-9876-5432', organization:'샘플메디컬센터', jobTitle:'채용팀장', consentCount:3, orderCount:2, lifetimeValue:409000, createdAt:'2026-07-15 11:20', lastLoginAt:'2026-07-17 14:15' },
   ],
   payments: [
     { id:'o1', orderNumber:'MH-20260717-A1B2C3D4', accountId:'m2', accountRole:'hospital', productType:'doctor_ad', productName:'메인 광고', totalAmount:149000, supplyAmount:135455, taxAmount:13545, status:'awaiting_payment', paymentMethod:'card', customerName:'박지은', customerEmail:'hr@samplehospital.co.kr', customerPhone:'010-9876-5432', createdAt:'2026-07-17 14:30', adminNote:'' },
@@ -138,7 +138,7 @@ const demoData = {
     { id:'con-demo-2', requestType:'doctor', requesterName:'김현우', phone:'010-1234-5678', email:'doctor@example.com', specialty:'소화기내과', status:'in_progress', adminNote:'희망 조건 확인 중', emailNotificationStatus:'sent', smsNotificationStatus:'skipped', createdAt:'2026-07-17 13:20', updatedAt:'2026-07-17 14:05', payload:{ region:'부산·경남', workType:'외래 중심', message:'비공개 이직 상담' } },
   ],
   hospitalVerifications: [
-    { id:'hv-demo-1', accountId:'m2', hospitalName:'샘플메디컬센터', representativeName:'김대표', businessNumber:'1234567890', address:'서울 강남구 테헤란로 123', originalFilename:'사업자등록증.pdf', contentType:'application/pdf', fileSize:248000, status:'pending', reviewNote:'', submittedAt:'2026-07-17 11:20', email:'hr@samplehospital.co.kr', phone:'010-9876-5432', documentUrl:'#' },
+    { id:'hv-demo-1', accountId:'m2', hospitalName:'샘플메디컬센터', representativeName:'김대표', businessNumber:'1234567890', address:'서울 강남구 테헤란로 123', originalFilename:'사업자등록증.pdf', contentType:'application/pdf', fileSize:248000, status:'approved', reviewNote:'가입 즉시 완료', reviewedBy:'system-auto', reviewedAt:'2026-07-17 11:20', submittedAt:'2026-07-17 11:20', email:'hr@samplehospital.co.kr', phone:'010-9876-5432', documentUrl:'#' },
   ],
   recoveryRequests: [],
   cases: [
@@ -237,18 +237,6 @@ export default function AdminConsolePage({ qa = false }) {
     }
   };
 
-  const reviewHospitalVerification = async (id, status, reviewNote = '') => {
-    setMessage('');
-    if (qa) {
-      setData((current) => ({ ...current, metrics:{ ...current.metrics, pendingHospitalVerifications:Math.max(0, Number(current.metrics.pendingHospitalVerifications || 0) - 1) }, hospitalVerifications:(current.hospitalVerifications || []).map((item) => item.id === id ? { ...item, status, reviewNote, reviewedAt:new Date().toISOString() } : item) }));
-      setMessage(status === 'approved' ? '병원 회원 승인을 완료했습니다.' : '병원 회원 인증을 반려했습니다.');
-      return;
-    }
-    await updateConsole('hospital_verification_review', { id, status, reviewNote });
-    setMessage(status === 'approved' ? '병원 회원 승인을 완료했습니다.' : '병원 회원 인증을 반려했습니다.');
-    await refresh();
-  };
-
   // 실제 DB 응답 전에는 데모 수치와 관리 버튼을 먼저 그리지 않는다.
   // 느린 연결에서 데모 콘솔이 잠깐 나타났다 실제 기록으로 바뀌는 깜빡임을 막는다.
   if (loading && !qa) {
@@ -310,18 +298,18 @@ export default function AdminConsolePage({ qa = false }) {
           <button className="admin-console-logout" type="button" onClick={logout} disabled={loggingOut}>
             <LogOut /><span>{loggingOut ? '로그아웃 중…' : '로그아웃'}</span>
           </button>
-          <div className="admin-security-note"><ShieldCheck /><p><strong>최소 권한 운영 원칙</strong><br />공고·결제·회원 기록은 읽기 전용이며, 병원 가입 서류 승인만 처리할 수 있습니다.</p></div>
+          <div className="admin-security-note"><ShieldCheck /><p><strong>최소 권한 운영 원칙</strong><br />공고·결제·회원·병원 제출 서류는 관리자 화면에서 조회만 할 수 있습니다.</p></div>
         </aside>
         <main className="admin-workspace">
           <header className="admin-page-head">
-            <div><small>DATABASE & HOSPITAL VERIFICATION</small><h1>{currentLabel}</h1><p>자동 저장된 DB 기록을 조회하고 병원 가입 서류만 승인합니다.</p></div>
+            <div><small>DATABASE RECORDS</small><h1>{currentLabel}</h1><p>자동 저장된 회원·결제·병원 제출 서류 기록을 읽기 전용으로 확인합니다.</p></div>
             <span className={loading ? 'loading' : ''}>{loading ? '데이터 동기화 중' : '운영 DB 연결'}</span>
           </header>
           {message && <div className="admin-message">{message}</div>}
           {section === 'dashboard' && <Dashboard data={data} select={select} />}
           {section === 'monitoring' && <OperationsMonitor data={data} select={select} />}
           {section === 'contents' && <ContentRecords data={data} />}
-          {section === 'members' && <Members data={data} reviewVerification={reviewHospitalVerification} />}
+          {section === 'members' && <Members data={data} />}
           {section === 'resumes' && <Resumes data={data} />}
           {section === 'payments' && <Payments data={data} />}
           {section === 'talentAudit' && <TalentAccessAudit active={section === 'talentAudit'} />}
@@ -650,40 +638,24 @@ function Features({ data, setData, mutate }) {
   </section>;
 }
 
-function Members({ data, reviewVerification }) {
+function Members({ data }) {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('all');
-  const [notes, setNotes] = useState({});
-  const [busyId, setBusyId] = useState('');
-  const [reviewError, setReviewError] = useState('');
   const verificationRequests = data.hospitalVerifications || [];
-  const pendingVerifications = verificationRequests.filter((item) => item.status === 'pending');
-  const decide = async (item, status) => {
-    const note = String(notes[item.id] || '').trim();
-    if (status === 'rejected' && !note) { setReviewError('반려 사유를 입력해주세요.'); return; }
-    setReviewError(''); setBusyId(item.id);
-    try { await reviewVerification(item.id, status, note); }
-    catch (error) { setReviewError(error.message || '병원 인증을 처리하지 못했습니다.'); }
-    finally { setBusyId(''); }
-  };
   const members = (data.members || []).filter((member) => {
     const text = [member.email, member.fullName, member.phone, member.organization, member.jobTitle].join(' ').toLowerCase();
     return (role === 'all' || member.role === role) && text.includes(query.trim().toLowerCase());
   });
   return <>
     <section className="admin-panel hospital-verification-queue">
-      <header><div><small>HOSPITAL VERIFICATION</small><h2>병원 회원 가입 서류 검토</h2><p>사업자등록증의 상호·대표자·사업자번호가 가입 정보와 일치하는지 확인한 뒤 승인하세요.</p></div><span className="hospital-verification-count">검토 대기 <b>{pendingVerifications.length}</b>건</span></header>
-      {reviewError && <p className="admin-review-error" role="alert">{reviewError}</p>}
+      <header><div><small>HOSPITAL DOCUMENT RECORDS</small><h2>병원 회원 사업자등록증 제출 이력</h2><p>병원 가입은 즉시 완료되며, 제출된 기관 정보와 비공개 서류는 기록 확인용으로만 조회합니다.</p></div><span className="hospital-verification-count">제출 기록 <b>{verificationRequests.length}</b>건</span></header>
       <div className="hospital-verification-list">
         {verificationRequests.map((item) => <article key={item.id} className={`hospital-verification-card ${item.status}`}>
-          <div className="hospital-verification-heading"><span><Building2 /></span><div><small>{String(item.submittedAt || '').slice(0,16).replace('T',' ')} 제출</small><strong>{item.hospitalName || '병원명 미등록'}</strong><p>{item.email} · {item.phone || '연락처 미등록'}</p></div><em>{item.status === 'pending' ? '검토 대기' : item.status === 'approved' ? '승인 완료' : '반려'}</em></div>
+          <div className="hospital-verification-heading"><span><Building2 /></span><div><small>{String(item.submittedAt || '').slice(0,16).replace('T',' ')} 제출</small><strong>{item.hospitalName || '병원명 미등록'}</strong><p>{item.email} · {item.phone || '연락처 미등록'}</p></div><em>가입 완료</em></div>
           <dl><div><dt>대표자</dt><dd>{item.representativeName || '-'}</dd></div><div><dt>사업자등록번호</dt><dd>{item.businessNumber || '-'}</dd></div><div className="wide"><dt>병원 주소</dt><dd>{item.address || '-'}</dd></div><div><dt>제출 파일</dt><dd>{item.originalFilename || '-'} · {(Number(item.fileSize || 0) / 1024 / 1024).toFixed(2)}MB</dd></div></dl>
-          {item.status === 'pending' ? <div className="hospital-verification-actions">
-            <textarea rows="2" value={notes[item.id] || ''} onChange={(event) => setNotes((current) => ({ ...current, [item.id]:event.target.value }))} placeholder="반려 시 사유를 입력해주세요. 승인 메모는 선택입니다." />
-            <div>{item.documentUrl && item.documentUrl !== '#' ? <a className="button outline" href={withBase(item.documentUrl)} target="_blank" rel="noreferrer"><Eye /> 제출본 열기</a> : <button className="button outline" type="button"><Eye /> 제출본 미리보기</button>}<button className="button outline danger" type="button" disabled={busyId === item.id} onClick={() => decide(item, 'rejected')}><X /> 반려</button><button className="button primary" type="button" disabled={busyId === item.id} onClick={() => decide(item, 'approved')}><Check /> 승인</button></div>
-          </div> : <p className="hospital-verification-result"><ShieldCheck /> {item.reviewNote || (item.status === 'approved' ? '관리자 확인 완료' : '서류 확인 필요')} {item.reviewedAt && <small>{String(item.reviewedAt).slice(0,16).replace('T',' ')}</small>}</p>}
+          <p className="hospital-verification-result"><ShieldCheck /> 가입 즉시 완료 · 승인 또는 반려 처리 없음 {item.documentUrl && item.documentUrl !== '#' && <a className="button outline" href={withBase(item.documentUrl)} target="_blank" rel="noreferrer"><Eye /> 제출본 열기</a>}</p>
         </article>)}
-        {!verificationRequests.length && <div className="admin-data-empty"><ShieldCheck /> 제출된 병원 인증 서류가 없습니다.</div>}
+        {!verificationRequests.length && <div className="admin-data-empty"><ShieldCheck /> 제출된 병원 사업자등록증 기록이 없습니다.</div>}
       </div>
     </section>
     <section className="admin-member-summary">
@@ -692,7 +664,7 @@ function Members({ data, reviewVerification }) {
       <article><CreditCard /><strong>{data.metrics.payments || 0}</strong><p>전체 결제 주문</p><small>회원별 누적 결제액 추적</small></article>
     </section>
     <section className="admin-panel admin-member-manager">
-      <header><div><small>MEMBER DATABASE</small><h2>회원가입 회원 정보 DB</h2><p>계정, 연락처, 회원 유형, 인증·활동 상태, 약관 동의와 결제 누계를 확인합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 병원 인증 외 변경 불가</span></header>
+      <header><div><small>MEMBER DATABASE</small><h2>회원가입 회원 정보 DB</h2><p>계정, 연락처, 회원 유형, 활동 상태, 약관 동의와 결제 누계를 확인합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 조회 전용</span></header>
       <div className="admin-data-toolbar">
         <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름·이메일·병원·연락처 검색" /></label>
         <select value={role} onChange={(event) => setRole(event.target.value)}><option value="all">전체 회원</option><option value="doctor">의료인 회원</option><option value="hospital">병원 회원</option></select>
@@ -709,13 +681,11 @@ function Members({ data, reviewVerification }) {
 
 function MemberRow({ member }) {
   const status = member.status || 'active';
-  const verificationStatus = member.verificationStatus || 'unverified';
-  const verificationLabel = { unverified:'미인증', pending:'확인 중', verified:'인증 완료', rejected:'인증 반려' }[verificationStatus] || verificationStatus;
   const statusLabel = { active:'정상', suspended:'정지', withdrawn:'탈퇴' }[status] || status;
   return <div className="member-row">
     <div><strong>{member.fullName || '이름 미등록'}</strong><small>{member.email || '이메일 비공개'}</small><small>{member.phone || '연락처 미등록'}</small></div>
     <div><span className={`member-role ${member.role}`}>{member.role === 'doctor' ? '의사' : '병원'}</span><strong>{member.organization || member.jobTitle || '-'}</strong><small>{member.jobTitle || '직함 미등록'}</small></div>
-    <div><strong>{verificationLabel}</strong><small>계정 {statusLabel}</small></div>
+    <div><strong>{member.role === 'hospital' ? '가입 완료' : '의료인 회원'}</strong><small>계정 {statusLabel}</small></div>
     <div><strong>동의 {member.consentCount || 0}건</strong><small>주문 {member.orderCount || 0}건</small><b>{Number(member.lifetimeValue || 0).toLocaleString()}원</b></div>
     <div><small>가입 {String(member.createdAt || '-').slice(0,16)}</small><small>최근 {String(member.lastLoginAt || '-').slice(0,16)}</small></div>
     <div><span className={`payment-status ${status}`}>{statusLabel}</span><small>자동 기록</small></div>

@@ -344,8 +344,8 @@ export const commerceSchemaStatements = [
   `CREATE INDEX IF NOT EXISTS payment_webhook_order_idx ON payment_webhook_events(order_number, received_at DESC)`
 ];
 
-// 병원 회원가입 시 제출한 사업자등록증과 관리자 검토 이력.
-// 파일 원본은 비공개 R2에 저장하고 D1에는 검색·감사에 필요한 메타데이터만 둔다.
+// 병원 회원가입 시 제출한 사업자등록증 보관 이력.
+// 가입은 즉시 완료하고, 파일 원본은 비공개 R2에 저장하며 D1에는 검색·감사에 필요한 메타데이터만 둔다.
 export const hospitalVerificationSchemaStatements = [
   `CREATE TABLE IF NOT EXISTS hospital_verification_requests (
     id TEXT PRIMARY KEY,
@@ -359,7 +359,7 @@ export const hospitalVerificationSchemaStatements = [
     content_type TEXT NOT NULL CHECK (content_type IN ('application/pdf','image/jpeg','image/png','image/webp')),
     file_size INTEGER NOT NULL DEFAULT 0,
     file_sha256 TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+    status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending','approved','rejected')),
     review_note TEXT NOT NULL DEFAULT '',
     reviewed_by TEXT NOT NULL DEFAULT '',
     submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
