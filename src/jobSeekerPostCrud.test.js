@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [server, schema, main, editor, member, hospitalEditor] = await Promise.all([
+const [server, schema, main, editor, member, hospitalEditor, styles] = await Promise.all([
   readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../db/schema.js', import.meta.url), 'utf8'),
   readFile(new URL('./main.jsx', import.meta.url), 'utf8'),
   readFile(new URL('./JobSeekerPostPage.jsx', import.meta.url), 'utf8'),
   readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8'),
   readFile(new URL('./HospitalAdEditPage.jsx', import.meta.url), 'utf8'),
+  readFile(new URL('./styles.css', import.meta.url), 'utf8'),
 ]);
 
 test('구직글은 이력서와 분리된 원장에 연결하고 삭제 이력을 보존한다', () => {
@@ -43,6 +44,8 @@ test('작성자는 게시판과 마이페이지에서 구직글을 수정·삭�
   assert.match(member, /deleteJobSeekerPost/);
   assert.match(member, /새 구직글 등록/);
   assert.match(member, /내 구직글/);
+  assert.match(styles, /\.jobseeker-owner-actions button\{[^}]*white-space:nowrap[^}]*word-break:keep-all/);
+  assert.match(styles, /@media\(max-width:800px\).*?\.jobseeker-owner-actions\{grid-column:1\/-1/s);
 });
 
 test('병원 유료 공고는 소유자가 내용만 수정하고 직접 삭제할 수 없다', () => {
