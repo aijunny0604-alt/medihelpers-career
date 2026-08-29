@@ -8,7 +8,9 @@
 - 과거 `single-brand-image` 주문만 일회성 마이그레이션 대상이 되고, 기존 로고 필드를 제거한 뒤 배너와 레이아웃을 설정하는지 검사합니다.
 - `npm test`: **175/175 통과**
 - `npm run build`, `node --check dist/server/index.js`, `git diff --check`: 통과
-- 최종 운영 배포: Sites version `302`, GitHub 기준 브랜치와 동일 커밋.
+- 운영 공개 API 검증: 유료 광고 3건 중 업로드형 2건이 `full-banner`; 두 건 모두 배너 URL 존재·로고 필드 미존재.
+- 운영 캐시·기본 API: HTML `Cache-Control: no-store`, 비로그인 `/api/account` HTTP `200`, 최신 해시 JS·CSS 응답 확인.
+- 최종 운영 배포: Sites version `303`, GitHub 기준 브랜치와 동일 커밋.
 - Sites `project_id`, D1 `DB`, R2 `BACKUPS` 바인딩은 변경하지 않았습니다.
 
 ## 비회원·미승인 병원 공고 등록 차단 회귀 검증 (2026-08-28)

@@ -6,7 +6,8 @@
 - 완성형 업로드 배너 위에는 병원명을 중복해서 덮지 않고, 샘플 배너에만 자동 병원명 오버레이를 유지합니다.
 - 이미 작게 노출 중인 과거 광고 주문은 주문 원본의 `single-brand-image` 표시를 기준으로 첫 공개 조회 때 한 번만 전체 배너 형식으로 자동 보정합니다.
 - 자동 테스트 **175/175**, 프로덕션 빌드, 생성 Worker 문법 검사와 `git diff --check`를 통과했습니다. Sites `project_id`, D1 `DB`, R2 `BACKUPS` 바인딩은 변경하지 않았습니다.
-- GitHub 기준 브랜치와 동일한 커밋을 Sites version `302`로 배포했습니다.
+- 운영 공개 API에서 기존 업로드 광고 2건이 모두 `full-banner`이고 `banner`는 존재하며 `logo`는 제거된 상태임을 확인했습니다. 운영 HTML은 `Cache-Control: no-store`, 비로그인 `/api/account`는 HTTP `200`입니다.
+- GitHub 기준 브랜치와 동일한 최종 문서 커밋을 Sites version `303`으로 배포했습니다.
 
 ## 2026-08-28 · 비회원·미승인 병원 공고 등록 차단
 
