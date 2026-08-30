@@ -44,3 +44,12 @@ test('로그인·회원가입 화면에는 외부 플랫폼 계정 문구를 노
   assert.doesNotMatch(source, /open\s*ai/i);
   assert.match(source, /회원가입할 때 등록한 이메일과 비밀번호로 로그인합니다/);
 });
+
+test('회원가입 로그인 이메일은 데스크톱 한 칸 폭으로 맞추고 모바일에서 전체 폭을 사용한다', async () => {
+  const source = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
+  assert.match(source, /email: \{[^}]*wide: true, compact: true/);
+  assert.match(source, /meta\.compact \? 'compact-wide'/);
+  assert.match(styles, /\.signup-field\.wide\.compact-wide\{width:calc\(50% - 10px\);max-width:720px\}/);
+  assert.match(styles, /@media\(max-width:780px\)[^\n]*\.signup-field\.wide\.compact-wide\{width:100%;max-width:none\}/);
+});

@@ -1458,7 +1458,8 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .signup-field select:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(18,99,232,.1)}
 .signup-field.has-error select{border-color:#d9445a;box-shadow:0 0 0 4px rgba(217,68,90,.1)}
 .signup-field.wide{grid-column:1/-1}
-@media(max-width:780px){.signup-application:has(.hospital-info-section),.signup-application:has(.individual-profile-section){padding:30px 22px}.signup-form-section{padding:22px 18px}.signup-field.wide{grid-column:auto}}
+.signup-field.wide.compact-wide{width:calc(50% - 10px);max-width:720px}
+@media(max-width:780px){.signup-application:has(.hospital-info-section),.signup-application:has(.individual-profile-section){padding:30px 22px}.signup-form-section{padding:22px 18px}.signup-field.wide{grid-column:auto}.signup-field.wide.compact-wide{width:100%;max-width:none}}
 
 /* Signup agreements */
 .signup-agreement-item{margin:12px 0;padding:18px 19px;border:1px solid #dce5ef;border-radius:15px;background:#fff}
