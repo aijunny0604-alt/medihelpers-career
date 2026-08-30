@@ -7,7 +7,7 @@
 - 1180px 이하에서 일반 본문 배치로 복원되는지 검사합니다.
 - `npm test`: **203/203 통과**
 - `npm run build`, `node --check dist/server/index.js`, `git diff --check`: 통과
-- 최종 운영 배포: Sites version `323`.
+- 최종 운영 배포: Sites version `324`.
 
 ## 병원 담당자 직책 선택 항목 검증 (2026-08-30)
 

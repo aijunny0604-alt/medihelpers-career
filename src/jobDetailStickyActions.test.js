@@ -11,7 +11,7 @@ test('공고 상세 지원 메뉴는 데스크톱에서 스크롤을 따라오�
   assert.match(main, /route-stage-static/);
   assert.match(main, /job-detail-scroll-context/);
   assert.match(styles, /\.route-stage\.route-stage-static\{[\s\S]*?animation:none!important;[\s\S]*?transform:none!important;/);
-  assert.match(styles, /body\.job-detail-scroll-context\{[\s\S]*?overflow-y:visible;/);
+  assert.match(styles, /body\.job-detail-scroll-context\{[\s\S]*?overflow-x:clip;[\s\S]*?overflow-y:visible;/);
   assert.match(
     styles,
     /@media\(min-width:1181px\)[\s\S]*?\.detail-grid>\.job-detail-actions\{[\s\S]*?position:sticky;[\s\S]*?top:96px;[\s\S]*?align-self:start;/,
