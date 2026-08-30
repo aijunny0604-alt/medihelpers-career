@@ -5589,6 +5589,42 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .login-test-buttons .button{flex:1 1 auto;min-width:88px;min-height:42px;font-size:13.5px}
 .login-test-note{margin:8px 0 0;font-size:11.5px;color:#9aa7b8}
 
+/* Larger, easier-to-scan login and signup entry surface. */
+.signup-login-card{max-width:860px;padding:clamp(54px,5vw,76px)}
+.signup-login-card>h2{font-size:clamp(38px,3vw,50px)}
+.signup-login-card>p{max-width:680px;font-size:clamp(18px,1.35vw,22px)}
+.signup-login-card form{gap:22px}
+.signup-login-card form label{gap:10px}
+.signup-login-card form label>span{font-size:16px}
+.signup-login-card form input{height:66px;padding:0 20px;border-radius:15px;font-size:17px}
+.signup-login-card form .button{min-height:68px;margin-top:8px;border-radius:15px;font-size:18px;box-shadow:0 14px 30px rgba(18,99,232,.25)}
+.signup-login-join{margin-top:28px;padding:28px 30px;border-width:2px;border-radius:20px;gap:28px}
+.signup-login-join small{font-size:13px}
+.signup-login-join strong{font-size:22px}
+.signup-login-join span{max-width:460px;font-size:14px}
+.signup-login-join-button{min-height:60px;padding:0 24px;border-radius:14px;font-size:16px;box-shadow:0 12px 26px rgba(18,99,232,.27)}
+.signup-login-join-button svg{width:19px}
+.signup-recovery-link{font-size:14px}
+.login-test-accounts{margin-top:24px;padding-top:20px}
+.login-test-accounts>small{font-size:14px}
+.login-test-buttons .button{min-height:48px;font-size:14px}
+.login-test-note{font-size:12px}
+
+.header-signup{min-height:48px;padding:0 18px;border:1px solid #aac5e9;border-radius:13px;background:#fff;color:#195fb8;display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:850;white-space:nowrap;transition:.18s}
+.header-signup:hover{border-color:#1263e8;background:#edf5ff;color:#0f55b5;transform:translateY(-1px)}
+
+@media(max-width:1100px){.header-signup{display:none}}
+@media(max-width:560px){
+  .signup-login-card{padding:34px 22px}
+  .signup-login-card>h2{font-size:34px}
+  .signup-login-card>p{font-size:16px}
+  .signup-login-card form input{height:60px;font-size:16px}
+  .signup-login-card form .button{min-height:62px;font-size:17px}
+  .signup-login-join{padding:22px 20px}
+  .signup-login-join strong{font-size:20px}
+  .signup-login-join-button{min-height:58px;font-size:15px}
+}
+
 /* 회원가입 주소 검색 필드 */
 .signup-address-row{display:flex;gap:8px;align-items:stretch}
 .signup-address-row input{flex:1 1 auto;cursor:pointer;background:#f7faff}

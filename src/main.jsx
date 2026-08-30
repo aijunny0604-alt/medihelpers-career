@@ -630,6 +630,7 @@ function Header({ path, qa, operations, auth }) {
             <span className="header-logout auth-action-pending" aria-hidden="true" />
           </> : <>
             {isSignedIn && !isAdminUser && <Link className="header-notifications" to="/mypage?tab=notifications" aria-label={`알림함${unreadCount > 0 ? `, 읽지 않은 알림 ${unreadCount}개` : ''}`}><Bell />{unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
+            {!isSignedIn && path === '/' && <Link className="header-signup" to="/signup"><UserRound size={16} /> 회원가입</Link>}
             <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
             {isSignedIn && <button type="button" className="header-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '처리 중' : '로그아웃'}</button>}
           </>}
