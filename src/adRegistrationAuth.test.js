@@ -24,6 +24,37 @@ test('공고 등록 화면은 실제 로그인된 병원 회원에게만 열린�
   assert.match(applyPage, /<Checkout plan=\{plan\} auth=\{adAuth\} \/>/);
 });
 
+test('비병원 계정의 공고 등록 버튼은 병원 가입 화면이 아닌 권한 안내로 이동한다', () => {
+  const jobsPage = mainSource.slice(
+    mainSource.indexOf('function JobsPage'),
+    mainSource.indexOf('export function TalentPage'),
+  );
+  const advertisePage = mainSource.slice(
+    mainSource.indexOf('function AdvertisePage'),
+    mainSource.indexOf('function AdvertiseApplyPage'),
+  );
+
+  assert.match(jobsPage, /navigate\(target\)/);
+  assert.match(jobsPage, /`\/advertise\/apply\?plan=\$\{adPlans\[0\]\.id\}`/);
+  assert.match(jobsPage, /병원 회원 전용/);
+  assert.doesNotMatch(jobsPage, /signup\/hospital/);
+  assert.match(advertisePage, /navigate\(target\)/);
+  assert.doesNotMatch(advertisePage, /signup\/hospital/);
+  assert.doesNotMatch(advertisePage, /회원가입 후 신청/);
+});
+
+test('로그인된 회원이 가입 주소를 열면 가입 완료 카드 대신 회원 유형 안내를 본다', () => {
+  const accountSource = readFileSync(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  const accountPage = accountSource.slice(
+    accountSource.indexOf('export default function AccountPage'),
+  );
+
+  assert.match(accountSource, /function SignedInSignupRouteNotice/);
+  assert.match(accountSource, /현재 \$\{actualLabel\} 계정으로 로그인되어 있어 \$\{requestedLabel\} 가입 화면을 이용할 수 없습니다/);
+  assert.match(accountPage, /state\.account && memberType/);
+  assert.match(accountPage, /<SignedInSignupRouteNotice account=\{state\.account\} requestedRole=\{memberType\} \/>/);
+});
+
 test('열려 있던 공고 입력 화면도 로그아웃 뒤에는 업로드와 주문을 시작하지 않는다', () => {
   const checkout = mainSource.slice(
     mainSource.indexOf('function Checkout'),

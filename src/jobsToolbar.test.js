@@ -11,7 +11,8 @@ test('병원 채용 페이지 중간 도구 모음에는 공고 등록만 남긴
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
   assert.match(toolbar, /<Plus \/> 공고 등록 <ArrowRight \/>/);
-  assert.match(toolbar, /signup\/hospital\?next=\/advertise/);
+  assert.match(toolbar, /advertise\/apply\?plan=\$\{adPlans\[0\]\.id\}/);
+  assert.doesNotMatch(toolbar, /signup\/hospital/);
   assert.doesNotMatch(toolbar, />전체 채용<|>의료인 구인구직<|>맞춤 초빙<|>내 활동</);
 });
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
+  ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
   FileCheck2, LockKeyhole, Mail, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, Upload, UserRound, X
 } from 'lucide-react';
 import { accountRoleLabel, validateSignup } from './signupModel.js';
@@ -708,6 +708,26 @@ function AccountCard({ account, identity = {} }) {
   </section>;
 }
 
+function SignedInSignupRouteNotice({ account, requestedRole }) {
+  const actualRole = account?.role || '';
+  const sameRole = actualRole === requestedRole;
+  const actualLabel = accountRoleLabel(actualRole);
+  const requestedLabel = accountRoleLabel(requestedRole);
+  const goBack = () => {
+    try {
+      if (document.referrer && new URL(document.referrer).origin === window.location.origin && window.history.length > 1) return window.history.back();
+    } catch {}
+    window.location.assign(withBase('/'));
+  };
+  return <section className="signup-card account-role-notice">
+    <span className="signup-card-icon"><LockKeyhole /></span>
+    <small>MEMBER TYPE NOTICE</small>
+    <h2>{sameRole ? `이미 ${actualLabel}으로 로그인되어 있습니다` : `${requestedLabel} 전용 가입 화면입니다`}</h2>
+    <p>{sameRole ? '현재 계정의 회원가입은 이미 완료되어 있습니다.' : `현재 ${actualLabel} 계정으로 로그인되어 있어 ${requestedLabel} 가입 화면을 이용할 수 없습니다.`}</p>
+    <div className="account-role-notice-actions"><button className="button primary" type="button" onClick={goBack}><ArrowLeft /> 뒤로가기</button><a className="button outline" href={withBase('/')}>홈으로</a></div>
+  </section>;
+}
+
 function accountStateFromAuth(auth) {
   return {
     loading: auth?.status === 'loading',
@@ -832,7 +852,7 @@ export default function AccountPage({ memberType = '', loginOnly = false, auth }
   const [remoteState, setRemoteState] = useState({ loading: true, signupEnabled: false, signedIn: false, account: null, identity: {} });
   const state = auth ? accountStateFromAuth(auth) : remoteState;
   const [error, setError] = useState('');
-  const title = useMemo(() => state.account ? '내 계정' : loginOnly ? '로그인' : roleContent[memberType]?.title || '회원가입', [memberType, state.account, loginOnly]);
+  const title = useMemo(() => state.account && memberType ? '회원 유형 안내' : state.account ? '내 계정' : loginOnly ? '로그인' : roleContent[memberType]?.title || '회원가입', [memberType, state.account, loginOnly]);
   useEffect(() => {
     if (auth) return undefined;
     accountRequest().then((data) => setRemoteState({ loading: false, ...data })).catch((loadError) => {
@@ -843,6 +863,7 @@ export default function AccountPage({ memberType = '', loginOnly = false, auth }
   }, [auth]);
   let content;
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
+  else if (state.account && memberType) content = <SignedInSignupRouteNotice account={state.account} requestedRole={memberType} />;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;
   else if (loginOnly) content = <LoginCard testAccountsEnabled={state.testAccountsEnabled !== false} />;
   else if (!memberType) content = <MemberTypeChooser />;
