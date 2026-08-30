@@ -44,8 +44,10 @@ test('작성자는 게시판과 마이페이지에서 구직글을 수정·삭�
   assert.match(member, /deleteJobSeekerPost/);
   assert.match(member, /새 구직글 등록/);
   assert.match(member, /내 구직글/);
+  assert.match(main, /jobseeker-owner-actions-label">내 글 관리/);
   assert.match(styles, /\.jobseeker-owner-actions button\{[^}]*white-space:nowrap[^}]*word-break:keep-all/);
-  assert.match(styles, /@media\(max-width:800px\).*?\.jobseeker-owner-actions\{grid-column:1\/-1/s);
+  assert.match(styles, /\.jobseeker-owner-actions\{grid-column:2\/-1!important;grid-row:2/);
+  assert.match(styles, /@media\(max-width:760px\)\{\.jobseeker-owner-actions\{grid-column:1\/-1!important;grid-row:auto/);
 });
 
 test('병원 유료 공고는 소유자가 내용만 수정하고 직접 삭제할 수 없다', () => {

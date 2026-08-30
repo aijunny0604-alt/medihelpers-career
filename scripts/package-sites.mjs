@@ -303,10 +303,20 @@ async function ensureCommerceSchema(env) {
 // 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권(talent_unlocks)을 발급한다.
 async function ensureTalentCreditSchema(env) {
   if (!env || !env.DB) throw new Error('TALENT_CREDIT_DB_UNAVAILABLE');
-  await env.DB.prepare('CREATE TABLE IF NOT EXISTS talent_credit_pools (id TEXT PRIMARY KEY, hospital_account_id TEXT NOT NULL, order_id TEXT, total_credits INTEGER NOT NULL DEFAULT 0, used_credits INTEGER NOT NULL DEFAULT 0, expires_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)').run();
-  // order_id 유니크: 같은 결제 주문으로 크레딧 풀이 두 번 적립되는 것을 DB 차원에서 막는다
-  // (check-then-insert만으로는 동시 승인 경합 시 이중 적립 가능 → 팩 크레딧 2배 지급 사고).
-  try { await env.DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_talent_credit_pools_order ON talent_credit_pools(order_id)').run(); } catch {}
+  if (!schemaReadyPromises.has('talent-credit-v2')) {
+    schemaReadyPromises.set('talent-credit-v2', (async () => {
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS talent_credit_pools (id TEXT PRIMARY KEY, hospital_account_id TEXT NOT NULL, order_id TEXT, total_credits INTEGER NOT NULL DEFAULT 0, used_credits INTEGER NOT NULL DEFAULT 0, expires_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)').run();
+      // order_id 유니크: 같은 결제 주문으로 크레딧 풀이 두 번 적립되는 것을 DB 차원에서 막는다
+      // (check-then-insert만으로는 동시 승인 경합 시 이중 적립 가능 → 팩 크레딧 2배 지급 사고).
+      try { await env.DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_talent_credit_pools_order ON talent_credit_pools(order_id)').run(); } catch {}
+      // 같은 병원이 같은 인재를 동시에 열어 팩 크레딧이 중복 차감되는 것을 DB에서도 차단한다.
+      // 과거 중복 행이 있으면 가장 먼저 발급된 1건만 남긴 뒤 유니크 인덱스를 적용한다.
+      try { await env.DB.prepare('DELETE FROM talent_unlocks WHERE rowid NOT IN (SELECT MIN(rowid) FROM talent_unlocks GROUP BY hospital_account_id, talent_id)').run(); } catch {}
+      try { await env.DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_talent_unlocks_owner_talent ON talent_unlocks(hospital_account_id, talent_id)').run(); } catch {}
+    })());
+  }
+  try { await schemaReadyPromises.get('talent-credit-v2'); }
+  catch (error) { schemaReadyPromises.delete('talent-credit-v2'); throw error; }
 }
 async function ensureRecruitmentCrmSchema(env) {
   if (!env || !env.DB) throw new Error('RECRUITMENT_CRM_DB_UNAVAILABLE');
@@ -1394,7 +1404,7 @@ async function memberCenterApi(request, env) {
   const identity = await authenticatedUser(request, env);
   if (!identity) return json({ signedIn:false, account:null, identity:{} }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
-  try { await Promise.all([ensureAccountSchema(env), ensureConsultationSchema(env), ensureMemberCenterSchema(env), ensureCommerceSchema(env)]); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  try { await Promise.all([ensureAccountSchema(env), ensureConsultationSchema(env), ensureMemberCenterSchema(env), ensureCommerceSchema(env), ensureTalentCreditSchema(env)]); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   // 관리자 여부를 함께 내려준다(마이페이지가 관리자를 운영 콘솔로 안내하도록).
@@ -1432,6 +1442,7 @@ async function memberCenterApi(request, env) {
       ).bind(account.id));
     }
     if (account.role === 'hospital') {
+      addQuery('talentCredits', env.DB.prepare("SELECT COALESCE(SUM(total_credits),0) AS total, COALESCE(SUM(used_credits),0) AS used, COALESCE(SUM(total_credits-used_credits),0) AS remaining, MIN(expires_at) AS nearestExpiry FROM talent_credit_pools WHERE hospital_account_id=? AND used_credits<total_credits AND (expires_at IS NULL OR expires_at>CURRENT_TIMESTAMP)").bind(account.id));
       addQuery('received', env.DB.prepare(
         "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
         "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
@@ -1462,6 +1473,7 @@ async function memberCenterApi(request, env) {
     const receivedResult = resultsByName.get('received') || { results:[] };
     const recommendedResult = resultsByName.get('recommended') || { results:[] };
     const ownedAdsResult = resultsByName.get('ownedAds') || { results:[] };
+    const talentCreditSummary = rows('talentCredits')[0] || { total:0, used:0, remaining:0, nearestExpiry:null };
     let consultationRows = consultations.results || [];
     // 병원 마이페이지에는 해당 병원이 결제·등록한 공고로 들어온 직접 지원만 추가한다.
     // 이 지원서는 헤드헌터 상담함과 분리되지만 병원은 문의·후보 화면에서 확인할 수 있다.
@@ -1546,7 +1558,7 @@ async function memberCenterApi(request, env) {
         adUpdatedAt:content?.updatedAt || ''
       };
     });
-    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson), messages:messagesByConsultation.get(row.id) || [] }; }), orders:orderList, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson), messages:messagesByConsultation.get(row.id) || [] }; }), orders:orderList, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates, talentCredits:{ total:Number(talentCreditSummary.total)||0, used:Number(talentCreditSummary.used)||0, remaining:Number(talentCreditSummary.remaining)||0, nearestExpiry:talentCreditSummary.nearestExpiry || null } });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -1918,9 +1930,21 @@ async function talentDetailApi(request, env, pathname) {
         if (pool) {
           // 크레딧을 원자적으로 차감(경합 시 조건 불일치로 0행 → 이중 소모 방지).
           const spent = await env.DB.prepare("UPDATE talent_credit_pools SET used_credits = used_credits + 1 WHERE id = ? AND used_credits = ?").bind(pool.id, Number(pool.used)).run();
-          if (spent?.meta?.changes === 1 || spent?.changes === 1) {
-            await env.DB.prepare("INSERT INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.id, pool.expiresAt || null).run();
-            hasUnlock = true;
+          if (runChanges(spent) === 1) {
+            try {
+              const granted = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.id, pool.expiresAt || null).run();
+              if (runChanges(granted) === 1) hasUnlock = true;
+              else {
+                // 다른 동시 요청이 먼저 같은 인재 권한을 만들었다면 방금 차감한 1건을 즉시 복구한다.
+                await env.DB.prepare('UPDATE talent_credit_pools SET used_credits = used_credits - 1 WHERE id = ? AND used_credits > 0').bind(pool.id).run();
+                const concurrentGrant = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? AND (expires_at IS NULL OR expires_at>?) LIMIT 1").bind(account.id, talentId, now).first();
+                hasUnlock = Boolean(concurrentGrant);
+              }
+            } catch (error) {
+              // 권한 발급 실패 시 돈을 낸 크레딧이 사라지지 않도록 차감을 원복한다.
+              try { await env.DB.prepare('UPDATE talent_credit_pools SET used_credits = used_credits - 1 WHERE id = ? AND used_credits > 0').bind(pool.id).run(); } catch {}
+              throw error;
+            }
           }
         }
       } catch {}

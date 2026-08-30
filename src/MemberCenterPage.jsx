@@ -168,7 +168,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
   const [tab, setTab] = useState(requestedAdEditId ? 'ads' : requestedTab || 'overview');
   const [accountState, setAccountState] = useState({ loading: !qa.active, signedIn: qa.active && qa.info.capabilities.signedIn, role: qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor || qa.info.capabilities.membership ? 'doctor' : qa.info.capabilities.admin ? 'admin' : '', identity: {} });
   const [profile, setProfile] = useState(null);
-  const [serverData, setServerData] = useState({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [] });
+  const [serverData, setServerData] = useState({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [], talentCredits: { total:0, used:0, remaining:0, nearestExpiry:null } });
   const [saved, setSaved] = useState('');
   const [saveBusy, setSaveBusy] = useState(false);
   // 저장 결과가 성공인지 실패인지 화면에서 구분하기 위한 판단(문구 기준).
@@ -214,7 +214,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
     if (auth?.status === 'guest') {
       setAccountState({ loading:false, signedIn:false, role:'', identity:{} });
       setProfile(null);
-      setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [] });
+      setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [], talentCredits: { total:0, used:0, remaining:0, nearestExpiry:null } });
       return;
     }
     // 상단 테스트 계정 전환 직후 이전 역할의 대시보드·프로필을 남기지 않는다.
@@ -226,7 +226,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
       isAdmin:Boolean(auth?.isAdmin)
     });
     setProfile(auth?.profile || null);
-    setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [] });
+    setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [], talentCredits: { total:0, used:0, remaining:0, nearestExpiry:null } });
     let cancelled = false;
     // 로그인 직후 세션 쿠키가 아직 자리잡지 않아 401이 날 수 있다(느린 PC·네트워크).
     // 한 번의 실패로 바로 '불러오지 못했습니다'를 띄우지 말고, 짧게 몇 번 재시도한다.
@@ -241,7 +241,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
             setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
             if (data.profile) setProfile(data.profile);
             if (data.notifications) setNotifications(data.notifications);
-            setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, jobSeekerPosts: data.jobSeekerPosts || [], recommendedCandidates: data.recommendedCandidates || [] });
+            setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, jobSeekerPosts: data.jobSeekerPosts || [], recommendedCandidates: data.recommendedCandidates || [], talentCredits:data.talentCredits || { total:0, used:0, remaining:0, nearestExpiry:null } });
             return;
           }
           // 세션 반영 지연과 일시적인 서버·저장소 오류는 잠깐 뒤 재시도한다.
@@ -416,7 +416,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
     { code:'CAND-2381', specialty:'내과', positionTitle:'소화기내과 전문의', stage:'면접 조율', updatedAt:'07.15' }
   ] : (serverData.recommendedCandidates || []);
   const metrics = qa.active ? demo.metrics : role === 'hospital'
-    ? [['진행 중 공고', `${activeAds}건`, '노출 중 공고'], ['새 문의', `${inquiries.filter((item) => item.status === '답변 대기').length}건`, '확인 필요'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역'], ['추천 후보', `${recommendedCount}명`, '동의 후 연결']]
+    ? [['진행 중 공고', `${activeAds}건`, '노출 중 공고'], ['새 문의', `${inquiries.filter((item) => item.status === '답변 대기').length}건`, '확인 필요'], ['팩 잔여 열람권', `${Number(serverData.talentCredits?.remaining || 0)}건`, serverData.talentCredits?.nearestExpiry ? `${String(serverData.talentCredits.nearestExpiry).slice(0,10)}까지` : '구매 수량만 사용'], ['추천 후보', `${recommendedCount}명`, '동의 후 연결']]
     : [['이력서 완성도', resumeCompletion, serverData.resume ? '등록 완료' : '등록 후 표시'], ['상담 진행', `${inquiries.length}건`, '전체 상담'], ['관심 공고', `${savedJobs.length}건`, '저장한 공고'], ['누적 결제', `${paidTotal.toLocaleString('ko-KR')}원`, '결제 내역']];
   const nav = useMemo(() => role === 'hospital' ? [
     ['overview', '홈', Building2], ['notifications', '알림', Bell], ['ads', '내 공고', BriefcaseBusiness], ['inquiries', '문의·후보', MessageCircle], ['payments', '결제·사용이력', Receipt], ['profile', '회원정보', Settings]
