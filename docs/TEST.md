@@ -1,5 +1,14 @@
 # TEST
 
+## 공고 상세 지원 메뉴 실제 sticky 회귀 검증 (2026-08-31)
+
+- 1181px 이상에서 지원 메뉴에 `position: sticky`, 헤더 여백과 시작점 정렬이 적용되는지 검사합니다.
+- sticky 조상 영역이 `overflow: visible`이며 상세 모달 애니메이션 transform이 제거되는지 검사합니다.
+- 1180px 이하에서 일반 본문 배치로 복원되는지 검사합니다.
+- `npm test`: **203/203 통과**
+- `npm run build`, `node --check dist/server/index.js`, `git diff --check`: 통과
+- 최종 운영 배포: Sites version `321`.
+
 ## 병원 담당자 직책 선택 항목 검증 (2026-08-30)
 
 - 담당자 직책이 화면에서 `선택`으로 표시되는지 검사합니다.

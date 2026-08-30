@@ -3950,12 +3950,23 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 
 /* Keep the public job-detail actions within reach while the description scrolls. */
 @media(min-width:1181px){
+  .job-detail-page .modal-card.embedded,
+  .job-detail-page .modal-card.embedded .modal-scroll,
+  .job-detail-page .modal-card.embedded .detail-grid{
+    overflow:visible;
+  }
+  .job-detail-page .modal-card.embedded .detail-grid{
+    align-items:start;
+  }
   .job-detail-page .modal-card.embedded .detail-grid>.job-detail-actions{
     position:sticky;
     top:96px;
     align-self:start;
-    height:max-content;
+    height:fit-content;
     z-index:2;
+    animation:none!important;
+    transform:none!important;
+    will-change:auto;
   }
 }
 

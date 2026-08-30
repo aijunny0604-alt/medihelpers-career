@@ -13,6 +13,11 @@ test('공고 상세 지원 메뉴는 데스크톱에서 스크롤을 따라오�
   );
   assert.match(
     styles,
+    /\.modal-card\.embedded \.detail-grid>\.job-detail-actions\{[\s\S]*?animation:none!important;[\s\S]*?transform:none!important;/,
+  );
+  assert.match(styles, /\.modal-card\.embedded \.modal-scroll,[\s\S]*?\.modal-card\.embedded \.detail-grid\{[\s\S]*?overflow:visible;/);
+  assert.match(
+    styles,
     /@media\(max-width:1180px\)[\s\S]*?\.detail-grid>\.job-detail-actions\{[\s\S]*?position:static;[\s\S]*?width:100%;/,
   );
 });
