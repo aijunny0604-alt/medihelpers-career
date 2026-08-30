@@ -3947,6 +3947,25 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .job-detail-page .detail-grid aside{position:static}
 }
 
+/* Keep the public job-detail actions within reach while the description scrolls. */
+@media(min-width:1181px){
+  .job-detail-page .modal-card.embedded .detail-grid>.job-detail-actions{
+    position:sticky;
+    top:96px;
+    align-self:start;
+    height:max-content;
+    z-index:2;
+  }
+}
+
+@media(max-width:1180px){
+  .job-detail-page .modal-card.embedded .detail-grid>.job-detail-actions{
+    position:static;
+    top:auto;
+    width:100%;
+  }
+}
+
 /* 2026 revenue and operations architecture */
 .home-primary-actions{display:flex;justify-content:center;gap:14px;margin:30px auto 26px}.home-primary-actions a{min-height:62px;padding:0 28px;border-radius:16px;background:#1263e8;color:#fff;display:inline-flex;align-items:center;gap:11px;font-weight:850;font-size:17px;box-shadow:0 16px 34px rgba(18,99,232,.22)}.home-primary-actions a.doctor{background:#fff;color:#0f2b54;border:1px solid #cbdaf0;box-shadow:0 14px 32px rgba(26,57,94,.1)}.home-primary-actions svg{width:21px}
 .membership-free-promise{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;padding:24px 26px;margin:24px 0;border:1px solid #bfe3d8;border-radius:18px;background:#f2fbf8}.membership-free-promise>svg{color:#129879}.membership-free-promise strong{display:block;color:#0b3d34;font-size:17px}.membership-free-promise p{margin:6px 0 0;color:#52746c;line-height:1.55}

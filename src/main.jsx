@@ -1330,9 +1330,11 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
           </section>
         </div>
         <aside
-          className={
-            restricted ? `premium-aside ${qaUnlocked ? "qa-unlocked" : ""}` : ""
-          }
+          className={[
+            "job-detail-actions",
+            restricted ? "premium-aside" : "",
+            restricted && qaUnlocked ? "qa-unlocked" : "",
+          ].filter(Boolean).join(" ")}
         >
           {locked ? (
             <>
