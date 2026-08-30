@@ -15,7 +15,7 @@ const HOSPITAL_INFO_FIELDS = [
   'website',
   'fax'
 ];
-const OPTIONAL_FIELDS = new Set(['specialty', 'birthYear', 'gender', 'department', 'addressDetail', 'website', 'fax']);
+const OPTIONAL_FIELDS = new Set(['specialty', 'birthYear', 'gender', 'hospitalRole', 'department', 'addressDetail', 'website', 'fax']);
 const CONSENT_KEYS = ['termsAccepted', 'privacyAccepted', 'ageConfirmed'];
 
 function normalizeRole(role) {

@@ -76,7 +76,7 @@ test('의료인: 전문 분야를 제외한 빈 필수 입력은 각 필드 오�
   assert.equal(result.errors.hospitalRole, undefined);
 });
 
-test('병원: 기관명·담당자 역할·사업자번호·주소가 비면 오류가 난다', () => {
+test('병원: 담당자 직책은 선택이며 기관명·대표자·사업자번호·주소가 비면 오류가 난다', () => {
   const draft = validHospitalDraft({
     hospitalName: '',
     hospitalRole: '',
@@ -87,7 +87,7 @@ test('병원: 기관명·담당자 역할·사업자번호·주소가 비면 오
   const result = validateApplicationDraft(draft, 'hospital');
   assert.equal(result.valid, false);
   assert.ok(result.errors.hospitalName);
-  assert.ok(result.errors.hospitalRole);
+  assert.equal(result.errors.hospitalRole, undefined);
   assert.ok(result.errors.representativeName);
   assert.ok(result.errors.businessNumber);
   assert.ok(result.errors.address);
@@ -114,6 +114,14 @@ test('비밀번호 규칙: 8자 미만·영문숫자 미포함은 거부한다',
 test('비밀번호 확인: 불일치는 오류, 일치는 통과한다', () => {
   assert.ok(validateField('passwordConfirm', { password: 'medi1234', passwordConfirm: 'medi9999' }));
   assert.equal(validateField('passwordConfirm', { password: 'medi1234', passwordConfirm: 'medi1234' }), '');
+});
+
+test('병원: 담당자 직책을 입력하지 않아도 가입할 수 있고 선택으로 표시한다', () => {
+  const result = validateApplicationDraft(validHospitalDraft({ hospitalRole:'' }), 'hospital');
+  assert.equal(result.valid, true);
+  assert.equal(result.errors.hospitalRole, undefined);
+  const accountPage = fs.readFileSync(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  assert.match(accountPage, /hospitalRole: \{ label: '담당자 직책', optional: true/);
 });
 
 test('가입 화면은 이메일을 한 행에 두고 비밀번호와 확인을 다음 행에 나란히 배치한다', () => {
