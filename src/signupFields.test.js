@@ -64,12 +64,13 @@ test('의료인: 올바른 입력은 통과한다', () => {
   assert.deepEqual(result.errors, {});
 });
 
-test('의료인: 빈 필수 입력은 각 필드 오류를 낸다', () => {
+test('의료인: 전문 분야를 제외한 빈 필수 입력은 각 필드 오류를 낸다', () => {
   const result = validateApplicationDraft(createEmptyDraft('doctor'), 'doctor');
   assert.equal(result.valid, false);
-  for (const field of ['name', 'phone', 'email', 'password', 'passwordConfirm', 'professionType', 'specialty', 'region', 'termsAccepted', 'privacyAccepted', 'ageConfirmed']) {
+  for (const field of ['name', 'phone', 'email', 'password', 'passwordConfirm', 'professionType', 'region', 'termsAccepted', 'privacyAccepted', 'ageConfirmed']) {
     assert.ok(result.errors[field], `${field} 오류 필요`);
   }
+  assert.equal(result.errors.specialty, undefined);
   // 병원 전용 필드는 의료인 검증 대상이 아니다.
   assert.equal(result.errors.hospitalName, undefined);
   assert.equal(result.errors.hospitalRole, undefined);
@@ -113,6 +114,21 @@ test('비밀번호 규칙: 8자 미만·영문숫자 미포함은 거부한다',
 test('비밀번호 확인: 불일치는 오류, 일치는 통과한다', () => {
   assert.ok(validateField('passwordConfirm', { password: 'medi1234', passwordConfirm: 'medi9999' }));
   assert.equal(validateField('passwordConfirm', { password: 'medi1234', passwordConfirm: 'medi1234' }), '');
+});
+
+test('가입 화면은 이메일을 한 행에 두고 비밀번호와 확인을 다음 행에 나란히 배치한다', () => {
+  const accountPage = fs.readFileSync(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  assert.match(accountPage, /email: \{[^}]*wide: true/);
+  assert.match(accountPage, /password: \{ label: '비밀번호'/);
+  assert.match(accountPage, /passwordConfirm: \{ label: '비밀번호 확인'/);
+});
+
+test('전문 분야·주요 업무는 선택 항목이며 빈 값으로 가입할 수 있다', () => {
+  const result = validateApplicationDraft(validDoctorDraft({ specialty:'' }), 'doctor');
+  assert.equal(result.valid, true);
+  assert.equal(result.errors.specialty, undefined);
+  const accountPage = fs.readFileSync(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  assert.match(accountPage, /specialty: \{ label: '전문 분야·주요 업무', optional: true/);
 });
 
 test('필수 동의: 하나라도 빠지면 검증에 실패한다', () => {

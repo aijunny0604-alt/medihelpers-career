@@ -65,7 +65,7 @@ const roleContent = {
 const FIELD_META = {
   name: { label: '담당자 성명', type: 'text', autoComplete: 'name', placeholder: '예: 홍길동' },
   phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, maxLength: 13, hint: '숫자만 입력해도 하이픈이 자동으로 표시됩니다. 상담·채용 연락에만 사용합니다.' },
-  email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.' },
+  email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.', wide: true },
   password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8자 이상', hint: '영문과 숫자를 포함해 8자 이상으로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
   professionType: {
@@ -74,7 +74,7 @@ const FIELD_META = {
     placeholder: '직군을 선택해주세요',
     options: ['의사', '치과의사', '한의사', '간호사', '간호조무사', '방사선사', '임상병리사', '물리치료사', '작업치료사', '치과위생사', '병원 행정·원무', '기타 의료인']
   },
-  specialty: { label: '전문 분야·주요 업무', type: 'text', placeholder: '예: 정형외과 전문의, MRI 방사선사, 외래 간호' },
+  specialty: { label: '전문 분야·주요 업무', optional: true, type: 'text', placeholder: '예: 정형외과 전문의, MRI 방사선사, 외래 간호', hint: '가입 후 이력서나 구직글을 작성할 때 입력해도 됩니다.' },
   region: {
     label: '현재 활동 지역',
     type: 'select',
