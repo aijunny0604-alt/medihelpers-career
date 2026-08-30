@@ -4539,6 +4539,14 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .home-premium-points>span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #e0e8f1;border-radius:999px;background:#f8fafc;color:#52667f;font-size:12px;font-weight:750}
 .home-premium-points svg{width:14px;color:#6fe0c6}
 .home-premium-showcase .premium-rotator{border-color:#dfe7f0;background:#fff;box-shadow:0 16px 42px rgba(31,65,105,.08)}
+.home-premium-loading{min-height:430px;padding:20px;border:1px solid #dfe7f0;border-radius:22px;background:#fff;box-shadow:0 16px 42px rgba(31,65,105,.08)}
+.home-premium-loading-status{display:flex;align-items:center;min-height:34px;color:#718198;font-size:13px;font-weight:750}
+.home-premium-loading-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:10px}
+.home-premium-loading-card{min-height:326px;padding:18px;border:1px solid #e4eaf2;border-radius:18px;background:#fbfcfe;overflow:hidden}
+.home-premium-loading-card i,.home-premium-loading-card b,.home-premium-loading-card span{display:block;border-radius:10px;background:linear-gradient(100deg,#edf2f7 20%,#f7f9fc 38%,#edf2f7 56%);background-size:220% 100%;animation:home-premium-loading 1.35s ease-in-out infinite}
+.home-premium-loading-card i{height:132px}.home-premium-loading-card b{width:76%;height:20px;margin-top:22px}.home-premium-loading-card b+b{width:52%;height:14px;margin-top:14px}.home-premium-loading-card span{height:52px;margin-top:28px}
+@keyframes home-premium-loading{to{background-position:-220% 0}}
+@media(prefers-reduced-motion:reduce){.home-premium-loading-card i,.home-premium-loading-card b,.home-premium-loading-card span{animation:none}}
 
 /* Home recruitment hub: compact search hands off to the full jobs portal. */
 .home-job-hub{margin-top:76px;padding:30px max(24px,calc((100vw - 1440px)/2)) 34px;background:linear-gradient(135deg,#f6f9ff,#eff6ff 62%,#edf9f6)}
@@ -4568,6 +4576,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .home-job-hub .hero-search-fields{grid-template-columns:1fr 1fr}
   .home-job-hub .hero-search-button{grid-column:1/3;min-height:56px}
   .home-job-feed .job-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-premium-loading-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.home-premium-loading-card:last-child{display:none}
 }
 @media(max-width:780px){
   .home-premium-showcase{padding:50px 16px 54px}
@@ -4586,6 +4595,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .home-job-hub .hero-search-button{grid-column:1;min-height:54px}
   .home-job-feed{padding-top:36px}
   .home-job-feed .job-grid{grid-template-columns:1fr}
+  .home-premium-loading{min-height:390px;padding:14px}.home-premium-loading-grid{grid-template-columns:1fr}.home-premium-loading-card:nth-child(n+2){display:none}
 }
 .consult-admin-preview-note{max-width:540px;margin:0 auto 18px;padding:17px 19px;border:1px solid #f0d8ad;border-radius:15px;background:#fff9ed;text-align:left}.consult-admin-preview-note strong{display:block;color:#8e5a09;font-size:14px}.consult-admin-preview-note p{margin:5px 0 0;color:#806f55;font-size:12px!important;font-weight:600!important;line-height:1.65}.consult-admin-error{display:block;max-width:540px;margin:0 auto 18px;padding:10px 14px;border-radius:10px;background:#f3f6fa;color:#68788e;font-size:12px;font-style:normal}.consult-admin-access-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.consult-admin-access-actions .button{min-height:54px;padding-inline:22px}.consult-admin-access-actions svg{width:17px}.consult-admin-access .consult-admin-help{margin:20px auto 0;color:#8390a2;font-size:11px;font-weight:600}.consult-admin-access .consult-admin-help b{color:#5b6d84}
 

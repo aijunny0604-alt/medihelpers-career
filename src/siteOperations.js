@@ -38,10 +38,10 @@ export function invalidateSiteOperations() {
 }
 
 export function useSiteOperations() {
-  const [operations, setOperations] = useState(cached);
+  const [state, setState] = useState({ operations: cached, ready: false });
   useEffect(() => {
     let active = true;
-    const sync = () => { loadOperations().then((value) => active && setOperations(value)); };
+    const sync = () => { loadOperations().then((value) => active && setState({ operations:value, ready:true })); };
     sync();
     // SPA는 페이지를 오가도 이 훅이 다시 마운트되지 않는다(의존성이 비어 있어 1회만 실행).
     // 그래서 공고를 등록하고 목록으로 이동해도 예전 캐시가 계속 보였다.
@@ -55,7 +55,7 @@ export function useSiteOperations() {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
-  return operations;
+  return { ...state.operations, ready:state.ready };
 }
 
 // Keep the dedicated headhunting board separate from paid hospital ads while

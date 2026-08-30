@@ -1543,7 +1543,16 @@ function MediAngelAssistant() {
     </button>
   </aside>;
 }
-function HomePage({ liveJobs = jobs }) {
+function HomePremiumLoading() {
+  return <div className="home-premium-loading" aria-live="polite" aria-busy="true" aria-label="최신 메인 채용공고 불러오는 중">
+    <span className="home-premium-loading-status">최신 채용공고를 불러오고 있습니다</span>
+    <div className="home-premium-loading-grid" aria-hidden="true">
+      {Array.from({ length:3 }, (_, index) => <div className="home-premium-loading-card" key={index}><i /><b /><b /><span /></div>)}
+    </div>
+  </div>;
+}
+
+function HomePage({ liveJobs = jobs, jobsReady = true }) {
   const siteCategories = useSiteCategories();
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
@@ -1574,14 +1583,16 @@ function HomePage({ liveJobs = jobs }) {
         </div>
       </div>
     </section>
-    {promotedJobs.length > 0 && <section className="section home-premium-showcase" id="premium-recruitment">
+    {(!jobsReady || promotedJobs.length > 0) && <section className="section home-premium-showcase" id="premium-recruitment">
       <div className="home-premium-inner">
         <div className="home-premium-head">
           <div><span><Crown /> MAIN RECRUITMENT AD</span><h2>지금 주목할 메인 광고</h2><p>메인 영역에 우선 노출되는 병원 채용광고입니다.</p></div>
           <div className="home-premium-actions"><Link className="button light" to="/jobs">전체 병원채용 보기 <ArrowRight /></Link><Link className="button glass" to="/advertise">병원 광고 안내</Link></div>
         </div>
         
-        <PremiumAdCarousel items={promotedJobs} renderCard={(job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />} />
+        {jobsReady
+          ? <PremiumAdCarousel items={promotedJobs} renderCard={(job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />} />
+          : <HomePremiumLoading />}
       </div>
     </section>}
     <section className="home-job-hub">
@@ -3824,7 +3835,7 @@ export function App() {
       : { to: `/advertise/apply?plan=${adPlans[0].id}`, label: '공고 등록 안내' };
 
   let page;
-  if (path === '/') page = <HomePage liveJobs={liveJobs} />;
+  if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} />;
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
     const job = liveJobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
