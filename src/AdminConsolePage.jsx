@@ -423,10 +423,11 @@ function MonitorDetail({ item, onClose }) {
     ['최초 등록', item.createdAt],
     ['최근 변경', item.updatedAt || item.monitorDate],
   ];
+  const attachedResume = item.monitorType === 'consultation' && item.payload?.resumeSnapshot && typeof item.payload.resumeSnapshot === 'object' ? item.payload.resumeSnapshot : null;
   const details = item.monitorType === 'recovery' ? [
     ['요청 구분', item.requestType === 'password' ? '비밀번호 재설정' : '가입 이메일 확인'], ['요청자', item.requesterName], ['휴대전화', item.phone], ['가입 이메일', item.email],
   ] : item.monitorType === 'consultation' ? [
-    ['신청자', item.requesterName], ['구분', item.requestType === 'hospital' ? '병원 구인희망' : '의사 구직희망'], ['전화번호', item.phone], ['이메일', item.email], ['진료과', item.specialty], ['관리자 메모', item.adminNote || '작성된 메모 없음'], ['메일 알림', item.emailNotificationStatus], ['문자 알림', item.smsNotificationStatus], ...Object.entries(item.payload || {}).map(([key,value]) => [key, value]),
+    ['신청자', item.requesterName], ['구분', item.requestType === 'hospital' ? '병원 구인희망' : '의사 구직희망'], ['전화번호', item.phone], ['이메일', item.email], ['진료과', item.specialty], ['관리자 메모', item.adminNote || '작성된 메모 없음'], ['메일 알림', item.emailNotificationStatus], ['문자 알림', item.smsNotificationStatus], ...Object.entries(item.payload || {}).filter(([key]) => key !== 'resumeSnapshot').map(([key,value]) => [key, value]),
   ] : item.monitorType === 'case' ? [
     ['병원', item.hospitalName], ['포지션', item.positionTitle], ['진료과', item.specialty], ['담당 헤드헌터', item.assignedRecruiter || '미배정'], ['다음 업무', item.nextAction || '미지정'], ['후보 수', `${item.candidateCount || 0}명`], ['예상 성공보수', `${(Number(item.estimatedFee) || 0).toLocaleString()}원`], ['청구 기준', item.billingStatus],
   ] : item.monitorType === 'content' ? [
@@ -438,7 +439,7 @@ function MonitorDetail({ item, onClose }) {
     <section className="admin-content-detail admin-monitor-detail" role="dialog" aria-modal="true" aria-labelledby="admin-monitor-detail-title">
       <header><div><small>OPERATION RECORD DETAIL</small><span className={`monitor-kind ${item.monitorType}`}>{monitorLabels[item.monitorType]}</span><h2 id="admin-monitor-detail-title">{item.monitorTitle}</h2><p>{item.monitorSubtitle}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
       <div className="admin-content-detail-meta">{common.map(([label,value], index) => <div key={label}>{index === 1 ? <Activity /> : index === 0 ? <Database /> : <FileText />}<span><small>{label}</small><strong>{String(value || '-').slice(0,40).replace('T',' ')}</strong></span></div>)}</div>
-      <div className="admin-monitor-detail-body"><h3>접수·처리 상세정보</h3><dl>{details.filter(([,value]) => value !== undefined && value !== null && value !== '').map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></div>
+      <div className="admin-monitor-detail-body"><h3>접수·처리 상세정보</h3><dl>{details.filter(([,value]) => value !== undefined && value !== null && value !== '').map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{typeof value === 'object' ? Object.values(value).filter(Boolean).join(' · ') : String(value)}</dd></div>)}</dl>{attachedResume && <section className="admin-attached-resume"><h3><FileText /> 첨부된 의사 이력서</h3><ResumeDetailFields item={{ ...attachedResume, detail:attachedResume.detail || attachedResume }} /></section>}</div>
       <footer><button className="button outline" onClick={onClose}>닫기</button><span className="catalog-readonly"><ShieldCheck /> 읽기 전용 DB 기록입니다.</span></footer>
     </section>
   </div>;
@@ -858,21 +859,51 @@ function TalentAccessAudit({ active }) {
   </section>;
 }
 
-const resumeVisibilityLabel = { public: '채용기관 공개', proposal: '제안 시 공개', private: '비공개 보관' };
+const resumeVisibilityLabel = { public: '이전 공개 기록', proposal: '이전 제안 기록', private: '개인 이력서' };
 function Resumes({ data }) {
   const resumes = data.resumes || [];
-  return <section className="admin-panel"><header><div><small>MEMBER RESUMES</small><h2>등록된 이력서</h2><p>회원이 등록한 의료인 이력서입니다. 연락처는 헤드헌팅 상담·매칭에만 사용하세요.</p></div><span className="admin-count">{resumes.length}건</span></header>
+  const [selected, setSelected] = useState(null);
+  return <section className="admin-panel"><header><div><small>MEMBER RESUMES</small><h2>등록된 이력서</h2><p>회원이 등록한 의료인 이력서입니다. 행을 누르면 경력·소개와 연락처를 포함한 전체 내용을 확인할 수 있습니다.</p></div><span className="admin-count">{resumes.length}건</span></header>
     {resumes.length === 0
       ? <div className="admin-empty"><FileText /><p>아직 등록된 이력서가 없습니다.</p></div>
-      : <div className="admin-table-panel"><div className="admin-table-head admin-resume-head"><span>이력서</span><span>연락처</span><span>희망 지역</span><span>완성도</span><span>공개범위</span><span>등록일</span></div>
-        {resumes.map((item) => <article key={item.id} className="admin-resume-row">
+      : <div className="admin-table-panel"><div className="admin-table-head admin-resume-head"><span>이력서</span><span>연락처</span><span>희망 지역</span><span>완성도</span><span>저장 상태</span><span>상세</span></div>
+        {resumes.map((item) => <article key={item.id} className="admin-resume-row admin-resume-clickable" role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}>
           <div><strong>{item.title || '제목 미입력'}</strong><small>{item.name || '이름 미입력'} · {item.profession || '직군 미정'}{item.specialty ? ` · ${item.specialty}` : ''}</small></div>
           <span>{item.phone || '-'}</span>
           <span>{item.desiredRegions || '-'}</span>
           <b>{Number(item.completion) || 0}%</b>
-          <em className={`resume-visibility-tag v-${item.visibility}`}>{resumeVisibilityLabel[item.visibility] || item.visibility}</em>
-          <time>{(item.updatedAt || item.createdAt || '').slice(0, 10)}</time>
+          <em className={`resume-visibility-tag v-${item.visibility}`}>{resumeVisibilityLabel[item.visibility] || '개인 이력서'}</em>
+          <time><Eye /> 상세</time>
         </article>)}
       </div>}
+    {selected && <AdminResumeDetail item={selected} onClose={() => setSelected(null)} />}
   </section>;
+}
+
+function ResumeDetailFields({ item }) {
+  const detail = item.detail && typeof item.detail === 'object' ? item.detail : {};
+  const fields = [
+    ['성함', item.name], ['직군', item.profession], ['전문분야', item.specialty],
+    ['전화번호', item.phone], ['이메일', item.email], ['희망 지역', item.desiredRegions],
+    ['현재 지역', detail.region], ['희망 보수', detail.salary], ['경력·자기소개', detail.introduction],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '');
+  return <dl className="admin-resume-detail-fields">{fields.map(([label, value]) => <div className={label === '경력·자기소개' ? 'wide' : ''} key={label}><dt>{label}</dt><dd>{String(value)}</dd></div>)}</dl>;
+}
+
+function AdminResumeDetail({ item, onClose }) {
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    const handleKey = (event) => { if (event.key === 'Escape') onClose(); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKey);
+    return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', handleKey); };
+  }, [onClose]);
+  return <div className="admin-content-detail-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <section className="admin-content-detail admin-resume-detail" role="dialog" aria-modal="true" aria-labelledby="admin-resume-detail-title">
+      <header><div><small>MEDICAL RESUME DETAIL</small><span className="content-kind talent_profile">의료인 이력서</span><h2 id="admin-resume-detail-title">{item.title || '제목 미입력'}</h2><p>{[item.name, item.profession, item.specialty].filter(Boolean).join(' · ')}</p></div><button className="icon-button" onClick={onClose} aria-label="이력서 상세 닫기"><X /></button></header>
+      <div className="admin-content-detail-meta"><div><FileText /><span><small>이력서 ID</small><strong>{item.id}</strong></span></div><div><Activity /><span><small>완성도</small><strong>{Number(item.completion) || 0}%</strong></span></div><div><ShieldCheck /><span><small>저장 상태</small><strong>{resumeVisibilityLabel[item.visibility] || '개인 이력서'}</strong></span></div><div><PencilLine /><span><small>최근 수정</small><strong>{String(item.updatedAt || item.createdAt || '-').slice(0,16).replace('T',' ')}</strong></span></div></div>
+      <div className="admin-content-detail-body"><section><h3>이력서 전체 내용</h3><ResumeDetailFields item={item} /></section></div>
+      <footer><button className="button outline" onClick={onClose}>닫기</button><span className="catalog-readonly"><ShieldCheck /> 관리자 읽기 전용 DB 기록입니다.</span></footer>
+    </section>
+  </div>;
 }

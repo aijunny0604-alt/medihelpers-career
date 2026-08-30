@@ -4740,6 +4740,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 관리자 이력서 관리 탭 */
 .admin-resume-head,.admin-resume-row{display:grid;grid-template-columns:minmax(0,2fr) 130px minmax(0,1.1fr) 70px 108px 92px;gap:14px;align-items:center}
 .admin-resume-row{padding:15px 0;border-top:1px solid #eef2f7;font-size:13px;color:#3a4a63}
+.admin-resume-clickable{cursor:pointer;border-radius:12px;transition:background .16s,box-shadow .16s,transform .16s}.admin-resume-clickable:hover,.admin-resume-clickable:focus-visible{background:#f5f9ff;box-shadow:0 0 0 8px #f5f9ff;transform:translateY(-1px);outline:0}.admin-resume-row time{display:flex;align-items:center;gap:5px;color:#1263e8;font-weight:850}.admin-resume-row time svg{width:16px}.admin-resume-detail{width:min(1000px,100%)}.admin-resume-detail .admin-content-detail-body{grid-template-columns:1fr}.admin-resume-detail-fields{display:grid!important;grid-template-columns:1fr 1fr;gap:10px}.admin-resume-detail-fields>div{padding:15px;border:1px solid #e2e9f1;border-radius:12px;background:#fafcfe}.admin-resume-detail-fields>div.wide{grid-column:1/-1}.admin-resume-detail-fields dt{color:#8190a3;font-size:10px;font-weight:850}.admin-resume-detail-fields dd{margin:6px 0 0;color:#1a3552;font-size:13px;font-weight:750;line-height:1.65;white-space:pre-wrap}.admin-attached-resume{margin-top:18px;padding:18px;border:1px solid #cfe0f5;border-radius:16px;background:#f6faff}.admin-attached-resume>h3{display:flex;align-items:center;gap:8px;color:#1263e8}.admin-attached-resume>h3 svg{width:20px}.admin-attached-resume .admin-resume-detail-fields{margin:0}
 .admin-resume-row>div>strong{display:block;font-size:14px;color:#182c49}
 .admin-resume-row>div>small{color:#7f8da1;font-size:11px}
 .admin-resume-row b{font-weight:800;color:var(--blue)}
@@ -4747,7 +4748,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .resume-visibility-tag.v-public{background:#eaf7ef;color:#1c8a4e}
 .resume-visibility-tag.v-proposal{background:#eef3ff;color:#2f66d8}
 .resume-visibility-tag.v-private{background:#f3f5f8;color:#6b7889}
-@media(max-width:760px){.admin-resume-head{display:none}.admin-resume-row{grid-template-columns:1fr 1fr;gap:6px 12px;padding:14px 0}.admin-resume-row>div{grid-column:1/3}}
+@media(max-width:760px){.admin-resume-head{display:none}.admin-resume-row{grid-template-columns:1fr 1fr;gap:6px 12px;padding:14px 0}.admin-resume-row>div{grid-column:1/3}.admin-resume-detail-fields{grid-template-columns:1fr}.admin-resume-detail-fields>div.wide{grid-column:auto}}
 
 /* 관리자 결제 목록 노출기간 표시 */
 .payment-exposure{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:6px;background:#eef6ef;color:#1c8a4e;font-size:10px;font-weight:700}

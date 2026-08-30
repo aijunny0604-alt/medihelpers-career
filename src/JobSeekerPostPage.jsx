@@ -93,7 +93,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
   };
 
   if (loading) return <main className="job-seeker-editor"><section className="job-seeker-editor-state">구직글 정보를 불러오는 중입니다.</section></main>;
-  if (!resumes.length && !failed) return <main className="job-seeker-editor"><section className="job-seeker-editor-state"><FileText /><h1>먼저 이력서를 작성해주세요</h1><p>구직글에는 저장된 이력서를 하나 연결합니다. 이력서를 작성한 뒤 다시 구직글을 등록할 수 있습니다.</p><div><button className="button primary" onClick={() => go('/resume')}>이력서 작성 <ArrowRight /></button><button className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 목록으로</button></div></section></main>;
+  if (!resumes.length && !failed) return <main className="job-seeker-editor"><section className="job-seeker-editor-state"><FileText /><h1>먼저 이력서를 작성해주세요</h1><p>구직글에는 저장된 이력서를 하나 연결합니다. 이력서를 저장해도 자동 게시되지 않으며, 작성 후 이 화면으로 돌아와 직접 등록합니다.</p><div><button className="button primary" onClick={() => go(`/resume?new=1&next=${encodeURIComponent('/job-seeker-posts/new')}`)}>이력서 작성 <ArrowRight /></button><button className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 목록으로</button></div></section></main>;
 
   return <main className="job-seeker-editor">
     <div className="job-seeker-editor-shell">
@@ -101,7 +101,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
       <header><small>MY JOB SEEKER POST</small><h1>{editing ? '내 구직글 수정' : '새 구직글 등록'}</h1><p>게시글은 이력서와 별도로 작성하고, 저장해둔 이력서 하나를 연결해 경력 정보를 활용합니다.</p></header>
       {message && <div className={`job-seeker-editor-message ${failed ? 'error' : 'success'}`}>{failed ? <TriangleAlert /> : <CircleCheck />} {message}</div>}
       <form onSubmit={save}>
-        <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><a href={withBase('/resume')} className="button outline">이력서 관리</a></div>
+        <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>아래 저장된 이력서 중 하나를 반드시 선택합니다. 게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><a href={withBase(`/resume?next=${encodeURIComponent(editing ? `/job-seeker-posts/${postId}/edit` : '/job-seeker-posts/new')}`)} className="button outline">이력서 관리</a></div>
           <div className="job-seeker-resume-list">{resumes.map((resume) => <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)}><span>{form.resumeId === resume.id ? <CircleCheck /> : <FileText />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, `완성도 ${resume.completion || 0}%`].filter(Boolean).join(' · ')}</small></div></button>)}</div>
           {selectedResume && <p className="job-seeker-linked-note"><BriefcaseBusiness /> 현재 연결: <strong>{selectedResume.title || selectedResume.specialty || '내 이력서'}</strong></p>}
         </section>

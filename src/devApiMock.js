@@ -191,7 +191,7 @@ async function handle(method, path, bodyText) {
   if (path === '/api/resumes' && method === 'POST') {
     const id = 'RES-' + Date.now().toString(36).toUpperCase();
     const resumes = read(LS.resumes, {});
-    resumes[id] = { id, ...body, createdAt: new Date().toISOString() };
+    resumes[id] = { id, ...body, visibility:'private', contactVisibility:'private', detail:{ ...(body.detail || {}), contactVisibility:'private' }, createdAt: new Date().toISOString() };
     write(LS.resumes, resumes);
     return jsonRes({ id, saved: true }, 201);
   }
@@ -350,7 +350,7 @@ async function handle(method, path, bodyText) {
         payments: mockPayments,
         transactions: [{ id: 't-mock-1', orderId: 'o-mock-1', transactionType: 'capture', provider: 'manual', providerTransactionId: 'mock-tx-001', amount: 149000, status: 'succeeded', processedAt: '2026-07-26 09:05' }],
         refunds: [],
-        resumes: [{ id: 'r-mock-1', profession: '의사', specialty: '소화기내과', visibility: 'public', completion: 80, updatedAt: '2026-07-25 12:00' }], hospitalVerifications,
+        resumes: [{ id:'r-mock-1', title:'소화기내과 전문의 이력서', name:'김의사', phone:'010-1234-5678', email:'doctor@example.com', profession:'의사', specialty:'소화기내과', desiredRegions:'부산·경남', visibility:'private', completion:80, detail:{ region:'부산', salary:'협의', introduction:'소화기내과 전문의 경력 9년' }, updatedAt:'2026-07-25 12:00' }], hospitalVerifications,
       });
     }
     return jsonRes({ mock: true });

@@ -1738,8 +1738,10 @@ async function resumeApi(request, env) {
     const desiredRegions = s(body.desiredRegions || registrationProfile?.region);
     const title = s(body.title || (name ? name + ' 이력서' : ''));
     if (!title || !name || !phone) return json({ error:'이력서 제목·성함·연락처는 필수입니다.' }, 400);
-    const visibility = ['public','proposal','private'].includes(body.visibility) ? body.visibility : 'private';
-    const contactVisibility = body.contactVisibility === 'ticket' ? 'ticket' : 'private';
+    // 이력서는 개인 문서로만 저장한다. 게시 공개와 연락처 공개 여부는
+    // 별도 구직글(job_seeker_posts)을 작성할 때만 선택한다.
+    const visibility = 'private';
+    const contactVisibility = 'private';
     const completion = Math.max(0, Math.min(100, Number(body.completion) || 0));
     // 구조화 핵심 필드 외 나머지(경력·학력·소개 등)는 detail JSON으로 저장.
     const detail = body.detail && typeof body.detail === 'object' ? { ...body.detail } : {};
@@ -2714,7 +2716,7 @@ async function adminConsoleApi(request, env, ctx) {
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all(),
       env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE json_extract(payload_json,'$.jobId') IS NULL AND COALESCE(json_extract(payload_json,'$.submissionChannel'),'') <> 'paid_job_direct' ORDER BY created_at DESC LIMIT 300").all(),
       env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all(),
-      env.DB.prepare("SELECT r.id, r.title, r.profession, r.specialty, r.name, r.phone, r.email, r.desired_regions AS desiredRegions, r.completion, r.visibility, r.status, r.created_at AS createdAt, r.updated_at AS updatedAt, a.role accountRole FROM resumes r JOIN accounts a ON a.id=r.account_id ORDER BY r.updated_at DESC LIMIT 300").all().catch(() => ({ results: [] })),
+      env.DB.prepare("SELECT r.id, r.title, r.profession, r.specialty, r.name, r.phone, r.email, r.desired_regions AS desiredRegions, r.completion, r.visibility, r.status, r.detail_json AS detailJson, r.created_at AS createdAt, r.updated_at AS updatedAt, a.role accountRole FROM resumes r JOIN accounts a ON a.id=r.account_id ORDER BY r.updated_at DESC LIMIT 300").all().catch(() => ({ results: [] })),
       env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email_normalized AS email, status, created_at AS createdAt, updated_at AS updatedAt FROM account_recovery_requests ORDER BY created_at DESC LIMIT 300").all().catch(() => ({ results: [] }))
     ]);
     const [verificationResult, verificationMetric] = await Promise.all([
@@ -2746,7 +2748,7 @@ async function adminConsoleApi(request, env, ctx) {
         return { ...record, payload };
       }),
       cases:caseResult.results || [],
-      resumes:resumeResult.results || [],
+      resumes:(resumeResult.results || []).map(row => { const { detailJson, ...record } = row; return { ...record, detail:parseJsonObject(detailJson) }; }),
       recoveryRequests:recoveryResult.results || [],
       hospitalVerifications:(verificationResult.results || []).map(row => ({ ...row, documentUrl:'/api/admin-hospital-verifications/' + encodeURIComponent(row.id) + '/document' }))
     });

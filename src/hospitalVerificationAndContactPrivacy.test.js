@@ -3,19 +3,21 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { hospitalVerificationSchemaStatements } from '../db/schema.js';
 
-const [server, accountPage, resumePage, mainPage, adminPage] = await Promise.all([
+const [server, accountPage, resumePage, jobSeekerPostPage, mainPage, adminPage] = await Promise.all([
   readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8'),
   readFile(new URL('./ResumePage.jsx', import.meta.url), 'utf8'),
+  readFile(new URL('./JobSeekerPostPage.jsx', import.meta.url), 'utf8'),
   readFile(new URL('./main.jsx', import.meta.url), 'utf8'),
   readFile(new URL('./AdminConsolePage.jsx', import.meta.url), 'utf8'),
 ]);
 
-test('의료인이 연락처 공개 여부를 직접 선택하며 기본값은 비공개다', () => {
+test('의료인은 구직글에서 연락처 공개 여부를 직접 선택하며 이력서는 비공개 저장된다', () => {
   assert.match(resumePage, /contactVisibility: 'private'/);
-  assert.match(resumePage, /연락처 비공개 \(권장\)/);
-  assert.match(resumePage, /열람권 구매 병원에 공개/);
-  assert.match(resumePage, /contactVisibility: form\.contactVisibility/);
+  assert.doesNotMatch(resumePage, /열람권 구매 병원에 공개/);
+  assert.match(jobSeekerPostPage, /연락처 비공개/);
+  assert.match(jobSeekerPostPage, /열람권 구매 병원에 공개/);
+  assert.match(jobSeekerPostPage, /contactVisibility: 'private'/);
 });
 
 test('열람권이 있어도 비공개 연락처는 서버에서 제거한다', () => {
