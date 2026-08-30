@@ -569,7 +569,7 @@ async function adminIdentity(request, env) {
   return identity && isAdminEmail(identity.email, env) ? identity : null;
 }
 function cleanConsultationPayload(payload) {
-  const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message','jobId','headhuntPostId','headhuntPostTitle','headhuntPostHospital','resumeId','resumeTitle'];
+  const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message','subject','submissionChannel','jobId','headhuntPostId','headhuntPostTitle','headhuntPostHospital','resumeId','resumeTitle'];
   return Object.fromEntries(allowed.filter(key => typeof payload[key] === 'string').map(key => [key, payload[key].trim().slice(0, key === 'message' ? 3000 : 300)]));
 }
 function escapeHtml(value) {
@@ -676,8 +676,9 @@ async function consultationApi(request, env, pathname) {
     const payload = cleanConsultationPayload(body.payload || {});
     if (payload.jobId && payload.headhuntPostId) return json({ error:'지원 공고 유형을 하나만 선택해 주세요.' }, 400);
     if (requestType !== 'doctor' && (payload.jobId || payload.headhuntPostId)) return json({ error:'공고 지원·문의는 의료인 회원만 이용할 수 있습니다.' }, 403);
-    // 병원 유료광고 지원과 의사 헤드헌터 상담은 저장·알림 대상을 명확히 분리한다.
-    payload.submissionChannel = payload.headhuntPostId ? 'headhunt_board' : payload.jobId ? 'paid_job_direct' : 'general_headhunting';
+    // 병원 유료광고 지원·맞춤 공고 문의·마이페이지 1:1 문의의 저장 대상을 명확히 분리한다.
+    const requestedChannel = payload.submissionChannel;
+    payload.submissionChannel = payload.headhuntPostId ? 'headhunt_board' : payload.jobId ? 'paid_job_direct' : requestedChannel === 'mypage_headhunter' ? 'mypage_headhunter' : 'general_headhunting';
     let requesterName = requestType === 'doctor' ? payload.name : payload.hospital;
     if (!['doctor','hospital'].includes(requestType) || !requesterName || !payload.phone || !payload.specialty) return json({ error:'필수 정보를 모두 입력해 주세요.' }, 400);
     // [보안] 다른 민감 API와 동일하게 fail-closed. 예전에는 시크릿이 약하면 이 블록을 통째로
@@ -691,12 +692,22 @@ async function consultationApi(request, env, pathname) {
       const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
       account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
       if (account && account.role !== requestType) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
+      if (payload.submissionChannel === 'mypage_headhunter' && !account?.id) return json({ error:'마이페이지 회원정보를 확인할 수 없습니다.' }, 403);
       if (requestType === 'doctor' && account?.id) {
-        const memberProfile = await env.DB.prepare('SELECT display_name AS displayName FROM member_profiles WHERE account_id = ? LIMIT 1').bind(account.id).first();
+        await ensureMemberCenterSchema(env);
+        const memberResults = await env.DB.batch([
+          env.DB.prepare('SELECT display_name AS displayName FROM member_profiles WHERE account_id = ? LIMIT 1').bind(account.id),
+          env.DB.prepare('SELECT profile_json AS profileJson FROM member_registration_profiles WHERE account_id = ? LIMIT 1').bind(account.id)
+        ]);
+        const memberProfile = memberResults[0]?.results?.[0] || null;
+        const registrationProfile = parseJsonObject(memberResults[1]?.results?.[0]?.profileJson);
         const registeredName = String(memberProfile?.displayName || '').trim().slice(0, 80);
         if (registeredName) {
           requesterName = registeredName;
           payload.name = registeredName;
+        }
+        if (payload.submissionChannel === 'mypage_headhunter' && String(registrationProfile?.professionType || '').trim() !== '의사') {
+          return json({ error:'헤드헌터 구직 상담은 회원 직군이 의사로 등록된 경우에만 이용할 수 있습니다.' }, 403);
         }
       }
     } catch {
@@ -704,6 +715,9 @@ async function consultationApi(request, env, pathname) {
     }
     // 이력서는 클라이언트가 보낸 제목을 신뢰하지 않고 본인 소유 레코드를 서버에서 다시 조회한다.
     // 상담 접수 당시 내용을 함께 저장해, 사용자가 나중에 이력서를 수정해도 당시 제출본을 확인할 수 있다.
+    if (requestType === 'doctor' && payload.submissionChannel === 'mypage_headhunter' && !payload.resumeId) {
+      return json({ error:'헤드헌터에게 전달할 본인 이력서를 선택해 주세요.' }, 400);
+    }
     if (requestType === 'doctor' && payload.resumeId) {
       if (!account?.id) return json({ error:'이력서를 제출할 회원정보를 확인할 수 없습니다.' }, 403);
       try {
@@ -751,6 +765,19 @@ async function consultationApi(request, env, pathname) {
         ]);
       } catch {
         return json({ error:'병원 알림함에 지원서를 전달하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
+      }
+    } else if (payload.submissionChannel === 'mypage_headhunter' && account?.id) {
+      try {
+        await ensureMemberCenterSchema(env);
+        const kind = requestType === 'doctor' ? 'headhunter_job_search' : 'headhunter_hiring';
+        const title = requestType === 'doctor' ? '구직 문의가 접수되었습니다' : '채용 문의가 접수되었습니다';
+        await env.DB.batch([
+          consultationInsert,
+          env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, kind, title, String(payload.subject || payload.specialty).slice(0,300)),
+          env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, kind, title, '메디헬퍼스 헤드헌터가 내용을 확인한 뒤 연락드립니다.', '/mypage/inquiries/' + encodeURIComponent(id))
+        ]);
+      } catch {
+        return json({ error:'헤드헌터 상담함에 문의를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
       }
     } else {
       await consultationInsert.run();
