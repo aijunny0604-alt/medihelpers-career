@@ -3877,5 +3877,6 @@ export function App() {
   if (path === '/admin' || path.startsWith('/admin/')) {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className="route-stage">{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link>{mobileAction ? <Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link> : <span className="mobile-ad auth-action-pending" aria-hidden="true" />}</div></div>;
+  const staticDetailRoute = path.startsWith('/jobs/');
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}>{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link>{mobileAction ? <Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link> : <span className="mobile-ad auth-action-pending" aria-hidden="true" />}</div></div>;
 }

@@ -7,6 +7,9 @@ const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('공고 상세 지원 메뉴는 데스크톱에서 스크롤을 따라오고 작은 화면에서는 본문에 배치된다', () => {
   assert.match(main, /"job-detail-actions"/);
+  assert.match(main, /const staticDetailRoute = path\.startsWith\('\/jobs\/'\)/);
+  assert.match(main, /route-stage-static/);
+  assert.match(styles, /\.route-stage\.route-stage-static\{[\s\S]*?animation:none!important;[\s\S]*?transform:none!important;/);
   assert.match(
     styles,
     /@media\(min-width:1181px\)[\s\S]*?\.detail-grid>\.job-detail-actions\{[\s\S]*?position:sticky;[\s\S]*?top:96px;[\s\S]*?align-self:start;/,
