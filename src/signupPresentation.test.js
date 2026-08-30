@@ -38,3 +38,9 @@ test('메인 헤더는 비회원에게 로그인과 별도의 회원가입 진�
   assert.match(styles, /\.header-signup\{min-height:48px;/);
   assert.match(styles, /@media\(max-width:1100px\)\{\.header-signup\{display:none\}\}/);
 });
+
+test('로그인·회원가입 화면에는 외부 플랫폼 계정 문구를 노출하지 않는다', async () => {
+  const source = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /open\s*ai/i);
+  assert.match(source, /회원가입할 때 등록한 이메일과 비밀번호로 로그인합니다/);
+});

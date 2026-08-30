@@ -618,7 +618,7 @@ function LoginCard({ testAccountsEnabled = true }) {
     <span className="signup-card-icon"><LockKeyhole /></span>
     <small>MEDIHELPERS ACCOUNT</small>
     <h2>메디헬퍼스 로그인</h2>
-    <p>OpenAI 계정이 아닌 메디헬퍼스 이메일과 비밀번호로 로그인합니다.</p>
+    <p>회원가입할 때 등록한 이메일과 비밀번호로 로그인합니다.</p>
     <form onSubmit={submit}>
       <label><span>이메일</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="example@email.com" required /></label>
       <label><span>비밀번호</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="비밀번호를 입력해주세요" minLength={8} maxLength={128} required /></label>
