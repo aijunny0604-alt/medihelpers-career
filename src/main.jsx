@@ -3787,6 +3787,11 @@ export function App() {
   const [qaState, setQaState] = useState(() => normalizeQaState(readStoredString(QA_PREVIEW_STORAGE_KEY)));
   useAdaptivePerformance();
   useScrollMotion(route);
+  useEffect(() => {
+    const detailScrollClass = 'job-detail-scroll-context';
+    document.body.classList.toggle(detailScrollClass, path.startsWith('/jobs/'));
+    return () => document.body.classList.remove(detailScrollClass);
+  }, [path]);
 
   const selectQaState = useCallback((nextState) => {
     const normalized = normalizeQaState(nextState) || 'guest';

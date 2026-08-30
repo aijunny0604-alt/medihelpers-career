@@ -1096,6 +1096,10 @@ body{font-size:16px;line-height:1.6;color:#10213f}body small{font-size:13px!impo
 .route-stage.route-stage-static.route-leaving{
   transform:none!important;
 }
+/* body overflow:auto becomes a non-scrolling sticky container while html owns the page scroll. */
+body.job-detail-scroll-context{
+  overflow-y:visible;
+}
 .route-stage.route-leaving {
   opacity:0;
   transform:translateY(-9px);
