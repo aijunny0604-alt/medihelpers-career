@@ -979,6 +979,7 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
 
 function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
   const [photoIndex, setPhotoIndex] = useState(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const viewerAccess = qa?.active ? {
     loading: false,
     signedIn: Boolean(qa.info.capabilities.signedIn),
@@ -1272,19 +1273,15 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               <strong>{job.location}</strong>
               <p>{job.access}</p>
             </div>
-            <a
-              href={mapUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`${job.hospital} 지도에서 위치 보기`}
-            >
-              지도에서 보기 <ArrowRight />
-            </a>
-            {/* 주소가 있으면 카카오맵을 바로 띄운다(앱키 없으면 위 링크만 남고 조용히 생략). */}
+            <button type="button" className="location-map-toggle" onClick={() => setMapOpen((current) => !current)} aria-expanded={mapOpen} aria-controls="job-location-inline-map">
+              {mapOpen ? '지도 접기' : '페이지에서 지도 보기'} <ArrowRight />
+            </button>
             <JobLocationMap
               address={job.fullAddress || job.location}
               hospital={job.hospital}
               mapUrl={mapUrl}
+              open={mapOpen}
+              onClose={() => setMapOpen(false)}
             />
           </section>
           <section>

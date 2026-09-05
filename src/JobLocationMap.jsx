@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { ExternalLink, MapPin, X } from 'lucide-react';
 
 // 공고 상세의 근무지 지도.
 // 카카오맵 JS SDK를 주소로 지오코딩해서 표시한다.
@@ -29,13 +29,15 @@ function loadKakaoMapSdk() {
   return sdkPromise;
 }
 
-export default function JobLocationMap({ address, hospital, mapUrl }) {
+export default function JobLocationMap({ address, hospital, mapUrl, open = false, onClose }) {
   const hostRef = useRef(null);
   const [ready, setReady] = useState(false);
+  const [fallback, setFallback] = useState(!KAKAO_KEY);
   const query = String(address || '').trim();
+  const embedUrl = `https://www.google.com/maps?q=${encodeURIComponent(`${hospital || ''} ${query}`.trim())}&output=embed`;
 
   useEffect(() => {
-    if (!query || !hostRef.current) return undefined;
+    if (!open || fallback || !query || !hostRef.current) return undefined;
     let cancelled = false;
     loadKakaoMapSdk()
       .then(() => {
@@ -68,22 +70,24 @@ export default function JobLocationMap({ address, hospital, mapUrl }) {
           });
         });
       })
-      .catch(() => { /* 앱키 미설정·로드 실패: 지도 없이 링크만 노출 */ });
+      .catch(() => setFallback(true));
     return () => { cancelled = true; };
-  }, [query, hospital]);
+  }, [query, hospital, open, fallback]);
 
-  if (!query) return null;
+  if (!query || !open) return null;
 
   return (
-    <div className="job-location-map">
-      {/* 상단 '근무지 위치' 블록과 중복되지 않게, 지도 위에는 주소만 간단히 표기한다. */}
+    <div className="job-location-map" id="job-location-inline-map">
       <div className="job-location-head">
         <MapPin size={16} />
+        <strong>{hospital || '근무지'}</strong>
         <span>{query}</span>
-        {mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer noopener">큰 지도로 보기</a>}
+        {mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer noopener">네이버지도에서 크게 보기 <ExternalLink /></a>}
+        <button type="button" onClick={onClose} aria-label="지도 접기"><X /></button>
       </div>
-      {/* 지도가 준비되기 전/실패 시에는 빈 회색칸이 남지 않도록 감춘다. */}
-      <div ref={hostRef} className={`job-location-canvas ${ready ? 'is-ready' : ''}`} aria-label={`${hospital || ''} 위치 지도`} />
+      {fallback
+        ? <iframe className="job-location-embed" src={embedUrl} title={`${hospital || ''} 위치 지도`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+        : <div ref={hostRef} className={`job-location-canvas ${ready ? 'is-ready' : ''}`} aria-label={`${hospital || ''} 위치 지도`} />}
     </div>
   );
 }
