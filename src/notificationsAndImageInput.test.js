@@ -20,11 +20,16 @@ test('모든 이미지 입력 화면은 선택·드래그앤드롭·클립보드
   assert.match(checkout, /imageFilesFromTransfer\(event\.dataTransfer\)/);
 });
 
-test('이력서 작성과 관리 버튼은 제출 선택기 헤더에 함께 배치한다', async () => {
+test('이력서 작성과 선택 관리 버튼은 크게 배치하고 관리는 현재 화면의 모달에서 처리한다', async () => {
   const picker = await read('./ResumeSubmitPicker.jsx');
-  assert.match(picker, /className="resume-picker-actions"[\s\S]*새 이력서 작성[\s\S]*내 이력서 관리/);
+  const styles = await read('./styles.css');
+  assert.match(picker, /className="resume-picker-actions"[\s\S]*새 이력서 작성[\s\S]*이력서 선택·관리/);
   assert.match(picker, /\/resume\?new=1/);
-  assert.match(picker, /\/mypage\?tab=resume/);
+  assert.doesNotMatch(picker, /\/mypage\?tab=resume/);
+  assert.match(picker, /role="dialog" aria-modal="true"/);
+  assert.match(picker, /페이지를 벗어나지 않고 사용할 이력서를 바로 바꿀 수 있습니다/);
+  assert.match(styles, /\.resume-picker-actions a,\.resume-picker-actions button\{min-width:190px;min-height:52px/);
+  assert.match(styles, /\.resume-manager-overlay\{position:fixed/);
 });
 
 test('병원 직접 지원은 상담·병원 활동·읽지 않은 알림을 한 배치로 저장한다', async () => {
