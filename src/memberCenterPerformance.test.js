@@ -10,7 +10,7 @@ test('회원정보 API는 스키마 확인을 캐시하고 전체 D1 조회를 �
   assert.match(server, /Promise\.all\(\[ensureAccountSchema\(env\), ensureConsultationSchema\(env\), ensureMemberCenterSchema\(env\), ensureCommerceSchema\(env\), ensureTalentCreditSchema\(env\)\]\)/);
   assert.match(server, /addQuery\('profile', env\.DB\.prepare/);
   assert.match(server, /addQuery\('orders', env\.DB\.prepare/);
-  assert.match(server, /addQuery\('messages', env\.DB\.prepare/);
+  assert.doesNotMatch(server, /addQuery\('messages', env\.DB\.prepare/);
   assert.match(server, /addQuery\('talentCredits', env\.DB\.prepare/);
   assert.match(server, /const queryResults = await env\.DB\.batch\(queryStatements\)/);
   assert.match(server, /const resultsByName = new Map/);

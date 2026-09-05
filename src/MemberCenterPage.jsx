@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BadgeCheck, Bell, BriefcaseBusiness, Building2, CalendarDays, Clock3,
-  Check, ChevronRight, CircleCheck, CreditCard, Eye, FileText, Heart, KeyRound,
+  ChevronRight, CircleCheck, CreditCard, Eye, FileText, Heart, KeyRound,
   LockKeyhole, LogOut, Mail, MapPin, MessageCircle, Phone, Receipt, Settings, ShieldCheck, Stethoscope,
   TriangleAlert, UserRound, X
 } from 'lucide-react';
@@ -335,8 +335,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
         연락희망: payload.contactTime || payload.preferredContactTime || '-'
       },
       response: item.adminNote || (directApplication ? '공고를 등록한 병원 채용담당자가 지원 내용을 확인 중입니다.' : '담당 헤드헌터가 내용을 확인 중입니다. 답변이 등록되면 이 화면에서 확인할 수 있습니다.'),
-      messages: Array.isArray(item.messages) ? item.messages : [],
-      canReply: directApplication,
+      directApplication,
       history: [
         [String(item.createdAt || '').slice(0, 16), directApplication ? '병원 직접 지원' : '상담 접수'],
         ...(item.updatedAt && item.updatedAt !== item.createdAt ? [[String(item.updatedAt).slice(0, 16), '처리 상태 변경']] : [])
@@ -595,19 +594,12 @@ function memberFacingInquiryLabel(inquiry) {
 }
 
 function InquiryDetailPage({ inquiry, role, canAdmin }) {
-  const [reply, setReply] = useState('');
-  const [replyBusy, setReplyBusy] = useState(false);
-  const [replyResult, setReplyResult] = useState('');
-  const [thread, setThread] = useState(Array.isArray(inquiry.messages)
-    ? inquiry.messages.filter((item) => cleanInquiryText(item?.body))
-    : []);
-
   const details = Object.entries(inquiry.details || {})
     .map(([label, value]) => [cleanInquiryText(label), cleanInquiryText(value)])
     .filter(([label, value]) => label && value && value !== '-');
   const history = (inquiry.history || [[inquiry.time, '문의 접수']])
     .map(([time, label]) => [cleanInquiryText(time, inquiry.time), cleanInquiryText(label, '처리 상태 확인')]);
-  const isDirectApplication = Boolean(inquiry.canReply);
+  const isDirectApplication = Boolean(inquiry.directApplication);
   const safeMessage = cleanInquiryText(
     inquiry.message,
     isDirectApplication ? '지원 내용이 병원 채용담당자에게 전달되었습니다.' : '접수한 문의 내용을 담당 헤드헌터가 확인하고 있습니다.'
@@ -622,29 +614,6 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
   const safeRelatedLabel = memberFacingInquiryLabel(inquiry);
   const safeTime = cleanInquiryText(inquiry.time, '접수일 확인 중');
   const safeStatus = cleanInquiryText(inquiry.status, '접수');
-  const sendReply = async () => {
-    const message = reply.trim();
-    if (!message || replyBusy) return;
-    setReplyBusy(true);
-    setReplyResult('');
-    try {
-      const response = await fetch('/api/member-center', {
-        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ action:'inquiry_reply', consultationId:inquiry.id, message })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || '메시지를 보내지 못했습니다.');
-      if (payload.message) setThread((current) => [...current, payload.message]);
-      setReply('');
-      setReplyResult('상대방에게 새 알림과 메시지를 보냈습니다.');
-      notify('상대방에게 알림을 보냈습니다.', 'ok');
-    } catch (error) {
-      setReplyResult(error.message || '메시지를 보내지 못했습니다.');
-    } finally {
-      setReplyBusy(false);
-    }
-  };
-
   return <article className="inquiry-detail-dialog inquiry-detail-page" aria-labelledby="inquiry-detail-title">
       <header>
         <div className="inquiry-detail-heading"><span><MessageCircle /></span><div><small>문의·후보 연결 상세</small><h2 id="inquiry-detail-title">{safeSubject}</h2>{canAdmin && <p>{inquiry.id || safeSource}</p>}</div></div>
@@ -672,32 +641,11 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
             <dl>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
           </section>}
 
-          {isDirectApplication && <section className="inquiry-message-panel">
-            <header><div><span><MessageCircle /></span><div><small>MESSAGE HISTORY</small><h3>메시지 대화</h3></div></div><em>{thread.length}개</em></header>
-            {thread.length > 0 ? <div className="inquiry-message-thread" aria-live="polite">
-              {thread.map((item, index) => {
-                const direction = item.direction === 'sent' ? 'sent' : 'received';
-                const sender = cleanInquiryText(item.senderName, direction === 'sent' ? '내가 보냄' : role === 'hospital' ? '지원 의료인' : '병원 채용담당자');
-                const body = cleanInquiryText(item.body, '메시지 내용을 확인할 수 없습니다.');
-                const time = cleanInquiryText(String(item.createdAt || '').slice(0,16).replace('T',' '), '시간 확인 중');
-                return <article className={direction} key={item.id || `${time}-${index}`}><div><strong>{direction === 'sent' ? `내가 보냄 · ${sender}` : sender}</strong><time>{time}</time></div><p>{body}</p>{direction === 'sent' && <small><Check /> 전송 완료</small>}</article>;
-              })}
-            </div> : <div className="inquiry-message-empty"><MessageCircle /><div><strong>아직 주고받은 메시지가 없습니다</strong><p>아래에서 첫 메시지를 보내면 이곳에 시간순으로 저장됩니다.</p></div></div>}
-          </section>}
-
           <section className="inquiry-detail-response">
             <span><ShieldCheck /></span>
             <div><small>{isDirectApplication ? 'APPLICATION STATUS' : 'HEADHUNTER RESPONSE'}</small><h3>{isDirectApplication ? '현재 진행 안내' : '담당자 답변'}</h3><p>{safeResponse}</p></div>
           </section>
 
-          {isDirectApplication && !canAdmin && <section className="inquiry-detail-reply">
-            <small>REPLY</small>
-            <h3>{role === 'hospital' ? '지원 의료인에게 메시지 보내기' : '병원 채용담당자에게 메시지 보내기'}</h3>
-            <p>보낸 메시지는 상대방 마이페이지 알림함에 즉시 표시됩니다.</p>
-            <textarea rows="4" value={reply} onChange={(event) => setReply(event.target.value)} maxLength="1000" placeholder="면접 일정, 추가 서류, 공고 관련 질문 등을 입력해 주세요." />
-            <div><small>{reply.length}/1000</small><button type="button" className="button primary" onClick={sendReply} disabled={replyBusy || !reply.trim()}>{replyBusy ? '보내는 중…' : '메시지·알림 보내기'} <ArrowRight /></button></div>
-            {replyResult && <em role="status">{replyResult}</em>}
-          </section>}
         </div>
 
         <aside className="inquiry-detail-aside">

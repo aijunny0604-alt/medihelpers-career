@@ -39,26 +39,22 @@ test('병원 직접 지원은 상담·병원 활동·읽지 않은 알림을 한
   assert.match(server, /notifications_read_all/);
 });
 
-test('병원과 지원 의료인은 지원 건에서 상대방에게 영구 알림 메시지를 보낸다', async () => {
+test('병원과 지원 의료인 간 직접 메시지는 차단하고 과거 원장만 보존한다', async () => {
   const [server, memberCenter, main, schema, migration] = await Promise.all([
     read('../scripts/package-sites.mjs'), read('./MemberCenterPage.jsx'), read('./main.jsx'),
     read('../db/schema.js'), read('../drizzle/0009_inquiry_messages.sql')
   ]);
-  assert.match(server, /body\.action === 'inquiry_reply'/);
-  assert.match(server, /'inquiry_reply'/);
-  assert.match(server, /recipient\.recipientId/);
-  assert.match(server, /INSERT INTO inquiry_messages/);
-  assert.match(server, /messagesByConsultation/);
-  assert.match(server, /const isReadableInquiryMessage/);
-  assert.match(server, /if \(!isReadableInquiryMessage\(messageRow\.body\)\) continue/);
-  assert.match(server, /alert\.kind !== 'inquiry_reply' \|\| !isReadableInquiryMessage\(alert\.body\)/);
-  assert.match(server, /legacy-.*alert\.id/);
+  assert.match(server, /body\.action === 'inquiry_reply'[\s\S]*직접 메시지 기능은 종료되었습니다[\s\S]*410/);
+  assert.doesNotMatch(server, /INSERT INTO inquiry_messages/);
+  assert.doesNotMatch(server, /messagesByConsultation/);
+  assert.match(server, /kind<>'inquiry_reply'/);
+  assert.match(server, /event_type NOT IN \('inquiry_reply','inquiry_reply_sent'\)/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS inquiry_messages/);
   assert.match(migration, /inquiry_messages_consultation_idx/);
-  assert.match(memberCenter, /메시지·알림 보내기/);
-  assert.match(memberCenter, /className="inquiry-message-thread"/);
-  assert.match(memberCenter, /MESSAGE HISTORY/);
-  assert.match(memberCenter, /payload\.message.*setThread/s);
+  assert.doesNotMatch(memberCenter, /메시지·알림 보내기/);
+  assert.doesNotMatch(memberCenter, /className="inquiry-message-thread"/);
+  assert.doesNotMatch(memberCenter, /MESSAGE HISTORY/);
+  assert.doesNotMatch(memberCenter, /action:'inquiry_reply'/);
   assert.match(memberCenter, /className="member-nav-badge"/);
   assert.match(memberCenter, /className="member-unread-banner"/);
   assert.match(main, /className="header-notifications"/);
