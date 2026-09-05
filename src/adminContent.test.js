@@ -98,6 +98,19 @@ test('관리자 화면은 병원 제출 서류를 포함한 DB 기록 전체가 
   assert.match(serverSource, /관리자 백업 화면은 기록 조회 전용입니다/);
 });
 
+test('관리자 운영 기록 상세는 문의 핵심 정보를 큰 한글 카드로 표시한다', async () => {
+  const adminSource = await readFile(new URL('./AdminConsolePage.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
+  assert.match(adminSource, /문의 제목/);
+  assert.match(adminSource, /문의 내용/);
+  assert.match(adminSource, /희망 연락 방법/);
+  assert.match(adminSource, /마이페이지 헤드헌터 상담/);
+  assert.match(adminSource, /\['문의 내용', '관리자 메모'\]\.includes\(label\)/);
+  assert.match(styles, /\.admin-monitor-detail\{width:min\(1280px,100%\)\}/);
+  assert.match(styles, /dl>div\.important/);
+  assert.match(styles, /font-size:17px/);
+});
+
 test('공개 화면에서 관리자는 공고·결제 신청과 수정·삭제 기능을 사용할 수 없다', async () => {
   const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
   const jobsPage = source.slice(source.indexOf('function JobsPage'), source.indexOf('export function TalentPage'));

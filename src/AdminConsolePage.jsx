@@ -424,10 +424,29 @@ function MonitorDetail({ item, onClose }) {
     ['최근 변경', item.updatedAt || item.monitorDate],
   ];
   const attachedResume = item.monitorType === 'consultation' && item.payload?.resumeSnapshot && typeof item.payload.resumeSnapshot === 'object' ? item.payload.resumeSnapshot : null;
+  const consultationPayloadLabels = {
+    subject: '문의 제목',
+    message: '문의 내용',
+    contactTime: '희망 연락 방법',
+    submissionChannel: '접수 경로',
+    hospital: '기관 유형',
+    resumeId: '첨부 이력서 ID',
+    resumeTitle: '첨부 이력서',
+  };
+  const consultationPayloadValues = {
+    mypage_headhunter: '마이페이지 헤드헌터 상담',
+    headhunt_board: '헤드헌팅 공고 상담',
+    paid_job_direct: '병원 채용 문의',
+    not_configured: '미설정',
+  };
+  const consultationPayload = Object.entries(item.payload || {})
+    .filter(([key]) => !['resumeSnapshot', 'name', 'phone', 'email', 'specialty'].includes(key))
+    .filter(([key]) => consultationPayloadLabels[key])
+    .map(([key, value]) => [consultationPayloadLabels[key], consultationPayloadValues[value] || value]);
   const details = item.monitorType === 'recovery' ? [
     ['요청 구분', item.requestType === 'password' ? '비밀번호 재설정' : '가입 이메일 확인'], ['요청자', item.requesterName], ['휴대전화', item.phone], ['가입 이메일', item.email],
   ] : item.monitorType === 'consultation' ? [
-    ['신청자', item.requesterName], ['구분', item.requestType === 'hospital' ? '병원 구인희망' : '의사 구직희망'], ['전화번호', item.phone], ['이메일', item.email], ['진료과', item.specialty], ['관리자 메모', item.adminNote || '작성된 메모 없음'], ['메일 알림', item.emailNotificationStatus], ['문자 알림', item.smsNotificationStatus], ...Object.entries(item.payload || {}).filter(([key]) => key !== 'resumeSnapshot').map(([key,value]) => [key, value]),
+    ['신청자', item.requesterName], ['문의 유형', item.requestType === 'hospital' ? '병원 채용 상담' : '의사 구직 상담'], ['전화번호', item.phone], ['이메일', item.email], ['진료과', item.specialty], ...consultationPayload, ['관리자 메모', item.adminNote || '작성된 메모 없음'], ['이메일 알림', consultationPayloadValues[item.emailNotificationStatus] || item.emailNotificationStatus], ['문자 알림', consultationPayloadValues[item.smsNotificationStatus] || item.smsNotificationStatus],
   ] : item.monitorType === 'case' ? [
     ['병원', item.hospitalName], ['포지션', item.positionTitle], ['진료과', item.specialty], ['담당 헤드헌터', item.assignedRecruiter || '미배정'], ['다음 업무', item.nextAction || '미지정'], ['후보 수', `${item.candidateCount || 0}명`], ['예상 성공보수', `${(Number(item.estimatedFee) || 0).toLocaleString()}원`], ['청구 기준', item.billingStatus],
   ] : item.monitorType === 'content' ? [
@@ -439,7 +458,7 @@ function MonitorDetail({ item, onClose }) {
     <section className="admin-content-detail admin-monitor-detail" role="dialog" aria-modal="true" aria-labelledby="admin-monitor-detail-title">
       <header><div><small>OPERATION RECORD DETAIL</small><span className={`monitor-kind ${item.monitorType}`}>{monitorLabels[item.monitorType]}</span><h2 id="admin-monitor-detail-title">{item.monitorTitle}</h2><p>{item.monitorSubtitle}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
       <div className="admin-content-detail-meta">{common.map(([label,value], index) => <div key={label}>{index === 1 ? <Activity /> : index === 0 ? <Database /> : <FileText />}<span><small>{label}</small><strong>{String(value || '-').slice(0,40).replace('T',' ')}</strong></span></div>)}</div>
-      <div className="admin-monitor-detail-body"><h3>접수·처리 상세정보</h3><dl>{details.filter(([,value]) => value !== undefined && value !== null && value !== '').map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{typeof value === 'object' ? Object.values(value).filter(Boolean).join(' · ') : String(value)}</dd></div>)}</dl>{attachedResume && <section className="admin-attached-resume"><h3><FileText /> 첨부된 의사 이력서</h3><ResumeDetailFields item={{ ...attachedResume, detail:attachedResume.detail || attachedResume }} /></section>}</div>
+      <div className="admin-monitor-detail-body"><h3>접수 내용</h3><dl>{details.filter(([,value]) => value !== undefined && value !== null && value !== '').map(([label,value]) => <div className={['문의 내용', '관리자 메모'].includes(label) ? 'wide important' : ['신청자', '문의 유형', '전화번호', '이메일', '문의 제목'].includes(label) ? 'important' : ''} key={label}><dt>{label}</dt><dd>{typeof value === 'object' ? Object.values(value).filter(Boolean).join(' · ') : String(value)}</dd></div>)}</dl>{attachedResume && <section className="admin-attached-resume"><h3><FileText /> 첨부된 의사 이력서</h3><ResumeDetailFields item={{ ...attachedResume, detail:attachedResume.detail || attachedResume }} /></section>}</div>
       <footer><button className="button outline" onClick={onClose}>닫기</button><span className="catalog-readonly"><ShieldCheck /> 읽기 전용 DB 기록입니다.</span></footer>
     </section>
   </div>;
