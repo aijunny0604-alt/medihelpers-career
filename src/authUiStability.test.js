@@ -58,12 +58,20 @@ test('job seeker write action does not guess a guest role while account state is
 });
 
 test('header and mobile actions keep a neutral slot until the role is known', async () => {
-  const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const [source, styles] = await Promise.all([
+    readFile(new URL('./main.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('./styles.css', import.meta.url), 'utf8'),
+  ]);
 
   assert.match(source, /const authLoading = auth\.status === 'loading'/);
   assert.match(source, /header-account auth-action-pending/);
   assert.match(source, /mobile-account-link auth-action-pending/);
   assert.match(source, /const mobileAction = auth\.status === 'loading'\s*\? null/);
+  assert.match(source, /const showQuickbar = path === '\/' \|\| path === '\/jobs' \|\| path\.startsWith\('\/jobs\/'\)/);
+  assert.match(source, /showQuickbar && <nav className="mobile-quickbar" aria-label="빠른 메뉴">/);
+  assert.match(source, /className=\{`app \$\{showQuickbar \? 'quickbar-visible' : ''\}`\}/);
+  assert.match(styles, /\.mobile-quickbar\{[^}]*position:fixed[^}]*display:grid/);
+  assert.match(styles, /\.app\.quickbar-visible\{[^}]*padding-bottom:100px/);
   assert.match(source, /smart-ad-dock-cta auth-action-pending/);
   assert.match(source, /tier-apply-button featured auth-action-pending/);
   assert.match(source, /price-action-pending/);

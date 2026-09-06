@@ -3830,6 +3830,7 @@ export function App() {
     : auth.status === 'member'
       ? { to: auth.isAdmin ? '/admin/console' : '/mypage', label: auth.isAdmin ? '관리 콘솔' : '마이페이지' }
       : { to: `/advertise/apply?plan=${adPlans[0].id}`, label: '공고 등록 안내' };
+  const showQuickbar = path === '/' || path === '/jobs' || path.startsWith('/jobs/');
 
   let page;
   if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} />;
@@ -3891,5 +3892,5 @@ export function App() {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
   const staticDetailRoute = path.startsWith('/jobs/');
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}>{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /><div className="mobile-quickbar"><Link to="/jobs"><Search />채용 찾기</Link>{mobileAction ? <Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link> : <span className="mobile-ad auth-action-pending" aria-hidden="true" />}</div></div>;
+  return <div className={`app ${showQuickbar ? 'quickbar-visible' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}>{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster />{showQuickbar && <nav className="mobile-quickbar" aria-label="빠른 메뉴"><Link to="/jobs"><Search />채용 찾기</Link>{mobileAction ? <Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link> : <span className="mobile-ad auth-action-pending" aria-label="회원 상태 확인 중" />}</nav>}</div>;
 }
