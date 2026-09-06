@@ -979,7 +979,7 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
 
 function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
   const [photoIndex, setPhotoIndex] = useState(null);
-  const [mapOpen, setMapOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(true);
   const viewerAccess = qa?.active ? {
     loading: false,
     signedIn: Boolean(qa.info.capabilities.signedIn),

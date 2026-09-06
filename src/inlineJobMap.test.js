@@ -4,11 +4,12 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('공고 상세 지도는 현재 페이지에서 펼치고 접을 수 있다', async () => {
+test('공고 상세 지도는 기본으로 펼쳐지고 현재 페이지에서 접을 수 있다', async () => {
   const [main, map, styles, server] = await Promise.all([
     read('./main.jsx'), read('./JobLocationMap.jsx'), read('./styles.css'), read('../scripts/package-sites.mjs'),
   ]);
-  assert.match(main, /const \[mapOpen, setMapOpen\] = useState\(false\)/);
+  assert.match(main, /const \[mapOpen, setMapOpen\] = useState\(true\)/);
+  assert.match(main, /지도 접기/);
   assert.match(main, /페이지에서 지도 보기/);
   assert.match(main, /aria-expanded=\{mapOpen\}/);
   assert.match(map, /if \(!query \|\| !open\) return null/);
