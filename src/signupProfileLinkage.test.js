@@ -24,6 +24,8 @@ test('병원 공고 등록은 가입·제출 정보를 폼과 서버 양쪽에�
   assert.match(checkout, /defaultValue=\{accountProfile\.representativeName\}/);
   assert.match(checkout, /defaultValue=\{accountProfile\.businessNumber\}/);
   assert.match(checkout, /defaultValue=\{accountProfile\.address\}/);
+  assert.match(checkout, /accountProfile\.facilityType/);
+  assert.match(server, /institutionType:String\(body\.institutionType/);
   assert.match(server, /metadata\.accountProfileLinked = true/);
   assert.match(server, /metadata\.hospital \|\|= hospital\.hospitalName/);
 });

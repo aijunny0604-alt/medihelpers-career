@@ -69,6 +69,18 @@ function statusClass(value = '') {
   return '';
 }
 
+function exposureRemainingLabel(endDate, status) {
+  if (status !== '노출 중' || !/^\d{4}-\d{2}-\d{2}$/.test(String(endDate || ''))) return '';
+  const [year, month, day] = String(endDate).split('-').map(Number);
+  const end = Date.UTC(year, month - 1, day);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const remaining = Math.floor((end - today) / 86400000) + 1;
+  if (remaining <= 0) return '노출 종료';
+  if (remaining === 1) return '오늘 종료';
+  return `노출 ${remaining}일 남음`;
+}
+
 function MemberGate({ failed = false, alreadySignedIn = false }) {
   // 불러오기 실패와 '로그인 필요'는 다른 상황이다. 예전에는 둘 다 로그인 안내가 떠서,
   // 서버 오류로 못 불러온 회원이 로그인을 반복해도 같은 화면만 보게 됐다.
@@ -368,6 +380,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
         plan: `${item.productName} · ${Number(item.totalAmount || 0).toLocaleString('ko-KR')}원`,
         status,
         period: adStatus === 'published' && item.exposure ? `${item.exposure.start} ~ ${item.exposure.end}` : '결제 완료 후 즉시 게시',
+        remainingLabel: exposureRemainingLabel(item.exposure?.end, status),
         views: '-',
         inquiries: '-'
       };
@@ -564,7 +577,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
         {(tab === 'ads' || tab === 'resume') && <>
           <div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '유료 공고는 삭제 없이 내용 수정과 노출 기간 확인만 제공합니다.' : '저장 이력서와 별도 구직글을 한곳에서 관리합니다.'}</p></div><div className="member-page-head-actions"><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : '/job-seeker-posts/new')}>{role === 'hospital' ? '공고 등록' : '새 구직글 등록'} <ArrowRight /></a>{role === 'doctor' && <a className="button outline" href={withBase('/resume')}>이력서 관리</a>}</div></div>
           {role === 'doctor' && <section className="member-panel member-job-seeker-posts"><div className="member-panel-head"><div><h3>내 구직글</h3><p>연동 이력서와 연락처 공개 설정을 확인하고 수정·삭제할 수 있습니다.</p></div></div>{jobSeekerPosts.length ? <div className="member-job-seeker-grid">{jobSeekerPosts.map((post) => <article key={post.id}><div><span><BriefcaseBusiness /></span><em className="good">게시 중</em></div><small>연동 이력서 · {post.resumeTitle || post.resumeId}</small><h3>{post.title}</h3><p>{[post.specialty, post.desiredRegion, post.availableFrom].filter(Boolean).join(' · ') || '조건 협의'}</p><p className={`member-post-privacy ${post.contactVisibility === 'ticket' ? '' : 'is-private'}`}>{post.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 병원에 연락처 공개</> : <><LockKeyhole /> 전화번호 비공개 · 열람권으로도 미공개</>}</p><div className="member-post-actions"><a className="button outline" href={withBase(`/job-seeker-posts/${encodeURIComponent(post.id)}/edit`)}>수정</a><button type="button" className="button danger" onClick={() => deleteJobSeekerPost(post)}>삭제</button></div></article>)}</div> : <div className="member-empty"><BriefcaseBusiness /><strong>등록한 구직글이 없습니다</strong><p>새 구직글에서 저장된 이력서를 선택해 게시할 수 있습니다.</p></div>}</section>}
-          {recordCards.length ? <div className="member-record-grid">{recordCards.map((item) => <article key={item.contentRecordId || item.id || item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p><dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl><a className="button outline" href={withBase(role === 'hospital' && item.contentRecordId ? `/mypage/ads/${encodeURIComponent(item.contentRecordId)}/edit` : role === 'hospital' ? '/request/hiring' : '/resume')}>{role === 'hospital' && item.contentRecordId ? '공고 내용 수정' : role === 'hospital' ? '담당자에게 문의' : '저장된 이력서 수정'} <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 구직글에 연결해 사용할 수 있습니다.'}</p></div>}
+          {recordCards.length ? <div className="member-record-grid">{recordCards.map((item) => <article key={item.contentRecordId || item.id || item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p>{role === 'hospital' && item.remainingLabel && <strong className="member-ad-remaining"><Clock3 /> {item.remainingLabel}</strong>}<dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl><a className="button outline" href={withBase(role === 'hospital' && item.contentRecordId ? `/mypage/ads/${encodeURIComponent(item.contentRecordId)}/edit` : role === 'hospital' ? '/request/hiring' : '/resume')}>{role === 'hospital' && item.contentRecordId ? '공고 내용 수정' : role === 'hospital' ? '담당자에게 문의' : '저장된 이력서 수정'} <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 등록하면 구직글에 연결해 사용할 수 있습니다.'}</p></div>}
           <section className="member-panel" id="member-saved-jobs"><div className="member-panel-head"><div><h3>관심 공고</h3><p>하트로 저장한 공고입니다. 로그인하면 다른 기기에서도 동일하게 보입니다.</p></div><a className="button outline" href={withBase('/jobs')}>공고 더 보기 <ArrowRight /></a></div>{savedJobs.length ? <div className="member-saved-jobs">{savedJobs.map((item) => <a key={item.jobId || item.id} href={withBase(`/jobs?open=${encodeURIComponent(item.jobId || item.id)}`)}><span><Heart /></span><div><strong>{item.title || item.jobId || item.id}</strong><small>{[item.dept, item.region].filter(Boolean).join(' · ') || '저장한 공고'}</small></div><ChevronRight /></a>)}</div> : <div className="member-empty"><Heart /><strong>저장한 공고가 없습니다</strong><p>채용 공고에서 하트를 누르면 이곳에 모입니다.</p></div>}</section>
         </>}
 

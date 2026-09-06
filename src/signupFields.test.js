@@ -51,7 +51,7 @@ test('fieldsForRole: 개인과 병원 회원에게 필요한 조건부 필드를
   ]);
   assert.deepEqual(fieldsForRole('hospital'), [
     'name', 'hospitalRole', 'department', 'phone', 'email', 'password', 'passwordConfirm',
-    'hospitalName', 'representativeName', 'businessNumber',
+    'hospitalName', 'institutionType', 'representativeName', 'businessNumber',
     'address', 'addressDetail', 'website', 'fax'
   ]);
   // 알 수 없는 역할은 공통 필드만 반환한다.

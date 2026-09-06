@@ -13,4 +13,8 @@ test('맞춤 헤드헌팅 공고는 모달 대신 공유 가능한 상세 페이
   assert.doesNotMatch(source, /function HeadhuntPostModal/);
   assert.match(styles, /\.headhunt-detail-page/);
   assert.match(styles, /\.headhunt-detail-back:focus-visible/);
+  assert.match(styles, /\.headhunt-detail-shell\{width:min\(1380px,100%\)/);
+  assert.match(styles, /\.headhunt-detail-back\{[^}]*min-height:54px/);
+  assert.match(source, /path === '\/headhunting'\) page = <AuthGate auth=\{auth\}/);
+  assert.match(source, /맞춤 헤드헌팅 상세는 회원 전용입니다/);
 });

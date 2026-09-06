@@ -1073,7 +1073,7 @@ async function authApi(request, env, pathname, ctx) {
       }
     }
     const registrationProfile = body.role === 'hospital'
-      ? { hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), website:String(body.website || '').trim().slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
+      ? { hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), institutionType:String(body.institutionType || '').trim().slice(0,80), website:String(body.website || '').trim().slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
       : { professionType:String(body.professionType || '').trim().slice(0,160), specialty:String(body.specialty || '').trim().slice(0,200), region:String(body.region || '').trim().slice(0,120), birthYear:String(body.birthYear || '').trim().slice(0,4), gender:String(body.gender || '').trim().slice(0,30) };
     const records = [
       env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),

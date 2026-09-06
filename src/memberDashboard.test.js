@@ -13,6 +13,15 @@ test('마이페이지 활동 요약 위젯은 역할별 상세 화면으로 이�
   assert.match(source, /추천 후보 상세/);
 });
 
+test('병원 공고 카드는 노출 종료일까지 남은 날짜를 표시한다', async () => {
+  const source = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
+  assert.match(source, /function exposureRemainingLabel/);
+  assert.match(source, /remainingLabel: exposureRemainingLabel\(item\.exposure\?\.end, status\)/);
+  assert.match(source, /className="member-ad-remaining"/);
+  assert.match(styles, /\.member-ad-remaining\{/);
+});
+
 test('의료인 이력서 관리 동선은 저장된 서버 이력서를 불러와 수정한다', async () => {
   const [memberCenter, resumePage] = await Promise.all([
     readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8'),

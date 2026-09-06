@@ -18,6 +18,7 @@ export function useAccountProfile(auth) {
     gender: registrationProfile.gender || '',
     hospitalRole: registrationProfile.hospitalRole || profile.jobTitle || '',
     department: registrationProfile.department || '',
+    facilityType: registrationProfile.institutionType || registrationProfile.facilityType || hospitalProfile.facilityType || '',
     website: registrationProfile.website || '',
     fax: registrationProfile.fax || '',
     // 병원 회원가입 때 제출한 기관 정보입니다. 원본 증빙 파일은 포함하지 않고

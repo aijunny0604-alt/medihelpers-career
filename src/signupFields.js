@@ -8,6 +8,7 @@ const HOSPITAL_ACCOUNT_FIELDS = ['hospitalRole', 'department'];
 // 기관 유형·대표 전화·우편번호는 가입 단계에서 제거(요청). 주소는 검색으로 입력, 사업자번호는 필수.
 const HOSPITAL_INFO_FIELDS = [
   'hospitalName',
+  'institutionType',
   'representativeName',
   'businessNumber',
   'address',
@@ -15,7 +16,7 @@ const HOSPITAL_INFO_FIELDS = [
   'website',
   'fax'
 ];
-const OPTIONAL_FIELDS = new Set(['specialty', 'birthYear', 'gender', 'hospitalRole', 'department', 'addressDetail', 'website', 'fax']);
+const OPTIONAL_FIELDS = new Set(['specialty', 'birthYear', 'gender', 'hospitalRole', 'department', 'institutionType', 'addressDetail', 'website', 'fax']);
 const CONSENT_KEYS = ['termsAccepted', 'privacyAccepted', 'ageConfirmed'];
 
 function normalizeRole(role) {

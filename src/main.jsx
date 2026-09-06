@@ -756,12 +756,15 @@ function JobCard({
 }) {
   const isAd = Boolean(job.adTier);
   const adTierPresentation = getAdTierPresentation(job.adTier);
+  const isMainAd = adTierPresentation?.key === "main";
   // 관리자가 등록한 DB 공고(id가 admin- 접두)만 카드에서 직접 수정·삭제 가능.
   const adminManageable = Boolean(manageJob) && String(job.id).startsWith("admin-");
   // 프리미엄 광고 카드는 등록 배너를 우선하고, 베이직 광고는 병원 로고를 우선한다.
-  const brandSource = isAd
+  const brandSource = isAd && isMainAd
     ? job.cardBanner || job.banner || job.logo
-    : job.logo || job.cardBanner || job.banner;
+    : !isAd
+      ? job.logo || job.cardBanner || job.banner
+      : "";
   const brandUrl = brandSource ? withBase(brandSource) : "";
   const brandFit = job.cardBanner || job.banner
     ? "banner"
@@ -837,7 +840,7 @@ function JobCard({
           </button>
         )}
       </div>
-      {isAd ? (
+      {isAd && isMainAd ? (
         <div
           className={`ad-brand-stage ${hasBrandAsset ? `logo-stage media-${brandFit}` : "wordmark-stage"}`}
           style={
@@ -864,6 +867,13 @@ function JobCard({
               <strong>{job.hospital}</strong>
             </div>
           )}
+        </div>
+      ) : isAd ? (
+        <div className="listing-brand-stage basic-ad-brand no-brand-asset">
+          <span className="listing-brand-name">
+            <strong>{job.hospital}</strong>
+            {job.facilityType && <small>{job.facilityType}</small>}
+          </span>
         </div>
       ) : (
         <div className={`${variant === "compact" ? "listing-brand-stage" : "job-hospital"} ${hasBrandAsset ? "has-brand-asset" : "no-brand-asset"}`}>
@@ -2715,6 +2725,7 @@ const AD_FIELD_LABELS = {
 
 function Checkout({ plan, auth }) {
   const accountProfile = useAccountProfile(auth);
+  const isMainAdPlan = plan.id === "featured";
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -2733,6 +2744,11 @@ function Checkout({ plan, auth }) {
   const [posterImages, setPosterImages] = useState([]);
   const [posterError, setPosterError] = useState("");
   const [activeDrop, setActiveDrop] = useState("");
+  useEffect(() => {
+    if (accountProfile.loaded && !facilityType && accountProfile.facilityType) {
+      setFacilityType(accountProfile.facilityType);
+    }
+  }, [accountProfile.loaded, accountProfile.facilityType, facilityType]);
   useEffect(() => {
     const target = finalActionRef.current;
     if (!target || typeof IntersectionObserver === "undefined") return undefined;
@@ -2907,17 +2923,17 @@ function Checkout({ plan, auth }) {
     formData.delete("brandImage");
     const data = {
       ...Object.fromEntries(formData.entries()),
-      brandImageName: brandFile?.name || "",
+      brandImageName: isMainAdPlan ? brandFile?.name || "" : "",
       logoName: "",
-      bannerName: brandFile?.name || (brandTemplate ? brandTemplate.split("/").pop() : ""),
+      bannerName: isMainAdPlan ? brandFile?.name || (brandTemplate ? brandTemplate.split("/").pop() : "") : "",
       hospitalPhotoNames: facilityPhotos.map((photo) => photo.name),
       posterImageNames: posterImages.map((image) => image.name),
-      premiumBrandMode: brandFile ? "single-brand-image" : brandTemplate ? "sample-banner" : "auto-wordmark",
+      premiumBrandMode: isMainAdPlan ? (brandFile ? "single-brand-image" : brandTemplate ? "sample-banner" : "auto-wordmark") : "basic-text-card",
     };
     setSubmitting(true);
     let paymentWindowOpened = false;
     try {
-      const brandImageUrl = await uploadJobImage(brandFile, "banner");
+      const brandImageUrl = isMainAdPlan ? await uploadJobImage(brandFile, "banner") : "";
       const hospitalPhotoUrls = await Promise.all(
         facilityPhotos.map((photo) => uploadJobImage(photo.file, "facility")),
       );
@@ -2926,8 +2942,10 @@ function Checkout({ plan, auth }) {
       );
       data.brandImageUrl = brandImageUrl;
       data.logo = "";
-      data.banner = brandImageUrl || brandTemplate;
-      data.brandImageLayout = brandImageUrl
+      data.banner = isMainAdPlan ? brandImageUrl || brandTemplate : "";
+      data.brandImageLayout = !isMainAdPlan
+        ? ""
+        : brandImageUrl
         ? "full-banner"
         : brandTemplate
           ? "template-overlay"
@@ -3034,13 +3052,13 @@ function Checkout({ plan, auth }) {
             <li><b>3</b><span>결제·게시 안내</span></li>
           </ol>
           {/* noValidate: 브라우저 기본 말풍선 대신 아래 안내(submitError)로 무엇이 비었는지 알려준다. */}
-          <form className="checkout-grid" onSubmit={submit} noValidate>
+          <form className="checkout-grid" key={accountProfile.loaded ? `profile-${accountProfile.email || 'ready'}` : 'profile-loading'} onSubmit={submit} noValidate>
             <div className="checkout-form">
               {(accountProfile.hospitalName || accountProfile.name || accountProfile.phone) && <div className="account-prefill-notice" role="status">
                 <CircleCheck />
                 <span><strong>회원가입 정보를 불러왔습니다</strong><small>병원명·담당자·연락처·주소가 자동으로 입력되며, 이번 공고에 맞게 수정할 수 있습니다.</small></span>
               </div>}
-              <section className="ad-form-section">
+              {isMainAdPlan && <section className="ad-form-section">
                 <div className="ad-form-section-head">
                   <span>01</span>
                   <div><h2>병원 배너 이미지</h2><p>가로형 이미지 한 장을 등록하면 공고 카드 전체 폭에 크게 표시됩니다.</p></div>
@@ -3102,7 +3120,7 @@ function Checkout({ plan, auth }) {
                   <span><Check /> 홍보 문구가 많은 광고 전단 이미지는 사용하지 않음</span>
                 </div>
               </div>
-              </section>
+              </section>}
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
                   <span>02</span>
@@ -3676,10 +3694,10 @@ export function App() {
     page = job ? <JobDetailRoute job={job} qa={qa} auth={auth} /> : <NotFoundPage />;
   }
   // /professions·/talent 별칭은 상단 ROUTE_ALIASES에서 동기 정규화되므로 여기 분기는 불필요(도달 불가).
-  else if (path === '/headhunting') page = <HeadhuntingPage route={route} operations={operations} liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} />;
+  else if (path === '/headhunting') page = <AuthGate auth={auth} title="맞춤 헤드헌팅은 회원 전용입니다" description="메디헬퍼스 회원만 비공개 초빙정보와 상담 내용을 확인할 수 있습니다."><HeadhuntingPage route={route} operations={operations} liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} /></AuthGate>;
   else if (path.startsWith('/headhunting/posts/')) {
     const post = headhuntPosts.find((item) => item.id === decodeURIComponent(path.slice('/headhunting/posts/'.length)));
-    page = post ? <HeadhuntPostDetailPage post={post} /> : <NotFoundPage />;
+    page = post ? <AuthGate auth={auth} title="맞춤 헤드헌팅 상세는 회원 전용입니다" description="로그인한 메디헬퍼스 회원에게만 초빙 조건과 상세 내용을 공개합니다."><HeadhuntPostDetailPage post={post} /></AuthGate> : <NotFoundPage />;
   }
   // 의료인 채용 = 채용공고 + 구직 의료인 인재(열람권). 로그인 회원 전용(비회원·경쟁사 정보 수집 차단).
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 회원 권한에서만 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} auth={auth} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} route={route} />} /></AuthGate>;

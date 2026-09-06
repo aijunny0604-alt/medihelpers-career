@@ -78,19 +78,27 @@ test('public doctor job mapping carries facility and poster galleries to JobDeta
 
 test('hospital job checkout can persist a selected sample banner', () => {
   assert.match(mainSource, /const SAMPLE_BANNER_TEMPLATES = \[/);
-  assert.match(mainSource, /data\.banner = brandImageUrl \|\| brandTemplate/);
-  assert.match(mainSource, /premiumBrandMode: brandFile \? "single-brand-image" : brandTemplate \? "sample-banner"/);
+  assert.match(mainSource, /data\.banner = isMainAdPlan \? brandImageUrl \|\| brandTemplate : ""/);
+  assert.match(mainSource, /premiumBrandMode: isMainAdPlan \? \(brandFile \? "single-brand-image" : brandTemplate \? "sample-banner"/);
   assert.match(serverSource, /cleanOrderValue\(meta\.banner/);
 });
 
 test('single uploaded brand artwork fills the card banner and legacy orders migrate once', () => {
   assert.match(mainSource, /data\.logo = ""/);
-  assert.match(mainSource, /data\.brandImageLayout = brandImageUrl/);
+  assert.match(mainSource, /data\.brandImageLayout = !isMainAdPlan/);
   assert.match(mainSource, /job\.brandImageLayout === "full-banner"/);
   assert.match(serverSource, /async function migrateSingleBrandImageBanners/);
   assert.match(serverSource, /migration_single_brand_banner_v1/);
   assert.match(serverSource, /'\$\.brandImageLayout', 'full-banner'/);
   assert.match(serverSource, /await migrateSingleBrandImageBanners\(env\)/);
+});
+
+test('basic ads do not upload or render a banner stage', () => {
+  assert.match(mainSource, /const isMainAdPlan = plan\.id === "featured"/);
+  assert.match(mainSource, /const brandImageUrl = isMainAdPlan \? await uploadJobImage/);
+  assert.match(mainSource, /\{isMainAdPlan && <section className="ad-form-section">/);
+  assert.match(mainSource, /isAd && isMainAd \? \(/);
+  assert.match(mainSource, /basic-ad-brand no-brand-asset/);
 });
 
 test('job detail displays the selected banner in its hero heading', () => {
