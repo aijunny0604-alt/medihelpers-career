@@ -28,10 +28,3 @@ test('공고 등록 자유서식은 상세내용으로 표시한다', async () =
   assert.equal(source.includes(retiredLabel), false);
   assert.equal(styles.includes(retiredLabel), false);
 });
-
-test('모바일 채용 바로가기 바는 브랜드 문구를 글자 단위로 쪼개지 않는다', async () => {
-  const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
-
-  assert.match(styles, /@media\(max-width:620px\)\{[\s\S]*?\.smart-ad-dock-brand strong\{[^}]*text-overflow:ellipsis[^}]*white-space:nowrap/);
-  assert.match(styles, /@media\(max-width:420px\)\{[\s\S]*?\.smart-ad-dock-brand span\{display:none\}/);
-});

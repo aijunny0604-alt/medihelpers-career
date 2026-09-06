@@ -8,7 +8,7 @@ test('repeated top and bottom consultation CTAs are removed from public pages', 
     readFile(new URL('./MedicalStaffPage.jsx', import.meta.url), 'utf8'),
   ]);
 
-  const home = source.slice(source.indexOf('function HomePage'), source.indexOf('function SmartAdDock'));
+  const home = source.slice(source.indexOf('function HomePage'), source.indexOf('function JobsPage'));
   const jobs = source.slice(source.indexOf('function JobsPage'), source.indexOf('export function TalentPage'));
   const advertise = source.slice(source.indexOf('function AdvertisePage'), source.indexOf('function AdvertiseApplyPage'));
 

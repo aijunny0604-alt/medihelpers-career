@@ -1745,37 +1745,6 @@ function PremiumAdCarousel({ items, renderCard }) {
   </div>;
 }
 
-function SmartAdDock({ total, onSelect, canRegister, authLoading = false }) {
-  const [visible, setVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const timerRef = useRef(null);
-
-  useEffect(() => {
-    const scheduleReveal = (delay = 400) => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-      setVisible(false);
-      const nearFooter = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 280;
-      if (nearFooter) return;
-      timerRef.current = window.setTimeout(() => setVisible(true), delay);
-    };
-    const onScroll = () => scheduleReveal();
-    scheduleReveal(700);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  if (dismissed) return null;
-  return <aside className={`smart-ad-dock ${visible ? 'is-visible' : ''}`} aria-label="병원 채용공고 등록 바로가기" aria-hidden={!visible}>
-    <div className="smart-ad-dock-brand"><Building2 /><span><small>MEDIHELPERS RECRUIT</small><strong>병원 채용 바로가기</strong></span></div>
-    <div className="smart-ad-dock-count"><small>전체 초빙공고</small><strong>{total.toLocaleString()}</strong><span>건</span></div>
-    <div className="smart-ad-dock-links"><Link to="/advertise">광고 상품안내</Link><Link to="/headhunting?role=hospital">채용 상담</Link><Link to="/mypage">내 공고 관리</Link></div>
-    {authLoading ? <span className="smart-ad-dock-cta auth-action-pending" aria-hidden="true" /> : <button type="button" className="smart-ad-dock-cta" onClick={() => { trackConversion('smart_ad_dock_open', { canRegister }); onSelect(adPlans[0]); }}>채용공고 등록 <ArrowRight /></button>}
-    <button type="button" className="smart-ad-dock-close" onClick={() => setDismissed(true)} aria-label="공고 등록창 닫기"><X /></button>
-  </aside>;
-}
 function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   const siteCategories = useSiteCategories();
   const params = new URLSearchParams(route.split('?')[1] || '');
@@ -1862,7 +1831,6 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
         {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>BASIC RECRUITMENT AD</small><strong>베이직 광고 초빙공고</strong><span>베이직 광고 상품으로 등록된 공고입니다 · {visibleStandard.length}/{orderedStandard.length}건</span></div>{authLoading ? <span className="tier-apply-button basic auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[1])}>베이직 공고 등록 <ArrowRight /></button>}</div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
-    <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} authLoading={authLoading} />
   </>;
 }
 
@@ -3706,13 +3674,6 @@ export function App() {
   const qaInfo = getQaStateInfo('guest');
   const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
   const auth = useAuthGate(qa);
-  const mobileAction = auth.status === 'loading'
-    ? null
-    : auth.status === 'member'
-      ? { to: auth.isAdmin ? '/admin/console' : '/mypage', label: auth.isAdmin ? '관리 콘솔' : '마이페이지' }
-      : { to: `/advertise/apply?plan=${adPlans[0].id}`, label: '공고 등록 안내' };
-  const showQuickbar = path === '/' || path === '/jobs' || path.startsWith('/jobs/');
-
   let page;
   if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} />;
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
@@ -3773,5 +3734,5 @@ export function App() {
     return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
   }
   const staticDetailRoute = path.startsWith('/jobs/');
-  return <div className={`app ${showQuickbar ? 'quickbar-visible' : ''}`}><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}>{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster />{showQuickbar && <nav className="mobile-quickbar" aria-label="빠른 메뉴"><Link to="/jobs"><Search />채용 찾기</Link>{mobileAction ? <Link className="mobile-ad" to={mobileAction.to}><Building2 />{mobileAction.label}</Link> : <span className="mobile-ad auth-action-pending" aria-label="회원 상태 확인 중" />}</nav>}</div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}>{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /></div>;
 }
