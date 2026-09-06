@@ -2157,6 +2157,27 @@ async function paymentOrderApi(request, env) {
   const paymentMethod = ['card','transfer'].includes(body.paymentMethod) ? body.paymentMethod : 'card';
   const metadata = body.metadata && typeof body.metadata === 'object' ? { ...body.metadata } : {};
   let adContentRecord = null;
+  if (product.type === 'talent_search') {
+    // 열람권 결제자 정보는 요청 본문을 신뢰하지 않고 회원가입 때 저장한 병원 원본으로 고정한다.
+    // 개발자도구로 readonly를 해제하거나 API를 직접 호출해도 다른 병원명·연락처를 저장할 수 없다.
+    try {
+      const linked = await env.DB.batch([
+        env.DB.prepare('SELECT display_name AS managerName, phone, organization FROM member_profiles WHERE account_id=? LIMIT 1').bind(account.id),
+        env.DB.prepare('SELECT hospital_name AS hospitalName FROM hospital_verification_requests WHERE account_id=? ORDER BY submitted_at DESC LIMIT 1').bind(account.id),
+      ]);
+      const member = linked[0]?.results?.[0] || {};
+      const hospital = linked[1]?.results?.[0] || {};
+      customerName = cleanOrderValue(hospital.hospitalName || member.organization);
+      customerEmail = cleanOrderValue(identity.email);
+      customerPhone = cleanOrderValue(member.phone);
+      metadata.accountProfileLinked = true;
+      metadata.hospital = customerName;
+      metadata.manager = cleanOrderValue(member.managerName);
+      if (!customerName || !customerEmail || !customerPhone) return json({ error:'병원 회원가입 정보를 확인할 수 없습니다. 마이페이지 회원정보를 확인해주세요.' }, 400);
+    } catch {
+      return json({ error:'병원 회원가입 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503);
+    }
+  }
   if (product.type === 'doctor_ad') {
     // 공고 폼 자동입력에만 의존하지 않고, 로그인한 병원의 승인 정보를 서버에서도
     // 빈 필드에 보완한다. 오래 열린 화면이나 직접 API 요청에서도 가입정보 연결이 유지된다.

@@ -4840,6 +4840,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .talent-unlock-checkout label span{font-size:13px;font-weight:700;color:#33445c}
 .talent-unlock-checkout input{padding:12px 14px;border:1px solid #cfdae7;border-radius:10px;font-size:14.5px}
 .talent-unlock-checkout input:focus{outline:none;border-color:#149e7f;box-shadow:0 0 0 3px rgba(20,158,127,.12)}
+.talent-unlock-checkout input[readonly]{border-color:#d8e2ec;background:#eef3f8;color:#344a64;font-weight:750;cursor:not-allowed;box-shadow:inset 0 1px 2px rgba(28,53,82,.03)}.talent-unlock-checkout input[readonly]:focus{border-color:#d8e2ec;box-shadow:none}.talent-unlock-account-note{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border:1px solid #cfe0ef;border-radius:12px;background:#f3f8fc;color:#284663}.talent-unlock-account-note>svg{width:19px;flex:0 0 auto;margin-top:2px;color:#1263e8}.talent-unlock-account-note span{display:flex;flex-direction:column;gap:3px}.talent-unlock-account-note strong{font-size:14px}.talent-unlock-account-note small{color:#6b7f96;font-size:12.5px;line-height:1.5}
 .talent-unlock-checkout .consent{grid-template-columns:auto 1fr;align-items:start;gap:9px}
 .talent-unlock-checkout .consent input{margin-top:3px}
 .talent-unlock-checkout .consent span{font-size:12.5px;font-weight:500;color:#69768b;line-height:1.5}

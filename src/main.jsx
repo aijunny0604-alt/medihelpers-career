@@ -3470,6 +3470,11 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const accountProfile = useAccountProfile(auth);
+  const lockedCustomer = {
+    name: accountProfile.hospitalName || accountProfile.organization || '',
+    phone: accountProfile.phone || '',
+    email: accountProfile.email || '',
+  };
   const submit = async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -3479,7 +3484,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     try {
       const response = await fetch('/api/payment-orders', {
         method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ productId:plan.id, paymentMethod:'card', customerName:data.name, customerEmail:data.email, customerPhone:data.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
+        body:JSON.stringify({ productId:plan.id, paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
@@ -3488,9 +3493,9 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
       if (result.inicis?.configured) {
         await openInicisPayment(result.inicis, {
           productName: plan.name,
-          buyerName: data.name,
-          buyerTel: data.phone,
-          buyerEmail: data.email,
+          buyerName: lockedCustomer.name,
+          buyerTel: lockedCustomer.phone,
+          buyerEmail: lockedCustomer.email,
         });
         // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
         paymentWindowOpened = true;
@@ -3519,7 +3524,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     const openHref = talentId ? `/medical-staff/talents/${encodeURIComponent(talentId)}` : '/medical-staff';
     return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '방금 결제한 의료인의 이력서를 바로 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 의료인 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/medical-staff">의료인 채용으로 <ArrowRight /></Link>}<Link className="button outline" to="/medical-staff">의료인 목록</Link></div></div></section>;
   }
-  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
+  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><div className="talent-unlock-account-note"><LockKeyhole /><span><strong>병원 회원가입 정보</strong><small>결제자 정보는 가입된 병원 계정과 자동 연결되며 이 화면에서 수정할 수 없습니다.</small></span></div><label><span>병원명</span><input required name="name" value={lockedCustomer.name} readOnly aria-readonly="true" /></label><label><span>담당자 연락처</span><input required name="phone" type="tel" value={lockedCustomer.phone} readOnly aria-readonly="true" /></label><label><span>이메일</span><input required name="email" type="email" value={lockedCustomer.email} readOnly aria-readonly="true" /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting || !accountProfile.loaded || !lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
 }
 
 function TalentUnlockPage({ route, qa, auth }) {

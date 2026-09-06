@@ -18,6 +18,20 @@ test('가상 결제 승인 실패를 성공 화면으로 넘기지 않는다', a
   assert.match(mainSource, /실제 카드나 계좌에서 금액이 청구되지 않으며/);
 });
 
+test('열람권 결제 정보는 병원 회원가입 원본으로 고정한다', async () => {
+  const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  const checkout = mainSource.slice(mainSource.indexOf('function TalentUnlockCheckout'), mainSource.indexOf('function TalentUnlockPage'));
+  const paymentApi = serverSource.slice(serverSource.indexOf('async function paymentOrderApi'), serverSource.indexOf('async function paymentApproveApi'));
+  assert.match(checkout, /accountProfile\.hospitalName \|\| accountProfile\.organization/);
+  assert.match(checkout, /readOnly aria-readonly="true"/);
+  assert.match(checkout, /이 화면에서 수정할 수 없습니다/);
+  assert.match(paymentApi, /product\.type === 'talent_search'/);
+  assert.match(paymentApi, /customerName = cleanOrderValue\(hospital\.hospitalName \|\| member\.organization\)/);
+  assert.match(paymentApi, /customerEmail = cleanOrderValue\(identity\.email\)/);
+  assert.match(paymentApi, /customerPhone = cleanOrderValue\(member\.phone\)/);
+});
+
 test('열람권은 상품 수량만 적립하고 새 인재마다 1건만 원자적으로 차감한다', async () => {
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   const dataSource = await readFile(new URL('./data.js', import.meta.url), 'utf8');
