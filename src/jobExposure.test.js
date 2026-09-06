@@ -49,6 +49,7 @@ test('the public ad catalog has only basic and main featured plans', () => {
   assert.doesNotMatch(JSON.stringify(adPlans), /집중 채용|전담 컨설턴트|인재풀/);
   // 지키기 어려운 성과·리포트 약속 문구는 상품 설명에 넣지 않는다.
   assert.doesNotMatch(JSON.stringify(adPlans), /성과|리포트|반응 확인/);
+  assert.deepEqual(adPlans.map((plan) => plan.unit), ['30일', '30일']);
 });
 
 test('balancedOrder returns the exact same multiset (no loss, no duplication)', () => {

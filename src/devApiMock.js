@@ -24,9 +24,9 @@ const CATALOG = {
   basic: { type: 'doctor_ad', name: '베이직 광고', amount: 59000 },
   featured: { type: 'doctor_ad', name: '메인 광고', amount: 149000 },
   // 의사 멤버십은 폐지됨. 유료 상품은 병원 광고 + 병원 인재 열람권뿐.
-  'talent-unlock-single': { type: 'talent_search', name: '인재 열람권 (1명)', amount: 3900, unlockDays: 30, unlockCount: 1 },
-  'talent-unlock-pack': { type: 'talent_search', name: '인재 열람권 (10명 팩)', amount: 29000, unlockDays: 30, unlockCount: 10 },
-  'talent-unlock-pack30': { type: 'talent_search', name: '인재 열람권 (30명 팩)', amount: 69000, unlockDays: 30, unlockCount: 30 },
+  'talent-unlock-single': { type: 'talent_search', name: '인재 열람권 (1명)', amount: 3900, unlockCount: 1 },
+  'talent-unlock-pack': { type: 'talent_search', name: '인재 열람권 (10명 팩)', amount: 29000, unlockCount: 10 },
+  'talent-unlock-pack30': { type: 'talent_search', name: '인재 열람권 (30명 팩)', amount: 69000, unlockCount: 30 },
 };
 
 // 목 상세: 실제 이력서가 없어도 열람권만 있으면 그럴듯한 상세를 돌려준다(화면 확인용).
@@ -332,7 +332,7 @@ async function handle(method, path, bodyText) {
         { id: 'CASE-mock-1', consultationId: 'con-mock-1', hospitalName: '해운대바른척추병원', specialty: '정형외과', positionTitle: '정형외과 전문의', stage: 'candidate_search', assignedRecruiter: '김혜원 헤드헌터', estimatedFee: 18000000, nextAction: '후보 2명 의사 확인', billingStatus: 'success_fee', candidateCount: 2, createdAt: '2026-07-26 09:20', updatedAt: '2026-07-26 09:40' },
       ];
       const mockPayments = [
-        { id: 'o-mock-1', orderNumber: 'MH-20260726-MOCK0001', accountId: 'm2', accountRole: 'hospital', productType: 'doctor_ad', productName: '추천 공고', totalAmount: 149000, supplyAmount: 135455, taxAmount: 13545, status: 'paid', paymentMethod: 'card', customerName: '박정호', customerEmail: 'hr@hospital.co.kr', customerPhone: '010-9876-5432', createdAt: '2026-07-26 09:00', paidAt: '2026-07-26 09:05', adminNote: '', exposure: { start: '2026-07-26', end: '2026-08-25', days: 30 } },
+        { id: 'o-mock-1', orderNumber: 'MH-20260726-MOCK0001', accountId: 'm2', accountRole: 'hospital', productType: 'doctor_ad', productName: '추천 공고', totalAmount: 149000, supplyAmount: 135455, taxAmount: 13545, status: 'paid', paymentMethod: 'card', customerName: '박정호', customerEmail: 'hr@hospital.co.kr', customerPhone: '010-9876-5432', createdAt: '2026-07-26 09:00', paidAt: '2026-07-26 09:05', adminNote: '', exposure: { start: '2026-07-26', end: '2026-08-24', days: 30 } },
         { id: 'o-mock-2', orderNumber: 'MH-20260725-MOCK0002', accountId: 'm2', accountRole: 'hospital', productType: 'talent_search', productName: '인재 열람권 (10명 팩)', totalAmount: 29000, supplyAmount: 26364, taxAmount: 2636, status: 'awaiting_payment', paymentMethod: 'card', customerName: '박정호', customerEmail: 'hr@hospital.co.kr', customerPhone: '010-9876-5432', createdAt: '2026-07-25 10:05', adminNote: '' },
       ];
       const mockMembers = [

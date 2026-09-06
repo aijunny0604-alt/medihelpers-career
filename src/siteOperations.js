@@ -96,6 +96,7 @@ export function operationalTalent(contents = []) {
       // 구직글의 원본 이력서 ID. 목록·상세·마이페이지가 동일한 이력서를 가리킨다.
       linkedResumeId: p.linkedResumeId || '',
       jobSeekerPostId: p.jobSeekerPostId || '',
+      postTitle: item.title || '',
       summary: p.summary || item.subtitle || '',
       code: p.code || `관리-${String(index + 1).padStart(3, '0')}`,
       name: p.name || '',

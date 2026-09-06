@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, Archive, BriefcaseBusiness, Building2, Check, ChevronRight, CreditCard, Database, Download,
+  Activity, Archive, Bell, BriefcaseBusiness, Building2, Check, ChevronRight, CreditCard, Database, Download,
   Eye, FileText, FolderKanban, LayoutDashboard, LogOut, PencilLine, Plus, ReceiptText, RotateCcw, Save, Search, Settings,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, UserRoundCog, UsersRound, X
 } from 'lucide-react';
@@ -190,6 +190,9 @@ export default function AdminConsolePage({ qa = false }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(!qa);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('open') === 'notifications'; } catch { return false; }
+  });
 
   // 관리자 데이터를 못 불러왔는지(권한 실패 등) 상태. true면 빈 콘솔 대신 안내 화면을 띄운다.
   const [loadError, setLoadError] = useState('');
@@ -222,6 +225,18 @@ export default function AdminConsolePage({ qa = false }) {
     () => groups.flatMap((group) => group.items).find(([key]) => key === section)?.[1] || '관리자 모드',
     [section]
   );
+
+  const adminNotifications = useMemo(() => {
+    const items = [];
+    for (const item of data.consultations || []) {
+      if (item.status === 'new') items.push({ id:`consultation-${item.id}`, title:'새 상담 문의', copy:`${item.requesterName || '신청자'} · ${item.specialty || '분야 확인 필요'}`, target:'monitoring' });
+      if (item.emailNotificationStatus === 'failed' || item.smsNotificationStatus === 'failed') items.push({ id:`delivery-${item.id}`, title:'상담 알림 발송 확인 필요', copy:item.requesterName || item.id, target:'monitoring' });
+    }
+    for (const item of data.payments || []) {
+      if (item.status === 'pending_review' || item.status === 'awaiting_payment') items.push({ id:`payment-${item.id}`, title:'결제 상태 확인 필요', copy:`${item.productName || '상품'} · ${item.orderNumber || ''}`, target:'payments' });
+    }
+    return items.slice(0, 12);
+  }, [data.consultations, data.payments]);
 
   const select = (key) => setSection(key);
 
@@ -276,6 +291,13 @@ export default function AdminConsolePage({ qa = false }) {
           <div><strong>메디헬퍼스 관리자 기록실</strong><small>운영 DB 조회 · 병원 가입 인증</small></div>
         </div>
         <nav>
+          <div className="admin-alert-wrap">
+            <button type="button" className="admin-alert-button" onClick={() => setNotificationsOpen((open) => !open)} aria-label="관리자 알림" aria-expanded={notificationsOpen} aria-controls="admin-alert-panel"><Bell /><span>알림</span>{adminNotifications.length > 0 && <b>{adminNotifications.length}</b>}</button>
+            {notificationsOpen && <section id="admin-alert-panel" className="admin-alert-panel" aria-label="관리자 알림">
+              <header><div><small>ADMIN ALERTS</small><strong>확인할 운영 기록</strong></div><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="관리자 알림 닫기"><X /></button></header>
+              <div>{adminNotifications.length ? adminNotifications.map((item) => <button type="button" key={item.id} onClick={() => { select(item.target); setNotificationsOpen(false); }}><span><Bell /></span><div><strong>{item.title}</strong><small>{item.copy}</small></div><ChevronRight /></button>) : <p><ShieldCheck /> 지금 확인할 새 기록이 없습니다.</p>}</div>
+            </section>}
+          </div>
           <button onClick={() => go('/')}>사이트 보기</button>
         </nav>
       </div>
@@ -598,6 +620,34 @@ function ContentManager({ data, setData, mutate, qa }) {
   </section>;
 }
 
+const contentPayloadLabels = {
+  fromHospital:'등록 경로', adProductName:'광고 상품', adTier:'광고 등급', primary:'지역·주요 분류', secondary:'급여·핵심 조건',
+  hospital:'병원명', facilityType:'기관 유형', address:'주소', region:'지역', department:'진료과', role:'모집 직군',
+  pay:'급여', salaryBasis:'급여 기준', employmentType:'고용 형태', schedule:'근무 일정', exactHours:'상세 근무시간',
+  onCall:'당직', patientLoad:'진료 범위', procedureScope:'시술·업무 범위', supportTeam:'지원 인력', leavePolicy:'휴가 조건',
+  startTiming:'입사 시기', interviewProcess:'채용 절차', specialties:'진료 분야', established:'개원·설립 정보',
+  doctorCount:'의사 수', staffCount:'직원 수', dailyVolume:'일 진료량', beds:'병상 수', equipment:'보유 장비', website:'홈페이지',
+  description:'상세 설명', verifiedNote:'확인 사항', incentive:'인센티브', logo:'병원 로고', banner:'채용 배너', facility:'대표 시설 사진',
+  facilityPhotos:'시설 사진', posterImages:'공고 이미지', brandImageLayout:'이미지 배치', exposure:'노출 기간', exposureEnd:'노출 종료일',
+  publicationChannel:'게시 경로', contactVisibility:'연락처 공개', benefits:'복지·지원', deadline:'마감일'
+};
+const contentPayloadOrder = ['adProductName','adTier','hospital','facilityType','address','region','department','role','pay','salaryBasis','employmentType','schedule','exactHours','onCall','startTiming','description','verifiedNote','banner','logo','facility','facilityPhotos','posterImages','exposure','exposureEnd'];
+function renderContentPayloadValue(key, value) {
+  if (key === 'fromHospital') return value ? '병원 회원 직접 등록' : '관리자 등록';
+  if (key === 'adTier') return value === 'featured' || value === 'spotlight' ? '메인 광고' : value === 'basic' ? '베이직 광고' : String(value);
+  if (key === 'contactVisibility') return value === 'private' ? '전화번호 비공개' : value === 'ticket' ? '열람권 구매 병원에 공개' : String(value);
+  if (key === 'exposure' && value && typeof value === 'object') return `${value.start || '-'} ~ ${value.end || '-'} · ${value.days || '-'}일`;
+  const imageValues = Array.isArray(value) ? value : [value];
+  if (['logo','banner','facility','facilityPhotos','posterImages'].includes(key)) {
+    const images = imageValues.filter((url) => typeof url === 'string' && url.trim());
+    return images.length ? <div className="admin-content-media">{images.map((url, index) => <a href={withBase(url)} target="_blank" rel="noreferrer" key={`${url}-${index}`}><img src={withBase(url)} alt={`${contentPayloadLabels[key]} ${index + 1}`} /><span>원본 보기</span></a>)}</div> : '-';
+  }
+  if (Array.isArray(value)) return value.map((item) => typeof item === 'object' ? JSON.stringify(item) : String(item)).join(' · ');
+  if (typeof value === 'boolean') return value ? '예' : '아니오';
+  if (value && typeof value === 'object') return Object.entries(value).map(([name, detail]) => `${name}: ${detail}`).join('\n');
+  return String(value);
+}
+
 function ContentDetail({ item, onClose }) {
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -606,13 +656,17 @@ function ContentDetail({ item, onClose }) {
     window.addEventListener('keydown', handleKey);
     return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', handleKey); };
   }, [onClose]);
-  const payload = Object.entries(item.payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined);
+  const payload = Object.entries(item.payload || {})
+    .filter(([, value]) => value !== '' && value !== null && value !== undefined && (!Array.isArray(value) || value.length))
+    .sort(([a], [b]) => {
+      const ai = contentPayloadOrder.indexOf(a); const bi = contentPayloadOrder.indexOf(b);
+      return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
+    });
   const visibility = { public:'전체 공개', doctor:'의료인 회원', hospital:'병원 회원', admin:'관리자 전용' }[item.visibility] || item.visibility;
   const status = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감·종료' }[item.status] || item.status;
-  const payloadLabels = { primary:'지역·주요 분류', secondary:'급여·핵심 조건', description:'상세 설명' };
   return <div className="admin-content-detail-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <section className="admin-content-detail" role="dialog" aria-modal="true" aria-labelledby="admin-content-detail-title">
-      <header><div><small>CONTENT RECORD DETAIL</small><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><h2 id="admin-content-detail-title">{item.title}</h2><p>{item.subtitle || '보조 정보 없음'}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
+      <header><div><small>공고·콘텐츠 상세</small><span className={`content-kind ${item.contentType}`}>{contentTypeLabels[item.contentType]}</span><h2 id="admin-content-detail-title">{item.title}</h2><p>{item.subtitle || '보조 정보 없음'}</p></div><button className="icon-button" onClick={onClose} aria-label="상세 내용 닫기"><X /></button></header>
       <div className="admin-content-detail-meta">
         <div><Eye /><span><small>공개 범위</small><strong>{visibility}</strong></span></div>
         <div><Activity /><span><small>운영 상태</small><strong>{status}</strong></span></div>
@@ -620,7 +674,7 @@ function ContentDetail({ item, onClose }) {
         <div><PencilLine /><span><small>최근 수정자</small><strong>{item.updatedBy || item.createdBy || '관리자 QA'}</strong></span></div>
       </div>
       <div className="admin-content-detail-body">
-        <section><h3>등록 내용</h3>{payload.length ? <dl>{payload.map(([key, value]) => <div className={key === 'description' ? 'wide' : ''} key={key}><dt>{payloadLabels[key] || key}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl> : <p className="admin-content-detail-empty">등록된 상세 내용이 없습니다.</p>}</section>
+        <section><h3>등록 내용</h3>{payload.length ? <dl>{payload.map(([key, value]) => <div className={['description','verifiedNote','facilityPhotos','posterImages','banner'].includes(key) ? 'wide' : ''} key={key}><dt>{contentPayloadLabels[key] || key}</dt><dd>{renderContentPayloadValue(key, value)}</dd></div>)}</dl> : <p className="admin-content-detail-empty">등록된 상세 내용이 없습니다.</p>}</section>
         <aside><h3>운영 기록</h3><dl><div><dt>데이터 ID</dt><dd>{item.id}</dd></div><div><dt>작성 시각</dt><dd>{String(item.createdAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>최근 수정</dt><dd>{String(item.updatedAt || '-').slice(0,16).replace('T',' ')}</dd></div><div><dt>공개 시작</dt><dd>{String(item.publishedAt || '-').slice(0,16).replace('T',' ')}</dd></div></dl><p><ShieldCheck /> 홈페이지 동작 결과가 DB에 자동 기록됩니다.</p></aside>
       </div>
       <footer><button className="button outline" onClick={onClose}>닫기</button><span className="catalog-readonly"><ShieldCheck /> 읽기 전용 DB 기록입니다.</span></footer>

@@ -32,4 +32,5 @@ test('dedicated headhunting page keeps its real request workflows', async () => 
 
   assert.match(page, /의사 헤드헌터에게 상담하기/);
   assert.match(page, /병원 · 채용 의뢰하기/);
+  assert.doesNotMatch(page, /<ConsultationForm/);
 });

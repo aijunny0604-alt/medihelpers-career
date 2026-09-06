@@ -83,12 +83,12 @@
 - `payment_orders`: 주문(금액 스냅샷·상태)
 - `payment_transactions`·`payment_events`·`payment_receipts`·`payment_refunds`·`payment_webhook_events`·`billing_records`
 - `talent_unlocks`: 병원의 인재 열람권(단건은 `order_id`=결제주문id, 팩은 `order_id`=크레딧 풀 id)
-- **`talent_credit_pools`**(2026-07-24 신설): 열람권 팩의 크레딧 풀. `total_credits`/`used_credits`, `expires_at`. 병원이 새 인재를 열 때마다 크레딧 1개를 원자적 차감(`UPDATE ... WHERE used_credits=?`)해 `talent_unlocks`를 발급. `order_id`에 UNIQUE 인덱스(이중 적립 방지)
+- **`talent_credit_pools`**(2026-07-24 신설): 열람권 팩의 크레딧 풀. `total_credits`/`used_credits`로 잔여 수량을 관리합니다. `expires_at`은 이전 버전 호환용 nullable 컬럼이며 현재 권한 판정에는 사용하지 않습니다. 병원이 새 인재를 열 때마다 크레딧 1개를 원자적 차감(`UPDATE ... WHERE used_credits=?`)해 `talent_unlocks`를 발급합니다. `order_id`에 UNIQUE 인덱스가 있어 이중 적립을 막습니다.
 
 **상담·CRM·감사**: `consultation_requests`, `recruitment_cases`, `candidate_submissions`(후보 동의 `consent_status`), `interview_events`, `access_audit_logs`(열람 감사), `admin_audit_logs`, `site_settings`, `feature_flags`
 
 ### 열람권·환불 규칙 (코드 기준)
-- **열람 상세 공개**: `GET /api/talent-detail/:id`는 병원+유효 열람권일 때만 상세 제공. 이력서는 `visibility IN ('public','proposal')`만 실명·연락처를 내려준다(비공개 이력서 유출 방지).
+- **열람 상세 공개**: `GET /api/talent-detail/:id`는 병원+해당 인재 열람권일 때만 상세 제공. 열람권에는 기간 만료가 없으며, 이력서는 `visibility IN ('public','proposal')`만 실명·연락처를 내려준다(비공개 이력서 유출 방지).
 - **팩 크레딧 소모**: 비공개(private) 이력서에는 크레딧을 쓰지 않는다(낭비·열람 시도 차단).
 - **환불 회수**: 전액 환불 시 단건 열람권 + 그 결제의 크레딧 풀에서 발급된 열람권을 삭제하고 풀 크레딧을 소진 처리(`talentRevokeStatementsForOrder`).
 

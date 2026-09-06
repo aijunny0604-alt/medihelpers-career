@@ -50,6 +50,12 @@ test('작성자는 게시판과 마이페이지에서 구직글을 수정·삭�
   assert.match(styles, /@media\(max-width:760px\)\{\.jobseeker-owner-actions\{grid-column:1\/-1!important;grid-row:auto/);
 });
 
+test('구직 게시판과 상세는 작성자가 입력한 게시글 제목을 우선 표시한다', () => {
+  assert.match(main, /person\.postTitle \|\| `\$\{person\.dept/);
+  assert.match(main, /<h3>\{person\.postTitle \|\|/);
+  assert.match(server, /title: r\.postTitle \|\| ''/);
+});
+
 test('병원 유료 공고는 소유자가 내용만 수정하고 직접 삭제할 수 없다', () => {
   assert.match(server, /body\.action === 'owned_ad_delete'/);
   assert.match(server, /PAID_AD_DELETE_FORBIDDEN/);

@@ -44,7 +44,7 @@ export const QA_STATE_OPTIONS = Object.freeze([
     description: '인재 열람권을 결제한 병원 회원이 의사 이력서의 실명·연락처를 보는 화면을 점검합니다.',
     tone: 'member',
     capabilities: { signedIn: true, admin: false, hospital: true, doctor: false, talentUnlocked: true, privateDetails: true },
-    metrics: [['열람권', '보유 중'], ['공개 범위', '실명·연락처'], ['유효기간', '30일']]
+    metrics: [['열람권', '보유 중'], ['공개 범위', '실명·연락처'], ['차감 기준', '인재 1명당 1건']]
   }
 ]);
 

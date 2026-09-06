@@ -615,6 +615,7 @@ function Header({ path, qa, operations, auth }) {
           return true;
         }).map((item) => <Link key={item.path} to={item.path} onClick={() => setOpen(false)} className={`${path === item.path ? 'active' : ''} ${item.path === '/advertise' ? 'nav-ad' : ''} ${item.highlight ? 'nav-highlight' : ''}`}>{item.label}</Link>)}
         {isSignedIn && !isAdminUser && <Link to="/mypage?tab=notifications" onClick={() => setOpen(false)} className="mobile-notification-link"><Bell /> 알림함 {unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
+        {isAdminUser && <Link to="/admin/console?open=notifications" onClick={() => setOpen(false)} className="mobile-notification-link"><Bell /> 관리자 알림</Link>}
         {authLoading
           ? <span className="mobile-account-link auth-action-pending" aria-hidden="true" />
           : <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>}
@@ -630,6 +631,7 @@ function Header({ path, qa, operations, auth }) {
             <span className="header-logout auth-action-pending" aria-hidden="true" />
           </> : <>
             {isSignedIn && !isAdminUser && <Link className="header-notifications" to="/mypage?tab=notifications" aria-label={`알림함${unreadCount > 0 ? `, 읽지 않은 알림 ${unreadCount}개` : ''}`}><Bell />{unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
+            {isAdminUser && <Link className="header-notifications" to="/admin/console?open=notifications" aria-label="관리자 알림 열기"><Bell /></Link>}
             {!isSignedIn && path === '/' && <Link className="header-signup" to="/signup"><UserRound size={16} /> 회원가입</Link>}
             <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
             {isSignedIn && <button type="button" className="header-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '처리 중' : '로그아웃'}</button>}
@@ -1770,7 +1772,7 @@ function SmartAdDock({ total, onSelect, canRegister, authLoading = false }) {
     <div className="smart-ad-dock-brand"><Building2 /><span><small>MEDIHELPERS RECRUIT</small><strong>병원 채용 바로가기</strong></span></div>
     <div className="smart-ad-dock-count"><small>전체 초빙공고</small><strong>{total.toLocaleString()}</strong><span>건</span></div>
     <div className="smart-ad-dock-links"><Link to="/advertise">광고 상품안내</Link><Link to="/headhunting?role=hospital">채용 상담</Link><Link to="/mypage">내 공고 관리</Link></div>
-    {authLoading ? <span className="smart-ad-dock-cta auth-action-pending" aria-hidden="true" /> : <button type="button" className="smart-ad-dock-cta" onClick={() => { trackConversion('smart_ad_dock_open', { canRegister }); onSelect(adPlans[0]); }}>{canRegister ? '초빙공고 등록하기' : '병원 회원 전용'} <ArrowRight /></button>}
+    {authLoading ? <span className="smart-ad-dock-cta auth-action-pending" aria-hidden="true" /> : <button type="button" className="smart-ad-dock-cta" onClick={() => { trackConversion('smart_ad_dock_open', { canRegister }); onSelect(adPlans[0]); }}>채용공고 등록 <ArrowRight /></button>}
     <button type="button" className="smart-ad-dock-close" onClick={() => setDismissed(true)} aria-label="공고 등록창 닫기"><X /></button>
   </aside>;
 }
@@ -1855,9 +1857,9 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
       <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
-        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> MAIN RECRUITMENT AD</span><strong>메인 광고 초빙공고</strong><small>메인 광고 상품으로 등록된 공고입니다. 목록 최상단에 우선 노출됩니다.</small></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[1])}>{canRegisterAds ? '메인 광고 등록' : '병원 회원 전용'} <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
+        {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> MAIN RECRUITMENT AD</span><strong>메인 광고 초빙공고</strong><small>메인 광고 상품으로 등록된 공고입니다. 목록 최상단에 우선 노출됩니다.</small></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[0])}>메인 광고 등록 <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
-        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>BASIC RECRUITMENT AD</small><strong>베이직 광고 초빙공고</strong><span>베이직 광고 상품으로 등록된 공고입니다 · {visibleStandard.length}/{orderedStandard.length}건</span></div>{authLoading ? <span className="tier-apply-button basic auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[0])}>{canRegisterAds ? '베이직 공고 올리기' : '병원 회원 전용'} <ArrowRight /></button>}</div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
+        {orderedStandard.length > 0 && <div className="standard-jobs"><div className="standard-heading"><div><small>BASIC RECRUITMENT AD</small><strong>베이직 광고 초빙공고</strong><span>베이직 광고 상품으로 등록된 공고입니다 · {visibleStandard.length}/{orderedStandard.length}건</span></div>{authLoading ? <span className="tier-apply-button basic auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button basic" onClick={() => requestAdPlan(adPlans[1])}>베이직 공고 등록 <ArrowRight /></button>}</div><div className="job-grid standard-job-grid unified-job-grid">{visibleStandard.map(renderStandardCard)}</div>{standardRemaining > 0 && <button type="button" className="standard-more" onClick={() => setStandardVisible((current) => current + STANDARD_STEP)}>공고 더보기 <em>남은 {standardRemaining}개</em> <ArrowRight size={16} /></button>}</div>}
       </> : <div className="empty-state"><Search /><h3>조건에 맞는 공고를 찾지 못했습니다</h3><p>검색 조건을 바꾸거나 헤드헌터에게 비공개 포지션을 문의해보세요.</p><button className="button primary" onClick={resetFilters}>검색 초기화</button></div>}
     </section>
     <SmartAdDock total={liveJobs.length} onSelect={requestAdPlan} canRegister={canRegisterAds} authLoading={authLoading} />
@@ -2232,7 +2234,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
         <div>
           <span className="talent-verified"><FileText /> 구직 프로필</span>
           <small>{talentDisplayName(person, canViewIdentity)} · {canViewIdentity ? "실명 확인" : "이름 비공개"}</small>
-          <h2>{person.dept} · {person.career}</h2>
+          <h2>{person.postTitle || `${person.dept} · ${person.career}`}</h2>
           <p>개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.</p>
           {person.contactVisibility === 'private' && <span className="talent-phone-private-alert"><LockKeyhole /> 전화번호 비공개 · 열람권 구매 후에도 미공개</span>}
         </div>
@@ -2577,7 +2579,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
     (filter === 'all' || (filter === 'doctor' ? (p.staffType || 'doctor') === 'doctor' : p.staffType === 'medical')) &&
     (dept === '전체' || p.dept === dept) &&
     (region === '전체' || p.region === region) &&
-    (!keyword || `${p.dept || ''} ${p.region || ''} ${p.preference || ''} ${p.location || ''}`.includes(keyword))
+    (!keyword || `${p.postTitle || ''} ${p.dept || ''} ${p.region || ''} ${p.preference || ''} ${p.location || ''}`.includes(keyword))
   );
   const total = rows.length;
   const doctorCount = all.filter((p) => (p.staffType || 'doctor') === 'doctor').length;
@@ -2641,7 +2643,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 key={person.code || person.detailId || index}
                 role="button"
                 tabIndex={0}
-                aria-label={`${person.dept || '구직 인재'} 상세 보기`}
+                aria-label={`${person.postTitle || person.dept || '구직 인재'} 상세 보기`}
                 onClick={() => navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`)}
                 onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(`/medical-staff/talents/${encodeURIComponent(person.detailId || person.code)}`); } }}
               >
@@ -2650,7 +2652,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                   {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
                       실명은 서버가 권한을 검증하는 독립 상세 페이지에서만 공개된다. */}
                   <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small>{person.contactVisibility === 'private' && <span className="jobseeker-contact-private"><LockKeyhole /> 전화번호 비공개</span>}</div>
-                  <h3>{person.dept || '전문 인력'} · {person.career || '경력 협의'}</h3>
+                  <h3>{person.postTitle || `${person.dept || '전문 인력'} · ${person.career || '경력 협의'}`}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
                 </div>
                 <span className="medical-staff-career">{person.region || '전국'}</span>
@@ -2765,14 +2767,6 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
             <span>평일 09:00–18:00</span>
           </div>
         </div>
-        <ConsultationForm
-          key={`${role}-${context}-${profession}`}
-          initialRole={role}
-          initialContext={context}
-          initialProfession={profession}
-          initialTopic={role === 'hospital' && context ? '의사 추천' : ''}
-          auth={auth}
-        />
       </section>
       <section className="section soft">
         <div className="section-head centered">
@@ -3658,7 +3652,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     const openHref = talentId ? `/medical-staff/talents/${encodeURIComponent(talentId)}` : '/medical-staff';
     return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '방금 결제한 의료인의 이력서를 바로 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 의료인 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/medical-staff">의료인 채용으로 <ArrowRight /></Link>}<Link className="button outline" to="/medical-staff">의료인 목록</Link></div></div></section>;
   }
-  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.period}{plan.unlockCount > 1 ? ` · ${plan.unlockCount}명` : ''}</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 30일 동안 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
+  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><label><span>병원명 *</span><input required name="name" defaultValue={accountProfile.organization || accountProfile.name} /></label><label><span>담당자 연락처 *</span><input required name="phone" type="tel" placeholder="010-0000-0000" defaultValue={accountProfile.phone} /></label><label><span>이메일 *</span><input required name="email" type="email" defaultValue={accountProfile.email} /></label><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자 동의 범위 내 열람이며, 결제·개인정보 수집·이용에 동의합니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
 }
 
 function TalentUnlockPage({ route, qa, auth }) {
@@ -3689,7 +3683,7 @@ function AdvertisePage({ qa, auth }) {
   };
   return <>
     <PageHero tone="ad" eyebrow="DOCTOR RECRUITMENT AD CENTER" title="좋은 의사에게 먼저 닿는 초빙광고" description="병원 채용공고는 메인 광고 또는 베이직 광고로 게시됩니다. 메인 광고는 채용정보 최상단 우선 노출 영역에, 베이직 광고는 전체 초빙공고 목록에 표시됩니다. 상품을 선택하고 결제를 완료하면 바로 공개됩니다."><a className="button light" href="#plans">광고 상품 선택 <ArrowRight /></a></PageHero>
-    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul>{authLoading ? <span className={`button ${item.featured ? 'primary' : 'outline'} full auth-action-pending price-action-pending`} aria-hidden="true" /> : <button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>{canRegisterAds ? '이 상품 신청하기' : '병원 회원 전용'}</button>}</article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div></section>
+    <section className="section soft" id="plans"><div className="section-head centered"><div><span className="section-kicker">EARLY PARTNER PRICE</span><h2>인지도 대신 가격과 직접지원으로 시작합니다</h2><p>초기 파트너에게 부담이 적은 가격을 적용하고, 상품별 게시 기간과 노출 위치를 한눈에 비교할 수 있습니다.</p></div></div><div className="pricing-grid">{adPlans.map((item) => <article className={`price-card ${item.featured ? 'featured' : ''}`} key={item.id}>{item.featured && <span className="popular">추천</span>}<small>{item.label}</small><h3>{item.name}</h3><p>{item.description}</p><div className="price"><strong>{item.price.toLocaleString()}</strong><span>원 / {item.unit}</span></div><ul>{item.features.map((feature) => <li key={feature}><Check />{feature}</li>)}</ul>{authLoading ? <span className={`button ${item.featured ? 'primary' : 'outline'} full auth-action-pending price-action-pending`} aria-hidden="true" /> : <button className={`button ${item.featured ? 'primary' : 'outline'} full`} onClick={() => requestPlan(item)}>채용공고 등록</button>}</article>)}</div><div className="price-principle"><ShieldCheck /><div><strong>가격과 노출 조건을 한눈에</strong><p>게시 기간, 노출 위치, 수정 지원 범위와 최종 결제금액은 신청 화면에서 미리 안내합니다. 초기 가격은 운영 데이터와 서비스 범위에 따라 변경될 수 있으며 변경 전 안내합니다.</p></div></div></section>
     <section className="section"><div className="section-head centered"><div><span className="section-kicker">ORDER PROCESS</span><h2>결제 완료 후 바로 게시됩니다</h2></div></div><div className="step-grid three">{[[FileCheck2,'01','상품·공고 입력','병원과 채용 정보를 입력합니다.'],[WalletCards,'02','결제 완료','금액과 게시 조건을 확인하고 결제합니다.'],[TrendingUp,'03','즉시 게시','결제 완료 후 공고가 바로 공개됩니다.']].map(([Icon,n,t,d]) => <div className="step" key={n}><span>{n}</span><Icon /><h3>{t}</h3><p>{d}</p></div>)}</div></section>
   </>;
 }

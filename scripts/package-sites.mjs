@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, hospitalVerificationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
+import { addInclusiveExposureDays, buildExposureWindow, normalizeExposureWindow } from '../src/billingPeriods.js';
 
 // 빌드 타깃: 기본은 OpenAI Sites(정적 파일을 Worker에 base64 인라인).
 // --target=cloudflare 이면 Cloudflare Workers용으로 만든다:
@@ -110,6 +111,9 @@ const commerceSchemaStatements = ${JSON.stringify(commerceSchemaStatements)};
 const recruitmentCrmSchemaStatements = ${JSON.stringify(recruitmentCrmSchemaStatements)};
 const adminConsoleSchemaStatements = ${JSON.stringify(adminConsoleSchemaStatements)};
 const hospitalVerificationSchemaStatements = ${JSON.stringify(hospitalVerificationSchemaStatements)};
+const addInclusiveExposureDays = ${addInclusiveExposureDays.toString()};
+const buildExposureWindow = ${buildExposureWindow.toString()};
+const normalizeExposureWindow = ${normalizeExposureWindow.toString()};
 const termsVersion = 'terms-v1.0-2026-07-18';
 const privacyNoticeVersion = 'privacy-v1.0-2026-07-18';
 const defaultPublicOrigin = 'https://medihelpers-career.junnyai.chatgpt.site';
@@ -1353,7 +1357,7 @@ async function uploadApi(request, env, pathname) {
         const ownerId = key.split('/')[1] || '';
         let allowed = Boolean(viewer && viewer.id === ownerId) || Boolean(await adminIdentity(request, env));
         if (!allowed && viewer?.role === 'hospital') {
-          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON tu.talent_id = 'resume-' || r.id WHERE tu.hospital_account_id = ? AND r.account_id = ? AND (tu.expires_at IS NULL OR tu.expires_at > CURRENT_TIMESTAMP) LIMIT 1").bind(viewer.id, ownerId).first();
+          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON tu.talent_id = 'resume-' || r.id WHERE tu.hospital_account_id = ? AND r.account_id = ? LIMIT 1").bind(viewer.id, ownerId).first();
           allowed = Boolean(grant);
         }
         if (!allowed) return json({ error:'프로필 사진을 볼 권한이 없습니다.' }, 403);
@@ -1438,7 +1442,7 @@ async function memberCenterApi(request, env) {
       ).bind(account.id));
     }
     if (account.role === 'hospital') {
-      addQuery('talentCredits', env.DB.prepare("SELECT COALESCE(SUM(total_credits),0) AS total, COALESCE(SUM(used_credits),0) AS used, COALESCE(SUM(total_credits-used_credits),0) AS remaining, MIN(expires_at) AS nearestExpiry FROM talent_credit_pools WHERE hospital_account_id=? AND used_credits<total_credits AND (expires_at IS NULL OR expires_at>CURRENT_TIMESTAMP)").bind(account.id));
+      addQuery('talentCredits', env.DB.prepare("SELECT COALESCE(SUM(total_credits),0) AS total, COALESCE(SUM(used_credits),0) AS used, COALESCE(SUM(total_credits-used_credits),0) AS remaining FROM talent_credit_pools WHERE hospital_account_id=? AND used_credits<total_credits").bind(account.id));
       addQuery('received', env.DB.prepare(
         "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
         "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
@@ -1468,7 +1472,7 @@ async function memberCenterApi(request, env) {
     const receivedResult = resultsByName.get('received') || { results:[] };
     const recommendedResult = resultsByName.get('recommended') || { results:[] };
     const ownedAdsResult = resultsByName.get('ownedAds') || { results:[] };
-    const talentCreditSummary = rows('talentCredits')[0] || { total:0, used:0, remaining:0, nearestExpiry:null };
+    const talentCreditSummary = rows('talentCredits')[0] || { total:0, used:0, remaining:0 };
     let consultationRows = consultations.results || [];
     // 병원 마이페이지에는 해당 병원이 결제·등록한 공고로 들어온 직접 지원만 추가한다.
     // 이 지원서는 헤드헌터 상담함과 분리되지만 병원은 문의·후보 화면에서 확인할 수 있다.
@@ -1495,7 +1499,7 @@ async function memberCenterApi(request, env) {
       try {
         ownedAdContents = (ownedAdsResult.results || []).map(row => {
           const { payloadJson, ...record } = row;
-          return { ...record, payload:parseJsonObject(payloadJson) || {} };
+          return { ...record, payload:normalizeAdPayloadExposure(parseJsonObject(payloadJson) || {}) };
         });
       } catch { ownedAdContents = []; }
     }
@@ -1506,7 +1510,7 @@ async function memberCenterApi(request, env) {
       const content = ownedAdContentById.get(String(meta.contentRecordId || '')) || null;
       return {
         ...rest,
-        exposure:meta.exposure || null,
+        exposure:normalizeExposureWindow(meta.exposure),
         contentRecordId:content?.id || '',
         adTitle:content?.title || cleanOrderValue(meta.title || meta.hospital, 180),
         adSubtitle:content?.subtitle || cleanOrderValue(meta.hospital, 180),
@@ -1516,7 +1520,7 @@ async function memberCenterApi(request, env) {
         adUpdatedAt:content?.updatedAt || ''
       };
     });
-    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates, talentCredits:{ total:Number(talentCreditSummary.total)||0, used:Number(talentCreditSummary.used)||0, remaining:Number(talentCreditSummary.remaining)||0, nearestExpiry:talentCreditSummary.nearestExpiry || null } });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates, talentCredits:{ total:Number(talentCreditSummary.total)||0, used:Number(talentCreditSummary.used)||0, remaining:Number(talentCreditSummary.remaining)||0 } });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -1835,8 +1839,7 @@ async function talentDetailApi(request, env, pathname) {
   if (!account && !isAdmin) return json({ unlocked:false, detail:null });
   let hasUnlock = Boolean(isAdmin || isOwner);
   if (!hasUnlock && account?.role === 'hospital') {
-    const now = new Date().toISOString();
-    const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? AND (expires_at IS NULL OR expires_at > ?) LIMIT 1").bind(account.id, talentId, now).first();
+    const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? LIMIT 1").bind(account.id, talentId).first();
     hasUnlock = Boolean(row);
     // 이 인재에 직접 열람권이 없으면, 남은 '팩 크레딧'으로 새로 연다(크레딧 1개 소모).
     // [보안] 단, 비공개(private) 이력서에는 크레딧을 쓰지 않는다. 어차피 상세는 안 나가므로
@@ -1853,19 +1856,19 @@ async function talentDetailApi(request, env, pathname) {
       }
       if (spendable) try {
         await ensureTalentCreditSchema(env);
-        // 유효기간 내 + 크레딧이 남은 풀을 오래된 것부터 사용(만료 임박분 우선 소진).
-        const pool = await env.DB.prepare("SELECT id, total_credits AS total, used_credits AS used, expires_at AS expiresAt FROM talent_credit_pools WHERE hospital_account_id = ? AND used_credits < total_credits AND (expires_at IS NULL OR expires_at > ?) ORDER BY expires_at IS NULL, expires_at ASC LIMIT 1").bind(account.id, now).first();
+        // 크레딧이 남은 풀을 구매가 오래된 순서부터 사용한다. 열람권 수량에는 만료일이 없다.
+        const pool = await env.DB.prepare("SELECT id, total_credits AS total, used_credits AS used FROM talent_credit_pools WHERE hospital_account_id = ? AND used_credits < total_credits ORDER BY created_at ASC, id ASC LIMIT 1").bind(account.id).first();
         if (pool) {
           // 크레딧을 원자적으로 차감(경합 시 조건 불일치로 0행 → 이중 소모 방지).
           const spent = await env.DB.prepare("UPDATE talent_credit_pools SET used_credits = used_credits + 1 WHERE id = ? AND used_credits = ?").bind(pool.id, Number(pool.used)).run();
           if (runChanges(spent) === 1) {
             try {
-              const granted = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.id, pool.expiresAt || null).run();
+              const granted = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.id, null).run();
               if (runChanges(granted) === 1) hasUnlock = true;
               else {
                 // 다른 동시 요청이 먼저 같은 인재 권한을 만들었다면 방금 차감한 1건을 즉시 복구한다.
                 await env.DB.prepare('UPDATE talent_credit_pools SET used_credits = used_credits - 1 WHERE id = ? AND used_credits > 0').bind(pool.id).run();
-                const concurrentGrant = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? AND (expires_at IS NULL OR expires_at>?) LIMIT 1").bind(account.id, talentId, now).first();
+                const concurrentGrant = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1").bind(account.id, talentId).first();
                 hasUnlock = Boolean(concurrentGrant);
               }
             } catch (error) {
@@ -1941,9 +1944,9 @@ const paymentProductCatalog = {
   // 유료 상품은 (1) 병원 채용광고, (2) 병원이 의사 이력서를 볼 때 구매하는 열람권 두 가지뿐이다.
   // 병원용 인재 이력서 열람권. 결제 시 talent_unlocks에 권한 기록 → 연락처·상세 공개.
   // 작은 회사라 진입장벽을 낮게: 단건 소액 + 묶음일수록 건당 단가↓(메디게이트·사람인 대비 저렴).
-  'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:3900, unlockDays:30, unlockCount:1 },
-  'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (10명 팩)', amount:29000, unlockDays:30, unlockCount:10 },
-  'talent-unlock-pack30':{ type:'talent_search', name:'인재 열람권 (30명 팩)', amount:69000, unlockDays:30, unlockCount:30 }
+  'talent-unlock-single':{ type:'talent_search', name:'인재 열람권 (1명)', amount:3900, unlockCount:1 },
+  'talent-unlock-pack':{ type:'talent_search', name:'인재 열람권 (10명 팩)', amount:29000, unlockCount:10 },
+  'talent-unlock-pack30':{ type:'talent_search', name:'인재 열람권 (30명 팩)', amount:69000, unlockCount:30 }
 };
 // payment_orders가 열람권 도입 전에 만들어진 Sites D1이면 기존 CHECK 제약에
 // talent_search가 없다. CREATE TABLE IF NOT EXISTS만으로는 기존 제약이 갱신되지
@@ -1959,6 +1962,11 @@ async function paymentStorageType(env, product) {
 }
 function cleanOrderValue(value, max = 180) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+function normalizeAdPayloadExposure(payload) {
+  const exposure = normalizeExposureWindow(payload?.exposure);
+  if (!exposure) return payload;
+  return { ...payload, exposure, exposureEnd:exposure.end };
 }
 function adTierForProduct(productId, productName) {
   const id = String(productId || '');
@@ -2049,7 +2057,7 @@ async function publishAdOrderContent(env, order, metadataJson = order?.metadataJ
   const meta = parseJsonObject(metadataJson) || {};
   const contentRecordId = cleanOrderValue(meta.contentRecordId || ('ad-order-' + String(order?.id || '')), 180);
   if (!contentRecordId) return;
-  const exposure = meta.exposure && typeof meta.exposure === 'object' ? meta.exposure : null;
+  const exposure = normalizeExposureWindow(meta.exposure);
   const exposureEnd = cleanOrderValue(exposure?.end, 10);
   await env.DB.prepare("UPDATE admin_content_records SET status='published', published_at=COALESCE(published_at,CURRENT_TIMESTAMP), payload_json=json_set(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END, '$.adProductName', ?, '$.adTier', ?, '$.exposureEnd', ?, '$.exposure', json(?)), updated_at=CURRENT_TIMESTAMP WHERE id=?")
     .bind(cleanOrderValue(product.name, 180), adTierForProduct(order.productId, product.name) || null, exposureEnd || null, JSON.stringify(exposure), contentRecordId).run();
@@ -2063,7 +2071,7 @@ async function syncAdOrderContentRecords(env) {
     const meta = parseJsonObject(row.metadataJson) || {};
     const record = adOrderContentRecord({ ...row, metadata:meta });
     const contentRecordId = cleanOrderValue(meta.contentRecordId || record.id, 180);
-    const exposure = row.status === 'paid' && meta.exposure && typeof meta.exposure === 'object' ? meta.exposure : null;
+    const exposure = row.status === 'paid' ? normalizeExposureWindow(meta.exposure) : null;
     const exposureEnd = cleanOrderValue(exposure?.end, 10);
     if (!meta.contentRecordId) {
       meta.contentRecordId = contentRecordId;
@@ -2282,9 +2290,7 @@ async function paymentApproveApi(request, env) {
     const product = paymentProductCatalog[String(order.productId || '')];
     const meta = { ...(parseJsonObject(base) || {}) };
     if (product?.exposureDays) {
-      const start = new Date();
-      const end = new Date(start.getTime() + product.exposureDays * 86400000);
-      meta.exposure = { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10), days: product.exposureDays };
+      meta.exposure = buildExposureWindow(product.exposureDays);
     }
     return JSON.stringify(meta).slice(0, 12000);
   };
@@ -2296,7 +2302,6 @@ async function paymentApproveApi(request, env) {
     const talentId = String(meta.talentId || '');
     const unlockCount = Math.max(1, Number(product.unlockCount) || 1);
     try { await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env); } catch { return; }
-    const expires = product.unlockDays ? new Date(Date.now() + product.unlockDays * 86400000).toISOString() : null;
     try {
       if (unlockCount > 1) {
         // 묶음(팩) 상품: 특정 인재에 바로 묶지 않고 '열람 크레딧 N개'를 적립한다.
@@ -2305,14 +2310,14 @@ async function paymentApproveApi(request, env) {
         const existing = await env.DB.prepare('SELECT id FROM talent_credit_pools WHERE order_id = ? LIMIT 1').bind(order.id).first();
         if (existing) return;
         await env.DB.prepare("INSERT INTO talent_credit_pools (id, hospital_account_id, order_id, total_credits, used_credits, expires_at) VALUES (?, ?, ?, ?, 0, ?)")
-          .bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, expires).run();
+          .bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, null).run();
         return;
       }
       // 단건 상품: 구매 시 지정한 인재에 바로 열람권 발급.
       if (!talentId) return;
       const existing = await env.DB.prepare('SELECT id FROM talent_unlocks WHERE order_id = ? AND talent_id = ? LIMIT 1').bind(order.id, talentId).first();
       if (existing) return;
-      await env.DB.prepare("INSERT INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), order.accountId, talentId, order.id, expires).run();
+      await env.DB.prepare("INSERT INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), order.accountId, talentId, order.id, null).run();
     } catch (error) {
       // 결제는 됐는데 열람권 기록이 실패하면 고객이 돈만 내고 못 보는 상황이 된다.
       // 조용히 넘기지 말고 이벤트로 남겨 관리자가 확인·복구할 수 있게 한다.
@@ -2577,14 +2582,13 @@ async function publicSiteOperationsApi(request, env) {
   };
   // 기간제 유료 공고: payload.exposureEnd(YYYY-MM-DD)가 지난 공고는 서버에서 제외해 노출을 중단한다.
   // 종료일이 없으면 계속 노출. 종료일 '그날 자정까지' 노출하고 다음 날부터 만료.
-  const nowMs = Date.now();
   const isExpired = (payload) => {
-    const end = payload?.exposureEnd || payload?.exposure?.end;
+    const end = normalizeExposureWindow(payload?.exposure)?.end || payload?.exposureEnd;
     if (!end) return false;
-    const endMs = new Date(String(end).slice(0, 10) + 'T23:59:59').getTime();
-    return !Number.isNaN(endMs) && endMs < nowMs;
+    const todayKorea = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(end)) && String(end) < todayKorea;
   };
-  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload), rawPayload:payload }; }).filter(record => !isExpired(record.rawPayload)).map(({ rawPayload, ...record }) => record);
+  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} payload = normalizeAdPayloadExposure(payload); const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload), rawPayload:payload }; }).filter(record => !isExpired(record.rawPayload)).map(({ rawPayload, ...record }) => record);
   // 구직글은 이력서와 분리해 게시 원장으로 노출한다. 선택한 이력서의 경력만 참조하며
   // 실명·전화·이메일은 이 공개 응답에 절대 포함하지 않는다.
   try {
@@ -2687,9 +2691,9 @@ async function adminConsoleApi(request, env, ctx) {
       },
       settings, features,
       categories:(categoryResult.results || []).map(row => ({ ...row, enabled:Boolean(row.enabled) })),
-      contents:(contentResult.results || []).map(row => ({ ...row, payload:parseJsonObject(row.payloadJson) })),
+      contents:(contentResult.results || []).map(row => ({ ...row, payload:normalizeAdPayloadExposure(parseJsonObject(row.payloadJson) || {}) })),
       members:memberResult.results || [],
-      payments:(paymentResult.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure: meta.exposure || null }; }),
+      payments:(paymentResult.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure:normalizeExposureWindow(meta.exposure) }; }),
       transactions:transactionResult.results || [],
       refunds:refundResult.results || [],
       audit:auditResult.results || [],
@@ -2799,7 +2803,7 @@ async function adminConsoleApi(request, env, ctx) {
       const meta = { ...(parseJsonObject(order.metadataJson) || {}) };
       if (status === 'paid') {
         const product = paymentProductCatalog[String(order.productId || '')];
-        if (product?.exposureDays) { const start = new Date(); const end = new Date(start.getTime() + product.exposureDays * 86400000); meta.exposure = { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10), days: product.exposureDays }; }
+        if (product?.exposureDays) meta.exposure = buildExposureWindow(product.exposureDays);
       } else if (status === 'cancelled' || status === 'failed') {
         delete meta.exposure;
       }
