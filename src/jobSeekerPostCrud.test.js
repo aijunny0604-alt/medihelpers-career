@@ -38,6 +38,13 @@ test('전용 구직글 페이지는 이력서 선택과 게시글 단위 연락�
   assert.match(editor, /연락처 비공개/);
 });
 
+test('구직글의 이력서 관리 버튼은 페이지 이동 없이 선택 모달을 연다', () => {
+  assert.match(editor, /setResumeManagerOpen\(true\)/);
+  assert.match(editor, /role="dialog" aria-modal="true"/);
+  assert.match(editor, /현재 화면을 벗어나지 않고 구직글에 연결할 이력서를 바로 바꿀 수 있습니다/);
+  assert.doesNotMatch(editor, /className="button outline">이력서 관리<\/a>/);
+});
+
 test('작성자는 게시판과 마이페이지에서 구직글을 수정·삭제한다', () => {
   assert.match(main, /deleteOwnPost/);
   assert.match(main, /jobseeker-owner-actions/);

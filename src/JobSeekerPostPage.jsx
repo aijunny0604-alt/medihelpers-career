@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, BriefcaseBusiness, CircleCheck, Eye, EyeOff, FileText, Link2, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, Check, CircleCheck, Eye, EyeOff, FileText, Link2, Trash2, TriangleAlert, X } from 'lucide-react';
 import { withBase } from './basePath.js';
 import { invalidateSiteOperations } from './siteOperations.js';
 
@@ -21,6 +21,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [failed, setFailed] = useState(false);
+  const [resumeManagerOpen, setResumeManagerOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -63,6 +64,17 @@ export default function JobSeekerPostPage({ postId = '' }) {
     desiredRegion: current.desiredRegion || resume.desiredRegions || '',
   }));
 
+  useEffect(() => {
+    if (!resumeManagerOpen) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setResumeManagerOpen(false); };
+    document.body.classList.add('modal-open');
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.classList.remove('modal-open');
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [resumeManagerOpen]);
+
   const save = async (event) => {
     event.preventDefault();
     if (!form.resumeId || !form.title.trim()) { setFailed(true); setMessage('연동할 이력서와 구직글 제목을 확인해주세요.'); return; }
@@ -101,7 +113,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
       <header><small>MY JOB SEEKER POST</small><h1>{editing ? '내 구직글 수정' : '새 구직글 등록'}</h1><p>게시글은 이력서와 별도로 작성하고, 저장해둔 이력서 하나를 연결해 경력 정보를 활용합니다.</p></header>
       {message && <div className={`job-seeker-editor-message ${failed ? 'error' : 'success'}`}>{failed ? <TriangleAlert /> : <CircleCheck />} {message}</div>}
       <form onSubmit={save}>
-        <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>아래 저장된 이력서 중 하나를 반드시 선택합니다. 게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><a href={withBase(`/resume?next=${encodeURIComponent(editing ? `/job-seeker-posts/${postId}/edit` : '/job-seeker-posts/new')}`)} className="button outline">이력서 관리</a></div>
+        <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>아래 저장된 이력서 중 하나를 반드시 선택합니다. 게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><button type="button" className="button outline job-seeker-resume-manage" onClick={() => setResumeManagerOpen(true)}>이력서 선택·관리</button></div>
           <div className="job-seeker-resume-list">{resumes.map((resume) => <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)}><span>{form.resumeId === resume.id ? <CircleCheck /> : <FileText />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, `완성도 ${resume.completion || 0}%`].filter(Boolean).join(' · ')}</small></div></button>)}</div>
           {selectedResume && <p className="job-seeker-linked-note"><BriefcaseBusiness /> 현재 연결: <strong>{selectedResume.title || selectedResume.specialty || '내 이력서'}</strong></p>}
         </section>
@@ -117,5 +129,14 @@ export default function JobSeekerPostPage({ postId = '' }) {
         <footer className="job-seeker-editor-actions"><div><button type="button" className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 취소</button>{editing && <button type="button" className="button danger" onClick={remove} disabled={busy}><Trash2 /> 구직글 삭제</button>}</div><button type="submit" className="button primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 내용 저장' : '구직글 등록'} <ArrowRight /></button></footer>
       </form>
     </div>
+    {resumeManagerOpen && <div className="resume-manager-overlay" onMouseDown={(event) => event.target === event.currentTarget && setResumeManagerOpen(false)}>
+      <section className="resume-manager-dialog job-seeker-resume-manager" role="dialog" aria-modal="true" aria-labelledby="job-seeker-resume-manager-title">
+        <header><div><small>MY RESUMES</small><h3 id="job-seeker-resume-manager-title">연동 이력서 선택</h3><p>현재 화면을 벗어나지 않고 구직글에 연결할 이력서를 바로 바꿀 수 있습니다.</p></div><button type="button" className="resume-manager-close" onClick={() => setResumeManagerOpen(false)} aria-label="이력서 선택 창 닫기"><X /></button></header>
+        <div className="resume-manager-list" role="radiogroup" aria-label="구직글 연동 이력서 선택">
+          {resumes.map((resume) => <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)} role="radio" aria-checked={form.resumeId === resume.id}><span className="resume-radio">{form.resumeId === resume.id && <Check />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, resume.desiredRegions].filter(Boolean).join(' · ') || '상세정보 확인'}</small><em>완성도 {Number(resume.completion) || 0}% · 구직글과 별도 보관</em></div><b>{form.resumeId === resume.id ? '선택됨' : '선택'}</b></button>)}
+        </div>
+        <footer><button type="button" className="button outline" onClick={() => setResumeManagerOpen(false)}>취소</button><button type="button" className="button primary" onClick={() => setResumeManagerOpen(false)}><Check /> 선택 완료</button></footer>
+      </section>
+    </div>}
   </main>;
 }
