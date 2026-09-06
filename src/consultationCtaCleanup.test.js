@@ -39,3 +39,15 @@ test('dedicated headhunting page keeps its real request workflows', async () => 
   assert.doesNotMatch(page, /공고보다 먼저,/);
   assert.doesNotMatch(page, /className="consult-points"/);
 });
+
+test('headhunting board keeps a fuller and more readable default list', async () => {
+  const [source, styles] = await Promise.all([
+    readFile(new URL('./main.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('./styles.css', import.meta.url), 'utf8'),
+  ]);
+  const samples = source.slice(source.indexOf('const SAMPLE_HEADHUNT_POSTS'), source.indexOf('function buildHeadhuntPosts'));
+
+  assert.equal((samples.match(/id:'sample-/g) || []).length, 12);
+  assert.match(styles, /\.hb-title\{[^}]*font-size:19px/);
+  assert.match(styles, /\.headhunt-board-row>span,.headhunt-board-row>time\{padding:24px 22px\}/);
+});
