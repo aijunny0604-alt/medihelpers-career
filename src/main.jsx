@@ -2716,58 +2716,6 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
           <Link className="button ghost" to="/request/hiring"><Building2 /> 병원 · 채용 의뢰하기</Link>
         </div>
       </PageHero>
-      <section className="section consultation-layout consultation-focus">
-        <div className="consult-copy">
-          <span className="section-kicker">1:1 DOCTOR HEADHUNTING</span>
-          <h2>
-            <span>공고보다 먼저,</span>
-            <span>의사의 상황을 듣습니다</span>
-          </h2>
-          <p>
-            같은 진료과라도 원하는 진료 방식과 삶의 조건은 다릅니다.
-            메디헬퍼스는 보수만 맞추지 않고 오래 만족할 수 있는 병원과 의사를
-            연결합니다.
-          </p>
-          <div className="consult-points">
-            <div>
-              <span>
-                <Phone />
-              </span>
-              <div>
-                <strong>빠른 첫 연락</strong>
-                <p>접수 내용을 확인하고 가능한 시간에 연락드립니다.</p>
-              </div>
-            </div>
-            <div>
-              <span>
-                <ShieldCheck />
-              </span>
-              <div>
-                <strong>철저한 비공개</strong>
-                <p>
-                  동의 전에는 이직 의사와 병원 내부정보를 공개하지 않습니다.
-                </p>
-              </div>
-            </div>
-            <div>
-              <span>
-                <TrendingUp />
-              </span>
-              <div>
-                <strong>실제 조건 협상</strong>
-                <p>
-                  보수, 진료 범위, 당직과 입사 일정을 구체적으로 조율합니다.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="direct-contact">
-            <small>바로 상담하고 싶다면</small>
-            <a href="tel:0513425463">051-342-5463</a>
-            <span>평일 09:00–18:00</span>
-          </div>
-        </div>
-      </section>
     </>
   );
 }

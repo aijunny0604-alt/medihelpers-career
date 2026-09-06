@@ -36,4 +36,6 @@ test('dedicated headhunting page keeps its real request workflows', async () => 
   assert.doesNotMatch(page, /TWO-SIDED DOCTOR HEADHUNTING/);
   assert.doesNotMatch(page, /상담부터 입사까지, 이렇게 진행합니다/);
   assert.doesNotMatch(page, /className="headhunting-steps"/);
+  assert.doesNotMatch(page, /공고보다 먼저,/);
+  assert.doesNotMatch(page, /className="consult-points"/);
 });
