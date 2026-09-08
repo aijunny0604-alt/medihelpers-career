@@ -10,6 +10,7 @@ import { authRequest, WithdrawSection } from './AccountPage.jsx';
 import { jobs } from './data.js';
 import { notify } from './browserStorage.js';
 import { cleanInquiryText } from './inquiryText.js';
+import { sanitizeDisplayData } from './textIntegrity.js';
 import HospitalAdEditPage from './HospitalAdEditPage.jsx';
 import ResumeSubmitPicker from './ResumeSubmitPicker.jsx';
 
@@ -247,7 +248,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
         try {
           const response = await fetch('/api/member-center', { credentials: 'same-origin', headers: { accept: 'application/json' } });
           if (response.ok) {
-            const data = await response.json();
+            const data = sanitizeDisplayData(await response.json());
             if (cancelled) return;
             if (!data.signedIn || !data.account?.role) throw new Error('member center auth mismatch');
             setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
@@ -275,7 +276,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
       try {
         const response = await fetch('/api/member-center?notificationsOnly=1', { credentials:'same-origin', headers:{ accept:'application/json' } });
         if (!response.ok) return;
-        const data = await response.json();
+        const data = sanitizeDisplayData(await response.json());
         if (!active) return;
         const nextUnread = Number(data.unreadCount) || 0;
         if (nextUnread > previousUnread) notify(`새 알림 ${nextUnread - previousUnread}건이 도착했습니다.`, 'ok');

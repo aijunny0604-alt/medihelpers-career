@@ -7,5 +7,6 @@ preview.png
 client-build/
 qa-*.png
 site-build-v*.tar.gz
+.sites/
 .vite-*.log
 .tmp-vite-*.log

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { sanitizeDisplayData } from './textIntegrity.js';
 
 export const defaultSiteOperations = {
   settings: { siteName:'메디헬퍼스', supportPhone:'051-342-5463', supportEmail:'hr@medihelpers.co.kr', announcement:'' },
@@ -20,6 +21,7 @@ function loadOperations(force = false) {
     pending = fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin' })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('site operations unavailable')))
       .then((value) => {
+        value = sanitizeDisplayData(value);
         cached = { ...defaultSiteOperations, ...value, settings:{ ...defaultSiteOperations.settings, ...(value.settings || {}) }, features:{ ...defaultSiteOperations.features, ...(value.features || {}) } };
         fetchedAt = Date.now();
         return cached;
@@ -82,7 +84,7 @@ export function operationalDoctorJobs(contents = []) {
   return contents.filter((item) => item.contentType === 'doctor_job' && !isHeadhuntBoardContent(item) && !isExposureExpired(item.payload)).map((item) => {
     const p = item.payload || {};
     const region = p.region || String(p.primary || '').split(/[ ·]/)[0] || '전국';
-    return { id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title, location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.pay || p.secondary || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:'관리자 등록', color:'#1769d4', summary:p.description || '관리자가 등록한 의사 초빙공고입니다.', benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier === 'spotlight' ? 'featured' : (p.adTier || undefined), logo:p.logo || undefined, banner:p.banner || undefined, brandImageLayout:p.brandImageLayout || undefined, facility:p.facility || undefined, hospitalPhotos:Array.isArray(p.facilityPhotos) ? p.facilityPhotos : [], posterImages:Array.isArray(p.posterImages) ? p.posterImages : [], brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
+    return { id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title || '의사 초빙공고', location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.pay || p.secondary || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:'관리자 등록', color:'#1769d4', summary:p.description || '관리자가 등록한 의사 초빙공고입니다.', benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier === 'spotlight' ? 'featured' : (p.adTier || undefined), logo:p.logo || undefined, banner:p.banner || undefined, brandImageLayout:p.brandImageLayout || undefined, facility:p.facility || undefined, hospitalPhotos:Array.isArray(p.facilityPhotos) ? p.facilityPhotos : [], posterImages:Array.isArray(p.posterImages) ? p.posterImages : [], brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
   });
 }
 
@@ -96,11 +98,11 @@ export function operationalTalent(contents = []) {
       // 구직글의 원본 이력서 ID. 목록·상세·마이페이지가 동일한 이력서를 가리킨다.
       linkedResumeId: p.linkedResumeId || '',
       jobSeekerPostId: p.jobSeekerPostId || '',
-      postTitle: item.title || '',
+      postTitle: item.title || '구직 중인 의료인',
       summary: p.summary || item.subtitle || '',
       code: p.code || `관리-${String(index + 1).padStart(3, '0')}`,
       name: p.name || '',
-      fullName: item.title || p.name || '',
+      fullName: item.title || p.name || '구직 중인 의료인',
       identityConsent: Boolean(p.identityConsent),
       dept: p.dept || p.department || item.subtitle || '전문의',
       career: p.career || p.secondary || '경력 협의',
@@ -128,7 +130,7 @@ export function operationalMedicalJobs(contents = []) {
     return {
       id:`admin-${item.id}`,
       role:p.role || p.department || '의료인',
-      title:item.title,
+      title:item.title || '의료인 채용공고',
       hospital:item.subtitle || '메디헬퍼스 등록기관',
       logo:p.logo || undefined,
       banner:p.banner || undefined,

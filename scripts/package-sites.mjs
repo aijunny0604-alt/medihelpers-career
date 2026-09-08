@@ -175,8 +175,24 @@ function binaryAsset(request, base64, contentType, cacheControl = 'public, max-a
   headers['content-length'] = String(end - start + 1);
   return new Response(bytes.slice(start, end + 1), { status: 206, headers });
 }
+function unreadableResponseText(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return false;
+  if (text.includes('\uFFFD')) return true;
+  if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/u.test(text)) return true;
+  const compact = text.replace(/\\s/g, '');
+  if (compact.length >= 3 && /^[?？□○◯●ㆍ·._\\-]+$/u.test(compact)) return true;
+  const markers = text.match(/[ÃÂâðìëêí]/g) || [];
+  return markers.length >= 2 && !/[가-힣]/u.test(text);
+}
+function sanitizeResponseData(value) {
+  if (typeof value === 'string') return unreadableResponseText(value) ? '' : value;
+  if (Array.isArray(value)) return value.map(sanitizeResponseData);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizeResponseData(item)]));
+}
 function json(data, status = 200, headers = {}) {
-  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers } });
+  return new Response(JSON.stringify(sanitizeResponseData(data)), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers } });
 }
 function signupEnabled(env) {
   const approvedCopyEmbedded = !termsVersion.includes('draft') && !privacyNoticeVersion.includes('draft');
