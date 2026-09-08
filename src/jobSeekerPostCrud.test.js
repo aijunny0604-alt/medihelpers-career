@@ -45,11 +45,19 @@ test('구직글의 이력서 관리 버튼은 페이지 이동 없이 선택 모
   assert.doesNotMatch(editor, /className="button outline">이력서 관리<\/a>/);
 });
 
+test('이미 구직글이 연결된 이력서는 중복 등록 대신 기존 글 수정으로 안내한다', () => {
+  assert.match(editor, /existingPosts/);
+  assert.match(editor, /구직글 등록됨/);
+  assert.match(editor, /이 이력서에는 이미 구직글이 등록되어 있습니다/);
+  assert.match(editor, /기존 구직글 수정/);
+});
+
 test('작성자는 게시판과 마이페이지에서 구직글을 수정·삭제한다', () => {
   assert.match(main, /deleteOwnPost/);
   assert.match(main, /jobseeker-owner-actions/);
   assert.match(member, /deleteJobSeekerPost/);
-  assert.match(member, /새 구직글 등록/);
+  assert.match(member, /이력서 만들기/);
+  assert.match(member, /구직글 등록/);
   assert.match(member, /내 구직글/);
   assert.match(main, /jobseeker-owner-actions-label">내 글 관리/);
   assert.match(styles, /\.jobseeker-owner-actions button\{[^}]*white-space:nowrap[^}]*word-break:keep-all/);

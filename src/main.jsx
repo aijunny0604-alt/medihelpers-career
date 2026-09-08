@@ -2536,6 +2536,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const [region, setRegion] = useState('전체');
   const [keyword, setKeyword] = useState('');
   const [deletedPostIds, setDeletedPostIds] = useState(() => new Set());
+  const [unlockedTalentIds, setUnlockedTalentIds] = useState(() => new Set());
   // 구직글 작성 권한은 앱에서 이미 확인한 공용 로그인 상태를 사용한다.
   // 페이지 안에서 /api/account를 다시 조회하면 처음 비회원 버튼이 나타났다 사라지는 경쟁 상태가 생긴다.
   const authLoading = auth.status === 'loading';
@@ -2550,6 +2551,19 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const canViewIdentity = qa?.active
     ? qaIdentityAccess
     : canRevealTalentIdentity({ hospital: auth.role === 'hospital', admin: Boolean(auth.isAdmin), signedIn: auth.status === 'member' }, auth.status === 'member');
+
+  useEffect(() => {
+    let active = true;
+    if (qa?.active || auth.status !== 'member' || auth.role !== 'hospital') {
+      setUnlockedTalentIds(new Set());
+      return () => { active = false; };
+    }
+    fetch(withBase('/api/talent-unlocks'), { credentials:'same-origin', headers:{ accept:'application/json' } })
+      .then(async (response) => response.ok ? response.json() : { unlocks:[] })
+      .then((data) => { if (active) setUnlockedTalentIds(new Set((data.unlocks || []).map((item) => String(item.talentId || '')).filter(Boolean))); })
+      .catch(() => { if (active) setUnlockedTalentIds(new Set()); });
+    return () => { active = false; };
+  }, [qa?.active, auth.status, auth.role]);
 
   const rows = all.filter((p) =>
     !deletedPostIds.has(p.jobSeekerPostId) &&
@@ -2615,6 +2629,9 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
           <div className="medical-staff-list-head jobseeker-list-head" aria-hidden="true"><span>구분</span><span>구직 인재</span><span>희망지역</span><span>입사</span><span>열람</span><span /></div>
           <div className="medical-staff-job-list jobseeker-job-list">{rows.map((person, index) => {
             const kind = person.staffType === 'medical' ? '의료인' : '의사';
+            const talentId = String(person.detailId || person.code || '');
+            const alreadyUnlocked = unlockedTalentIds.has(talentId);
+            const identityOpen = person.ownerView || alreadyUnlocked || (canViewIdentity && (qa?.active || auth.isAdmin));
             return (
               <article
                 key={person.code || person.detailId || index}
@@ -2634,10 +2651,10 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 </div>
                 <span className="medical-staff-career">{person.region || '전국'}</span>
                 <strong className="jobseeker-availability">{person.availability || '협의'}</strong>
-                <span className={`medical-staff-deadline js-lock ${(canViewIdentity || person.ownerView) ? 'open' : ''}`}>{person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : canViewIdentity ? <><Eye size={14} /> 열람 가능</> : <><LockKeyhole size={14} /> 열람권</>}</span>
+                <span className={`medical-staff-deadline js-lock ${identityOpen ? 'open' : ''}`}>{person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : alreadyUnlocked ? <><CircleCheck size={14} /> 열람 완료</> : identityOpen ? <><Eye size={14} /> 관리자 열람</> : <><LockKeyhole size={14} /> 열람권</>}</span>
                 {person.ownerView && person.jobSeekerPostId
                   ? <span className="medical-staff-row-action jobseeker-owner-actions"><span className="jobseeker-owner-actions-label">내 글 관리</span><button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit`); }}><PencilLine /> 수정</button><button type="button" onClick={(event) => deleteOwnPost(event, person)}><Trash2 /> 삭제</button></span>
-                  : <span className="medical-staff-row-action">상세 보기 <ArrowRight /></span>}
+                  : <span className="medical-staff-row-action">{alreadyUnlocked ? '다시 보기' : '상세 보기'} <ArrowRight /></span>}
               </article>
             );
           })}</div>

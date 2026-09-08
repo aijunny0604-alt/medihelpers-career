@@ -30,6 +30,8 @@ test('열람권 결제 정보는 병원 회원가입 원본으로 고정한다',
   assert.match(paymentApi, /customerName = cleanOrderValue\(hospital\.hospitalName \|\| member\.organization\)/);
   assert.match(paymentApi, /customerEmail = cleanOrderValue\(identity\.email\)/);
   assert.match(paymentApi, /customerPhone = cleanOrderValue\(member\.phone\)/);
+  assert.match(serverSource, /organization:'메디헬퍼스 테스트병원', phone:'010-0000-0000'/);
+  assert.match(serverSource, /INSERT INTO member_profiles \(account_id, display_name, phone, organization, job_title\)/);
 });
 
 test('열람권은 상품 수량만 적립하고 새 인재마다 1건만 원자적으로 차감한다', async () => {
@@ -56,4 +58,18 @@ test('같은 인재의 재열람·동시 열람은 크레딧을 중복 차감하
   assert.doesNotMatch(serverSource, /nearestExpiry/);
   assert.doesNotMatch(serverSource, /FROM talent_unlocks[^\n]+expires_at[^\n]+CURRENT_TIMESTAMP/);
   assert.doesNotMatch(serverSource, /FROM talent_credit_pools[^\n]+expires_at[^\n]+CURRENT_TIMESTAMP/);
+});
+
+test('이미 열람한 인재는 목록과 마이페이지에서 표시하고 바로 다시 연다', async () => {
+  const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
+  const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
+  const memberSource = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
+  assert.match(serverSource, /async function talentUnlockHistoryApi/);
+  assert.match(serverSource, /pathname === '\/api\/talent-unlocks'/);
+  assert.match(serverSource, /unlockedTalents/);
+  assert.match(mainSource, /unlockedTalentIds\.has\(talentId\)/);
+  assert.match(mainSource, /열람 완료/);
+  assert.match(memberSource, /id="member-unlocked-talents"/);
+  assert.match(memberSource, /기간 제한 없이 다시 열람/);
+  assert.match(memberSource, /\/medical-staff\/talents\/\$\{encodeURIComponent\(talent\.talentId\)\}/);
 });

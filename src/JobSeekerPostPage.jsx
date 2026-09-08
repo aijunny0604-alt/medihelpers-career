@@ -16,6 +16,7 @@ const emptyForm = {
 export default function JobSeekerPostPage({ postId = '' }) {
   const editing = Boolean(postId);
   const [resumes, setResumes] = useState([]);
+  const [existingPosts, setExistingPosts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -28,12 +29,15 @@ export default function JobSeekerPostPage({ postId = '' }) {
     Promise.all([
       fetch(withBase('/api/resumes'), { credentials:'same-origin', headers:{ accept:'application/json' } }),
       editing ? fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(postId)}`), { credentials:'same-origin', headers:{ accept:'application/json' } }) : Promise.resolve(null),
-    ]).then(async ([resumeResponse, postResponse]) => {
+      !editing ? fetch(withBase('/api/job-seeker-posts'), { credentials:'same-origin', headers:{ accept:'application/json' } }) : Promise.resolve(null),
+    ]).then(async ([resumeResponse, postResponse, existingResponse]) => {
       const resumeData = await resumeResponse.json().catch(() => ({}));
       if (!resumeResponse.ok) throw new Error(resumeData.error || '이력서를 불러오지 못했습니다.');
       const postData = postResponse ? await postResponse.json().catch(() => ({})) : null;
       if (postResponse && !postResponse.ok) throw new Error(postData?.error || '구직글을 불러오지 못했습니다.');
+      const existingData = existingResponse ? await existingResponse.json().catch(() => ({})) : null;
       if (!active) return;
+      if (existingResponse && existingResponse.ok) setExistingPosts(existingData?.posts || []);
       const nextResumes = resumeData.resumes || [];
       setResumes(nextResumes);
       const post = postData?.post;
@@ -56,6 +60,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
   }, [editing, postId]);
 
   const selectedResume = useMemo(() => resumes.find((resume) => resume.id === form.resumeId), [resumes, form.resumeId]);
+  const existingPost = useMemo(() => !editing ? existingPosts.find((post) => post.resumeId === form.resumeId) : null, [editing, existingPosts, form.resumeId]);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const chooseResume = (resume) => setForm((current) => ({
     ...current,
@@ -84,7 +89,10 @@ export default function JobSeekerPostPage({ postId = '' }) {
         method: editing ? 'PATCH' : 'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify(form),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || '구직글을 저장하지 못했습니다.');
+      if (!response.ok) {
+        if (response.status === 409 && data.existingPostId) go(`/job-seeker-posts/${encodeURIComponent(data.existingPostId)}/edit`);
+        throw new Error(data.error || '구직글을 저장하지 못했습니다.');
+      }
       invalidateSiteOperations();
       setMessage(editing ? '구직글을 수정했습니다.' : '구직글을 등록했습니다.');
       window.setTimeout(() => go('/medical-staff'), 500);
@@ -114,8 +122,9 @@ export default function JobSeekerPostPage({ postId = '' }) {
       {message && <div className={`job-seeker-editor-message ${failed ? 'error' : 'success'}`}>{failed ? <TriangleAlert /> : <CircleCheck />} {message}</div>}
       <form onSubmit={save}>
         <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>아래 저장된 이력서 중 하나를 반드시 선택합니다. 게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><button type="button" className="button outline job-seeker-resume-manage" onClick={() => setResumeManagerOpen(true)}>이력서 선택·관리</button></div>
-          <div className="job-seeker-resume-list">{resumes.map((resume) => <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)}><span>{form.resumeId === resume.id ? <CircleCheck /> : <FileText />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, `완성도 ${resume.completion || 0}%`].filter(Boolean).join(' · ')}</small></div></button>)}</div>
+          <div className="job-seeker-resume-list">{resumes.map((resume) => { const linked = existingPosts.find((post) => post.resumeId === resume.id); return <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)}><span>{form.resumeId === resume.id ? <CircleCheck /> : <FileText />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, `완성도 ${resume.completion || 0}%`, linked ? '구직글 등록됨' : '새 구직글 작성 가능'].filter(Boolean).join(' · ')}</small></div></button>; })}</div>
           {selectedResume && <p className="job-seeker-linked-note"><BriefcaseBusiness /> 현재 연결: <strong>{selectedResume.title || selectedResume.specialty || '내 이력서'}</strong></p>}
+          {existingPost && <div className="job-seeker-existing-post"><CircleCheck /><div><strong>이 이력서에는 이미 구직글이 등록되어 있습니다</strong><p>중복 등록하지 않고 기존 글을 바로 수정할 수 있습니다.</p></div><button type="button" className="button outline" onClick={() => go(`/job-seeker-posts/${encodeURIComponent(existingPost.id)}/edit`)}>기존 글 수정 <ArrowRight /></button></div>}
         </section>
 
         <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><FileText /></span><div><h2>게시글 내용</h2><p>병원이 목록에서 빠르게 이해할 수 있는 정보만 간단히 입력해주세요.</p></div></div>
@@ -126,7 +135,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
           <div className="job-seeker-contact-options"><label className={form.contactVisibility === 'private' ? 'selected' : ''}><input type="radio" name="contactVisibility" value="private" checked={form.contactVisibility === 'private'} onChange={update('contactVisibility')} /><EyeOff /><span><strong>연락처 비공개</strong><small>열람권을 구매한 병원에도 전화·이메일을 공개하지 않습니다.</small></span></label><label className={form.contactVisibility === 'ticket' ? 'selected' : ''}><input type="radio" name="contactVisibility" value="ticket" checked={form.contactVisibility === 'ticket'} onChange={update('contactVisibility')} /><Eye /><span><strong>열람권 구매 병원에 공개</strong><small>유효한 열람권을 사용한 병원에게만 연락처를 공개합니다.</small></span></label></div>
         </section>
 
-        <footer className="job-seeker-editor-actions"><div><button type="button" className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 취소</button>{editing && <button type="button" className="button danger" onClick={remove} disabled={busy}><Trash2 /> 구직글 삭제</button>}</div><button type="submit" className="button primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 내용 저장' : '구직글 등록'} <ArrowRight /></button></footer>
+        <footer className="job-seeker-editor-actions"><div><button type="button" className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 취소</button>{editing && <button type="button" className="button danger" onClick={remove} disabled={busy}><Trash2 /> 구직글 삭제</button>}</div>{existingPost ? <button type="button" className="button primary" onClick={() => go(`/job-seeker-posts/${encodeURIComponent(existingPost.id)}/edit`)}>기존 구직글 수정 <ArrowRight /></button> : <button type="submit" className="button primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 내용 저장' : '구직글 등록'} <ArrowRight /></button>}</footer>
       </form>
     </div>
     {resumeManagerOpen && <div className="resume-manager-overlay" onMouseDown={(event) => event.target === event.currentTarget && setResumeManagerOpen(false)}>

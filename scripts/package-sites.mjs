@@ -193,7 +193,10 @@ const testAccountPassword = 'medihelpers1234';
 const testAccountDefinitions = Object.freeze({
   doctor: { email:'doctor-test@medihelpers.co.kr', role:'doctor', displayName:'의료인 회원' },
   admin: { email:'admin@medihelpers.co.kr', role:'doctor', displayName:'관리자' },
-  hospital: { email:'hospital-test@medihelpers.co.kr', role:'hospital', displayName:'병원 회원' }
+  hospital: {
+    email:'hospital-test@medihelpers.co.kr', role:'hospital', displayName:'병원 회원',
+    organization:'메디헬퍼스 테스트병원', phone:'010-0000-0000', jobTitle:'채용 담당자'
+  }
 });
 function bytesToHex(bytes) {
   return [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
@@ -895,7 +898,7 @@ async function createTestAccountSession(env, accountKey) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
     env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, verification_status, last_login_at) VALUES (?, ?, ?, 'active', ?, CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', verification_status=excluded.verification_status, last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.email, definition.displayName, definition.role === 'hospital' ? 'verified' : 'unverified'),
-    env.DB.prepare("INSERT INTO member_profiles (account_id, display_name) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.displayName),
+    env.DB.prepare("INSERT INTO member_profiles (account_id, display_name, phone, organization, job_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, phone=CASE WHEN excluded.phone<>'' THEN excluded.phone ELSE member_profiles.phone END, organization=CASE WHEN excluded.organization<>'' THEN excluded.organization ELSE member_profiles.organization END, job_title=CASE WHEN excluded.job_title<>'' THEN excluded.job_title ELSE member_profiles.job_title END, updated_at=CURRENT_TIMESTAMP").bind(account.id, definition.displayName, definition.phone || '', definition.organization || '', definition.jobTitle || ''),
     env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'terms', termsVersion),
     env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'age_confirmation', termsVersion),
     env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'privacy_notice_ack', privacyNoticeVersion)
@@ -1212,19 +1215,18 @@ async function accountApi(request, env, ctx) {
     let hospitalProfile = null;
     if (row) {
       try {
-        if (row.role === 'hospital') await ensureHospitalVerificationSchema(env);
-        const statements = [
+        const results = await env.DB.batch([
           env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id = ?').bind(row.id),
           env.DB.prepare('SELECT profile_json AS profileJson FROM member_registration_profiles WHERE account_id = ?').bind(row.id),
-        ];
-        if (row.role === 'hospital') statements.push(
-          env.DB.prepare('SELECT hospital_name AS hospitalName, representative_name AS representativeName, business_number AS businessNumber, address, status AS verificationStatus FROM hospital_verification_requests WHERE account_id = ? ORDER BY submitted_at DESC LIMIT 1').bind(row.id)
-        );
-        const results = await env.DB.batch(statements);
+        ]);
         profile = results[0]?.results?.[0] || null;
         registrationProfile = parseJsonObject(results[1]?.results?.[0]?.profileJson) || null;
-        hospitalProfile = row.role === 'hospital' ? (results[2]?.results?.[0] || null) : null;
       } catch { profile = null; registrationProfile = null; hospitalProfile = null; }
+      // 병원 증빙 테이블에 일시 문제가 생겨도 회원 기본정보까지 함께 비워 결제를 막지 않는다.
+      if (row.role === 'hospital') try {
+        await ensureHospitalVerificationSchema(env);
+        hospitalProfile = await env.DB.prepare('SELECT hospital_name AS hospitalName, representative_name AS representativeName, business_number AS businessNumber, address, status AS verificationStatus FROM hospital_verification_requests WHERE account_id = ? ORDER BY submitted_at DESC LIMIT 1').bind(row.id).first();
+      } catch { hospitalProfile = null; }
     }
     return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity, isAdmin, profile:profile || null, registrationProfile:registrationProfile || null, hospitalProfile:hospitalProfile || null, email: identity.email, welcomeEmailAvailable, adminSignupEmailAvailable });
   }
@@ -1443,6 +1445,12 @@ async function memberCenterApi(request, env) {
     }
     if (account.role === 'hospital') {
       addQuery('talentCredits', env.DB.prepare("SELECT COALESCE(SUM(total_credits),0) AS total, COALESCE(SUM(used_credits),0) AS used, COALESCE(SUM(total_credits-used_credits),0) AS remaining FROM talent_credit_pools WHERE hospital_account_id=? AND used_credits<total_credits").bind(account.id));
+      addQuery('unlockedTalents', env.DB.prepare(
+        "SELECT tu.talent_id AS talentId, tu.unlocked_at AS unlockedAt, " +
+        "COALESCE((SELECT p.title FROM job_seeker_posts p WHERE 'seeker-' || p.id=tu.talent_id LIMIT 1), (SELECT r.title FROM resumes r WHERE 'resume-' || r.id=tu.talent_id LIMIT 1), '열람한 인재') AS title, " +
+        "COALESCE((SELECT p.specialty FROM job_seeker_posts p WHERE 'seeker-' || p.id=tu.talent_id LIMIT 1), (SELECT COALESCE(NULLIF(r.specialty,''),r.profession) FROM resumes r WHERE 'resume-' || r.id=tu.talent_id LIMIT 1), '') AS specialty " +
+        "FROM talent_unlocks tu WHERE tu.hospital_account_id=? ORDER BY tu.unlocked_at DESC LIMIT 200"
+      ).bind(account.id));
       addQuery('received', env.DB.prepare(
         "SELECT cr.id, cr.request_type AS requestType, COALESCE(NULLIF(TRIM(applicant_member.display_name),''), NULLIF(TRIM(applicant_account.full_name),''), NULLIF(TRIM(json_extract(cr.payload_json,'$.resumeSnapshot.name')),''), cr.requester_name) AS requesterName, cr.specialty, cr.payload_json AS payloadJson, cr.status, cr.admin_note AS adminNote, cr.created_at AS createdAt, cr.updated_at AS updatedAt " +
         "FROM consultation_requests cr JOIN admin_content_records c ON c.id = replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') " +
@@ -1473,6 +1481,7 @@ async function memberCenterApi(request, env) {
     const recommendedResult = resultsByName.get('recommended') || { results:[] };
     const ownedAdsResult = resultsByName.get('ownedAds') || { results:[] };
     const talentCreditSummary = rows('talentCredits')[0] || { total:0, used:0, remaining:0 };
+    const unlockedTalents = rows('unlockedTalents');
     let consultationRows = consultations.results || [];
     // 병원 마이페이지에는 해당 병원이 결제·등록한 공고로 들어온 직접 지원만 추가한다.
     // 이 지원서는 헤드헌터 상담함과 분리되지만 병원은 문의·후보 화면에서 확인할 수 있다.
@@ -1520,7 +1529,7 @@ async function memberCenterApi(request, env) {
         adUpdatedAt:content?.updatedAt || ''
       };
     });
-    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates, talentCredits:{ total:Number(talentCreditSummary.total)||0, used:Number(talentCreditSummary.used)||0, remaining:Number(talentCreditSummary.remaining)||0 } });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity, profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates, unlockedTalents, talentCredits:{ total:Number(talentCreditSummary.total)||0, used:Number(talentCreditSummary.used)||0, remaining:Number(talentCreditSummary.remaining)||0 } });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
@@ -1813,6 +1822,19 @@ async function savedJobsApi(request, env) {
     return json({ saved:true, jobId });
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
+}
+// 병원 목록·마이페이지에서 이미 열람한 인재를 즉시 표시하기 위한 최소 권한 목록.
+// 개인정보는 포함하지 않고 인재 식별자와 최초 열람 시각만 반환한다.
+async function talentUnlockHistoryApi(request, env) {
+  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  const identity = await authenticatedUser(request, env);
+  if (!identity || !env.ACCOUNT_HASH_SECRET) return json({ unlocks:[] });
+  try { await ensureAccountSchema(env); await ensureTalentCreditSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
+  const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key=? LIMIT 1').bind(key).first();
+  if (!account || account.role !== 'hospital') return json({ unlocks:[] });
+  const result = await env.DB.prepare("SELECT talent_id AS talentId, unlocked_at AS unlockedAt FROM talent_unlocks WHERE hospital_account_id=? ORDER BY unlocked_at DESC LIMIT 200").bind(account.id).all();
+  return json({ unlocks:result.results || [] });
 }
 // 인재 상세 열람: 병원이 열람권을 보유한 인재에게만 연락처·이력서 상세를 서버가 제공한다.
 // (열람권 없으면 익명·기본정보만 → 결제 유도) 실명·연락처는 클라 마스킹이 아니라 서버가 조건부로만 내려준다.
@@ -2931,6 +2953,7 @@ async function responseFor(request, env, ctx) {
   if (pathname === '/api/resumes') return resumeApi(request, env);
   if (pathname === '/api/job-seeker-posts' || pathname.startsWith('/api/job-seeker-posts/')) return jobSeekerPostApi(request, env, pathname);
   if (pathname === '/api/saved-jobs') return savedJobsApi(request, env);
+  if (pathname === '/api/talent-unlocks') return talentUnlockHistoryApi(request, env);
   if (pathname.startsWith('/api/talent-detail/')) return talentDetailApi(request, env, pathname);
   if (pathname === '/api/payment-orders') return paymentOrderApi(request, env);
   if (pathname === '/api/payment-approve') return paymentApproveApi(request, env);
