@@ -5756,10 +5756,10 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 }
 :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption{
   position:absolute!important;
-  inset:0 auto 0 0!important;
+  inset:0!important;
   z-index:3!important;
   display:flex!important;
-  width:min(68%,280px)!important;
+  width:100%!important;
   max-width:none!important;
   min-width:0!important;
   margin:0!important;
@@ -5768,7 +5768,12 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   align-items:flex-start!important;
   justify-content:flex-end!important;
   text-align:left!important;
-  background:linear-gradient(90deg,rgba(5,21,45,.94) 0%,rgba(7,30,61,.74) 66%,rgba(7,30,61,0) 100%)!important;
+  /* One image surface: remove the legacy frosted caption panel. */
+  border:0!important;
+  border-radius:0!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  background:linear-gradient(90deg,rgba(5,21,45,.72) 0%,rgba(7,30,61,.44) 38%,rgba(7,30,61,.12) 68%,rgba(7,30,61,0) 100%),linear-gradient(0deg,rgba(5,21,45,.34),rgba(5,21,45,0) 72%)!important;
   box-shadow:none!important;
   pointer-events:none;
 }
@@ -5879,7 +5884,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 @media(max-width:460px){.detail-heading.has-detail-banner{padding-right:20px}.detail-hero-banner{border-radius:15px}.detail-hero-banner>div{left:8px;right:32%;bottom:7px;padding:6px 8px}.detail-banner-chip{right:7px;top:7px;padding:4px 6px}.detail-hero-banner small{font-size:7px}.detail-hero-banner strong{font-size:12px}.detail-institution-mark{width:56px;height:56px;flex-basis:56px;border-radius:16px}.detail-institution-mark>svg{width:25px}.detail-institution-mark i{width:22px;height:22px}}
 @media(max-width:560px){
   :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner{min-height:0!important;aspect-ratio:3/1!important}
-  :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption{width:72%!important;padding:14px 15px!important}
+  :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption{width:100%!important;padding:14px 15px!important}
   :is(.unified-job-grid,.premium-rotation-page) .premium-ad.has-brand-banner .ad-brand-stage.media-banner .ad-hospital-caption strong{font-size:18px!important}
 }
 
