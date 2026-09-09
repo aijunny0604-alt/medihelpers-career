@@ -1173,7 +1173,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
               <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
-            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>2026.07.17 ~ {job.deadline}</strong></span>{restricted && viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : restricted && hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>{job.postedDate ? `${job.postedDate.replaceAll('-', '.')} ~ ` : ''}{job.deadline}</strong></span>{restricted && viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : restricted && hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
           </section>
           <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
             <div className="decision-sheet-head">

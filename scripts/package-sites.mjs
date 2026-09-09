@@ -317,7 +317,24 @@ async function ensureConsultationSchema(env) {
 }
 async function ensureMemberCenterSchema(env) {
   // 기존 운영 DB에도 구직글 원장과 이력서 연결을 추가하도록 최신 테이블을 probe로 사용한다.
-  return ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
+  await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
+  // 0011 previously used created_at while the runtime reads unlocked_at.
+  // Rename only that legacy column, preserving its values and default.
+  if (!schemaReadyPromises.has('member-unlock-date-v1')) {
+    schemaReadyPromises.set('member-unlock-date-v1', (async () => {
+      const columns = await env.DB.prepare('PRAGMA table_info(talent_unlocks)').all();
+      const names = new Set((columns.results || []).map(column => column.name));
+      if (names.has('created_at') && !names.has('unlocked_at')) {
+        try { await env.DB.prepare('ALTER TABLE talent_unlocks RENAME COLUMN created_at TO unlocked_at').run(); }
+        catch (error) {
+          // Another Worker may have completed the same rename concurrently.
+          await env.DB.prepare('SELECT unlocked_at FROM talent_unlocks LIMIT 1').first();
+        }
+      }
+    })());
+  }
+  try { await schemaReadyPromises.get('member-unlock-date-v1'); }
+  catch (error) { schemaReadyPromises.delete('member-unlock-date-v1'); throw error; }
 }
 async function ensureCommerceSchema(env) {
   return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
