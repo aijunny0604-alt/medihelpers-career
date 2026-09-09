@@ -1617,10 +1617,13 @@ async function memberCenterApi(request, env) {
         introduction,
         description:introduction,
         logo:s(source.logo, 800),
-        banner:s(source.banner, 800)
+        banner:s(source.banner, 800),
+        brandImageLayout:['full-banner','template-overlay',''].includes(source.brandImageLayout) ? source.brandImageLayout : (current.brandImageLayout || '')
       };
       await env.DB.batch([
         env.DB.prepare("UPDATE admin_content_records SET title=?, subtitle=?, payload_json=?, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title, hospital, JSON.stringify(nextPayload).slice(0,12000), identity.email, contentRecordId),
+        env.DB.prepare("UPDATE payment_orders SET metadata_json=json_set(CASE WHEN json_valid(metadata_json) THEN metadata_json ELSE '{}' END, '$.banner', ?, '$.brandImageLayout', ?, '$.brandImageUrl', ?, '$.premiumBrandMode', ?) WHERE account_id=? AND product_type='doctor_ad' AND COALESCE(NULLIF(json_extract(metadata_json,'$.contentRecordId'),''), 'ad-order-' || id)=?")
+          .bind(nextPayload.banner, nextPayload.brandImageLayout, nextPayload.brandImageLayout === 'full-banner' ? nextPayload.banner : '', nextPayload.banner ? (nextPayload.brandImageLayout === 'full-banner' ? 'single-brand-image' : 'sample-banner') : 'auto-wordmark', account.id, contentRecordId),
         env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_update', '채용공고를 수정했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
       ]);
       return json({ updated:true, content:{ id:contentRecordId, title, subtitle:hospital, status:owned.status, contentType:owned.contentType, payload:nextPayload } });

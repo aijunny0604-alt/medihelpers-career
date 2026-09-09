@@ -1,3 +1,4 @@
+import { SAMPLE_BANNER_TEMPLATES } from './bannerTemplates.js';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -2714,14 +2715,7 @@ function HeadhuntingPage({ route, operations, liveTalent = [], medicalTalent = [
   );
 }
 
-const SAMPLE_BANNER_TEMPLATES = [
-  { id: "medical-blue", name: "메디컬 블루", tone: "신뢰·종합병원", src: "/banners/templates/medical-blue-v1.jpg" },
-  { id: "wellness-mint", name: "웰니스 민트", tone: "검진·요양·웰니스", src: "/banners/templates/wellness-mint-v1.jpg" },
-  { id: "diagnostic-navy", name: "진단 네이비", tone: "영상·검진·대학병원", src: "/banners/templates/diagnostic-navy-v1.jpg" },
-  { id: "care-lavender", name: "케어 라벤더", tone: "소아·여성·가족진료", src: "/banners/templates/care-lavender-v1.jpg" },
-  { id: "rehab-coral", name: "리햅 코랄", tone: "재활·통증·회복", src: "/banners/templates/rehab-coral-v1.jpg" },
-  { id: "surgical-teal", name: "서지컬 티얼", tone: "수술·정형·전문병원", src: "/banners/templates/surgical-teal-v1.jpg" },
-];
+
 
 // 공고 등록 폼에서 필수 입력이 빠졌을 때 "무엇이 비었는지" 한국어로 알려주기 위한 이름표.
 const AD_FIELD_LABELS = {

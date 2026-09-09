@@ -1,3 +1,6 @@
+import { SAMPLE_BANNER_TEMPLATES } from './bannerTemplates.js';
+import { getAdTierPresentation } from './adTierPresentation.js';
+import { invalidateSiteOperations } from './siteOperations.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, CircleCheck, ImagePlus, PencilLine, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { withBase } from './basePath.js';
@@ -57,8 +60,15 @@ export default function HospitalAdEditPage({ ad }) {
     incentive:payload.incentive || '', exactHours:payload.exactHours || payload.schedule || '', onCall:payload.onCall || '',
     patientLoad:payload.patientLoad || '', procedureScope:payload.procedureScope || '', supportTeam:payload.supportTeam || '',
     leavePolicy:payload.leavePolicy || '', startTiming:payload.startTiming || '', interviewProcess:payload.interviewProcess || '',
-    introduction:payload.introduction || payload.description || '', logo:payload.logo || '', banner:payload.banner || ''
+    introduction:payload.introduction || payload.description || '', logo:payload.logo || '', banner:payload.banner || '', brandImageLayout:payload.brandImageLayout || ''
   });
+  const isMainAd = getAdTierPresentation(payload.adTier)?.key === 'main';
+  const selectedTemplate = SAMPLE_BANNER_TEMPLATES.find((template) => template.src === form.banner);
+  const changeBanner = (banner, brandImageLayout = '') => {
+    setBannerFile(null);
+    setForm((current) => ({ ...current, banner, brandImageLayout }));
+    setSaved(false);
+  };
   const [logoFile, setLogoFile] = useState(null);
   const [bannerFile, setBannerFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -77,6 +87,7 @@ export default function HospitalAdEditPage({ ad }) {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.updated) throw new Error(result.error || '공고를 수정하지 못했습니다.');
+      invalidateSiteOperations();
       setForm((current) => ({ ...current, logo, banner }));
       setLogoFile(null); setBannerFile(null); setSaved(true);
       window.scrollTo({ top:0, behavior:'smooth' });
@@ -104,8 +115,13 @@ export default function HospitalAdEditPage({ ad }) {
       </div></section>
       <section className="member-panel"><div className="member-panel-head"><div><h3>공고 이미지</h3><p>기존 이미지를 유지하거나 새 이미지로 교체할 수 있습니다.</p></div></div><div className="owned-ad-image-grid">
         <EditableImage label="병원 로고·브랜드 이미지" description="병원명 옆과 브랜드 영역에 사용됩니다." purpose="logo" value={form.logo} file={logoFile} onChange={setLogoFile} onRemove={() => { setLogoFile(null); update('logo',''); }} />
-        <EditableImage label="채용공고 배너" description="목록 카드와 공고 상세 상단에 사용되는 3:1 배너입니다." purpose="banner" value={form.banner} file={bannerFile} onChange={setBannerFile} onRemove={() => { setBannerFile(null); update('banner',''); }} />
-      </div></section>
+        <EditableImage label="채용공고 배너" description="목록 카드와 공고 상세 상단에 사용되는 3:1 배너입니다." purpose="banner" value={form.banner} file={bannerFile} onChange={(file) => { setBannerFile(file); setForm((current) => ({ ...current, banner:'', brandImageLayout:'full-banner' })); setSaved(false); }} onRemove={() => changeBanner('')} />
+      </div>
+      {isMainAd && <div className="sample-banner-picker">
+        <div className="sample-banner-picker-head"><div><strong>배경 배너 템플릿</strong><small>공고 등록과 동일한 배경입니다. 선택하면 병원명이 배경 위에 자동으로 표시됩니다.</small></div>{selectedTemplate && <button type="button" onClick={() => changeBanner('')}>선택 해제</button>}</div>
+        <div className="sample-banner-grid">{SAMPLE_BANNER_TEMPLATES.map((template) => <button key={template.id} type="button" className={selectedTemplate?.id === template.id ? 'active' : ''} aria-pressed={selectedTemplate?.id === template.id} onClick={() => changeBanner(template.src, 'template-overlay')}><span><img src={withBase(template.src)} alt="" /></span><strong>{template.name}</strong><small>{template.tone}</small></button>)}</div>
+      </div>}
+      </section>
       <div className="owned-ad-edit-footer"><div><ShieldCheck /><span><strong>유료 병원 공고는 내용 수정만 가능합니다</strong><small>광고 계약·결제 이력을 보호하기 위해 직접 삭제할 수 없습니다. 게시 중단이나 환불은 고객센터에 문의해주세요.</small></span></div><div><a className="button outline" href={withBase('/mypage?tab=ads')}>취소</a><button className="button primary" type="submit" disabled={submitting}>{submitting ? '저장 중…' : '수정내용 저장'} <ArrowRight /></button></div></div>
       {error && <p className="form-error" role="alert">{error}</p>}
     </form>

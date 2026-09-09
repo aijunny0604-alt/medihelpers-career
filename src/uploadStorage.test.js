@@ -77,7 +77,7 @@ test('public doctor job mapping carries facility and poster galleries to JobDeta
 });
 
 test('hospital job checkout can persist a selected sample banner', () => {
-  assert.match(mainSource, /const SAMPLE_BANNER_TEMPLATES = \[/);
+  assert.match(mainSource, /import \{ SAMPLE_BANNER_TEMPLATES \} from '\.\/bannerTemplates\.js'/);
   assert.match(mainSource, /data\.banner = isMainAdPlan \? brandImageUrl \|\| brandTemplate : ""/);
   assert.match(mainSource, /premiumBrandMode: isMainAdPlan \? \(brandFile \? "single-brand-image" : brandTemplate \? "sample-banner"/);
   assert.match(serverSource, /cleanOrderValue\(meta\.banner/);
