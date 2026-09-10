@@ -37,9 +37,9 @@ test('비병원 계정의 공고 등록 버튼은 병원 가입 화면이 아닌
   assert.match(jobsPage, /navigate\(target\)/);
   assert.match(jobsPage, /`\/advertise\/apply\?plan=\$\{adPlans\[0\]\.id\}`/);
   assert.match(jobsPage, /메인 광고 등록/);
-  assert.match(jobsPage, /베이직 공고 등록/);
+  assert.match(jobsPage, /베이직 광고 등록/);
   assert.match(jobsPage, /requestAdPlan\(adPlans\[0\]\).*메인 광고 등록/s);
-  assert.match(jobsPage, /requestAdPlan\(adPlans\[1\]\).*베이직 공고 등록/s);
+  assert.match(jobsPage, /requestAdPlan\(adPlans\[1\]\).*베이직 광고 등록/s);
   assert.doesNotMatch(jobsPage, />병원 회원 전용</);
   assert.doesNotMatch(jobsPage, /signup\/hospital/);
   assert.match(advertisePage, /navigate\(target\)/);
