@@ -3408,7 +3408,7 @@ function Checkout({ plan, auth }) {
                     className={method === "transfer" ? "active" : ""}
                     onClick={() => setMethod("transfer")}
                   >
-                    <Banknote /> 계좌이체·세금계산서
+                    <Banknote /> 계좌이체
                   </button>
                 </div>
               </div>
