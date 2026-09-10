@@ -2740,8 +2740,6 @@ function Checkout({ plan, auth }) {
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [finalActionVisible, setFinalActionVisible] = useState(false);
-  const finalActionRef = useRef(null);
   const [method, setMethod] = useState("card");
   const [facilityType, setFacilityType] = useState("");
   const [facilityError, setFacilityError] = useState("");
@@ -2760,16 +2758,6 @@ function Checkout({ plan, auth }) {
       setFacilityType(accountProfile.facilityType);
     }
   }, [accountProfile.loaded, accountProfile.facilityType, facilityType]);
-  useEffect(() => {
-    const target = finalActionRef.current;
-    if (!target || typeof IntersectionObserver === "undefined") return undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => setFinalActionVisible(entry.isIntersecting),
-      { threshold: 0.18 },
-    );
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, []);
   useEffect(() => () => {
     if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
   }, [brandPreview]);
@@ -3420,9 +3408,9 @@ function Checkout({ plan, auth }) {
                 </span>
               </label>
               {submitError && <p className="form-error" role="alert">{submitError}</p>}
-              <div className="ad-form-submit-panel" ref={finalActionRef}>
+              <div className="ad-form-submit-panel">
                 <div>
-                  <small>최종 확인</small>
+                  <small>최종 확인 · {plan.unit} 노출 · 부가세 포함</small>
                   <strong>{plan.name} · {plan.price.toLocaleString()}원</strong>
                   <span>입력 내용을 확인한 뒤 결제와 동시에 공고가 게시됩니다.</span>
                 </div>
@@ -3431,41 +3419,6 @@ function Checkout({ plan, auth }) {
                 </button>
               </div>
               </section>
-            </div>
-            <aside className="order-summary">
-              <small>선택한 상품</small>
-              <h3>{plan.name}</h3>
-              <p>{plan.unit} 노출</p>
-              <ul>
-                {plan.features.map((item) => (
-                  <li key={item}>
-                    <Check />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <div className="price-row">
-                <span>
-                  결제 예정금액<small>부가세 포함</small>
-                </span>
-                <strong>{plan.price.toLocaleString()}원</strong>
-              </div>
-              {/* disabled 누락 시 더블클릭으로 payment_orders 행이 2건 생기고 결제창도 2번 뜬다(다른 결제 모달과 동일하게 맞춤). */}
-              <button className="button primary full" type="submit" disabled={submitting}>
-                {submitting ? "결제와 공고 게시를 처리 중…" : "결제하고 바로 게시하기"} <ArrowRight size={17} />
-              </button>
-              <p className="secure-note">
-                <ShieldCheck /> 결제 성공 시 공고가 채용정보에 즉시 공개됩니다.
-              </p>
-            </aside>
-            <div className={`ad-submit-dock ${finalActionVisible ? "is-hidden" : ""}`} aria-label="공고 등록 바로가기" aria-hidden={finalActionVisible}>
-              <div>
-                <small>{plan.name}</small>
-                <strong>{plan.price.toLocaleString()}원</strong>
-              </div>
-              <button className="button primary" type="submit" disabled={submitting} tabIndex={finalActionVisible ? -1 : undefined}>
-                {submitting ? "처리 중…" : "결제하고 게시하기"} <ArrowRight size={17} />
-              </button>
             </div>
           </form>
         </>

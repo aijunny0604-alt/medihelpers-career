@@ -6107,3 +6107,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .ad-apply-page .checkout-form :is(input:not([type="checkbox"]):not([type="file"]),textarea),.owned-ad-edit-page .owned-ad-form-grid :is(input,textarea){border-color:#dbe6f3;border-radius:12px}
 @media(max-width:620px){.jobs-page :is(.portal-promoted-section,.standard-jobs) :is(.promotion-heading,.standard-heading){grid-template-columns:1fr;gap:18px;min-height:0;padding:22px 20px;border-radius:18px}.jobs-page :is(.portal-promoted-section,.standard-jobs) :is(.promotion-heading,.standard-heading) strong{font-size:22px}.jobs-page .portal-promoted-section .tier-heading-actions{width:100%;justify-self:stretch}.jobs-page :is(.portal-promoted-section,.standard-jobs) .tier-apply-button{width:100%;min-width:0}.ad-apply-page .button.primary,.owned-ad-edit-page .button.primary{min-width:0;width:100%}}
 @media(prefers-reduced-motion:reduce){.jobs-page .tier-apply-button,.ad-apply-page .button.primary,.owned-ad-edit-page .button.primary{transition:none}}
+
+/* A single submission action follows the completed recruitment form. */
+.ad-apply-page .checkout-grid{grid-template-columns:minmax(0,1fr)}
+.ad-apply-page{padding-bottom:60px}
+@media(max-width:780px){.ad-apply-page{padding-bottom:30px}}

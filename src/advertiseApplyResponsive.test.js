@@ -35,11 +35,10 @@ test('작은 노트북에서는 결제 요약과 입력 영역을 세로로 배�
   assert.match(styles, /\.ad-form-section\{[^}]*min-width:0/);
 });
 
-test('긴 공고 등록 폼은 마지막과 스크롤 중 모두 결제·게시 버튼을 제공한다', () => {
-  assert.match(applyPage, /className="ad-form-submit-panel" ref=\{finalActionRef\}/);
-  assert.match(applyPage, /className=\{`ad-submit-dock \$\{finalActionVisible \? "is-hidden" : ""\}`\}/);
-  assert.match(applyPage, /new IntersectionObserver\(/);
-  assert.match(styles, /@media\(max-width:1440px\)\{[\s\S]*?\.ad-submit-dock\{position:fixed/);
-  assert.match(styles, /\.ad-submit-dock\.is-hidden\{[^}]*pointer-events:none/);
-  assert.match(styles, /@media\(max-width:780px\)\{[\s\S]*?\.ad-form-submit-panel\{[^}]*flex-direction:column/);
+test('공고 등록은 양식 마지막의 버튼 하나로 제출한다', () => {
+  assert.match(applyPage, /className="ad-form-submit-panel"/);
+  assert.doesNotMatch(applyPage, /className="order-summary"|ad-submit-dock|finalActionVisible/);
+  assert.equal((applyPage.match(/type="submit"/g) || []).length, 1);
+  assert.match(applyPage, /type="submit" disabled=\{submitting\}/);
+  assert.match(styles, /\.ad-apply-page \.checkout-grid\{grid-template-columns:minmax\(0,1fr\)\}/);
 });
