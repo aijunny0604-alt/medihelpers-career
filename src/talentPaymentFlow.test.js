@@ -44,16 +44,16 @@ test('열람권은 상품 수량만 적립하고 새 인재마다 1건만 원자
   assert.doesNotMatch(dataSource.slice(dataSource.indexOf('export const talentUnlockPlans')), /30일/);
   assert.match(serverSource, /total_credits, used_credits, expires_at\) VALUES \(\?, \?, \?, \?, 0, \?\)/);
   assert.match(serverSource, /order\.id, unlockCount, null\)\.run\(\)/);
-  assert.match(serverSource, /used_credits < total_credits/);
-  assert.match(serverSource, /SET used_credits = used_credits \+ 1 WHERE id = \? AND used_credits = \?/);
+  assert.match(serverSource, /c\.used_credits<c\.total_credits/);
+  assert.match(serverSource, /SET used_credits=used_credits\+1 WHERE hospital_account_id=/);
 });
 
 test('같은 인재의 재열람·동시 열람은 크레딧을 중복 차감하지 않는다', async () => {
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   assert.match(serverSource, /idx_talent_unlocks_owner_talent/);
   assert.match(serverSource, /INSERT OR IGNORE INTO talent_unlocks/);
-  assert.match(serverSource, /다른 동시 요청이 먼저 같은 인재 권한을 만들었다면/);
-  assert.match(serverSource, /SET used_credits = used_credits - 1 WHERE id = \? AND used_credits > 0/);
+  assert.match(serverSource, /const grantResult = await env\.DB\.batch/);
+  assert.match(serverSource, /used_credits<total_credits AND changes\(\)=1/);
   assert.match(serverSource, /talentCredits:\{ total:Number\(talentCreditSummary\.total\)\|\|0, used:Number\(talentCreditSummary\.used\)\|\|0, remaining:Number\(talentCreditSummary\.remaining\)\|\|0 \}/);
   assert.doesNotMatch(serverSource, /nearestExpiry/);
   assert.doesNotMatch(serverSource, /FROM talent_unlocks[^\n]+expires_at[^\n]+CURRENT_TIMESTAMP/);

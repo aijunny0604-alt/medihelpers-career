@@ -1,3 +1,5 @@
+import { usePaymentRecovery } from './usePaymentRecovery.js';
+import PaymentRecoveryPanel from './PaymentRecoveryPanel.jsx';
 import { SAMPLE_BANNER_TEMPLATES } from './bannerTemplates.js';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -2744,6 +2746,8 @@ function Checkout({ plan, auth }) {
   const [done, setDone] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const [recoveryOrder, setRecoveryOrder, rememberOrder] = usePaymentRecovery(auth, plan.id);
   const [method, setMethod] = useState("card");
   const [facilityType, setFacilityType] = useState("");
   const [facilityError, setFacilityError] = useState("");
@@ -2896,6 +2900,7 @@ function Checkout({ plan, auth }) {
   };
   const submit = async (event) => {
     event.preventDefault();
+    if (submitLock.current) return;
     setSubmitError("");
     // 화면이 열린 뒤 로그아웃되거나 오래된 화면이 남아 있어도 업로드·주문 요청을
     // 시작하지 않는다. 서버도 같은 권한을 다시 검사한다.
@@ -2933,8 +2938,10 @@ function Checkout({ plan, auth }) {
       posterImageNames: posterImages.map((image) => image.name),
       premiumBrandMode: isMainAdPlan ? (brandFile ? "single-brand-image" : brandTemplate ? "sample-banner" : "auto-wordmark") : "basic-text-card",
     };
+    submitLock.current = true;
     setSubmitting(true);
     let paymentWindowOpened = false;
+    let createdOrder = null;
     try {
       const brandImageUrl = isMainAdPlan ? await uploadJobImage(brandFile, "banner") : "";
       const hospitalPhotoUrls = await Promise.all(
@@ -2972,6 +2979,8 @@ function Checkout({ plan, auth }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok)
         throw new Error(result.error || "결제 요청을 저장하지 못했습니다.");
+      createdOrder = result.order;
+      rememberOrder(createdOrder);
       // 이니시스 키가 설정된 환경이면 실제 표준결제창을 띄우고, 이후 승인은 서버(returnUrl)가 처리한다.
       if (result.inicis?.configured) {
         await openInicisPayment(result.inicis, {
@@ -2993,6 +3002,7 @@ function Checkout({ plan, auth }) {
         throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
       }
       // 결제 완료 = 공고 즉시 공개. 목록 캐시를 버려야 /jobs 로 이동했을 때 새 공고가 바로 보인다.
+      rememberOrder(null);
       invalidateSiteOperations();
       appendStoredRecord("medihelpers_ad_requests", {
         id: result.order?.orderNumber || `AD-${Date.now()}`,
@@ -3005,12 +3015,14 @@ function Checkout({ plan, auth }) {
       });
       setDone({ ...(result.order || {}), ...approveResult, status:approveResult.status || 'paid' });
     } catch (error) {
+      if (createdOrder?.orderNumber) setRecoveryOrder(createdOrder);
       setSubmitError(error.message);
     } finally {
       // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
-      if (!paymentWindowOpened) setSubmitting(false);
+      if (!paymentWindowOpened) { submitLock.current = false; setSubmitting(false); }
     }
   };
+  if (recoveryOrder && !done) return <PaymentRecoveryPanel order={recoveryOrder} message={submitError} onRecovered={result => { invalidateSiteOperations(); setDone({ ...recoveryOrder, ...result }); setRecoveryOrder(null); }} />;
   return (
     <section className="ad-apply-page" aria-label="의사 초빙공고 등록">
       <div className="ad-apply-shell">
@@ -3437,6 +3449,8 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
   const [paidInfo, setPaidInfo] = useState(null);
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const [recoveryOrder, setRecoveryOrder, rememberOrder] = usePaymentRecovery(auth, plan.id + ':' + talentId);
   const accountProfile = useAccountProfile(auth);
   const lockedCustomer = {
     name: accountProfile.hospitalName || accountProfile.organization || '',
@@ -3445,10 +3459,13 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
   };
   const submit = async (event) => {
     event.preventDefault();
+    if (submitLock.current) return;
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
     setSubmitError('');
+    submitLock.current = true;
     setSubmitting(true);
     let paymentWindowOpened = false;
+    let createdOrder = null;
     try {
       const response = await fetch('/api/payment-orders', {
         method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
@@ -3457,6 +3474,8 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
       const orderNumber = result.order?.orderNumber;
+      createdOrder = result.order;
+      rememberOrder(createdOrder);
       // 이니시스 키가 설정된 환경이면 실제 표준결제창을 띄운다(승인은 서버 returnUrl이 처리).
       if (result.inicis?.configured) {
         await openInicisPayment(result.inicis, {
@@ -3477,16 +3496,19 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
       if (!approve.ok || !approveResult.approved) {
         throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
       }
+      rememberOrder(null);
       trackConversion('talent_unlock_paid', { planId: plan.id, amount: plan.price, talentId, paid: approveResult.approved });
       setPaidInfo(approveResult);
       setDone(true);
     } catch (error) {
+      if (createdOrder?.orderNumber) setRecoveryOrder(createdOrder);
       setSubmitError(error.message);
     } finally {
       // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
-      if (!paymentWindowOpened) setSubmitting(false);
+      if (!paymentWindowOpened) { submitLock.current = false; setSubmitting(false); }
     }
   };
+  if (recoveryOrder && !done) return <PaymentRecoveryPanel order={recoveryOrder} message={submitError} onRecovered={result => { setPaidInfo(result); setDone(true); setRecoveryOrder(null); }} />;
   if (done) {
     // 결제 완료 → 방금 결제한 그 인재의 이력서 상세를 바로 연다(목록으로 되돌아가지 않게 open 파라미터).
     const openHref = talentId ? `/medical-staff/talents/${encodeURIComponent(talentId)}` : '/medical-staff';

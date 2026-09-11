@@ -625,6 +625,28 @@ function cleanConsultationPayload(payload) {
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>\"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' })[character]);
 }
+async function readLimitedBody(request, maxBytes) {
+  const reader = request.body?.getReader();
+  if (!reader) return new Uint8Array();
+  const chunks = []; let size = 0;
+  try {
+    while (true) {
+      const {done,value} = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) { await reader.cancel(); throw new RangeError('BODY_TOO_LARGE'); }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(size); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk,offset); offset += chunk.byteLength; }
+  return bytes;
+}
+async function readRequestObject(request) {
+  const value = JSON.parse(new TextDecoder().decode(await readLimitedBody(request,131072)));
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('JSON_OBJECT_REQUIRED');
+  return value;
+}
 function parseJsonObject(value) {
   try {
     const parsed = JSON.parse(value || '{}');
@@ -721,7 +743,7 @@ async function consultationApi(request, env, pathname) {
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 65536) return json({ error:'입력 내용이 너무 큽니다.' }, 413);
     let body;
-    try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
     const requestType = body.requestType;
     const payload = cleanConsultationPayload(body.payload || {});
     if (payload.jobId && payload.headhuntPostId) return json({ error:'지원 공고 유형을 하나만 선택해 주세요.' }, 400);
@@ -860,7 +882,7 @@ async function consultationApi(request, env, pathname) {
   const match = pathname.match(/^\\/api\\/consultations\\/([^\\/]+)$/);
   if (request.method === 'PATCH' && match) {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
     if (!['new','contacted','in_progress','closed'].includes(body.status)) return json({ error:'처리 상태를 확인해 주세요.' }, 400);
     const note = typeof body.adminNote === 'string' ? body.adminNote.trim().slice(0,2000) : '';
     const consultationId = decodeURIComponent(match[1]);
@@ -975,7 +997,7 @@ async function authApi(request, env, pathname, ctx) {
       const candidate = formData.get('businessDocument');
       businessDocument = candidate && typeof candidate.arrayBuffer === 'function' ? candidate : null;
     } else {
-      body = await request.json();
+      body = await readRequestObject(request);
     }
   } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
   if (pathname === '/api/auth/test-switch') {
@@ -1154,7 +1176,7 @@ async function accountRecoveryApi(request, env, ctx) {
   if (length > 16384) return json({ error:'요청 크기가 너무 큽니다.' }, 413);
   try { await ensureAccountSchema(env); } catch { return json({ error:'계정 도움 요청 저장소를 사용할 수 없습니다.' }, 503); }
   let body;
-  try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
   if (body.action === 'reset_password') {
     const token = String(body.token || '').trim();
     const password = String(body.password || '');
@@ -1272,7 +1294,7 @@ async function accountApi(request, env, ctx) {
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 4096) return json({ error: '요청 크기가 너무 큽니다.' }, 413);
     let body;
-    try { body = await request.json(); } catch { return json({ error: '올바른 가입 정보를 보내주세요.' }, 400); }
+    try { body = await readRequestObject(request); } catch { return json({ error: '올바른 가입 정보를 보내주세요.' }, 400); }
     if (!['doctor', 'hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error: '회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
@@ -1428,7 +1450,8 @@ async function uploadApi(request, env, pathname) {
     const contentType = String(request.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     const ext = UPLOAD_EXT[contentType];
     if (!ext) return json({ error:'JPG·PNG·WEBP·GIF 이미지 파일만 업로드할 수 있습니다.' }, 415);
-    const buffer = await request.arrayBuffer();
+    let buffer;
+    try { buffer = (await readLimitedBody(request,UPLOAD_MAX_BYTES)).buffer; } catch { return json({error:'이미지는 5MB 이하만 업로드할 수 있습니다.'},413); }
     if (!buffer || buffer.byteLength === 0) return json({ error:'빈 파일입니다. 이미지를 다시 선택해주세요.' }, 400);
     if (buffer.byteLength > UPLOAD_MAX_BYTES) return json({ error:'이미지는 5MB 이하만 업로드할 수 있습니다.' }, 413);
     const objectKey = (isResumeProfile ? 'profiles/' : 'hospitals/') + ownerId + '/' + purpose + '/' + crypto.randomUUID() + '.' + ext;
@@ -1569,7 +1592,7 @@ async function memberCenterApi(request, env) {
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
     if (body.action === 'notification_read' || body.action === 'notifications_read_all') {
       if (body.action === 'notification_read') {
         const notificationId = String(body.notificationId || '').trim().slice(0,120);
@@ -1640,8 +1663,9 @@ async function memberCenterApi(request, env) {
         banner:s(source.banner, 800),
         brandImageLayout:['full-banner','template-overlay',''].includes(source.brandImageLayout) ? source.brandImageLayout : (current.brandImageLayout || '')
       };
+      if (JSON.stringify(nextPayload).length > 12000) return json({ error:'공고 내용이 너무 깁니다. 내용을 줄여주세요.' },413);
       await env.DB.batch([
-        env.DB.prepare("UPDATE admin_content_records SET title=?, subtitle=?, payload_json=?, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title, hospital, JSON.stringify(nextPayload).slice(0,12000), identity.email, contentRecordId),
+        env.DB.prepare("UPDATE admin_content_records SET title=?, subtitle=?, payload_json=?, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title, hospital, JSON.stringify(nextPayload), identity.email, contentRecordId),
         env.DB.prepare("UPDATE payment_orders SET metadata_json=json_set(CASE WHEN json_valid(metadata_json) THEN metadata_json ELSE '{}' END, '$.banner', ?, '$.brandImageLayout', ?, '$.brandImageUrl', ?, '$.premiumBrandMode', ?) WHERE account_id=? AND product_type='doctor_ad' AND COALESCE(NULLIF(json_extract(metadata_json,'$.contentRecordId'),''), 'ad-order-' || id)=?")
           .bind(nextPayload.banner, nextPayload.brandImageLayout, nextPayload.brandImageLayout === 'full-banner' ? nextPayload.banner : '', nextPayload.banner ? (nextPayload.brandImageLayout === 'full-banner' ? 'single-brand-image' : 'sample-banner') : 'auto-wordmark', account.id, contentRecordId),
         env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_update', '채용공고를 수정했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
@@ -1679,7 +1703,7 @@ async function memberCenterApi(request, env) {
   }
   if (request.method === 'PATCH') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
     const profile = cleanMemberProfile(body.profile);
     const preferences = body.notifications && typeof body.notifications === 'object' ? body.notifications : {};
     await env.DB.batch([
@@ -1710,7 +1734,7 @@ async function resumeApi(request, env) {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 131072) return json({ error:'이력서 내용이 너무 큽니다.' }, 413);
-    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
     const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0, max);
     let memberProfile = null;
     let registrationProfile = null;
@@ -1751,10 +1775,12 @@ async function resumeApi(request, env) {
       existing = await env.DB.prepare('SELECT id FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
     }
     const id = existing?.id || ('RES-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase());
-    const fields = [id, account.id, title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, 'draft-review', JSON.stringify(detail).slice(0, 120000)];
+    const detailJson = JSON.stringify(detail);
+    if (detailJson.length > 120000) return json({ error:'이력서 내용이 너무 큽니다. 내용을 줄여주세요.' }, 413);
+    const fields = [id, account.id, title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, 'draft-review', detailJson];
     if (existing) {
       await env.DB.prepare('UPDATE resumes SET title=?, profession=?, specialty=?, name=?, phone=?, email=?, desired_regions=?, completion=?, visibility=?, detail_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-        .bind(title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, JSON.stringify(detail).slice(0,120000), id).run();
+        .bind(title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, detailJson, id).run();
     } else {
       await env.DB.prepare('INSERT INTO resumes (id, account_id, title, profession, specialty, name, phone, email, desired_regions, completion, visibility, status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(...fields).run();
     }
@@ -1796,7 +1822,7 @@ async function jobSeekerPostApi(request, env, pathname) {
     ]);
     return json({ deleted:true, id:suffix });
   }
-  let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
   const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0,max);
   let current = null;
   if (request.method === 'PATCH') {
@@ -1851,7 +1877,7 @@ async function savedJobsApi(request, env) {
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
     const jobId = String(body.jobId || '').slice(0, 120);
     const k = body.kind === 'talent' ? 'talent' : 'job';
     if (!jobId) return json({ error:'대상이 없습니다.' }, 400);
@@ -1928,6 +1954,7 @@ async function talentDetailApi(request, env, pathname) {
       }
     } catch {}
   }
+  let viewLogged = false;
   let hasUnlock = Boolean(isAdmin || isOwner);
   if (!hasUnlock && account?.role === 'hospital') {
     const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? LIMIT 1").bind(account.id, talentId).first();
@@ -1938,29 +1965,19 @@ async function talentDetailApi(request, env, pathname) {
     if (!hasUnlock) {
       try {
         await ensureTalentCreditSchema(env);
-        // 크레딧이 남은 풀을 구매가 오래된 순서부터 사용한다. 열람권 수량에는 만료일이 없다.
-        const pool = await env.DB.prepare("SELECT id, order_id AS orderId, total_credits AS total, used_credits AS used FROM talent_credit_pools WHERE hospital_account_id = ? AND used_credits < total_credits ORDER BY created_at ASC, id ASC LIMIT 1").bind(account.id).first();
-        if (pool) {
-          // 크레딧을 원자적으로 차감(경합 시 조건 불일치로 0행 → 이중 소모 방지).
-          const spent = await env.DB.prepare("UPDATE talent_credit_pools SET used_credits = used_credits + 1 WHERE id = ? AND used_credits = ?").bind(pool.id, Number(pool.used)).run();
-          if (runChanges(spent) === 1) {
-            try {
-              const granted = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.orderId, null).run();
-              if (runChanges(granted) === 1) hasUnlock = true;
-              else {
-                // 다른 동시 요청이 먼저 같은 인재 권한을 만들었다면 방금 차감한 1건을 즉시 복구한다.
-                await env.DB.prepare('UPDATE talent_credit_pools SET used_credits = used_credits - 1 WHERE id = ? AND used_credits > 0').bind(pool.id).run();
-                const concurrentGrant = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1").bind(account.id, talentId).first();
-                hasUnlock = Boolean(concurrentGrant);
-              }
-            } catch (error) {
-              // 권한 발급 실패 시 돈을 낸 크레딧이 사라지지 않도록 차감을 원복한다.
-              try { await env.DB.prepare('UPDATE talent_credit_pools SET used_credits = used_credits - 1 WHERE id = ? AND used_credits > 0').bind(pool.id).run(); } catch {}
-              throw error;
-            }
-          }
+        // Grant, debit and view reservation succeed or roll back together in one D1 batch.
+        const grantResult = await env.DB.batch([
+          env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, c.order_id, NULL FROM talent_credit_pools c WHERE c.hospital_account_id=? AND c.used_credits<c.total_credits AND EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND r.account_id=? AND ((?='' AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active'))) AND (SELECT COUNT(DISTINCT subject_ref) FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')) < ? ORDER BY c.created_at ASC, c.id ASC LIMIT 1").bind(crypto.randomUUID(), account.id, talentId, account.id, resumeId, resumeMeta.accountId, seekerPostId, seekerPostId, identity.email, DAILY_LIMIT),
+          env.DB.prepare("UPDATE talent_credit_pools SET used_credits=used_credits+1 WHERE hospital_account_id=? AND order_id=(SELECT order_id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?) AND used_credits<total_credits AND changes()=1").bind(account.id, account.id, talentId),
+          env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) SELECT ?, ?, ?, 'talent_unlock_view' WHERE changes()=1").bind(crypto.randomUUID(), identity.email, talentId)
+        ]);
+        viewLogged = runChanges(grantResult[2]) === 1;
+        hasUnlock = Boolean(await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(account.id, talentId).first());
+        if (!hasUnlock) {
+          const current = await env.DB.prepare("SELECT COUNT(DISTINCT subject_ref) AS n FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')").bind(identity.email).first();
+          if (Number(current?.n || 0) >= DAILY_LIMIT) return json({unlocked:false,detail:null,limited:true,message:'금일 열람 한도를 초과했습니다.'},429);
         }
-      } catch {}
+      } catch { return json({ unlocked:false, detail:null, error:'열람 처리에 실패했습니다. 같은 인재를 다시 확인해주세요.' },503); }
     }
   }
   if (!hasUnlock) return json({ unlocked:false, detail:null });
@@ -1973,7 +1990,12 @@ async function talentDetailApi(request, env, pathname) {
       ? await env.DB.prepare("SELECT r.id, r.name, r.phone, r.email, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' AND r.id=? LIMIT 1").bind(seekerPostId, resumeId).first()
       : await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND (account_id = ? OR ? = 1 OR visibility IN ('public','proposal'))").bind(resumeId, account?.id || '', isAdmin ? 1 : 0).first();
     if (r) {
-      if (!isOwner) try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identity.email, talentId).run(); } catch {}
+      if (!isOwner && !viewLogged) {
+        try {
+          const logged = await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) SELECT ?, ?, ?, 'talent_unlock_view' WHERE ?=1 OR EXISTS (SELECT 1 FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND subject_ref=?) OR (SELECT COUNT(DISTINCT subject_ref) FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')) < ?").bind(crypto.randomUUID(), identity.email, talentId, isAdmin ? 1 : 0, identity.email, talentId, identity.email, DAILY_LIMIT).run();
+          if (!runChanges(logged)) return json({ unlocked:false, detail:null, limited:true, message:'금일 열람 한도를 초과했습니다.' },429);
+        } catch { return json({ unlocked:false,detail:null,error:'열람 상태를 기록하지 못했습니다. 다시 시도해주세요.' },503); }
+      }
       const { detailJson, ...rest } = r;
       const storedDetail = parseJsonObject(detailJson) || {};
       const safeDetail = { ...storedDetail };
@@ -2132,7 +2154,7 @@ async function syncAdOrderContentRecords(env) {
       meta.contentRecordId = contentRecordId;
       pending.push(
         insertAdOrderContentStatement(env, record),
-        env.DB.prepare("UPDATE payment_orders SET metadata_json=?, updated_at=updated_at WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), row.id)
+        env.DB.prepare("UPDATE payment_orders SET metadata_json=?, updated_at=updated_at WHERE id=?").bind(JSON.stringify(meta), row.id)
       );
     }
     // 결제 상품 등급과 노출기간은 공고 레코드에도 동기화해야 공개 목록이
@@ -2190,7 +2212,7 @@ async function paymentOrderApi(request, env) {
   }
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-  let body; try { body = await request.json(); } catch { return json({ error:'주문 내용을 확인해주세요.' }, 400); }
+  let body; try { body = await readRequestObject(request); } catch { return json({ error:'주문 내용을 확인해주세요.' }, 400); }
   // [보안] Object.hasOwn으로 조회해야 한다. 대괄호 조회만 쓰면 'constructor'·'toString' 같은
   // 프로토타입 키가 truthy로 잡혀 !product 가드를 통과하고, product.amount가 undefined가 되어
   // 금액이 NaN→NULL로 저장된다. 그러면 승인 시 0 !== 0 비교가 통과해 '무료 결제'가 성립한다.
@@ -2219,6 +2241,7 @@ async function paymentOrderApi(request, env) {
         ? await env.DB.prepare("SELECT r.id FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' LIMIT 1").bind(targetId.slice(7)).first()
         : targetId.startsWith('resume-') ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND visibility IN ('public','proposal') LIMIT 1").bind(targetId.slice(7)).first() : null;
       if (!target) return json({ error:'현재 열람할 수 없는 구직 정보입니다. 인재 목록에서 다시 선택해주세요.' }, 400);
+      if (product.unlockCount === 1 && await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(account.id,targetId).first()) return json({ error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.' },409);
     }
     // 열람권 결제자 정보는 요청 본문을 신뢰하지 않고 회원가입 때 저장한 병원 원본으로 고정한다.
     // 개발자도구로 readonly를 해제하거나 API를 직접 호출해도 다른 병원명·연락처를 저장할 수 없다.
@@ -2266,7 +2289,8 @@ async function paymentOrderApi(request, env) {
     adContentRecord = adOrderContentRecord({ id, orderNumber, productId, productName:product.name, metadata, ownerEmail:identity.email });
     metadata.contentRecordId = adContentRecord.id;
   }
-  const metadataJson = JSON.stringify(metadata).slice(0,12000);
+  const metadataJson = JSON.stringify(metadata);
+  if (metadataJson.length > 11000) return json({ error:'공고 내용이 너무 깁니다. 내용을 줄여주세요.' }, 413);
   const storedProductType = await paymentStorageType(env, product);
   const orderStatements = [
     env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, storedProductType, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
@@ -2318,14 +2342,13 @@ async function paymentApproveApi(request, env) {
   const testMode = !inicisReady;
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 저장소를 사용할 수 없습니다.' }, 503); }
-  let body; let fromPgForm = false;
-  try { body = await request.json(); } catch {
-    // 이니시스는 결제창 인증 후 브라우저를 이 주소로 form-urlencoded POST 이동시킨다.
-    try { const form = await request.formData(); body = Object.fromEntries(form.entries()); fromPgForm = true; } catch { return json({ error:'결제 결과를 확인할 수 없습니다.' }, 400); }
-  }
+  let body;
+  const fromPgForm = (request.headers.get('content-type') || '').includes('application/x-www-form-urlencoded');
+  try { body = fromPgForm ? Object.fromEntries((await request.formData()).entries()) : await readRequestObject(request); }
+  catch { return json({ error:'결제 결과를 확인할 수 없습니다.' }, 400); }
   // 브라우저가 직접 이동해 온 경우(PG 리턴)에는 JSON이 아니라 결과 페이지로 보내야 한다.
   // (그렇지 않으면 사용자 화면에 JSON 원문이 그대로 노출된다)
-  const siteOrigin = env.SITE_ORIGIN || '';
+  const siteOrigin = env.SITE_ORIGIN || new URL(request.url).origin;
   const pgRedirect = (status, orderNumber, message) => Response.redirect(
     siteOrigin + '/mypage?payment=' + encodeURIComponent(status)
     + (orderNumber ? '&order=' + encodeURIComponent(orderNumber) : '')
@@ -2361,13 +2384,7 @@ async function paymentApproveApi(request, env) {
       return denyOwner('해당 주문을 승인할 권한이 없습니다.', 403);
     }
   }
-  // [보안] 멱등성: 이미 결제 완료된 주문은 재처리하지 않는다.
-  // (결제창 리턴 재전송·새로고침·리플레이로 거래기록/열람권이 중복 생성되는 것을 막는다)
-  if (String(order.status) === 'paid') {
-    try { await publishAdOrderContent(env, order, order.metadataJson); } catch {}
-    if (fromPgForm) return pgRedirect('paid', oid, '');
-    return json({ approved:true, status:'paid', orderNumber:oid, duplicated:true });
-  }
+  if (['cancelled','refunded','partially_refunded'].includes(order.status)) return json({ approved:false, error:'취소 또는 환불된 주문은 다시 승인할 수 없습니다.' }, 409);
   // 결제 완료 시 광고 상품이면 노출기간(시작~종료)을 metadata에 기록해 마이페이지·관리자에서 표시.
   const buildExposureMeta = (base) => {
     const product = paymentProductCatalog[String(order.productId || '')];
@@ -2375,7 +2392,7 @@ async function paymentApproveApi(request, env) {
     if (product?.exposureDays) {
       meta.exposure = buildExposureWindow(product.exposureDays);
     }
-    return JSON.stringify(meta).slice(0, 12000);
+    return JSON.stringify(meta);
   };
   // 인재 열람권 상품이면 결제 병원에 열람 권한을 기록한다(주문 metadata의 talentId 대상).
   const recordTalentUnlock = async () => {
@@ -2384,48 +2401,62 @@ async function paymentApproveApi(request, env) {
     const meta = parseJsonObject(order.metadataJson) || {};
     const talentId = String(meta.talentId || '');
     const unlockCount = Math.max(1, Number(product.unlockCount) || 1);
-    try { await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env); } catch { return; }
     try {
-      if (unlockCount > 1 || !talentId) {
-        // 묶음(팩) 상품: 특정 인재에 바로 묶지 않고 '열람 크레딧 N개'를 적립한다.
-        // 이후 병원이 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권을 발급한다.
-        // 예전에는 unlockCount를 무시하고 1건만 발급해 5명팩이 1명만 열리던 버그가 있었다.
-        const existing = await env.DB.prepare('SELECT id FROM talent_credit_pools WHERE order_id = ? LIMIT 1').bind(order.id).first();
-        if (existing) return;
-        await env.DB.prepare("INSERT INTO talent_credit_pools (id, hospital_account_id, order_id, total_credits, used_credits, expires_at) VALUES (?, ?, ?, ?, 0, ?)")
-          .bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, null).run();
-        return;
+      await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env);
+      const existingPool = await env.DB.prepare('SELECT id FROM talent_credit_pools WHERE order_id=? LIMIT 1').bind(order.id).first();
+      if (existingPool) return;
+      const creditOrder = () => env.DB.prepare("INSERT INTO talent_credit_pools (id, hospital_account_id, order_id, total_credits, used_credits, expires_at) VALUES (?, ?, ?, ?, 0, ?) ON CONFLICT(order_id) DO NOTHING").bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, null).run();
+      if (unlockCount > 1 || !talentId) { await creditOrder(); return; }
+      const existing = await env.DB.prepare('SELECT id, order_id AS orderId FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(order.accountId,talentId).first();
+      if (existing?.orderId === order.id) return;
+      const target = talentId.startsWith('seeker-')
+        ? await env.DB.prepare("SELECT r.id FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' LIMIT 1").bind(talentId.slice(7)).first()
+        : talentId.startsWith('resume-') ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND visibility IN ('public','proposal') LIMIT 1").bind(talentId.slice(7)).first() : null;
+      // If the candidate disappeared or another purchase already opened it, preserve one usable credit.
+      if (existing || !target) { await creditOrder(); return; }
+      const grant = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND ((?=1 AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active')))").bind(crypto.randomUUID(),order.accountId,talentId,order.id,null,target.id,talentId.startsWith('resume-')?1:0,talentId.startsWith('seeker-')?talentId.slice(7):'').run();
+      if (!runChanges(grant)) {
+        const winner = await env.DB.prepare('SELECT order_id AS orderId FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?').bind(order.accountId,talentId).first();
+        if (winner?.orderId !== order.id) await creditOrder();
       }
-      // 단건 상품: 구매 시 지정한 인재에 바로 열람권 발급.
-      if (!talentId) return;
-      const existing = await env.DB.prepare('SELECT id FROM talent_unlocks WHERE order_id = ? AND talent_id = ? LIMIT 1').bind(order.id, talentId).first();
-      if (existing) return;
-      await env.DB.prepare("INSERT INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), order.accountId, talentId, order.id, null).run();
     } catch (error) {
-      // 결제는 됐는데 열람권 기록이 실패하면 고객이 돈만 내고 못 보는 상황이 된다.
-      // 조용히 넘기지 말고 이벤트로 남겨 관리자가 확인·복구할 수 있게 한다.
-      try {
-        await env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'system', 'talent_unlock_failed', NULL, ?)")
-          .bind(crypto.randomUUID(), order.id, JSON.stringify({ talentId, unlockCount, message: String(error?.message || error).slice(0, 300) })).run();
-      } catch {}
+      try { await env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'system', 'talent_unlock_failed', NULL, ?)").bind(crypto.randomUUID(),order.id,JSON.stringify({talentId,unlockCount,message:String(error?.message || error).slice(0,300)})).run(); } catch {}
+      throw error;
     }
+  };
+  const fulfillOrder = async metadataJson => {
+    try { await publishAdOrderContent(env, order, metadataJson); await recordTalentUnlock(); return null; }
+    catch { return json({ approved:false, status:'paid', orderNumber:oid, fulfillmentPending:true, error:'결제는 처리됐지만 서비스 반영이 지연되고 있습니다. 추가 결제 없이 같은 주문으로 다시 확인해주세요.' }, 503); }
+  };
+  if (order.status === 'paid') {
+    const pending = await fulfillOrder(order.metadataJson);
+    if (pending) return pending;
+    if (fromPgForm) return pgRedirect('paid', oid, '');
+    return json({ approved:true, status:'paid', orderNumber:oid, duplicated:true, testMode });
+  }
+  // Batch is atomic: changes() gates capture/event inserts on the single winning status update.
+  const captureOrder = async (provider, tid, metadataJson) => {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(metadataJson, order.id),
+      env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) SELECT ?, ?, 'capture', ?, ?, ?, 'succeeded', CURRENT_TIMESTAMP WHERE changes()=1").bind(crypto.randomUUID(), order.id, provider, tid, Number(order.totalAmount)),
+      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) SELECT ?, ?, ?, 'payment_approved', 'paid', ? WHERE changes()=1").bind(crypto.randomUUID(), order.id, provider, JSON.stringify({tid,oid,testMode:provider==='test'}))
+    ]);
+    return env.DB.prepare('SELECT status, metadata_json AS metadataJson FROM payment_orders WHERE id=?').bind(order.id).first();
   };
   // === 테스트(가상) 결제 모드: 실제 이니시스 없이 승인 성공 처리 ===
   if (testMode) {
     const tid = 'TEST-' + Date.now().toString(36).toUpperCase();
     const approvedMetadataJson = buildExposureMeta(order.metadataJson);
-    await env.DB.batch([
-      env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status<>'paid'").bind(approvedMetadataJson, order.id),
-      env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'capture', 'test', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
-      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'test', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid, testMode:true }))
-    ]);
-    await publishAdOrderContent(env, order, approvedMetadataJson);
-    await recordTalentUnlock();
+    const committed = await captureOrder('test', tid, approvedMetadataJson);
+    if (committed?.status !== 'paid') return json({ approved:false, error:'주문 상태가 변경되어 승인할 수 없습니다.' }, 409);
+    const pending = await fulfillOrder(committed.metadataJson);
+    if (pending) return pending;
+    if (fromPgForm) return pgRedirect('paid', oid, '');
     return json({ approved:true, status:'paid', orderNumber:oid, tid, testMode:true, message:'테스트 결제가 완료되었습니다(실제 청구 없음).' });
   }
   // 결제창 인증 실패
   if (resultCode && resultCode !== '0000') {
-    await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+    await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
     const failMessage = String(body.resultMsg || '결제가 취소되었거나 실패했습니다.');
     if (fromPgForm) return pgRedirect('failed', oid, failMessage);
     return json({ approved:false, status:'failed', message:failMessage });
@@ -2440,7 +2471,7 @@ async function paymentApproveApi(request, env) {
   // (authUrl은 외부 입력이라 공격자가 자기 서버를 지정하면 MID·signKey 파생값이 유출되고 승인 응답도 위조된다)
   let authTarget;
   try { authTarget = new URL(authUrl); } catch { authTarget = null; }
-  const allowedAuthHost = authTarget && authTarget.protocol === 'https:' && /(^|\.)inicis\.com$/i.test(authTarget.hostname);
+  const allowedAuthHost = authTarget && authTarget.protocol === 'https:' && !authTarget.username && !authTarget.password && (!authTarget.port || authTarget.port === '443') && (authTarget.hostname === 'inicis.com' || authTarget.hostname.endsWith('.inicis.com'));
   if (!allowedAuthHost) {
     if (fromPgForm) return pgRedirect('failed', oid, '허용되지 않은 승인 주소입니다.');
     return json({ approved:false, status:'failed', message:'허용되지 않은 승인 주소입니다.' }, 400);
@@ -2452,8 +2483,9 @@ async function paymentApproveApi(request, env) {
     const signature = await sha256Hex('authToken=' + authToken + '&timestamp=' + timestamp);
     const verification = await sha256Hex('authToken=' + authToken + '&signKey=' + env.INICIS_SIGN_KEY + '&timestamp=' + timestamp);
     try {
-      const res = await fetch(authTarget.toString(), { method:'POST', headers:{ 'content-type':'application/x-www-form-urlencoded' },
+      const res = await fetch(authTarget.toString(), { method:'POST', redirect:'error', signal:AbortSignal.timeout(15000), headers:{ 'content-type':'application/x-www-form-urlencoded' },
         body:new URLSearchParams({ mid:env.INICIS_MID, authToken, timestamp, signature, verification, charset:'UTF-8', format:'JSON' }) });
+      if (!res.ok) throw new Error('PG_HTTP_ERROR');
       approval = await res.json();
     } catch {
       if (fromPgForm) return pgRedirect('failed', oid, '승인 서버 통신에 실패했습니다.');
@@ -2461,34 +2493,31 @@ async function paymentApproveApi(request, env) {
     }
     const approvedAmount = Number(approval?.TotPrice || approval?.price || 0);
     if (String(approval?.resultCode) !== '0000') {
-      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
       if (fromPgForm) return pgRedirect('failed', oid, String(approval?.resultMsg || '승인 실패'));
       return json({ approved:false, status:'failed', message:String(approval?.resultMsg || '승인 실패') });
     }
     // [보안] 승인 응답이 이 주문에 대한 것인지 확인(다른 주문의 승인 결과 재사용 방지).
     const approvedOid = String(approval?.MOID || approval?.moid || approval?.oid || '');
-    if (approvedOid && approvedOid !== oid) {
-      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+    if (approvedOid !== oid) {
+      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
       if (fromPgForm) return pgRedirect('failed', oid, '주문 정보가 일치하지 않습니다.');
       return json({ approved:false, status:'failed', message:'주문 정보가 일치하지 않습니다.' }, 400);
     }
     if (approvedAmount !== Number(order.totalAmount)) {
       // 금액 위변조 방지: 승인금액≠주문금액이면 실패 처리.
-      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run();
+      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
       if (fromPgForm) return pgRedirect('failed', oid, '결제 금액이 일치하지 않습니다.');
       return json({ approved:false, status:'failed', message:'결제 금액이 일치하지 않습니다.' }, 400);
     }
   }
-  const tid = String(approval?.tid || body.tid || '');
+  const tid = String(approval?.tid || '');
+  if (!tid) return json({ approved:false, error:'결제 거래번호를 확인할 수 없습니다.' },400);
   const approvedMetadataJson = buildExposureMeta(order.metadataJson);
-  await env.DB.batch([
-    // [보안] 조건부 UPDATE: 동시 요청으로 이미 paid가 된 경우 두 번 반영되지 않게 한다.
-    env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status<>'paid'").bind(approvedMetadataJson, order.id),
-    env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) VALUES (?, ?, 'capture', 'inicis', ?, ?, 'succeeded', CURRENT_TIMESTAMP)").bind(crypto.randomUUID(), order.id, tid, Number(order.totalAmount)),
-    env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, 'inicis', 'payment_approved', 'paid', ?)").bind(crypto.randomUUID(), order.id, JSON.stringify({ tid, oid }))
-  ]);
-  await publishAdOrderContent(env, order, approvedMetadataJson);
-  await recordTalentUnlock();
+  const committed = await captureOrder('inicis', tid, approvedMetadataJson);
+  if (committed?.status !== 'paid') return json({ approved:false, error:'주문 상태가 변경되어 승인할 수 없습니다.' }, 409);
+  const pending = await fulfillOrder(committed.metadataJson);
+  if (pending) return pending;
   if (fromPgForm) return pgRedirect('paid', oid, '');
   return json({ approved:true, status:'paid', orderNumber:oid, tid });
 }
@@ -2504,7 +2533,7 @@ async function recruitmentCrmApi(request, env, pathname) {
   }
   if (request.method === 'POST' && pathname === '/api/recruitment-crm') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
     const hospitalName = typeof body.hospitalName === 'string' ? body.hospitalName.trim().slice(0,160) : '';
     if (!hospitalName) return json({ error:'병원명을 입력해 주세요.' }, 400);
     const id = 'CASE-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
@@ -2515,7 +2544,7 @@ async function recruitmentCrmApi(request, env, pathname) {
   const match = pathname.match(/^\\/api\\/recruitment-crm\\/([^\\/]+)$/);
   if (request.method === 'PATCH' && match) {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
-    let body; try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
+    let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
     const allowedStages = ['new_request','condition_review','candidate_search','candidate_consent','hospital_submitted','interview','negotiation','hired','closed'];
     if (!allowedStages.includes(body.stage)) return json({ error:'채용 단계를 확인해 주세요.' }, 400);
     const id = decodeURIComponent(match[1]);
@@ -2795,7 +2824,7 @@ async function adminConsoleApi(request, env, ctx) {
   if (request.method !== 'PATCH') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   let body;
-  try { body = await request.json(); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
   const action = body.action;
   const payload = body.payload && typeof body.payload === 'object' ? body.payload : {};
   if (action === 'settings_update') {
@@ -2890,7 +2919,7 @@ async function adminConsoleApi(request, env, ctx) {
       } else if (status === 'cancelled' || status === 'failed') {
         delete meta.exposure;
       }
-      return JSON.stringify(meta).slice(0, 12000);
+      return JSON.stringify(meta);
     })();
     const method = ['card','transfer'].includes(payload.paymentMethod) ? payload.paymentMethod : '';
     const provider = cleanOrderValue(payload.provider || 'manual', 60);
@@ -2928,7 +2957,7 @@ async function adminConsoleApi(request, env, ctx) {
     if (fullyRefunded) {
       const meta = { ...(parseJsonObject(order.metadataJson) || {}) };
       delete meta.exposure;
-      statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), orderId));
+      statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta), orderId));
       // 단건·팩 열람권 모두 회수(팩 크레딧 풀 포함).
       for (const stmt of talentRevokeStatementsForOrder(env, orderId)) statements.push(stmt);
     } else {
@@ -2968,7 +2997,7 @@ async function adminConsoleApi(request, env, ctx) {
     if (fullyRefunded) {
       const meta = { ...(parseJsonObject(refund.metadataJson) || {}) };
       delete meta.exposure;
-      statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta).slice(0,12000), refund.orderId));
+      statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta), refund.orderId));
       // 인재 열람권 회수: 환불 후 연락처 계속 열람 방지(단건·팩 크레딧 풀 모두).
       for (const stmt of talentRevokeStatementsForOrder(env, refund.orderId)) statements.push(stmt);
     } else {
@@ -3090,6 +3119,7 @@ export default {
       // API 경로는 JSON {error}, 그 외(HTML 페이지)는 일반 텍스트로 통일한다.
       let isApi = false;
       try { isApi = new URL(request.url).pathname.startsWith('/api/'); } catch {}
+      if (isApi && error instanceof URIError) return json({ error:'주소 형식이 올바르지 않습니다.' }, 400);
       if (isApi) {
         return new Response(JSON.stringify({ error: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' }), { status: 500, headers: { 'content-type': 'application/json; charset=utf-8' } });
       }

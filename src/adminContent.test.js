@@ -36,7 +36,7 @@ test('병원 광고 주문은 결제 완료 즉시 공개 공고로 전환된다
   assert.match(source, /insertAdOrderContentStatement/);
   assert.match(source, /async function publishAdOrderContent/);
   assert.match(source, /SET status='published'/);
-  assert.match(source, /await publishAdOrderContent\(env, order, approvedMetadataJson\)/);
+  assert.match(source, /await publishAdOrderContent\(env, order, metadataJson\)/);
   assert.match(source, /status:'awaiting_payment'/);
   assert.match(source, /syncAdOrderContentRecords/);
   assert.match(source, /fromHospital:true/);
