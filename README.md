@@ -1,5 +1,7 @@
 # 메디헬퍼스 채용·인재정보 플랫폼
 
+최신 인수인계: [2026-09-12 기준선·완료 작업·남은 항목](docs/HANDOFF_2026-09-12.md). 공개 배포는 353이며 현재는 테스트 운영 단계입니다.
+
 메디헬퍼스는 의사 헤드헌팅을 중심으로 병원의 채용 의뢰, 의사의 비공개 이직 상담, 의사 초빙공고, 익명 인재정보와 의료인 채용정보를 연결하는 플랫폼입니다.
 
 ## 문의·지원 전달 원칙
@@ -13,7 +15,7 @@
 - [OpenAI Sites 운영본](https://medihelpers-career.junnyai.chatgpt.site)
 - [GitHub 저장소](https://github.com/aijunny0604-alt/medihelpers-career)
 - [GitHub Pages 미러](https://aijunny0604-alt.github.io/medihelpers-career/)
-- 문서 기준일: 2026-09-07
+- 문서 기준일: 2026-09-12
 
 ## 현재 구현
 
