@@ -1061,7 +1061,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
       ],
     },
     {
-      title: "실제 근무표",
+      title: "근무 일정",
       icon: CalendarDays,
       rows: [
         ["평일·주말 시간", job.workHours || job.schedule],
@@ -1077,7 +1077,8 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
       ],
     },
     {
-      title: "입사 판단",
+      title: "입사 안내",
+      layout: "wide",
       icon: ShieldCheck,
       rows: [
         ["채용 사유", job.recruitmentReason || "진료 인력 충원"],
@@ -1191,8 +1192,8 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               공개 요약보다 구체적인 보수 구조, 근무 일정과 입사 조건을 한 화면에서 확인합니다.
             </p>
             <div className="decision-sheet-grid">
-              {doctorDecisionGroups.map(({ title, icon: Icon, rows }) => (
-                <article key={title}>
+              {doctorDecisionGroups.map(({ title, icon: Icon, rows, layout }) => (
+                <article key={title} className={layout === "wide" ? "decision-card-wide" : undefined}>
                   <header><span><Icon /></span><strong>{title}</strong></header>
                   <dl>
                     {rows.map(([label, value]) => (
