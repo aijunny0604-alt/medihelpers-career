@@ -2014,7 +2014,7 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
   color:var(--job-deep);
   text-align:left;
   box-shadow:0 12px 30px rgba(16,37,68,.16);
-  backdrop-filter:blur(14px) saturate(1.1);
+  backdrop-filter:none;
   transform:none;
 }
 .premium-ad.has-brand-banner .logo-stage.media-banner .ad-hospital-caption strong{
@@ -2266,8 +2266,8 @@ html.performance-lite *,html.performance-lite *:before,html.performance-lite *:a
   scroll-behavior:auto!important;
   transition-duration:.01ms!important;
   transition-delay:0ms!important;
-  backdrop-filter:none!important;
   -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
 }
 html.performance-lite .scroll-progress{display:none!important}
 html.performance-lite.motion-enabled .scroll-reveal,
@@ -5775,7 +5775,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   border-radius:0!important;
   backdrop-filter:none!important;
   -webkit-backdrop-filter:none!important;
-  background:linear-gradient(90deg,rgba(5,21,45,.72) 0%,rgba(7,30,61,.44) 38%,rgba(7,30,61,.12) 68%,rgba(7,30,61,0) 100%),linear-gradient(0deg,rgba(5,21,45,.34),rgba(5,21,45,0) 72%)!important;
+  background:linear-gradient(0deg,rgba(5,21,45,.72) 0%,rgba(5,21,45,.24) 42%,transparent 76%)!important;
   box-shadow:none!important;
   pointer-events:none;
 }
@@ -6109,6 +6109,14 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 @media(prefers-reduced-motion:reduce){.jobs-page .tier-apply-button,.ad-apply-page .button.primary,.owned-ad-edit-page .button.primary{transition:none}}
 
 /* A single submission action follows the completed recruitment form. */
+/* Crisp recruitment cards: artwork and typography carry the identity. */
+.job-card.premium-ad.has-brand-banner{background:#fff!important;border-color:#dfe7f0!important;box-shadow:0 6px 20px rgba(16,33,63,.045)!important}
+.job-card.premium-ad.has-brand-banner:before,.job-card.premium-ad.has-brand-banner:after{display:none!important}
+.job-card.premium-ad.has-brand-banner .ad-brand-stage.media-banner{border-radius:14px!important;box-shadow:none!important;clip-path:inset(0 round 14px)}
+.job-card.premium-ad.has-brand-banner .ad-hospital-caption{filter:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.job-card.premium-ad.has-brand-banner .ad-hospital-caption strong{font-weight:750!important;line-height:1.35!important;letter-spacing:-.035em!important;text-shadow:0 1px 5px rgba(4,18,38,.3)}
+.job-card.premium-ad.has-brand-banner .brand-media-backdrop{display:none!important}
+
 .ad-apply-page .checkout-grid{grid-template-columns:minmax(0,1fr)}
 .ad-apply-page{padding-bottom:60px}
 @media(max-width:780px){.ad-apply-page{padding-bottom:30px}}
