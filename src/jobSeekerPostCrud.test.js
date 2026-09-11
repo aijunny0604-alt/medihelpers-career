@@ -67,7 +67,7 @@ test('작성자는 게시판과 마이페이지에서 구직글을 수정·삭�
 
 test('구직 게시판과 상세는 작성자가 입력한 게시글 제목을 우선 표시한다', () => {
   assert.match(main, /person\.postTitle \|\| `\$\{person\.dept/);
-  assert.match(main, /<h3>\{person\.postTitle \|\|/);
+  assert.match(main, /<h3>\{person\.isDemo && '\[예시\] '\}\{person\.postTitle \|\|/);
   assert.match(server, /title: r\.postTitle \|\| ''/);
 });
 

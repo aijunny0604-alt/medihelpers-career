@@ -317,7 +317,7 @@ async function ensureConsultationSchema(env) {
 }
 async function ensureMemberCenterSchema(env) {
   // 기존 운영 DB에도 구직글 원장과 이력서 연결을 추가하도록 최신 테이블을 probe로 사용한다.
-  await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
+  await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts, member_registration_profiles LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
   // 0011 previously used created_at while the runtime reads unlocked_at.
   // Rename only that legacy column, preserving its values and default.
   if (!schemaReadyPromises.has('member-unlock-date-v1')) {
@@ -448,7 +448,7 @@ async function runRetentionCleanup(env, triggerType = 'daily', actor = 'system')
       env.DB.prepare("DELETE FROM recruitment_cases WHERE stage IN ('hired','closed') AND updated_at < datetime('now','-5 years')"),
       env.DB.prepare("DELETE FROM payment_orders WHERE status IN ('failed','cancelled','refunded') AND updated_at < datetime('now','-5 years')"),
       env.DB.prepare("DELETE FROM payment_orders WHERE status='paid' AND paid_at < datetime('now','-5 years')"),
-      env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id<>'' AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.id=talent_unlocks.order_id)"),
+      env.DB.prepare("DELETE FROM talent_unlocks WHERE order_id<>'' AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.id=talent_unlocks.order_id) AND NOT EXISTS (SELECT 1 FROM talent_credit_pools c JOIN payment_orders p ON p.id=c.order_id WHERE c.id=talent_unlocks.order_id AND c.hospital_account_id=talent_unlocks.hospital_account_id)"),
       env.DB.prepare("DELETE FROM talent_credit_pools WHERE order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.id=talent_credit_pools.order_id)"),
       env.DB.prepare("DELETE FROM access_audit_logs WHERE created_at < datetime('now','-3 years')"),
       env.DB.prepare("DELETE FROM admin_audit_logs WHERE created_at < datetime('now','-3 years')"),
@@ -1392,7 +1392,7 @@ async function uploadApi(request, env, pathname) {
         const ownerId = key.split('/')[1] || '';
         let allowed = Boolean(viewer && viewer.id === ownerId) || Boolean(await adminIdentity(request, env));
         if (!allowed && viewer?.role === 'hospital') {
-          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON tu.talent_id = 'resume-' || r.id WHERE tu.hospital_account_id = ? AND r.account_id = ? LIMIT 1").bind(viewer.id, ownerId).first();
+          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON (tu.talent_id = 'resume-' || r.id AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE tu.talent_id='seeker-' || p.id AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active') WHERE tu.hospital_account_id = ? AND r.account_id = ? LIMIT 1").bind(viewer.id, ownerId).first();
           allowed = Boolean(grant);
         }
         if (!allowed) return json({ error:'프로필 사진을 볼 권한이 없습니다.' }, 403);
@@ -1451,7 +1451,10 @@ async function memberCenterApi(request, env) {
   if (!account) return json({ signedIn:true, account:null, identity, isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
-    if (account.role === 'hospital') await publishLegacyPaidAdContentRecords(env);
+    if (account.role === 'hospital') {
+      await ensureSchemaGroup(env, 'hospital-member-dependencies', 'SELECT 1 FROM admin_content_records, candidate_submissions LIMIT 1', [...adminConsoleSchemaStatements, ...recruitmentCrmSchemaStatements], 'MEMBER_CENTER_DB_UNAVAILABLE');
+      await publishLegacyPaidAdContentRecords(env);
+    }
     const alertStatement = env.DB.prepare("SELECT id, kind, title, body, action_url AS actionUrl, read_at AS readAt, created_at AS createdAt FROM member_notifications WHERE account_id=? AND kind<>'inquiry_reply' ORDER BY created_at DESC LIMIT 100").bind(account.id);
     if (new URL(request.url).searchParams.get('notificationsOnly') === '1') {
       const alertRows = await alertStatement.all();
@@ -1865,7 +1868,7 @@ async function talentUnlockHistoryApi(request, env) {
   if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   const identity = await authenticatedUser(request, env);
   if (!identity || !env.ACCOUNT_HASH_SECRET) return json({ unlocks:[] });
-  try { await ensureAccountSchema(env); await ensureTalentCreditSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = await userKey(identity.email, env.ACCOUNT_HASH_SECRET);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key=? LIMIT 1').bind(key).first();
   if (!account || account.role !== 'hospital') return json({ unlocks:[] });
@@ -1895,6 +1898,36 @@ async function talentDetailApi(request, env, pathname) {
   const isOwner = Boolean(account?.id && resumeMeta?.accountId === account.id);
   // 작성자 본인은 자신의 구직글을 무료 열람한다. 그 외에는 관리자 또는 병원 열람권이 필요하다.
   if (!account && !isAdmin) return json({ unlocked:false, detail:null });
+  // 실제 상세를 제공할 수 있는 대상만 열람권을 소비한다.
+  const availableResume = resumeId ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND account_id=? LIMIT 1").bind(resumeId, resumeMeta?.accountId || '').first() : null;
+  if (!availableResume || (!seekerPost && !isOwner && !isAdmin && !['public','proposal'].includes(resumeMeta?.visibility))) return json({ unlocked:false, detail:null, error:'현재 열람할 수 없는 구직 정보입니다.' }, 404);
+  // === 정보 유출 방어: 병원 계정의 열람 빈도를 검사한다(관리자는 예외). ===
+  // 하루 상한(기본 30명)과 10분 폭주 임계(기본 15건)를 넘으면 차단하거나 경고를 남긴다.
+  const DAILY_LIMIT = Number(env.TALENT_VIEW_DAILY_LIMIT || 30);
+  const BURST_WINDOW_MIN = 10;
+  const BURST_LIMIT = Number(env.TALENT_VIEW_BURST_LIMIT || 15);
+  let dailyCount = 0;
+  if (!isAdmin && !isOwner && account) {
+    try {
+      const dayAgo = new Date(Date.now() - 86400000).toISOString();
+      const burstAgo = new Date(Date.now() - BURST_WINDOW_MIN * 60000).toISOString();
+      // 오늘 이 병원이 조회한 서로 다른 후보 수(같은 후보 반복은 1로 계산).
+      const dailyRow = await env.DB.prepare("SELECT COUNT(DISTINCT subject_ref) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND datetime(created_at) >= datetime(?)").bind(identity.email, dayAgo).first();
+      dailyCount = Number(dailyRow?.n || 0);
+      const burstRow = await env.DB.prepare("SELECT COUNT(*) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND datetime(created_at) >= datetime(?)").bind(identity.email, burstAgo).first();
+      const burstCount = Number(burstRow?.n || 0);
+      // 하루 상한 초과: 차단하고 경고 로그.
+      const alreadySeen = await env.DB.prepare("SELECT 1 FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND subject_ref = ? LIMIT 1").bind(identity.email, talentId).first();
+      if (!alreadySeen && dailyCount >= DAILY_LIMIT) {
+        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_blocked', ?, ?)").bind(crypto.randomUUID(), identity.email, talentId, JSON.stringify({ reason:'daily_limit', dailyCount, limit:DAILY_LIMIT })).run(); } catch {}
+        return json({ unlocked:false, detail:null, limited:true, message:'금일 열람 한도를 초과했습니다. 대량 정보 수집 방지를 위해 잠시 후 다시 이용해 주세요.' }, 429);
+      }
+      // 단시간 폭주: 차단하진 않되 경고 로그를 남겨 관리자가 탐지.
+      if (burstCount + 1 >= BURST_LIMIT) {
+        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_burst', ?, ?)").bind(crypto.randomUUID(), identity.email, talentId, JSON.stringify({ burstCount:burstCount + 1, windowMin:BURST_WINDOW_MIN })).run(); } catch {}
+      }
+    } catch {}
+  }
   let hasUnlock = Boolean(isAdmin || isOwner);
   if (!hasUnlock && account?.role === 'hospital') {
     const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? LIMIT 1").bind(account.id, talentId).first();
@@ -1903,25 +1936,16 @@ async function talentDetailApi(request, env, pathname) {
     // [보안] 단, 비공개(private) 이력서에는 크레딧을 쓰지 않는다. 어차피 상세는 안 나가므로
     // 크레딧만 낭비되고, 공개 안 한 의사를 열람 시도하는 것 자체를 막는다.
     if (!hasUnlock) {
-      let spendable = true;
-      const rid = resumeId;
-      if (rid && !seekerPost) {
-        try {
-          const vis = await env.DB.prepare("SELECT visibility FROM resumes WHERE id = ? LIMIT 1").bind(rid).first();
-          // 실제 이력서인데 공개 대상이 아니면 크레딧 소모 금지(정적 샘플은 resumes에 없어 통과).
-          if (vis && !['public','proposal'].includes(vis.visibility)) spendable = false;
-        } catch {}
-      }
-      if (spendable) try {
+      try {
         await ensureTalentCreditSchema(env);
         // 크레딧이 남은 풀을 구매가 오래된 순서부터 사용한다. 열람권 수량에는 만료일이 없다.
-        const pool = await env.DB.prepare("SELECT id, total_credits AS total, used_credits AS used FROM talent_credit_pools WHERE hospital_account_id = ? AND used_credits < total_credits ORDER BY created_at ASC, id ASC LIMIT 1").bind(account.id).first();
+        const pool = await env.DB.prepare("SELECT id, order_id AS orderId, total_credits AS total, used_credits AS used FROM talent_credit_pools WHERE hospital_account_id = ? AND used_credits < total_credits ORDER BY created_at ASC, id ASC LIMIT 1").bind(account.id).first();
         if (pool) {
           // 크레딧을 원자적으로 차감(경합 시 조건 불일치로 0행 → 이중 소모 방지).
           const spent = await env.DB.prepare("UPDATE talent_credit_pools SET used_credits = used_credits + 1 WHERE id = ? AND used_credits = ?").bind(pool.id, Number(pool.used)).run();
           if (runChanges(spent) === 1) {
             try {
-              const granted = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.id, null).run();
+              const granted = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, talentId, pool.orderId, null).run();
               if (runChanges(granted) === 1) hasUnlock = true;
               else {
                 // 다른 동시 요청이 먼저 같은 인재 권한을 만들었다면 방금 차감한 1건을 즉시 복구한다.
@@ -1940,33 +1964,6 @@ async function talentDetailApi(request, env, pathname) {
     }
   }
   if (!hasUnlock) return json({ unlocked:false, detail:null });
-  // === 정보 유출 방어: 병원 계정의 열람 빈도를 검사한다(관리자는 예외). ===
-  // 하루 상한(기본 30명)과 10분 폭주 임계(기본 15건)를 넘으면 차단하거나 경고를 남긴다.
-  const DAILY_LIMIT = Number(env.TALENT_VIEW_DAILY_LIMIT || 30);
-  const BURST_WINDOW_MIN = 10;
-  const BURST_LIMIT = Number(env.TALENT_VIEW_BURST_LIMIT || 15);
-  let dailyCount = 0;
-  if (!isAdmin && !isOwner && account) {
-    try {
-      const dayAgo = new Date(Date.now() - 86400000).toISOString();
-      const burstAgo = new Date(Date.now() - BURST_WINDOW_MIN * 60000).toISOString();
-      // 오늘 이 병원이 조회한 서로 다른 후보 수(같은 후보 반복은 1로 계산).
-      const dailyRow = await env.DB.prepare("SELECT COUNT(DISTINCT subject_ref) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND created_at >= ?").bind(identity.email, dayAgo).first();
-      dailyCount = Number(dailyRow?.n || 0);
-      const burstRow = await env.DB.prepare("SELECT COUNT(*) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND created_at >= ?").bind(identity.email, burstAgo).first();
-      const burstCount = Number(burstRow?.n || 0);
-      // 하루 상한 초과: 차단하고 경고 로그.
-      const alreadySeen = await env.DB.prepare("SELECT 1 FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND subject_ref = ? LIMIT 1").bind(identity.email, talentId).first();
-      if (!alreadySeen && dailyCount >= DAILY_LIMIT) {
-        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_blocked', ?, ?)").bind(crypto.randomUUID(), identity.email, talentId, JSON.stringify({ reason:'daily_limit', dailyCount, limit:DAILY_LIMIT })).run(); } catch {}
-        return json({ unlocked:true, detail:null, limited:true, message:'금일 열람 한도를 초과했습니다. 대량 정보 수집 방지를 위해 잠시 후 다시 이용해 주세요.' }, 429);
-      }
-      // 단시간 폭주: 차단하진 않되 경고 로그를 남겨 관리자가 탐지.
-      if (burstCount + 1 >= BURST_LIMIT) {
-        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_burst', ?, ?)").bind(crypto.randomUUID(), identity.email, talentId, JSON.stringify({ burstCount:burstCount + 1, windowMin:BURST_WINDOW_MIN })).run(); } catch {}
-      }
-    } catch {}
-  }
   // 열람권 보유 → 구직글에 연결된 이력서 상세 제공. 삭제·비활성 구직글은 위에서 해석되지 않는다.
   // [보안] visibility가 공개(public)·헤드헌터 제안(proposal)인 이력서만 실명·연락처를 내려준다.
   // 기본값이 private이라, 이 필터가 없으면 '구직 공개'를 선택하지 않은 의사의 연락처까지
@@ -2216,6 +2213,13 @@ async function paymentOrderApi(request, env) {
   const metadata = body.metadata && typeof body.metadata === 'object' ? { ...body.metadata } : {};
   let adContentRecord = null;
   if (product.type === 'talent_search') {
+    const targetId = String(metadata.talentId || '');
+    if (targetId) {
+      const target = targetId.startsWith('seeker-')
+        ? await env.DB.prepare("SELECT r.id FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' LIMIT 1").bind(targetId.slice(7)).first()
+        : targetId.startsWith('resume-') ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND visibility IN ('public','proposal') LIMIT 1").bind(targetId.slice(7)).first() : null;
+      if (!target) return json({ error:'현재 열람할 수 없는 구직 정보입니다. 인재 목록에서 다시 선택해주세요.' }, 400);
+    }
     // 열람권 결제자 정보는 요청 본문을 신뢰하지 않고 회원가입 때 저장한 병원 원본으로 고정한다.
     // 개발자도구로 readonly를 해제하거나 API를 직접 호출해도 다른 병원명·연락처를 저장할 수 없다.
     try {
@@ -2382,7 +2386,7 @@ async function paymentApproveApi(request, env) {
     const unlockCount = Math.max(1, Number(product.unlockCount) || 1);
     try { await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env); } catch { return; }
     try {
-      if (unlockCount > 1) {
+      if (unlockCount > 1 || !talentId) {
         // 묶음(팩) 상품: 특정 인재에 바로 묶지 않고 '열람 크레딧 N개'를 적립한다.
         // 이후 병원이 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권을 발급한다.
         // 예전에는 unlockCount를 무시하고 1건만 발급해 5명팩이 1명만 열리던 버그가 있었다.

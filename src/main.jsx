@@ -1173,7 +1173,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
               <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
-            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>{job.postedDate ? `${job.postedDate.replaceAll('-', '.')} ~ ` : ''}{job.deadline}</strong></span>{restricted && viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : restricted && hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>{job.postedDate ? `${job.postedDate.replaceAll('-', '.')} ~ ` : ''}{job.deadline}</strong></span>{job.isDemo ? <em className="doctor-only-role-note">예시 공고 · 직접 지원 불가</em> : restricted && viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : restricted && hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
           </section>
           <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
             <div className="decision-sheet-head">
@@ -1399,7 +1399,9 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 </div>
               )}
               <small>경력과 진료 범위에 따라 조율합니다.</small>
-              {viewerAccess.loading ? (
+              {job.isDemo ? (
+                <div className="doctor-only-aside-note"><strong>예시 공고</strong><span>화면 안내용 공고로 지원·문의는 제공하지 않습니다.</span></div>
+              ) : viewerAccess.loading ? (
                 <div className="doctor-only-aside-note"><LockKeyhole /><strong>회원 권한 확인 중</strong><span>현재 로그인 정보를 확인하고 있습니다.</span></div>
               ) : hospitalViewer ? (
                 <div className="doctor-only-aside-note"><LockKeyhole /><strong>의료인 회원만 지원 가능</strong><span>병원회원은 이 공고에 지원하거나 문의할 수 없습니다.</span></div>
@@ -2172,7 +2174,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
     fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.detailId || person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
       // 429(열람 한도 초과)는 응답 본문(limited/message)을 읽어 사용자에게 안내한다.
       .then((r) => r.json().catch(() => ({})).then((body) => ({ ok: r.ok, status: r.status, body })))
-      .then(({ body }) => { if (active) setUnlock({ loading: false, unlocked: Boolean(body.unlocked), accessReason: body.accessReason || "", contactProtected: Boolean(body.contactProtected), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
+      .then(({ body, status }) => { if (active) setUnlock({ loading: false, unavailable: status === 404 || status >= 500, unlocked: Boolean(body.unlocked), accessReason: body.accessReason || "", contactProtected: Boolean(body.contactProtected), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
       .catch(() => active && setUnlock({ loading: false, unlocked: false, accessReason: "", contactProtected: false, detail: null, limited: false, message: "" }));
     return () => { active = false; };
   }, [person.code, person.detailId]);
@@ -2205,7 +2207,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
       <div className="talent-detail-hero">
         <span className="talent-detail-avatar"><UserRound /></span>
         <div>
-          <span className="talent-verified"><FileText /> 구직 프로필</span>
+          <span className="talent-verified"><FileText /> {person.isDemo ? "예시 구직 프로필" : "구직 프로필"}</span>
           <small>{talentDisplayName(person, canViewIdentity)} · {canViewIdentity ? "실명 확인" : "이름 비공개"}</small>
           <h2>{person.postTitle || `${person.dept} · ${person.career}`}</h2>
           <p>개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.</p>
@@ -2280,7 +2282,9 @@ function TalentDetailPage({ person, canViewIdentity }) {
           <section className={`talent-detail-private${unlock.limited ? ' talent-detail-limited' : ''}`}>
             <span className="talent-private-icon"><LockKeyhole /></span>
             <div>
-              {unlock.limited ? <>
+              {person.isDemo || unlock.unavailable ? <>
+                <small>현재 열람할 수 없는 구직 정보</small><h3>{person.isDemo ? "화면 안내용 예시 프로필입니다" : "인재 목록에서 다른 구직글을 선택해주세요"}</h3><p>이 정보에 대한 열람권은 구매할 수 없습니다.</p>
+              </> : unlock.limited ? <>
                 <small>금일 열람 한도 초과</small>
                 <h3>대량 정보 수집 방지를 위해 잠시 제한되었습니다</h3>
                 <p>{unlock.message || '금일 열람 한도를 초과했습니다. 잠시 후 다시 이용해 주세요.'} 추가 열람이 필요하면 담당자에게 문의해 주세요.</p>
@@ -2295,7 +2299,7 @@ function TalentDetailPage({ person, canViewIdentity }) {
 
         <div className="talent-detail-actions">
           <Link className="button outline" to="/medical-staff">목록 계속 보기</Link>
-          {ownerAccess ? (
+          {person.isDemo || unlock.unavailable || unlock.loading ? null : ownerAccess ? (
             <Link className="button primary" to={person.jobSeekerPostId ? `/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit` : '/resume'}>내 구직글 수정 <ArrowRight /></Link>
           ) : unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
@@ -2647,12 +2651,12 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                   {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
                       실명은 서버가 권한을 검증하는 독립 상세 페이지에서만 공개된다. */}
                   <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small>{person.contactVisibility === 'private' && <span className="jobseeker-contact-private"><LockKeyhole /> 전화번호 비공개</span>}</div>
-                  <h3>{person.postTitle || `${person.dept || '전문 인력'} · ${person.career || '경력 협의'}`}</h3>
+                  <h3>{person.isDemo && '[예시] '}{person.postTitle || `${person.dept || '전문 인력'} · ${person.career || '경력 협의'}`}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
                 </div>
                 <span className="medical-staff-career">{person.region || '전국'}</span>
                 <strong className="jobseeker-availability">{person.availability || '협의'}</strong>
-                <span className={`medical-staff-deadline js-lock ${identityOpen ? 'open' : ''}`}>{person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : alreadyUnlocked ? <><CircleCheck size={14} /> 열람 완료</> : identityOpen ? <><Eye size={14} /> 관리자 열람</> : <><LockKeyhole size={14} /> 열람권</>}</span>
+                <span className={`medical-staff-deadline js-lock ${identityOpen ? 'open' : ''}`}>{person.isDemo ? '예시 프로필' : person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : alreadyUnlocked ? <><CircleCheck size={14} /> 열람 완료</> : identityOpen ? <><Eye size={14} /> 관리자 열람</> : <><LockKeyhole size={14} /> 열람권</>}</span>
                 {person.ownerView && person.jobSeekerPostId
                   ? <span className="medical-staff-row-action jobseeker-owner-actions"><span className="jobseeker-owner-actions-label">내 글 관리</span><button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit`); }}><PencilLine /> 수정</button><button type="button" onClick={(event) => deleteOwnPost(event, person)}><Trash2 /> 삭제</button></span>
                   : <span className="medical-staff-row-action">{alreadyUnlocked ? '다시 보기' : '상세 보기'} <ArrowRight /></span>}
@@ -3617,8 +3621,8 @@ export function App() {
   }, [rawPath, path, search]);
   const operations = useSiteOperations();
   const headhuntPosts = useMemo(() => buildHeadhuntPosts(operations), [operations.contents]);
-  const liveJobs = useMemo(() => [...operationalDoctorJobs(operations.contents), ...jobs], [operations.contents]);
-  const allTalent = useMemo(() => [...operationalTalent(operations.contents), ...talent], [operations.contents]);
+  const liveJobs = useMemo(() => [...operationalDoctorJobs(operations.contents), ...jobs.map(job => ({ ...job, isDemo: true, hospital: `[예시] ${job.hospital}` }))], [operations.contents]);
+  const allTalent = useMemo(() => [...operationalTalent(operations.contents), ...talent.map(person => ({ ...person, isDemo: true }))], [operations.contents]);
   // 인재정보(/talent)는 의사만, 의료인 채용은 의료인만. 정적 talent는 의사로 간주.
   const liveTalent = useMemo(() => allTalent.filter((p) => (p.staffType || 'doctor') === 'doctor'), [allTalent]);
   const medicalTalent = useMemo(() => allTalent.filter((p) => p.staffType === 'medical'), [allTalent]);
