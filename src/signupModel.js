@@ -1,6 +1,6 @@
 export const ACCOUNT_ROLES = Object.freeze(['doctor', 'hospital']);
 export const TERMS_VERSION = 'terms-v1.0-2026-07-18';
-export const PRIVACY_NOTICE_VERSION = 'privacy-v1.0-2026-07-18';
+export const PRIVACY_NOTICE_VERSION = 'privacy-v1.1-2026-09-12';
 
 export function validateSignup(input = {}) {
   const errors = {};

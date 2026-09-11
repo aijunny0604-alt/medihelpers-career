@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import PrivacyNotice from './PrivacyNotice.jsx';
+import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import {
   ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
   FileCheck2, LockKeyhole, Mail, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, Upload, UserRound, X
@@ -322,7 +324,7 @@ function PrivacyCopy({ memberType }) {
       <div><dt>수집 목적</dt><dd>회원 식별과 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의 처리, 결제·계약 내역 관리</dd></div>
       <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 병원명, 대표자명, 사업자등록번호, 주소, 사업자등록증 제출 파일' : ', 의료 직군, 활동 지역'}</dd></div>
       <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증 제출본과 제출 이력은 제출 후 3년까지 접근을 제한해 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
-      <div><dt>동의 거부</dt><dd>동의를 거부할 수 있으나 필수정보 수집에 동의하지 않으면 회원가입과 계정 기반 서비스를 이용할 수 없습니다.</dd></div>
+      <div><dt>처리 근거</dt><dd>계정 생성·관리에 필요한 최소정보는 서비스 계약 이행을 위해 처리합니다. 아래 확인은 처리방침 전체에 대한 포괄 동의가 아닙니다. 상담·이력서 제출과 병원 제공 시에는 별도 안내와 동의를 받습니다.</dd></div>
       <div><dt>선택 정보</dt><dd>{memberType === 'hospital' ? '담당자 직책, 부서명, 상세 주소, 홈페이지와 팩스번호는 입력하지 않아도 가입할 수 있습니다.' : '전문 분야, 출생연도와 성별은 입력하지 않아도 가입할 수 있습니다.'} 광고성 정보 수신 동의도 가입 필수 동의와 분리해 별도로 받습니다.</dd></div>
     </dl>
     <p className="signup-legal-notice"><b>개인정보 보호책임자: 이형석</b> hr@medihelpers.co.kr · 051-342-5463. 주민등록번호와 의료인 면허번호는 가입 단계에서 수집하지 않습니다. 병원 회원의 사업자등록증은 기관 제출 이력 보관 목적으로만 제한적으로 처리합니다. <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 전문</a>에서 처리위탁, 제3자 제공, 파기와 권리 행사 방법을 확인할 수 있습니다.</p>
@@ -331,6 +333,7 @@ function PrivacyCopy({ memberType }) {
 
 // 실제 계정을 만들지 않으며, 어떤 개인정보도 브라우저에 저장하지 않습니다.
 function SignupApplicationForm({ memberType, signedIn, onComplete }) {
+  const [optionalPrivacyConsent, setOptionalPrivacyConsent] = useState(false);
   const content = roleContent[memberType];
   const RoleIcon = content.icon;
   const fields = useMemo(() => fieldsForRole(memberType), [memberType]);
@@ -401,6 +404,11 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     event.preventDefault();
     setSubmittedOnce(true);
     const validation = validateApplicationDraft(draft, memberType);
+    const optionalFields = ['specialty','birthYear','gender','institutionType','hospitalRole','department','addressDetail','website','fax'];
+    if (optionalFields.some(key => String(draft[key] || '').trim()) && !optionalPrivacyConsent) {
+      setErrors({ submit:'추가 회원정보 수집·이용에 동의하거나 선택 입력 항목을 비워주세요.' });
+      return;
+    }
     if (memberType === 'hospital' && !businessDocument) {
       validation.valid = false;
       validation.errors.businessDocument = '사업자등록증 파일을 첨부해주세요.';
@@ -448,6 +456,8 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         department: draft.department,
         professionType: draft.professionType,
         specialty: draft.specialty,
+        region:draft.region, birthYear:draft.birthYear, gender:draft.gender,
+        optionalPrivacyConsent, privacyVersion:PRIVACY_FORM_VERSION,
         termsAccepted: true,
         privacyAcknowledged: true,
         ageConfirmed: true
@@ -523,6 +533,8 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       </>}
 
       <div className="signup-consent-block">
+        <PrivacyNotice scope="signupOptional" />
+        <label className="signup-age-confirm"><input type="checkbox" checked={optionalPrivacyConsent} onChange={event => setOptionalPrivacyConsent(event.target.checked)} /><span><b>선택</b><strong>추가 회원정보 수집·이용에 동의합니다.</strong></span></label>
         <label className="signup-consent-all">
           <input type="checkbox" checked={allConsentsAccepted(draft)} onChange={(event) => toggleAllConsents(event.target.checked)} />
           <span><b>전체 동의</b> 아래 필수 항목에 한 번에 동의합니다. (마케팅 수신 동의는 포함되지 않습니다.)</span>
@@ -531,7 +543,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
           <AgreementItem id={`signup-${memberType}-termsAccepted`} checked={draft.termsAccepted} onChange={(value) => toggleConsent('termsAccepted', value)} title="서비스 이용약관">
             <TermsCopy />
           </AgreementItem>
-          <AgreementItem id={`signup-${memberType}-privacyAccepted`} checked={draft.privacyAccepted} onChange={(value) => toggleConsent('privacyAccepted', value)} title="개인정보 수집·이용">
+          <AgreementItem id={`signup-${memberType}-privacyAccepted`} checked={draft.privacyAccepted} onChange={(value) => toggleConsent('privacyAccepted', value)} title="개인정보 처리 안내 확인" confirmation="안내를 확인했습니다">
             <PrivacyCopy memberType={memberType} />
           </AgreementItem>
           <label className="signup-age-confirm">
@@ -683,7 +695,7 @@ function SignupForm({ identity = {}, memberType, onComplete }) {
         <AgreementItem id={`live-${memberType}-termsAccepted`} checked={form.termsAccepted} onChange={(value) => update('termsAccepted', value)} title="서비스 이용약관">
           <TermsCopy />
         </AgreementItem>
-        <AgreementItem id={`live-${memberType}-privacyAcknowledged`} checked={form.privacyAcknowledged} onChange={(value) => update('privacyAcknowledged', value)} title="개인정보 수집·이용" confirmation="안내를 확인하고 동의합니다">
+        <AgreementItem id={`live-${memberType}-privacyAcknowledged`} checked={form.privacyAcknowledged} onChange={(value) => update('privacyAcknowledged', value)} title="개인정보 처리 안내 확인" confirmation="안내를 확인했습니다">
           <PrivacyCopy memberType={memberType} />
         </AgreementItem>
         <label className="signup-age-confirm"><input type="checkbox" checked={form.ageConfirmed} onChange={(event) => update('ageConfirmed', event.target.checked)} /><span><b>필수</b><strong>만 14세 이상임을 확인합니다.</strong></span></label>

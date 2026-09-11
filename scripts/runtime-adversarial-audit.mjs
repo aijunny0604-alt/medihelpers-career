@@ -1,3 +1,4 @@
+import { PRIVACY_FORM_VERSION } from '../src/privacyConsent.js';
 // Run after npm run build. Exercises the generated Worker with an isolated in-memory SQLite DB.
 import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
@@ -34,6 +35,9 @@ const DB={prepare:sql=>new Statement(sql),batch:async statements=>{sqlite.exec('
 const env={DB,ACCOUNT_HASH_SECRET:'audit-only-secret-never-used-outside-local-20260909',ADMIN_EMAILS:'admin@medihelpers.co.kr',SIGNUP_ENABLED:'true',LEGAL_DOCUMENT_STATUS:'approved',TEST_ACCOUNT_SWITCH_ENABLED:'true'};
 const output=[];
 async function call(path,role='',body,method=body?'POST':'GET') {
+ // Existing positive fixtures explicitly represent a visitor accepting the current notices.
+ // Negative consent cases override these values with false/null.
+ if(body && typeof body === 'object' && !Array.isArray(body)) body={privacyVersion:PRIVACY_FORM_VERSION,privacyConsent:true,publicationAcknowledged:true,checkoutAcknowledged:true,contactConsent:true,...body};
  const headers={'content-type':'application/json',origin:'https://audit.local'};if(cookies[role])headers.cookie=cookies[role];
  const response=await worker.fetch(new Request('https://audit.local'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})}),env,{});
  let data;try{data=await response.json();}catch{data={};}

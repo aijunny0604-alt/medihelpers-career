@@ -15,6 +15,9 @@ import { appendStoredRecord } from "./browserStorage.js";
 import { withBase } from "./basePath.js";
 import { useAccountProfile } from "./useAccountProfile.js";
 import ResumeSubmitPicker from "./ResumeSubmitPicker.jsx";
+import PrivacyNotice from './PrivacyNotice.jsx';
+import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
+import { useSiteOperations } from './siteOperations.js';
 
 const copy = {
   doctor: {
@@ -58,6 +61,8 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
   })();
   const { appliedJobId, headhuntPostId, headhuntPostTitle, headhuntPostHospital, headhuntPostSpecialty } = requestContext;
   const isDirectApplication = Boolean(isDoctor && appliedJobId);
+  const operations = useSiteOperations();
+  const recipient = operations.contents.find(item => item.id === appliedJobId.replace(/^admin-/, ''))?.subtitle || '';
   const isHeadhuntPostInquiry = Boolean(isDoctor && headhuntPostId);
   const processSteps = isDirectApplication ? [
     ["지원서 제출", "저장한 이력서와 지원 내용을 선택"],
@@ -87,7 +92,10 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
     setSubmitting(true);
     setSubmitError("");
     const form = new FormData(event.currentTarget);
+    const privacyConsent = form.get('privacy') === 'agreed';
+    const thirdPartyConsent = form.get('thirdParty') === 'agreed';
     form.delete("privacy");
+    form.delete('thirdParty');
     const fields = Object.fromEntries(form.entries());
     const linkedResume = isDoctor && selectedResumeId ? { resumeId: selectedResumeId } : {};
     const sourceContext = isHeadhuntPostInquiry
@@ -124,7 +132,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
             name: fields.name || accountProfile.name || "", phone: fields.phone || accountProfile.phone || "",
             email: fields.email || accountProfile.email || "", profession: fields.professionalType || "의료인",
             specialty: fields.specialty || "", desiredRegions: fields.region || "", completion: 40,
-            visibility: "private", createNew: true,
+            visibility: "private", createNew: true, privacyConsent, privacyVersion:PRIVACY_FORM_VERSION,
             detail: { workType: fields.workType || "", startTiming: fields.startTiming || "", introduction: fields.message || "" },
           }),
         });
@@ -138,7 +146,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
       const response = await fetch("/api/consultations", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ requestType: isDoctor ? "doctor" : "hospital", payload }),
+        body: JSON.stringify({ requestType: isDoctor ? "doctor" : "hospital", payload, privacyConsent, privacyVersion:PRIVACY_FORM_VERSION, thirdPartyConsent, recipient }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "상담 접수에 실패했습니다.");
@@ -262,7 +270,7 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
           <div className="quick-request-contact-card direct-routing">
             <div>
               <span>지원서 전달 대상</span>
-              <strong>이 채용공고를 등록한 병원</strong>
+              <strong>{recipient || '병원 정보를 확인하고 있습니다'}</strong>
             </div>
             <p>병원 유료 채용광고의 지원서는 의사 헤드헌터 상담함이나 연락처로 전달되지 않습니다.</p>
             <small><b>*</b> 표시는 필수 입력 항목입니다.</small>
@@ -442,15 +450,17 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
             }
           />
         </label>
+        <PrivacyNotice scope={isDirectApplication ? 'application' : 'consultation'} />
         <label className="quick-consent">
           <input required name="privacy" type="checkbox" value="agreed" />
           <span>
             <strong>개인정보 수집·이용에 동의합니다. *</strong>
-            {isDirectApplication ? "입력 정보는 해당 병원의 채용 지원 확인 목적으로만 사용하며, 채용 절차 종료 또는 목적 달성 후 지체 없이 파기합니다." : "입력 정보는 헤드헌팅 상담과 채용 매칭 목적으로만 사용하며, 상담 종료 또는 목적 달성 후 지체 없이 파기합니다."}
+            위 목적·항목·보유기간·거부권 안내를 확인했습니다.
           </span>
         </label>
+        {isDirectApplication && <><PrivacyNotice scope="direct" recipient={recipient || '병원 정보를 확인하고 있습니다'} /><label className="quick-consent"><input key={recipient} required name="thirdParty" type="checkbox" value="agreed" disabled={!recipient} /><span><strong>[필수] {recipient || '해당 병원'}에 위 개인정보를 제공하는 데 동의합니다.</strong>수집·이용 동의와 별도로 선택해주세요.</span></label></>}
         {submitError && <p className="quick-submit-error" role="alert">{submitError}</p>}
-        <button className="quick-submit" type="submit" disabled={submitting}>
+        <button className="quick-submit" type="submit" disabled={submitting || (isDirectApplication && !recipient)}>
           <span className="quick-submit-label">
           {isDirectApplication ? "이 병원에 지원하기" : isHeadhuntPostInquiry ? "이 공고 헤드헌터에게 문의하기" : isDoctor ? "간편 이력서 제출하기" : "의사 초빙 의뢰하기"} <ArrowRight />
           </span>

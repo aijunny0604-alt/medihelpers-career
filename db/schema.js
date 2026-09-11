@@ -16,6 +16,8 @@ export const accountSchemaStatements = [
     UNIQUE (account_id, consent_type, document_version)
   )`,
   `CREATE INDEX IF NOT EXISTS consent_records_account_idx ON consent_records(account_id)`,
+  `CREATE TABLE IF NOT EXISTS processing_consent_events (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, scope TEXT NOT NULL, resource_id TEXT NOT NULL, document_version TEXT NOT NULL, notice_json TEXT NOT NULL, accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE)`,
+  `CREATE INDEX IF NOT EXISTS processing_consent_account_idx ON processing_consent_events(account_id, accepted_at)`,
   // 재가입 제한(약관상 30일)을 위한 탈퇴 이력. 개인정보가 아닌 user_key 해시만 보관.
   `CREATE TABLE IF NOT EXISTS withdrawn_members (
     user_key TEXT PRIMARY KEY,

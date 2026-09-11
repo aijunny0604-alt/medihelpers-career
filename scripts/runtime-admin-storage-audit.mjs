@@ -1,3 +1,4 @@
+import { PRIVACY_FORM_VERSION } from '../src/privacyConsent.js';
 // Run after npm run build. Exercises the generated Worker with an isolated in-memory SQLite DB.
 import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
@@ -17,6 +18,9 @@ const DB={prepare:sql=>new Statement(sql),batch:async statements=>{sqlite.exec('
 const env={DB,ACCOUNT_HASH_SECRET:'audit-only-secret-never-used-outside-local-20260909',ADMIN_EMAILS:'admin@medihelpers.co.kr',SIGNUP_ENABLED:'true',LEGAL_DOCUMENT_STATUS:'approved',TEST_ACCOUNT_SWITCH_ENABLED:'true'};
 const output=[];
 async function call(path,role='',body,method=body?'POST':'GET') {
+ // Existing positive fixtures explicitly represent a visitor accepting the current notices.
+ // Negative consent cases override these values with false/null.
+ if(body && typeof body === 'object' && !Array.isArray(body)) body={privacyVersion:PRIVACY_FORM_VERSION,privacyConsent:true,publicationAcknowledged:true,checkoutAcknowledged:true,contactConsent:true,...body};
  const headers={'content-type':'application/json',origin:'https://audit.local'};if(cookies[role])headers.cookie=cookies[role];
  const response=await worker.fetch(new Request('https://audit.local'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})}),env,{});
  let data;try{data=await response.json();}catch{data={};}
@@ -30,6 +34,46 @@ for(const [path,method] of [['/api/admin-console','PATCH'],['/api/admin-backups'
 const saved=await call('/api/resumes','doctor',{title:'관리자 DB 검수',name:'검수용 가상 의사',phone:'010-0000-0000',email:'audit@example.invalid',profession:'의사',specialty:'내과',detail:{introduction:'복구검수'},createNew:true});record('resume persisted',saved.status,201);
 const reloaded=await call('/api/resumes','doctor');record('resume visible after reread',JSON.stringify(reloaded.data).includes(saved.data.id),true);
 const consoleData=await call('/api/admin-console','admin');record('admin sees persisted resume',JSON.stringify(consoleData.data).includes(saved.data.id),true);
+// Consent cannot be supplied by a browser checkbox alone: the Worker validates every route.
+const resumeInput={title:'동의 검수',name:'가상 의료인',phone:'01000000000',createNew:true};
+const signupInput={email:'privacy-audit@example.invalid',password:'Audit-test-2026!',role:'doctor',displayName:'가상 가입자',phone:'01000000000',professionType:'의사',termsAccepted:true,privacyAcknowledged:true,ageConfirmed:true};
+record('signup rejects stale privacy notice',(await call('/api/auth/register','',{...signupInput,privacyVersion:null})).status,400);
+record('signup optional fields require separate consent',(await call('/api/auth/register','',{...signupInput,specialty:'내과',optionalPrivacyConsent:false})).status,400);
+record('signup succeeds without optional information',(await call('/api/auth/register','',signupInput)).status,201);
+record('signup accepts separately agreed optional information',(await call('/api/auth/register','',{...signupInput,email:'privacy-optional@example.invalid',specialty:'내과',optionalPrivacyConsent:true})).status,201);
+record('signup optional consent snapshot saved',sqlite.prepare("SELECT COUNT(*) n FROM processing_consent_events WHERE scope='signupOptional'").get().n,1);
+const resumeCount=()=>sqlite.prepare('SELECT COUNT(*) n FROM resumes').get().n;
+const beforeRejected=resumeCount();
+for(const consent of [false,null,'true'])record('resume rejects consent '+String(consent),(await call('/api/resumes','doctor',{...resumeInput,privacyConsent:consent})).status,400);
+record('resume rejects old notice',(await call('/api/resumes','doctor',{...resumeInput,privacyVersion:'old'})).status,400);
+record('rejected consent leaves no resume',resumeCount(),beforeRejected);
+record('resume consent stored',sqlite.prepare("SELECT COUNT(*) n FROM processing_consent_events WHERE scope='resume' AND resource_id=?").get(saved.data.id).n,1);
+const originalRun=Statement.prototype.run;let failConsent=true;
+Statement.prototype.run=async function(){if(failConsent && this.sql.includes('INSERT INTO processing_consent_events'))throw new Error('CONSENT_WRITE_FAILURE');return originalRun.call(this);};
+try{await call('/api/resumes','doctor',resumeInput);}catch{}
+failConsent=false;Statement.prototype.run=originalRun;
+record('failed consent write rolls back resume',resumeCount(),beforeRejected);
+const inquiry={requestType:'doctor',payload:{name:'가상 의사',phone:'01000000000',specialty:'내과'}};
+record('consultation rejects no consent',(await call('/api/consultations','doctor',{...inquiry,privacyConsent:false})).status,400);
+const inquiryOk=await call('/api/consultations','doctor',inquiry);record('consultation accepts consent',inquiryOk.status,201);
+record('consultation notice stored',sqlite.prepare("SELECT COUNT(*) n FROM processing_consent_events WHERE scope='consultation' AND resource_id=?").get(inquiryOk.data.id).n,1);
+record('checkout rejects no acknowledgement',(await call('/api/payment-orders','hospital',{productId:'basic',checkoutAcknowledged:false})).status,400);
+record('posting rejects no acknowledgement',(await call('/api/job-seeker-posts','doctor',{resumeId:saved.data.id,publicationAcknowledged:false})).status,400);
+record('contact sharing rejects missing separate consent',(await call('/api/job-seeker-posts','doctor',{resumeId:saved.data.id,contactVisibility:'ticket',contactConsent:false})).status,400);
+const ad=await call('/api/payment-orders','hospital',{productId:'basic',metadata:{hospital:'동의 검수 병원',department:'내과',address:'서울',introduction:'합성 테스트'}});record('checkout consent saved',ad.status,201);
+await call('/api/payment-approve','hospital',{orderNumber:ad.data.order.orderNumber});
+const apply={requestType:'doctor',payload:{name:'가상 의사',phone:'01000000000',specialty:'내과',jobId:'admin-'+ad.data.order.contentRecordId,resumeId:saved.data.id},recipient:'동의 검수 병원'};
+record('direct application requires separate consent',(await call('/api/consultations','doctor',apply)).status,400);
+record('direct application rejects changed recipient',(await call('/api/consultations','doctor',{...apply,thirdPartyConsent:true,recipient:'다른 병원'})).status,400);
+const applied=await call('/api/consultations','doctor',{...apply,thirdPartyConsent:true});record('direct application with consent',applied.status,201);
+const directEvent=sqlite.prepare("SELECT notice_json FROM processing_consent_events WHERE scope='direct' AND resource_id=?").get(applied.data.id);
+record('actual recipient recorded',directEvent ? JSON.parse(directEvent.notice_json).recipient : null,'동의 검수 병원');
+const adminCounts=(await call('/api/admin-console','admin')).data.databaseCounts;
+for(const table of ['consultation_requests','payment_orders','payment_transactions','processing_consent_events'])record('exact count '+table,adminCounts[table],sqlite.prepare('SELECT COUNT(*) n FROM '+table).get().n);
+record('marketing without current notice rejected',(await call('/api/member-center','doctor',{profile:{},notifications:{marketing:true},privacyVersion:null},'PATCH')).status,400);
+record('optional email consent accepted',(await call('/api/member-center','doctor',{profile:{},notifications:{marketing:true}},'PATCH')).status,200);
+record('optional email consent can be withdrawn',(await call('/api/member-center','doctor',{profile:{},notifications:{marketing:false}},'PATCH')).status,200);
+record('marketing grant and withdrawal recorded',sqlite.prepare("SELECT COUNT(*) n FROM processing_consent_events WHERE scope='marketing'").get().n,2);
 const objects=new Map(); let corrupt=false;
 env.BACKUPS={
  async put(key,value,opts={}) {objects.set(key,{value:String(value),customMetadata:opts.customMetadata||{},uploaded:new Date(),key});},

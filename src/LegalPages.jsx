@@ -14,13 +14,13 @@ const operator = {
   email: 'hr@medihelpers.co.kr',
 };
 
-function LegalLayout({ eyebrow, title, description, children }) {
+function LegalLayout({ eyebrow, title, description, children, privacyRevision = false }) {
   return <section className="legal-page">
     <header className="legal-hero">
       <span><ShieldCheck /> {eyebrow}</span>
       <h1>{title}</h1>
       <p>{description}</p>
-      <div className="legal-effective"><b>시행일</b> 2026년 7월 18일 <i>v1.0</i></div>
+      <div className="legal-effective"><b>시행일</b> {privacyRevision ? '2026년 9월 12일' : '2026년 7월 18일'} <i>{privacyRevision ? 'v1.1' : 'v1.0'}</i></div>
     </header>
     <div className="legal-layout">
       <article className="legal-document">{children}</article>
@@ -157,8 +157,9 @@ export function WithdrawalPolicyPage() {
 }
 
 export function PrivacyPolicyPage() {
-  return <LegalLayout eyebrow="PRIVACY POLICY" title="개인정보처리방침" description="메디헬퍼스가 실제 서비스에서 처리하는 개인정보와 보호 기준을 공개합니다.">
+  return <LegalLayout privacyRevision eyebrow="PRIVACY POLICY" title="개인정보처리방침" description="메디헬퍼스가 실제 서비스에서 처리하는 개인정보와 보호 기준을 공개합니다.">
     <Section number="01" title="처리 목적과 항목">
+      <p>계정 생성·보안과 신청한 상품 제공에 필요한 최소정보는 계약 이행을 위해 처리합니다. 상담·이력서 수집·이용, 지원 병원에 대한 제공, 이메일 마케팅은 각각 안내 후 동의를 받습니다. 처리방침 확인을 모든 개인정보 처리에 대한 포괄 동의로 사용하지 않습니다.</p>
       <div className="legal-table">
         <div><b>회원·계정</b><span>회원 식별, 로그인, 계정 보안, 권한 제공</span><span>이름, 이메일, 휴대폰 번호, 비밀번호 단방향 해시, 회원 유형, 동의 일시·버전</span></div>
         <div><b>개인 회원</b><span>맞춤 채용정보, 이력서·상담 관리</span><span>의료 직군, 전문 분야, 활동 지역, 선택 입력한 경력·희망조건</span></div>
@@ -170,7 +171,9 @@ export function PrivacyPolicyPage() {
     </Section>
     <Section number="02" title="보유 및 이용 기간">
       <ul>
-        <li>회원정보: 회원 탈퇴 시까지</li>
+        <li>회원정보·개인 이력서: 삭제 또는 회원 탈퇴 시까지. 선택 정보는 입력하지 않아도 가입할 수 있습니다.</li>
+        <li>이메일 마케팅 정보: 별도 선택 동의 후 동의 철회 또는 회원 탈퇴 시까지</li>
+        <li>수집·제공 동의 증빙: 연결된 서비스 기록의 보존기간 이내, 회원 탈퇴 시 삭제. 결제 안내 확인 기록도 탈퇴 시 삭제하며 별도 거래 원장만 법정 기간 보존</li>
         <li>병원 사업자등록증 제출본·제출 이력: 제출 후 3년</li>
         <li>상담·채용 연결 기록: 상담 또는 채용 건 종료 후 3년</li>
         <li>계약 또는 청약철회 등에 관한 기록, 대금결제 및 재화 등의 공급에 관한 기록: 5년</li>
@@ -180,7 +183,8 @@ export function PrivacyPolicyPage() {
       <p>관계 법령에 따른 보존기간이 끝나거나 처리 목적이 달성되면 지체 없이 파기합니다. 법정 보존이 필요한 정보는 다른 정보와 분리하여 해당 목적으로만 보관합니다.</p>
     </Section>
     <Section number="03" title="제3자 제공">
-      <p>메디헬퍼스는 원칙적으로 동의 없이 개인정보를 제3자에게 제공하지 않습니다. 다만 후보자를 병원에 소개할 때에는 후보자에게 제공받는 병원, 제공 목적, 제공 항목, 보유기간과 거부권을 건별로 알리고 별도 동의를 받은 범위에서만 제공합니다.</p>
+      <p>구직글에서 연락처 공개를 선택하면 해당 구직글의 열람권을 사용하는 병원 회원에게 연결 이력서의 성명·전화번호·이메일이 공개됩니다. 비공개가 기본이며 별도 선택 동의가 필요합니다. 구직글 수정 화면에서 비공개로 전환할 수 있습니다.</p>
+      <p>메디헬퍼스는 원칙적으로 동의 없이 개인정보를 제3자에게 제공하지 않습니다. 병원 직접 지원 화면에서는 제공받는 병원명을 확인하고 별도 제공 동의를 선택해야 제출됩니다. 개인 이력서 저장만으로 병원에 제공되지 않습니다. 다만 후보자를 병원에 소개할 때에는 후보자에게 제공받는 병원, 제공 목적, 제공 항목, 보유기간과 거부권을 건별로 알리고 별도 동의를 받은 범위에서만 제공합니다.</p>
       <p>법률에 특별한 규정이 있거나 생명·신체의 급박한 보호 등 「개인정보 보호법」이 허용하는 경우에는 법이 정한 범위에서 처리할 수 있습니다.</p>
     </Section>
     <Section number="04" title="처리업무 위탁과 인프라">
@@ -192,7 +196,7 @@ export function PrivacyPolicyPage() {
       <p>이메일·문자 알림 또는 결제 기능을 정식 연결할 때에는 해당 수탁자와 처리 항목을 서비스 적용 전에 이 방침에 추가합니다.</p>
     </Section>
     <Section number="05" title="파기 절차와 방법">
-      <p>보유기간이 끝난 전자정보는 복구하기 어려운 방법으로 삭제하고, 출력물은 분쇄 또는 소각합니다. 법령에 따라 별도 보관하는 정보는 접근권한을 최소화하고 일반 서비스 데이터와 논리적으로 분리합니다.</p>
+      <p>운영 DB에서 삭제된 정보가 기존 DB 백업에 남아 있을 수 있으며 백업은 최대 35일 순환 보관합니다. 백업 복원 시에는 삭제·철회 상태를 확인해야 합니다. 보유기간이 끝난 전자정보는 복구하기 어려운 방법으로 삭제하고, 출력물은 분쇄 또는 소각합니다. 법령에 따라 별도 보관하는 정보는 접근권한을 최소화하고 일반 서비스 데이터와 논리적으로 분리합니다.</p>
     </Section>
     <Section number="06" title="정보주체의 권리">
       <p>이용자는 본인의 개인정보 열람, 정정·삭제, 처리정지, 동의 철회와 회원 탈퇴를 요청할 수 있습니다. 마이페이지 또는 아래 개인정보 보호책임자에게 요청하면 본인확인 후 관계 법령이 정한 기간 안에 처리 결과를 안내합니다. 법정대리인은 만 14세 미만 아동의 권리를 행사할 수 있으나, 메디헬퍼스 회원 서비스는 만 14세 이상만 가입할 수 있습니다.</p>
@@ -219,7 +223,7 @@ export function PrivacyPolicyPage() {
     </Section>
     <Section number="10" title="방침 변경">
       <p>이 방침을 변경하면 시행일과 변경 내용을 사이트에 게시합니다. 권리 또는 의무에 중요한 변경은 원칙적으로 시행 30일 전에, 그 밖의 변경은 7일 전에 알립니다. 이전 방침은 요청 시 이메일로 제공받을 수 있습니다.</p>
-      <p><a href={withBase('/terms')}>서비스 이용약관 보기</a></p>
+      <p>2026년 9월 12일 개정: 서비스별 동의와 처리 근거, 병원 직접 지원 제공 동의, 이메일 선택 동의·철회, 동의 증빙 및 백업 보존 안내를 구체화했습니다.</p><p><a href={withBase('/terms')}>서비스 이용약관 보기</a></p>
     </Section>
   </LegalLayout>;
 }

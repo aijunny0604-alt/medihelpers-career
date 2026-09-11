@@ -6140,5 +6140,14 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 }
 @container (max-width:360px){
   .doctor-decision-sheet .decision-sheet-grid dl>div{grid-template-columns:minmax(0,1fr);gap:4px;padding:12px 0}
-  .doctor-decision-sheet .decision-sheet-grid article{padding:18px}
+.doctor-decision-sheet .decision-sheet-grid article{padding:18px}
 }
+
+/* Shared privacy notices: readable at desktop and mobile widths. */
+.privacy-form-notice{grid-column:1/-1;width:100%;box-sizing:border-box;margin:20px 0 12px;padding:22px;border:1px solid #ccdcf2;border-radius:16px;background:#f5f9ff;color:#17365a;font-size:1rem;line-height:1.65}
+.privacy-form-notice>strong{display:block;font-size:1.06rem;color:#10213f;margin-bottom:12px}
+.privacy-form-notice dl{margin:0}.privacy-form-notice dl>div{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;padding:9px 0;border-bottom:1px solid #e0e9f5}
+.privacy-form-notice dt{font-size:.875rem;font-weight:700;color:#466080}.privacy-form-notice dd{margin:0;overflow-wrap:anywhere}.privacy-form-notice p{margin:12px 0!important;font-size:.9375rem!important;line-height:1.7!important;color:#466080!important}.privacy-form-notice a{color:#1263e8;text-decoration:underline;font-weight:700;font-size:.9375rem}
+.admin-consent-records details{border:1px solid #dce6f2;border-radius:12px;margin:12px 0;padding:18px}.admin-consent-records summary{cursor:pointer;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}.admin-consent-records summary span{font-size:14px;color:#60758f}.admin-consent-records dl>div{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;padding:10px 0;border-bottom:1px solid #e9eef5}.admin-consent-records dd{margin:0;overflow-wrap:anywhere}.admin-consent-records dt{color:#60758f}
+@media(max-width:600px){.privacy-form-notice{padding:18px}.privacy-form-notice dl>div,.admin-consent-records dl>div{grid-template-columns:1fr;gap:3px}.admin-protection-summary strong{overflow-wrap:anywhere}}
+.admin-protection>header>button,.admin-protection>button{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid #c9dbf2;border-radius:10px;color:#1558b0;background:#f3f8ff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}.admin-protection>header>button svg{width:18px;height:18px}.admin-protection-files button{white-space:nowrap;font-size:13px!important}

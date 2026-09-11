@@ -1,5 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { backupUploadedAt } from '../src/adminStorage.js';
+import { PRIVACY_FORM_VERSION, PRIVACY_SCOPES, makeConsentSnapshot } from '../src/privacyConsent.js';
 import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, hospitalVerificationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
 import { addInclusiveExposureDays, buildExposureWindow, normalizeExposureWindow } from '../src/billingPeriods.js';
 
@@ -115,7 +117,14 @@ const addInclusiveExposureDays = ${addInclusiveExposureDays.toString()};
 const buildExposureWindow = ${buildExposureWindow.toString()};
 const normalizeExposureWindow = ${normalizeExposureWindow.toString()};
 const termsVersion = 'terms-v1.0-2026-07-18';
-const privacyNoticeVersion = 'privacy-v1.0-2026-07-18';
+const backupUploadedAt = ${backupUploadedAt.toString()};
+const PRIVACY_FORM_VERSION = ${JSON.stringify(PRIVACY_FORM_VERSION)};
+const PRIVACY_SCOPES = ${JSON.stringify(PRIVACY_SCOPES)};
+const makeConsentSnapshot = ${makeConsentSnapshot.toString()};
+function consentEvent(env, accountId, scope, resourceId, recipient = '', granted = true) {
+  return env.DB.prepare('INSERT INTO processing_consent_events (id, account_id, scope, resource_id, document_version, notice_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), accountId, scope, resourceId, PRIVACY_FORM_VERSION, JSON.stringify({ ...makeConsentSnapshot(scope, recipient), granted }));
+}
+const privacyNoticeVersion = 'privacy-v1.1-2026-09-12';
 const defaultPublicOrigin = 'https://medihelpers-career.junnyai.chatgpt.site';
 const publicSitemapRoutes = ['/', '/jobs', '/medical-staff', '/headhunting', '/advertise', '/terms', '/privacy', '/refund', '/withdrawal'];
 function publicOrigin(request) {
@@ -384,10 +393,10 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-immediate-signup-v1'); }
   catch (error) { schemaReadyPromises.delete('hospital-immediate-signup-v1'); throw error; }
 }
-const backupSchemaVersion = '0012';
+const backupSchemaVersion = '0013';
 const backupRetentionDays = 35;
 const backupTables = [
-  'accounts','auth_credentials','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
+  'accounts','auth_credentials','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
   'consultation_requests','member_profiles','member_registration_profiles','member_preferences','member_activity','member_notifications','inquiry_messages',
   'resumes','job_seeker_posts','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
   'payment_transactions','payment_refunds','payment_receipts','payment_events',
@@ -425,7 +434,7 @@ async function pruneExpiredBackups(env) {
   let deleted = 0;
   do {
     const page = await env.BACKUPS.list({ prefix:'backups/', limit:1000, cursor });
-    const keys = (page.objects || []).filter(object => new Date(object.uploaded).getTime() < cutoff).map(object => object.key);
+    const keys = (page.objects || []).filter(object => { const uploaded = backupUploadedAt(object); return uploaded && Date.parse(uploaded) < cutoff; }).map(object => object.key);
     if (keys.length) {
       await env.BACKUPS.delete(keys);
       deleted += keys.length;
@@ -454,7 +463,8 @@ async function runRetentionCleanup(env, triggerType = 'daily', actor = 'system')
       env.DB.prepare("DELETE FROM admin_audit_logs WHERE created_at < datetime('now','-3 years')"),
       env.DB.prepare("DELETE FROM data_protection_runs WHERE started_at < datetime('now','-1 year')"),
       env.DB.prepare("DELETE FROM accounts WHERE NOT EXISTS (SELECT 1 FROM auth_credentials c WHERE c.account_id=accounts.id) AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.account_id=accounts.id)"),
-      env.DB.prepare("DELETE FROM account_password_resets WHERE used_at IS NOT NULL OR expires_at < datetime('now','-7 days')")
+      env.DB.prepare("DELETE FROM account_password_resets WHERE used_at IS NOT NULL OR expires_at < datetime('now','-7 days')"),
+      env.DB.prepare("DELETE FROM processing_consent_events WHERE (scope IN ('consultation','application','direct') AND NOT EXISTS (SELECT 1 FROM consultation_requests c WHERE c.id=resource_id)) OR (scope='resume' AND NOT EXISTS (SELECT 1 FROM resumes r WHERE r.id=resource_id)) OR (scope IN ('posting','contact') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=resource_id AND p.status<>'deleted')) OR (scope='checkout' AND NOT EXISTS (SELECT 1 FROM payment_orders p WHERE p.id=resource_id)) OR (scope='marketing' AND accepted_at < datetime('now','-3 years'))")
     ]);
     const deleted = {
       expiredSessions:runChanges(results[0]),
@@ -581,16 +591,17 @@ async function adminBackupsApi(request, env) {
   }
   if (request.method === 'GET') {
     const [listing, runs] = await Promise.all([
-      env.BACKUPS.list({ prefix:'backups/', limit:100 }),
+      env.BACKUPS.list({ prefix:'backups/', limit:100, include:['customMetadata'], ...(url.searchParams.get('cursor') ? { cursor:url.searchParams.get('cursor') } : {}) }),
       env.DB.prepare("SELECT id, run_type AS runType, trigger_type AS triggerType, status, actor, object_key AS objectKey, checksum, row_counts_json AS rowCountsJson, detail_json AS detailJson, started_at AS startedAt, completed_at AS completedAt FROM data_protection_runs ORDER BY started_at DESC LIMIT 30").all()
     ]);
     return json({
       configured:true,
       backupRetentionDays,
+      nextCursor:listing.truncated ? listing.cursor || null : null,
       objects:(listing.objects || []).map(object => ({
         key:object.key,
         size:object.size,
-        uploaded:object.uploaded,
+        uploaded:backupUploadedAt(object),
         checksum:object.customMetadata && object.customMetadata.checksum || ''
       })),
       runs:(runs.results || []).map(row => ({
@@ -745,6 +756,7 @@ async function consultationApi(request, env, pathname) {
     let body;
     try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해 주세요.' }, 400); }
     const requestType = body.requestType;
+    if (body.privacyConsent !== true || body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'개인정보 수집·이용 안내를 확인하고 동의해주세요.' }, 400);
     const payload = cleanConsultationPayload(body.payload || {});
     if (payload.jobId && payload.headhuntPostId) return json({ error:'지원 공고 유형을 하나만 선택해 주세요.' }, 400);
     if (requestType !== 'doctor' && (payload.jobId || payload.headhuntPostId)) return json({ error:'공고 지원·문의는 의료인 회원만 이용할 수 있습니다.' }, 403);
@@ -823,15 +835,19 @@ async function consultationApi(request, env, pathname) {
       }
       payload.jobTitle = String(directJobRow.title || '').slice(0,300);
       payload.jobHospital = String(directJobRow.subtitle || '').slice(0,300);
+      if (body.thirdPartyConsent !== true || body.recipient !== payload.jobHospital) return json({ error:'제공받는 병원 정보를 확인하고 개인정보 제공에 별도로 동의해주세요.' }, 400);
     }
     const id = (requestType === 'doctor' ? 'SEEK-' : 'HIRE-') + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
     const consultationInsert = env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload));
+    if (!account?.id) return json({ error:'회원정보를 확인할 수 없습니다.' }, 403);
+    const consentInserts = [consentEvent(env, account.id, directJobRow ? 'application' : 'consultation', id), ...(directJobRow ? [consentEvent(env, account.id, 'direct', id, payload.jobHospital)] : [])];
     if (payload.submissionChannel === 'paid_job_direct') {
       try {
         await ensureMemberCenterSchema(env);
         // 상담 원문·병원 활동·안읽은 알림을 한 배치로 저장해 일부만 성공하는 유실 상태를 막는다.
         await env.DB.batch([
           consultationInsert,
+          ...consentInserts,
           env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_application', ?, ?)").bind(crypto.randomUUID(), directJobRow.ownerAccountId, ('새 지원자 · ' + (directJobRow.title || '공고')).slice(0,200), (requesterName + ' · ' + payload.specialty).slice(0,300)),
           env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, 'job_application', ?, ?, ?)").bind(crypto.randomUUID(), directJobRow.ownerAccountId, ('새 지원서 · ' + (directJobRow.title || '채용공고')).slice(0,200), (requesterName + '님이 ' + payload.specialty + ' 지원서를 제출했습니다.').slice(0,500), '/mypage?tab=inquiries&inquiry=' + encodeURIComponent(id))
         ]);
@@ -845,6 +861,7 @@ async function consultationApi(request, env, pathname) {
         const title = requestType === 'doctor' ? '구직 문의가 접수되었습니다' : '채용 문의가 접수되었습니다';
         await env.DB.batch([
           consultationInsert,
+          ...consentInserts,
           env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, kind, title, String(payload.subject || payload.specialty).slice(0,300)),
           env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, kind, title, '메디헬퍼스 헤드헌터가 내용을 확인한 뒤 연락드립니다.', '/mypage/inquiries/' + encodeURIComponent(id))
         ]);
@@ -852,7 +869,7 @@ async function consultationApi(request, env, pathname) {
         return json({ error:'헤드헌터 상담함에 문의를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
       }
     } else {
-      await consultationInsert.run();
+      await env.DB.batch([consultationInsert, ...consentInserts]);
     }
     if (requestType === 'hospital') {
       try {
@@ -1058,6 +1075,10 @@ async function authApi(request, env, pathname, ctx) {
 
   if (pathname === '/api/auth/register') {
     if (!signupEnabled(env)) return json({ error:'회원가입 운영 설정이 아직 완료되지 않았습니다.' }, 503);
+    if (body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'최신 개인정보 처리 안내를 확인한 뒤 다시 가입해주세요.' }, 400);
+    const optionalProfileFields = ['specialty','birthYear','gender','institutionType','hospitalRole','department','addressDetail','website','fax'];
+    const hasOptionalProfile = optionalProfileFields.some(key => String(body[key] || '').trim());
+    if (hasOptionalProfile && (body.optionalPrivacyConsent !== true || body.privacyVersion !== PRIVACY_FORM_VERSION)) return json({ error:'선택 회원정보 수집·이용에 동의하거나 추가 정보를 비워주세요.' }, 400);
     if (!['doctor','hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error:'회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
@@ -1134,6 +1155,7 @@ async function authApi(request, env, pathname, ctx) {
       ? { hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), institutionType:String(body.institutionType || '').trim().slice(0,80), website:String(body.website || '').trim().slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
       : { professionType:String(body.professionType || '').trim().slice(0,160), specialty:String(body.specialty || '').trim().slice(0,200), region:String(body.region || '').trim().slice(0,120), birthYear:String(body.birthYear || '').trim().slice(0,4), gender:String(body.gender || '').trim().slice(0,30) };
     const records = [
+      ...(hasOptionalProfile ? [consentEvent(env, account.id, 'signupOptional', account.id)] : []),
       env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
       env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations),
       env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, verification_status, last_login_at) VALUES (?, ?, ?, 'active', ?, ?) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', verification_status=excluded.verification_status, last_login_at=excluded.last_login_at, updated_at=CURRENT_TIMESTAMP").bind(account.id, email, displayName, body.role === 'hospital' ? 'verified' : 'unverified', new Date().toISOString()),
@@ -1358,6 +1380,7 @@ async function accountApi(request, env, ctx) {
         env.DB.prepare('DELETE FROM inquiry_messages WHERE sender_account_id=? OR recipient_account_id=?').bind(account.id, account.id),
         env.DB.prepare('DELETE FROM member_preferences WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM consent_records WHERE account_id=?').bind(account.id),
+        env.DB.prepare('DELETE FROM processing_consent_events WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM talent_unlocks WHERE hospital_account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM talent_credit_pools WHERE hospital_account_id=?').bind(account.id),
         env.DB.prepare("UPDATE account_admin_profiles SET status='withdrawn', email='', full_name='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id),
@@ -1706,7 +1729,11 @@ async function memberCenterApi(request, env) {
     let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
     const profile = cleanMemberProfile(body.profile);
     const preferences = body.notifications && typeof body.notifications === 'object' ? body.notifications : {};
+    if (preferences.marketing === true && body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'선택 이메일 수신 안내를 확인해주세요.' }, 400);
+    const previousPreferences = await env.DB.prepare('SELECT marketing_notifications AS marketing FROM member_preferences WHERE account_id=?').bind(account.id).first();
+    const marketingEvents = Boolean(previousPreferences?.marketing) !== (preferences.marketing === true) ? [consentEvent(env, account.id, 'marketing', account.id, '', preferences.marketing === true)] : [];
     await env.DB.batch([
+      ...marketingEvents,
       env.DB.prepare('INSERT INTO member_profiles (account_id, display_name, phone, organization, job_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, phone=excluded.phone, organization=excluded.organization, job_title=excluded.job_title, updated_at=CURRENT_TIMESTAMP').bind(account.id, profile.displayName, profile.phone, profile.organization, profile.jobTitle),
       env.DB.prepare('INSERT INTO member_preferences (account_id, email_notifications, sms_notifications, service_notifications, marketing_notifications) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET email_notifications=excluded.email_notifications, sms_notifications=excluded.sms_notifications, service_notifications=excluded.service_notifications, marketing_notifications=excluded.marketing_notifications, updated_at=CURRENT_TIMESTAMP').bind(account.id, preferences.email ? 1 : 0, preferences.sms ? 1 : 0, preferences.service ? 1 : 0, preferences.marketing ? 1 : 0),
       env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'profile_update', '회원정보를 수정했습니다.', '기본정보 또는 알림 설정 변경')
@@ -1735,6 +1762,7 @@ async function resumeApi(request, env) {
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 131072) return json({ error:'이력서 내용이 너무 큽니다.' }, 413);
     let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    if (body.privacyConsent !== true || body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'이력서 개인정보 수집·이용에 동의해주세요.' }, 400);
     const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0, max);
     let memberProfile = null;
     let registrationProfile = null;
@@ -1779,10 +1807,10 @@ async function resumeApi(request, env) {
     if (detailJson.length > 120000) return json({ error:'이력서 내용이 너무 큽니다. 내용을 줄여주세요.' }, 413);
     const fields = [id, account.id, title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, 'draft-review', detailJson];
     if (existing) {
-      await env.DB.prepare('UPDATE resumes SET title=?, profession=?, specialty=?, name=?, phone=?, email=?, desired_regions=?, completion=?, visibility=?, detail_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-        .bind(title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, detailJson, id).run();
+      await env.DB.batch([env.DB.prepare('UPDATE resumes SET title=?, profession=?, specialty=?, name=?, phone=?, email=?, desired_regions=?, completion=?, visibility=?, detail_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+        .bind(title, profession, specialty, name, phone, email, desiredRegions, completion, visibility, detailJson, id), consentEvent(env, account.id, 'resume', id)]);
     } else {
-      await env.DB.prepare('INSERT INTO resumes (id, account_id, title, profession, specialty, name, phone, email, desired_regions, completion, visibility, status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(...fields).run();
+      await env.DB.batch([env.DB.prepare('INSERT INTO resumes (id, account_id, title, profession, specialty, name, phone, email, desired_regions, completion, visibility, status, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(...fields), consentEvent(env, account.id, 'resume', id)]);
     }
     try { await env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'resume_update', existing ? '이력서를 수정했습니다.' : '이력서를 등록했습니다.', title).run(); } catch {}
     return json({ saved:true, id, completion, visibility, contactVisibility }, existing ? 200 : 201);
@@ -1831,6 +1859,7 @@ async function jobSeekerPostApi(request, env, pathname) {
     if (!current) return json({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
   }
   const resumeId = s(body.resumeId || current?.resumeId, 100);
+  if (body.publicationAcknowledged !== true || body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'구직글 공개 범위 안내를 확인해주세요.' }, 400);
   if (!resumeId) return json({ error:'연동할 이력서를 선택해주세요.' }, 400);
   const resume = await env.DB.prepare('SELECT id, title, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id=? AND account_id=? LIMIT 1').bind(resumeId, account.id).first();
   if (!resume) return json({ error:'본인 이력서에서 연동할 항목을 찾을 수 없습니다.' }, 404);
@@ -1847,14 +1876,19 @@ async function jobSeekerPostApi(request, env, pathname) {
   const availableFrom = s(body.availableFrom || detail.available || '협의', 180);
   const employmentType = s(body.employmentType || workTypes, 300);
   const contactVisibility = body.contactVisibility === 'ticket' ? 'ticket' : 'private';
+  if (contactVisibility === 'ticket' && body.contactConsent !== true) return json({ error:'연락처 공개는 별도 선택 동의가 필요합니다. 원하지 않으면 비공개를 선택해주세요.' }, 400);
   const id = current?.id || ('JSP-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,5).toUpperCase());
   if (current) {
     await env.DB.batch([
+      consentEvent(env, account.id, 'posting', id),
+      ...(contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id)] : []),
       env.DB.prepare("UPDATE job_seeker_posts SET resume_id=?, title=?, summary=?, specialty=?, desired_region=?, available_from=?, employment_type=?, contact_visibility=?, status='active', updated_at=CURRENT_TIMESTAMP WHERE id=? AND account_id=?").bind(resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, id, account.id),
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_seeker_post_update', '구직글을 수정했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
     ]);
   } else {
     await env.DB.batch([
+      consentEvent(env, account.id, 'posting', id),
+      ...(contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id)] : []),
       env.DB.prepare("INSERT INTO job_seeker_posts (id, account_id, resume_id, title, summary, specialty, desired_region, available_from, employment_type, contact_visibility) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, account.id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility),
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_seeker_post_create', '구직글을 등록했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
     ]);
@@ -2213,6 +2247,7 @@ async function paymentOrderApi(request, env) {
   if (request.method !== 'POST') return json({ error:'지원하지 않는 요청입니다.' }, 405);
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   let body; try { body = await readRequestObject(request); } catch { return json({ error:'주문 내용을 확인해주세요.' }, 400); }
+  if (body.checkoutAcknowledged !== true || body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'상품·환불 조건과 개인정보 처리 안내를 확인해주세요.' }, 400);
   // [보안] Object.hasOwn으로 조회해야 한다. 대괄호 조회만 쓰면 'constructor'·'toString' 같은
   // 프로토타입 키가 truthy로 잡혀 !product 가드를 통과하고, product.amount가 undefined가 되어
   // 금액이 NaN→NULL로 저장된다. 그러면 승인 시 0 !== 0 비교가 통과해 '무료 결제'가 성립한다.
@@ -2293,6 +2328,7 @@ async function paymentOrderApi(request, env) {
   if (metadataJson.length > 11000) return json({ error:'공고 내용이 너무 깁니다. 내용을 줄여주세요.' }, 413);
   const storedProductType = await paymentStorageType(env, product);
   const orderStatements = [
+    consentEvent(env, account.id, 'checkout', id),
     env.DB.prepare("INSERT INTO payment_orders (id, order_number, account_id, product_type, product_id, product_name, supply_amount, tax_amount, total_amount, payment_method, customer_name, customer_email, customer_phone, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, orderNumber, account.id, storedProductType, String(body.productId), product.name, supplyAmount, taxAmount, totalAmount, paymentMethod, customerName, customerEmail, customerPhone, metadataJson),
     env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) VALUES (?, ?, ?, 'order_created', 'awaiting_payment', ?)").bind(crypto.randomUUID(), id, identity.email, JSON.stringify({ productId:body.productId, paymentMethod }))
   ];
@@ -2793,8 +2829,13 @@ async function adminConsoleApi(request, env, ctx) {
     ]);
     const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
     const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));
+    const databaseTables = ['accounts','account_admin_profiles','payment_orders','payment_transactions','payment_refunds','consultation_requests','recruitment_cases','admin_content_records','admin_categories','admin_audit_logs','consent_records','processing_consent_events'];
+    const databaseCounts = await env.DB.batch(databaseTables.map(table => env.DB.prepare('SELECT COUNT(*) AS total FROM ' + table)));
+    const consentEvents = await env.DB.prepare('SELECT id, account_id AS accountId, scope, resource_id AS resourceId, document_version AS version, notice_json AS noticeJson, accepted_at AS acceptedAt FROM processing_consent_events ORDER BY accepted_at DESC, rowid DESC LIMIT 100').all();
     return json({
       admin,
+      consentEvents:(consentEvents.results || []).map(row => ({ ...row, notice:parseJsonObject(row.noticeJson), noticeJson:undefined })),
+      databaseCounts:Object.fromEntries(databaseTables.map((table,index) => [table, Number(databaseCounts[index]?.results?.[0]?.total || 0)])),
       metrics: {
         accounts:Number(accounts?.total || 0), doctors:Number(accounts?.doctors || 0), hospitals:Number(accounts?.hospitals || 0),
         consultations:Number(consultations?.total || 0), activeCases:Number(cases?.active || 0), hiredCases:Number(cases?.hired || 0),

@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import PrivacyNotice from './PrivacyNotice.jsx';
+import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import {
   ArrowRight, Camera, Check, ChevronLeft, ChevronRight, CircleCheck, FileText,
   ImagePlus, LockKeyhole, ShieldCheck, Trash2, UserRound
@@ -167,6 +169,7 @@ export default function ResumePage({ auth }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           title: form.title,
+          privacyConsent:form.consent, privacyVersion:PRIVACY_FORM_VERSION,
           profession: form.profession,
           specialty: form.specialty,
           name: form.name,
@@ -270,7 +273,8 @@ export default function ResumePage({ auth }) {
             <label><span>희망 근무지역</span><input value={form.desiredRegions} onChange={(e) => update('desiredRegions', e.target.value)} placeholder="예: 부산 전 지역, 경남 양산·김해" /></label>
             <label><span>희망 보수</span><input value={form.salary} onChange={(e) => update('salary', e.target.value)} placeholder="예: 협의 · 월 400만원 이상" /></label>
           </div>
-          <label className="resume-consent"><input type="checkbox" checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>이력서 등록과 채용 매칭을 위한 개인정보 수집·이용에 동의합니다.</span></label>
+          <PrivacyNotice scope="resume" />
+          <label className="resume-consent"><input type="checkbox" required checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>[필수] 위 이력서 개인정보 수집·이용에 동의합니다.</span></label>
         </div>}
         <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button type="button" className="button primary" onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}>다음 단계 <ChevronRight /></button> : <button type="submit" className="button primary" disabled={submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
         {submitError && <p className="form-error" role="alert">
