@@ -6266,6 +6266,21 @@ html body .app form[data-validation-attempted] label:has(input[type="checkbox"]:
 .talent-demo-masked span{display:block;height:13px;width:80%;border-radius:6px;background:#d6e0eb}.talent-demo-masked span:nth-child(2){width:62%}.talent-demo-masked span:nth-child(3){width:72%}
 @media(max-width:620px){.talent-demo-blind{padding:22px 18px}.talent-demo-blind p{font-size:16px}}
 
+.talent-unlock-checkout-section .talent-unlock-checkout{max-width:1240px;padding:36px;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:24px 36px;align-items:start}
+.talent-unlock-product{min-width:0;padding:28px;border-radius:18px;background:#f3f7fd}
+.talent-unlock-product>small{font-size:14px;font-weight:800;color:#1263e8;letter-spacing:.05em}
+.talent-unlock-product h2{font-size:32px;line-height:1.4;margin:10px 0}
+.talent-unlock-product>p,.talent-unlock-product .talent-unlock-features li{font-size:17px;line-height:1.7}
+.talent-unlock-product .talent-unlock-features{gap:14px;margin:24px 0}
+.talent-unlock-product .talent-unlock-price strong{font-size:36px}
+.talent-unlock-checkout-section .talent-unlock-checkout form{min-width:0;gap:20px}
+.talent-unlock-checkout-section .talent-unlock-checkout .consent span{font-size:16px;line-height:1.7}
+.talent-unlock-checkout-section .talent-unlock-checkout .button.primary{min-height:58px;font-size:18px}
+.talent-unlock-checkout-section .talent-unlock-checkout>.secure-note{grid-column:1/-1;margin:0;font-size:15px;line-height:1.6}
+.talent-unlock-checkout-section .talent-unlock-account-note small,.talent-unlock-checkout-section .talent-unlock-test-notice span{font-size:15px;line-height:1.6}
+@media(max-width:900px){.talent-unlock-checkout-section .talent-unlock-checkout{grid-template-columns:1fr;padding:24px;gap:24px}.talent-unlock-product{padding:24px}}
+@media(max-width:520px){.talent-unlock-checkout-section .talent-unlock-checkout{padding:18px}.talent-unlock-product{padding:20px}.talent-unlock-product h2{font-size:27px}}
+
 /* Navigation and history restoration must not animate the whole page. */
 html{scroll-behavior:auto!important}
 html body .app .route-stage,html body .app .route-stage.route-leaving,html body .app .scroll-reveal{

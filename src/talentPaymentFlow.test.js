@@ -24,8 +24,8 @@ test('열람권 결제 정보는 병원 회원가입 원본으로 고정한다',
   const checkout = mainSource.slice(mainSource.indexOf('function TalentUnlockCheckout'), mainSource.indexOf('function TalentUnlockPage'));
   const paymentApi = serverSource.slice(serverSource.indexOf('async function paymentOrderApi'), serverSource.indexOf('async function paymentApproveApi'));
   assert.match(checkout, /accountProfile\.hospitalName \|\| accountProfile\.organization/);
-  assert.match(checkout, /readOnly aria-readonly="true"/);
-  assert.match(checkout, /이 화면에서 수정할 수 없습니다/);
+  assert.match(checkout, /customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone/);
+  assert.doesNotMatch(checkout, /name="(?:name|phone|email)"/);
   assert.match(paymentApi, /product\.type === 'talent_search'/);
   assert.match(paymentApi, /customerName = cleanOrderValue\(hospital\.hospitalName \|\| member\.organization\)/);
   assert.match(paymentApi, /customerEmail = cleanOrderValue\(identity\.email\)/);
