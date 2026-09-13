@@ -6249,6 +6249,12 @@ html body .app form[data-validation-attempted] label:has(input[type="checkbox"]:
 .validation-notice strong{font-size:20px;font-weight:850}.validation-notice p{margin:6px 0 0;font-size:17px;line-height:1.6;overflow-wrap:anywhere}.validation-notice button{align-self:flex-start;flex:0 0 36px;height:36px;border:0;border-radius:8px;background:#ffe0dd;color:#a51d17;font-size:26px;cursor:pointer}
 @media(max-width:620px){.validation-notice{top:76px;padding:14px;max-height:32vh;overflow:auto}.validation-notice strong{font-size:18px}.validation-notice p{font-size:16px}}
 
+.talent-detail-page .talent-detail-back{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:50px;margin:24px 32px 18px;padding:12px 20px;border:1px solid #97bdf2;border-radius:12px;background:#edf4ff;color:#145fc7;font-size:17px;font-weight:800;line-height:1.4;text-decoration:none;box-shadow:0 3px 9px #1263e810}
+.talent-detail-page .talent-detail-back svg{width:22px;height:22px;flex-shrink:0}
+.talent-detail-page .talent-detail-back:hover{border-color:#1263e8;background:#dfecff;color:#104b9c}
+.talent-detail-page .talent-detail-back:focus-visible{outline:3px solid #1263e8;outline-offset:4px}
+@media(max-width:780px){.talent-detail-page .talent-detail-back{margin:18px 20px 14px;min-height:48px;padding:11px 17px;font-size:16px}}
+
 /* Navigation and history restoration must not animate the whole page. */
 html{scroll-behavior:auto!important}
 html body .app .route-stage,html body .app .route-stage.route-leaving,html body .app .scroll-reveal{
