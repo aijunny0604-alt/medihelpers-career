@@ -38,6 +38,7 @@ export default function ResumePage({ auth }) {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [photoDragging, setPhotoDragging] = useState(false);
+  const [customProfession, setCustomProfession] = useState(false);
   const [form, setForm] = useState({
     title: '', profession: '', name: '', phone: '', email: '', region: '', photoUrl: '',
     specialty: '', desiredRegions: '', salary: '',
@@ -248,14 +249,14 @@ export default function ResumePage({ auth }) {
                 구직 게시판의 '의사 / 간호·의료인' 분류와 검색 필터가 어긋난다.
                 목록에 없는 직군은 '기타'를 고르고 직접 입력한다. */}
             <label><span>의료 직군 *</span>
-              <select required value={PROFESSION_OPTIONS.includes(form.profession) ? form.profession : (form.profession ? '기타' : '')}
-                onChange={(e) => update('profession', e.target.value === '기타' ? '' : e.target.value)}>
+              <select required value={customProfession ? '기타' : PROFESSION_OPTIONS.includes(form.profession) ? form.profession : (form.profession ? '기타' : '')}
+                onChange={(e) => { setCustomProfession(e.target.value === '기타'); update('profession', e.target.value === '기타' ? '' : e.target.value); }}>
                 <option value="">직군을 선택해주세요</option>
                 {PROFESSION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                 <option value="기타">기타 (직접 입력)</option>
               </select>
             </label>
-            {!PROFESSION_OPTIONS.includes(form.profession) && (
+            {(customProfession || (form.profession && !PROFESSION_OPTIONS.includes(form.profession))) && (
               <label><span>직군 직접 입력 *</span><input required value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 응급구조사, 영양사" /></label>
             )}
             <label><span>전문분야·주요 업무</span><input value={form.specialty} onChange={(e) => update('specialty', e.target.value)} placeholder="예: 병동 간호, 소화기내과, MRI" /></label>

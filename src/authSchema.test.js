@@ -54,7 +54,7 @@ test('등록되지 않은 API 경로는 SPA HTML이 아닌 JSON 404로 종료한
 test('모든 PC가 최신 로그인·권한 화면을 받도록 SPA 문서를 캐시하지 않는다', async () => {
   const serverSource = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
   assert.match(serverSource, /'cache-control': 'no-store, max-age=0, must-revalidate'/);
-  assert.match(serverSource, /pathname === jsPath[\s\S]*max-age=31536000, immutable/);
+  assert.match(serverSource, /Object\.hasOwn\(builtAssets, pathname\)[\s\S]*max-age=31536000, immutable/);
 });
 
 test('회원 유형은 가입 때만 DB에 저장하고 로그인 시 DB 역할로 자동 분류한다', async () => {

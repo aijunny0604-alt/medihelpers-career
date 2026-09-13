@@ -3,7 +3,7 @@ import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import { usePaymentRecovery } from './usePaymentRecovery.js';
 import PaymentRecoveryPanel from './PaymentRecoveryPanel.jsx';
 import { SAMPLE_BANNER_TEMPLATES } from './bannerTemplates.js';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, lazy } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Ambulance, ArrowLeft, ArrowRight, BadgeCheck, Banknote, BriefcaseBusiness, Building2,
@@ -14,20 +14,22 @@ import {
 } from 'lucide-react';
 import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
-import AccountPage, { authRequest, SignupWelcomePage, TEST_ACCOUNTS } from './AccountPage.jsx';
-import ResumePage from './ResumePage.jsx';
-import HeadHunterRequestPage from './HeadHunterRequestPage.jsx';
+import { authRequest, TEST_ACCOUNTS } from './accountApi.js';
+import RouteBoundary from './RouteBoundary.jsx';
+import HeroMedia from './HeroMedia.jsx';
+const ResumePage = lazy(() => import('./ResumePage.jsx'));
+const HeadHunterRequestPage = lazy(() => import('./HeadHunterRequestPage.jsx'));
 import HeroSelect from './CustomSelect.jsx';
-import QaPreviewPage from './QaPreviewPage.jsx';
-import ConsultationAdminPage from './ConsultationAdminPage.jsx';
-import MemberCenterPage from './MemberCenterPage.jsx';
-import JobSeekerPostPage from './JobSeekerPostPage.jsx';
-import AccountRecoveryPage from './AccountRecoveryPage.jsx';
-import MedicalStaffPage, { MedicalStaffDetailPage } from './MedicalStaffPage.jsx';
-import RecruitmentCrmPage from './RecruitmentCrmPage.jsx';
-import AdminConsolePage from './AdminConsolePage.jsx';
-import JobPostBoardPage from './JobPostBoardPage.jsx';
-import { PrivacyPolicyPage, RefundPolicyPage, TermsPage, WithdrawalPolicyPage } from './LegalPages.jsx';
+const MemberCenterPage = lazy(() => import('./MemberCenterPage.jsx'));
+const JobSeekerPostPage = lazy(() => import('./JobSeekerPostPage.jsx'));
+const AccountRecoveryPage = lazy(() => import('./AccountRecoveryPage.jsx'));
+const MedicalStaffPage = lazy(() => import('./MedicalStaffPage.jsx'));
+const MedicalStaffDetailPage = lazy(() => import('./MedicalStaffPage.jsx').then(m => ({ default: m.MedicalStaffDetailPage })));
+const AdminConsolePage = lazy(() => import('./AdminConsolePage.jsx'));
+const PrivacyPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.PrivacyPolicyPage })));
+const RefundPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.RefundPolicyPage })));
+const TermsPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.TermsPage })));
+const WithdrawalPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.WithdrawalPolicyPage })));
 import { invalidateSiteOperations, isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import JobLocationMap from './JobLocationMap.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
@@ -51,6 +53,9 @@ import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
 import { imageFilesFromTransfer, pasteImageFiles } from './imageInput.js';
 import { getAdTierPresentation } from './adTierPresentation.js';
 import { formatKoreanPhone } from './signupFields.js';
+
+const AccountPage = lazy(() => import('./AccountPage.jsx'));
+const SignupWelcomePage = lazy(() => import('./AccountPage.jsx').then(m => ({ default: m.SignupWelcomePage })));
 
 installAuthenticatedFetch();
 
@@ -1587,9 +1592,7 @@ function HomePage({ liveJobs = jobs, jobsReady = true }) {
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
     <section className="home-video-hero" aria-label="메디헬퍼스 소개">
-      <video className="home-video-hero-bg" autoPlay muted loop playsInline preload="metadata" poster={withBase('/hero-medihelpers-poster.jpg')}>
-        <source src={withBase('/hero-medihelpers.mp4')} type="video/mp4" />
-      </video>
+      <HeroMedia />
       <div className="home-video-hero-overlay" />
       <div className="home-video-hero-inner">
         <span className="home-video-hero-eyebrow">MEDIHELPERS · 의사 헤드헌팅</span>
@@ -3744,8 +3747,8 @@ export function App() {
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
   if (path === '/admin' || path.startsWith('/admin/')) {
-    return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}>{page}</div>;
+    return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}><RouteBoundary key={route}>{page}</RouteBoundary></div>;
   }
   const staticDetailRoute = path.startsWith('/jobs/');
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}>{page}</main><Footer operations={operations} /><MediAngelAssistant /><Toaster /></div>;
+  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}><RouteBoundary>{page}</RouteBoundary></main><Footer operations={operations} /><MediAngelAssistant /><Toaster /></div>;
 }

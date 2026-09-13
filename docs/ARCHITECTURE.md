@@ -1,5 +1,7 @@
 # ARCHITECTURE
 
+2026-09-13: 계정 API 유틸은 accountApi.js, 관리·회원·가입·이력서 등의 페이지는 lazy/Suspense로 분리한다. RouteBoundary가 청크 실패를 안내하고 package-sites.mjs가 모든 빌드 JS/CSS를 제공한다. 빌드 후 runtime-mobile-assets-audit.mjs로 산출물 누락을 검사한다.
+
 ## 현재 구조
 
 ```text

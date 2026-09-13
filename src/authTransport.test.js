@@ -13,9 +13,10 @@ test('탭 세션 토큰은 같은 출처의 API 요청에만 첨부한다', () =
 
 test('role switching updates shared auth state without reloading the current page', async () => {
   const accountSource = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
+  const apiSource = await readFile(new URL('./accountApi.js', import.meta.url), 'utf8');
   const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
   assert.match(accountSource, /window\.location\.replace\(target\)/);
-  assert.match(accountSource, /detail:\{ action, result:data \}/);
+  assert.match(apiSource, /detail:\{ action, result:data \}/);
   assert.match(mainSource, /const onAuthChanged = \(event\) =>/);
   assert.match(mainSource, /load\(\{ showLoading:false \}\)/);
   assert.doesNotMatch(mainSource, /window\.location\.assign\(withBase\(resolveAccountSwitchDestination/);

@@ -21,7 +21,8 @@ import {
   validateField
 } from './signupFields.js';
 import { withBase } from './basePath.js';
-import { clearSessionToken, storeSessionToken } from './authTransport.js';
+import { authRequest, TEST_ACCOUNTS } from './accountApi.js';
+export { authRequest, TEST_ACCOUNTS } from './accountApi.js';
 import { resolveLoginDestination } from './loginRedirect.js';
 
 const initialForm = (role = '') => ({
@@ -115,21 +116,6 @@ async function accountRequest(method = 'GET', body) {
   return data;
 }
 
-export async function authRequest(action, body = {}) {
-  const formData = typeof FormData !== 'undefined' && body instanceof FormData;
-  const response = await fetch(`/api/auth/${action}`, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: formData ? { 'x-mh-session-fallback': 'session-storage' } : { 'content-type': 'application/json', 'x-mh-session-fallback': 'session-storage' },
-    body: formData ? body : JSON.stringify(body)
-  });
-  const data = await response.json().catch(() => ({}));
-  if (data.sessionToken) storeSessionToken(data.sessionToken);
-  if (action === 'logout') clearSessionToken();
-  if (!response.ok) throw new Error(data.error || '로그인 요청을 처리하지 못했습니다.');
-  try { window.dispatchEvent(new CustomEvent('medihelpers:auth-changed', { detail:{ action, result:data } })); } catch {}
-  return data;
-}
 
 function MemberTypeChooser() {
   return <section className="signup-card member-type-card">
@@ -590,11 +576,7 @@ function SignedOutCard({ memberType }) {
 }
 
 // 테스트용 계정. 관리자 판별은 서버 ADMIN_EMAILS와 일치해야 하므로 admin@medihelpers.co.kr 사용.
-export const TEST_ACCOUNTS = [
-  { key: 'doctor', label: '일반회원', loginLabel: '의료인 회원', role: 'doctor' },
-  { key: 'admin', label: '관리자', loginLabel: '관리자', role: 'doctor' },
-  { key: 'hospital', label: '병원회원', loginLabel: '병원 회원', role: 'hospital' }
-];
+
 
 function LoginCard({ testAccountsEnabled = true }) {
   const [email, setEmail] = useState('');

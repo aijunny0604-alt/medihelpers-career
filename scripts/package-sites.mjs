@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { backupUploadedAt } from '../src/adminStorage.js';
 import { PRIVACY_FORM_VERSION, PRIVACY_SCOPES, makeConsentSnapshot } from '../src/privacyConsent.js';
@@ -17,10 +17,18 @@ const html = await readFile(path.join(sourceDir, 'index.html'), 'utf8');
 const cssMatch = html.match(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/);
 const jsMatch = html.match(/<script type="module"[^>]*src="([^"]+)"[^>]*><\/script>/);
 if (!cssMatch || !jsMatch) throw new Error('Vite assets were not found');
-const cssPath = cssMatch[1];
-const jsPath = jsMatch[1];
-const css = await readFile(path.join(sourceDir, cssPath.replace(/^\//, '')), 'utf8');
-const js = await readFile(path.join(sourceDir, jsPath.replace(/^\//, '')), 'utf8');
+// Serve every Vite chunk, including shared modules and lazy route CSS.
+// Only files produced in the build's assets directory are exposed.
+const assetPrefix = jsMatch[1].slice(0, jsMatch[1].lastIndexOf('/') + 1);
+const builtAssets = {};
+for (const name of await readdir(path.join(sourceDir, 'assets'))) {
+  const type = name.endsWith('.js') ? 'application/javascript' : name.endsWith('.css') ? 'text/css' : '';
+  if (!type) continue;
+  builtAssets[assetPrefix + name] = {
+    body: await readFile(path.join(sourceDir, 'assets', name), 'utf8'),
+    type: type + '; charset=utf-8'
+  };
+}
 const logoSvg = await readFile(path.join(sourceDir, 'medihelpers-logo.svg'), 'utf8');
 // cloudflare 타깃에서는 인라인하지 않는다(빈 문자열). 정적 파일은 Static Assets가 서빙한다.
 const readBase64 = async (...segments) => inlineAssets
@@ -78,8 +86,7 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
   "export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }",
 ].join('\n');
 const server = `const html = ${JSON.stringify(html)};
-const css = ${JSON.stringify(css)};
-const js = ${JSON.stringify(js)};
+const builtAssets = ${JSON.stringify(builtAssets)};
 const logoSvg = ${JSON.stringify(logoSvg)};
 const ogBase64 = ${JSON.stringify(ogBase64)};
 const faviconBase64 = ${JSON.stringify(faviconBase64)};
@@ -104,8 +111,6 @@ const surgicalTealTemplateBase64 = ${JSON.stringify(surgicalTealTemplateBase64)}
 const mediAngelBase64 = ${JSON.stringify(mediAngelBase64)};
 const heroPosterBase64 = ${JSON.stringify(heroPosterBase64)};
 const heroVideoBase64 = ${JSON.stringify(heroVideoBase64)};
-const cssPath = ${JSON.stringify(cssPath)};
-const jsPath = ${JSON.stringify(jsPath)};
 const accountSchemaStatements = ${JSON.stringify(accountSchemaStatements)};
 const consultationSchemaStatements = ${JSON.stringify(consultationSchemaStatements)};
 const memberCenterSchemaStatements = ${JSON.stringify(memberCenterSchemaStatements)};
@@ -3205,8 +3210,10 @@ async function responseFor(request, env, ctx) {
   if (pathname === '/robots.txt') return new Response(robotsText(request), { status:200, headers:{ 'content-type':'text/plain; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/sitemap.xml') return new Response(sitemapXml(request), { status:200, headers:{ 'content-type':'application/xml; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/manifest.webmanifest') return new Response(webManifest, { status:200, headers:{ 'content-type':'application/manifest+json; charset=utf-8', 'cache-control':'public, max-age=86400', 'x-content-type-options':'nosniff' } });
-  if (pathname === cssPath) return new Response(css, { status: 200, headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
-  if (pathname === jsPath) return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
+  if (Object.hasOwn(builtAssets, pathname)) {
+    const asset = builtAssets[pathname];
+    return new Response(asset.body, { status:200, headers:{ 'content-type':asset.type, 'cache-control':'public, max-age=31536000, immutable', 'x-content-type-options':'nosniff' } });
+  }
   if (pathname === '/medihelpers-logo.svg') return new Response(logoSvg, { status: 200, headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=31536000, immutable' } });
 ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(binary(ogBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' } });
   if (pathname === '/og-medihelpers-v2.jpg') return new Response(binary(ogBase64), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=31536000, immutable' } });
@@ -3236,6 +3243,7 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
     const assetResponse = await env.ASSETS.fetch(request);
     if (assetResponse && assetResponse.status !== 404) return assetResponse;
   }`}
+  if (pathname.startsWith('/assets/')) return new Response('Not Found', { status:404, headers:{ 'cache-control':'no-store', 'x-content-type-options':'nosniff' } });
   if (!pathname.includes('.')) return new Response(htmlDocument(request), { status: 200, headers: {
     'content-type': 'text/html; charset=utf-8',
     // 로그인·권한 로직이 바뀐 뒤 다른 PC가 이전 HTML을 재사용하지 않도록 SPA 문서는

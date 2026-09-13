@@ -5036,7 +5036,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .medical-staff-detail-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 
 /* 홈 대문 영상 히어로 (HR닥터형 시네마틱) */
-.home-video-hero{position:relative;min-height:clamp(520px,72vh,760px);display:flex;align-items:center;overflow:hidden;background:#0b1524}
+.home-video-hero{position:relative;margin-top:clamp(76px,4.6vw,88px);min-height:clamp(520px,72vh,760px);display:flex;align-items:center;overflow:hidden;background:#0b1524}
 .home-video-hero-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;z-index:0}
 /* 좌측(문구 영역)만 가독성 확보용으로 어둡게, 우측은 영상이 잘 보이도록 옅게 */
 /* 텍스트가 놓이는 왼쪽은 충분히 어둡게, 영상이 보여야 하는 오른쪽은 열어둔다.
@@ -5058,8 +5058,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .home-video-hero-actions .button.glass{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(6px)}
 .home-video-hero-actions .button.glass:hover{background:rgba(255,255,255,.2)}
 @media(max-width:640px){.home-video-hero{min-height:420px}.home-video-hero-actions{flex-direction:column}.home-video-hero-actions .button{width:100%;justify-content:center}}
-/* 대문 히어로 영상은 '동작 줄이기' 설정과 무관하게 항상 노출한다(무음·배경 재생).
-   그라디언트는 영상 로드 전·실패 시 폴백 배경으로만 유지한다. */
+/* 모바일·동작 줄이기·데이터 절약 환경은 HeroMedia의 정지 이미지를 사용한다. */
 @media(prefers-reduced-motion:reduce){.home-video-hero{background:linear-gradient(120deg,#0b1524,#16304f)}}
 
 /* 이미지 업로드(배너·로고·시설 사진) */
@@ -6157,3 +6156,22 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .admin-consent-records details{border:1px solid #dce6f2;border-radius:12px;margin:12px 0;padding:18px}.admin-consent-records summary{cursor:pointer;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}.admin-consent-records summary span{font-size:14px;color:#60758f}.admin-consent-records dl>div{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;padding:10px 0;border-bottom:1px solid #e9eef5}.admin-consent-records dd{margin:0;overflow-wrap:anywhere}.admin-consent-records dt{color:#60758f}
 @media(max-width:600px){.privacy-form-notice{padding:18px}.privacy-form-notice dl>div,.admin-consent-records dl>div{grid-template-columns:1fr;gap:3px}.admin-protection-summary strong{overflow-wrap:anywhere}}
 .admin-protection>header>button,.admin-protection>button{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid #c9dbf2;border-radius:10px;color:#1558b0;background:#f3f8ff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}.admin-protection>header>button svg{width:18px;height:18px}.admin-protection-files button{white-space:nowrap;font-size:13px!important}
+
+/* Mobile audit 2026-09-13: readable first screen and compact, reachable help. */
+.route-load-state{min-height:55vh;margin-top:88px;padding:64px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px}
+.route-load-state h1{font-size:24px;margin:0}.route-load-state p{font-size:16px;line-height:1.7;margin:0;color:#526780}
+@media(max-width:780px){
+  .app input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),.app textarea,.app select{font-size:16px!important}
+  .home-video-hero{margin-top:66px;min-height:420px;padding-block:36px}
+  .home-video-hero-eyebrow{font-size:11px;line-height:1.4;letter-spacing:.08em;padding:7px 10px}
+  .home-video-hero h1{font-size:clamp(30px,8.5vw,38px);line-height:1.25;word-break:keep-all}
+  .medi-angel-assistant{right:14px;bottom:calc(16px + env(safe-area-inset-bottom));width:58px;height:68px}
+  .medi-angel-toggle{width:58px;height:68px}
+  .medi-angel-toggle>img{width:54px;height:62px;animation:none}
+  .medi-angel-sparkle{display:none}
+  .medi-angel-status{right:0;bottom:0;font-size:10px;padding:5px 6px}
+  .medi-angel-panel{right:0;bottom:78px;width:min(370px,calc(100vw - 40px));max-height:calc(100dvh - 180px)}
+  body:has(.medical-staff-mobile-cta) .medi-angel-assistant{bottom:calc(84px + env(safe-area-inset-bottom))}
+  body:has(main input:focus,main textarea:focus,main select:focus) .medi-angel-assistant:not(.is-open){visibility:hidden}
+  .route-load-state{margin-top:66px}
+}
