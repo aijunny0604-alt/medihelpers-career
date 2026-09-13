@@ -2203,10 +2203,13 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
 
         {person.isDemo ? (
           <section className="talent-demo-blind">
-            <div className="talent-detail-title"><span><LockKeyhole /></span><div><small>상세 이력서 비공개</small><h3>예시 프로필은 열람할 수 없습니다</h3></div></div>
-            <p>화면 안내용 예시이며 실제 구직자의 이력서가 아닙니다. 열람권 구매·사용 대상에 포함되지 않습니다.</p>
             <div className="talent-demo-masked" aria-hidden="true"><span /><span /><span /></div>
-            <p>실제 구직글의 상세 이력서는 병원 회원이 열람권으로 확인할 수 있습니다. 연락처는 작성자가 공개한 경우에만 제공됩니다.</p>
+            <div className="talent-blind-cta">
+              <span className="talent-blind-lock"><LockKeyhole aria-hidden="true" /></span>
+              <h3>상세 이력서 비공개</h3>
+              <Link className="button primary" to="/talent-unlock?product=talent-unlock-single">이력서 열람권 구매 <ArrowRight /></Link>
+              <p>병원 회원 전용 · 실제 구직글에 사용하며, 이 예시 이력서는 열리지 않습니다.</p>
+            </div>
           </section>
         ) : unlock.unlocked ? (
           <section className="talent-detail-unlocked">
