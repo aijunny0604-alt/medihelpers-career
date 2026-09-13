@@ -6178,6 +6178,48 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   .route-load-state{margin-top:66px}
 }
 
+/* Recruitment form: preview/upload together, templates alongside. */
+.ad-apply-page .single-brand-upload{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"preview templates" "upload templates" "guide guide";align-items:start;gap:24px;padding:28px;background:#f7faff}
+.ad-apply-page .single-brand-upload>.banner-preview{grid-area:preview;width:100%;min-height:180px;aspect-ratio:3/1;margin:0}
+.ad-apply-page .single-brand-upload>label{grid-area:upload;align-self:start}
+.ad-apply-page .single-brand-upload>.sample-banner-picker{grid-area:templates;margin:0;padding:0;border:0;background:transparent;box-shadow:none}
+.ad-apply-page .single-brand-guide{grid-area:guide;border-top:1px solid #dbe6f3;padding-top:20px;grid-template-columns:1fr;gap:8px;font-size:14px}
+.ad-apply-page .sample-banner-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ad-apply-page .sample-banner-grid strong{font-size:16px}
+.ad-apply-page .sample-banner-grid small{font-size:14px;line-height:1.5}
+.ad-apply-page .sample-banner-picker-head strong{font-size:20px}
+.ad-apply-page .sample-banner-picker-head small{font-size:15px;line-height:1.6}
+.ad-apply-page .ad-form-section{padding:32px}
+.ad-apply-page .ad-form-section-head h2{font-size:28px;line-height:1.4}
+.ad-apply-page .ad-form-section-head p{font-size:17px;line-height:1.65}
+.ad-apply-page .checkout-form label>span{font-size:17px}
+.ad-apply-page .single-brand-upload label>span i{font-size:15px;line-height:1.6}
+.ad-apply-page .upload-button{min-height:80px;padding:18px;align-items:center}
+.ad-apply-page .upload-button strong{font-size:17px;line-height:1.5;overflow-wrap:anywhere}
+.ad-apply-page .upload-button small{font-size:14px!important;line-height:1.6}
+.ad-apply-page .banner-preview>div strong{font-size:19px}
+.ad-apply-page .banner-preview>div small{font-size:15px;line-height:1.6}
+.ad-apply-page .checkout-form :is(input:not([type="checkbox"]):not([type="file"]),select,textarea){font-size:17px;min-height:58px}
+.ad-apply-page .checkout-form textarea{min-height:144px}
+.ad-apply-page .facility-upload-head strong{font-size:19px}
+.ad-apply-page .facility-upload-head span{font-size:14px;line-height:1.6}
+.ad-apply-page .checkout-form .ad-checkout-consent span{font-size:16px!important}
+@media(max-width:1000px){
+ .ad-apply-page .single-brand-upload{grid-template-columns:minmax(0,1fr);grid-template-areas:"preview" "upload" "templates" "guide"}
+}
+@media(max-width:620px){
+ .ad-apply-page .ad-form-section{padding:24px 16px}
+ .ad-apply-page .ad-form-section-head h2{font-size:23px}
+ .ad-apply-page .ad-form-section-head p{font-size:16px}
+ .ad-apply-page .single-brand-upload{padding:16px;gap:20px}
+ .ad-apply-page .single-brand-upload>.banner-preview{min-height:150px}
+ .ad-apply-page .sample-banner-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .ad-apply-page .sample-banner-picker-head{align-items:flex-start;flex-wrap:wrap}
+ .ad-apply-page .upload-button{padding:14px}
+ .ad-apply-page .upload-button strong{font-size:16px}
+ .ad-apply-page .facility-upload-head{align-items:stretch;flex-direction:column}
+}
+
 /* Navigation and history restoration must not animate the whole page. */
 html{scroll-behavior:auto!important}
 html body .app .route-stage,html body .app .route-stage.route-leaving,html body .app .scroll-reveal{
