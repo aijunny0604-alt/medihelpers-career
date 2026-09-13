@@ -6235,6 +6235,20 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
  .ad-apply-page .facility-upload-head{align-items:stretch;flex-direction:column}
 }
 
+html body .app .quick-submit-error{color:#b42318!important;background:#fff1f0;border:2px solid #dc2626;border-radius:10px;padding:14px 16px;font-size:17px!important;font-weight:750;line-height:1.6}
+html body .app button[aria-invalid="true"]{border:2px solid #dc2626!important;background:#fff1f0!important;color:#b42318!important}
+/* Display validation only after an attempted submission or an explicit error. */
+html body .app :is(.form-error,.signup-error,.signup-field-error,.field-error,.job-seeker-editor-message.error){display:block;color:#b42318!important;background:#fff1f0;border:2px solid #e5484d;border-radius:10px;padding:12px 16px;font-size:17px!important;font-weight:750;line-height:1.65;font-style:normal;overflow-wrap:anywhere}
+html body .app :is(input,textarea,select,[role="combobox"])[aria-invalid="true"],
+html body .app form[data-validation-attempted] :is(input,textarea,select):invalid{border:2px solid #dc2626!important;background-color:#fff5f5!important;box-shadow:0 0 0 3px #dc26261a!important;outline-color:#dc2626}
+html body .app form[data-validation-attempted] label:has(:invalid)>span,
+html body .app label:has([aria-invalid="true"])>span{color:#b42318!important;font-weight:800}
+html body .app label:has(>.field-error) :is(input,button,select),html body .app .has-error{border-color:#dc2626!important;outline:2px solid #dc2626;outline-offset:2px}
+html body .app form[data-validation-attempted] label:has(input[type="checkbox"]:invalid){border:2px solid #dc2626!important;border-radius:10px;background:#fff1f0!important;padding:12px}
+.validation-notice{position:fixed;z-index:10000;top:90px;left:50%;transform:translateX(-50%);width:min(760px,calc(100% - 32px));box-sizing:border-box;display:flex;gap:16px;padding:18px 22px;border:2px solid #dc2626;border-radius:14px;background:#fff1f0;color:#a51d17;box-shadow:0 8px 28px #7f1d1d26}
+.validation-notice strong{font-size:20px;font-weight:850}.validation-notice p{margin:6px 0 0;font-size:17px;line-height:1.6;overflow-wrap:anywhere}.validation-notice button{align-self:flex-start;flex:0 0 36px;height:36px;border:0;border-radius:8px;background:#ffe0dd;color:#a51d17;font-size:26px;cursor:pointer}
+@media(max-width:620px){.validation-notice{top:76px;padding:14px;max-height:32vh;overflow:auto}.validation-notice strong{font-size:18px}.validation-notice p{font-size:16px}}
+
 /* Navigation and history restoration must not animate the whole page. */
 html{scroll-behavior:auto!important}
 html body .app .route-stage,html body .app .route-stage.route-leaving,html body .app .scroll-reveal{

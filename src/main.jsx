@@ -1,4 +1,5 @@
 import PrivacyNotice from './PrivacyNotice.jsx';
+import FormValidationNotice from './FormValidationNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import { usePaymentRecovery } from './usePaymentRecovery.js';
 import PaymentRecoveryPanel from './PaymentRecoveryPanel.jsx';
@@ -3704,8 +3705,8 @@ export function App() {
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
   if (path === '/admin' || path.startsWith('/admin/')) {
-    return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}><RouteBoundary key={route}>{page}</RouteBoundary></div>;
+    return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}><FormValidationNotice key={route} /><RouteBoundary key={route}>{page}</RouteBoundary></div>;
   }
   const staticDetailRoute = path.startsWith('/jobs/');
-  return <div className="app"><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}><RouteBoundary>{page}</RouteBoundary></main><Footer operations={operations} /><MediAngelAssistant /><Toaster /></div>;
+  return <div className="app"><FormValidationNotice key={route} /><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}><RouteBoundary>{page}</RouteBoundary></main><Footer operations={operations} /><MediAngelAssistant /><Toaster /></div>;
 }
