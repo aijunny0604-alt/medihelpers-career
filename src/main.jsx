@@ -47,7 +47,7 @@ import {
 } from './browserStorage.js';
 import { appBase, withBase } from './basePath.js';
 import { useAccountProfile } from './useAccountProfile.js';
-import { demoTalentDetail, loadTalentAccess, pendingTalentAccess } from './talentDetailAccess.js';
+import { loadTalentAccess, pendingTalentAccess } from './talentDetailAccess.js';
 import ResumeSubmitPicker from './ResumeSubmitPicker.jsx';
 import { balancedOrder, countByDept } from './jobExposure.js';
 import { installAuthenticatedFetch } from './authTransport.js';
@@ -2152,8 +2152,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
       .then((result) => { if (active) setUnlock(result); });
     return () => { active = false; controller.abort(); };
   }, [person.code, person.detailId, person.isDemo, retry]);
-  const demoDetail = demoTalentDetail(person);
-  const d = demoDetail || (unlock.unlocked ? unlock.detail : null) || {};
+  const d = (!person.isDemo && unlock.unlocked ? unlock.detail : null) || {};
   const ownerAccess = unlock.accessReason === 'owner' || Boolean(person.ownerView);
   return (
     <main className="talent-detail-page">
@@ -2165,7 +2164,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
           <span className="talent-verified"><FileText /> {person.isDemo ? "예시 구직 프로필" : "구직 프로필"}</span>
           <small>{talentDisplayName(person, canViewIdentity)} · {person.isDemo ? "가상 인물" : "이름 비공개"}</small>
           <h2>{person.postTitle || `${person.dept} · ${person.career}`}</h2>
-          <p>{person.isDemo ? '열람권 없이 경력과 자기소개를 살펴볼 수 있는 예시 이력서입니다.' : '개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.'}</p>
+          <p>{person.isDemo ? '서비스 화면을 설명하기 위한 예시 프로필입니다. 상세 이력서는 비공개로 표시됩니다.' : '개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.'}</p>
           {person.contactVisibility === 'private' && <span className="talent-phone-private-alert"><LockKeyhole /> 전화번호 비공개 · 열람권 구매 후에도 미공개</span>}
         </div>
       </div>
@@ -2202,13 +2201,19 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
           </section>
         </div>
 
-        {demoDetail || unlock.unlocked ? (
+        {person.isDemo ? (
+          <section className="talent-demo-blind">
+            <div className="talent-detail-title"><span><LockKeyhole /></span><div><small>상세 이력서 비공개</small><h3>예시 프로필은 열람할 수 없습니다</h3></div></div>
+            <p>화면 안내용 예시이며 실제 구직자의 이력서가 아닙니다. 열람권 구매·사용 대상에 포함되지 않습니다.</p>
+            <div className="talent-demo-masked" aria-hidden="true"><span /><span /><span /></div>
+            <p>실제 구직글의 상세 이력서는 병원 회원이 열람권으로 확인할 수 있습니다. 연락처는 작성자가 공개한 경우에만 제공됩니다.</p>
+          </section>
+        ) : unlock.unlocked ? (
           <section className="talent-detail-unlocked">
             <div className="talent-detail-title">
               <span><BadgeCheck /></span>
-              <div><small>{demoDetail ? 'SAMPLE · 무료 미리보기' : ownerAccess ? 'MY POST · 작성자 무료 열람' : unlock.accessReason === 'admin' ? '관리자 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{demoDetail ? '예시 이력서 미리보기' : ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
+              <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : unlock.accessReason === 'admin' ? '관리자 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
             </div>
-            {demoDetail && <p className="talent-demo-note">서비스 안내를 위한 가상 이력서입니다. 실제 구직자나 연락처가 아니며, 열람권 구매·차감 없이 볼 수 있습니다.</p>}
             {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 필요한 경우 메디헬퍼스 헤드헌터 상담을 이용해주세요.</p></div></div>}
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
@@ -2249,7 +2254,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
                 <h3>대량 정보 수집 방지를 위해 잠시 제한되었습니다</h3>
                 <p>{unlock.message || '금일 열람 한도를 초과했습니다. 잠시 후 다시 이용해 주세요.'} 추가 열람이 필요하면 담당자에게 문의해 주세요.</p>
               </> : auth.role !== 'hospital' ? <>
-                <small>병원 회원 전용 열람</small><h3>실제 구직자의 상세 이력서는 병원 회원이 확인할 수 있습니다</h3><p>본인이 등록한 구직글은 무료로 열람할 수 있습니다. 화면을 둘러보려면 목록의 예시 이력서를 확인해주세요.</p>
+                <small>병원 회원 전용 열람</small><h3>실제 구직자의 상세 이력서는 병원 회원이 확인할 수 있습니다</h3><p>본인이 등록한 구직글은 무료로 열람할 수 있습니다. 병원 회원은 열람권으로 실제 구직글의 상세 이력서를 확인할 수 있습니다.</p>
               </> : <>
                 <small>이력서 열람권으로 열람할 수 있습니다</small>
                 <h3>경력 · 희망 조건 · 자기소개</h3>

@@ -6255,6 +6255,12 @@ html body .app form[data-validation-attempted] label:has(input[type="checkbox"]:
 .talent-detail-page .talent-detail-back:focus-visible{outline:3px solid #1263e8;outline-offset:4px}
 @media(max-width:780px){.talent-detail-page .talent-detail-back{margin:18px 20px 14px;min-height:48px;padding:11px 17px;font-size:16px}}
 
+.talent-demo-blind{margin-top:18px;padding:28px;border:1px solid #d5e0ed;border-radius:18px;background:#f5f8fc;color:#10213f}
+.talent-demo-blind p{font-size:17px;line-height:1.75;color:#526780;margin:16px 0 0}
+.talent-demo-masked{display:grid;gap:12px;margin:22px 0;padding:22px;background:#edf2f7;border-radius:12px}
+.talent-demo-masked span{display:block;height:13px;width:80%;border-radius:6px;background:#d6e0eb}.talent-demo-masked span:nth-child(2){width:62%}.talent-demo-masked span:nth-child(3){width:72%}
+@media(max-width:620px){.talent-demo-blind{padding:22px 18px}.talent-demo-blind p{font-size:16px}}
+
 /* Navigation and history restoration must not animate the whole page. */
 html{scroll-behavior:auto!important}
 html body .app .route-stage,html body .app .route-stage.route-leaving,html body .app .scroll-reveal{
