@@ -27,7 +27,8 @@ for (const column of ['created_at', 'unlocked_at']) {
   });
 }
 
-test('registered hospital details and posting date reach the public job', () => {
+test('registered hospital details and posting date reach the public job', (t) => {
+  t.mock.method(Date, 'now', () => Date.parse('2026-09-10T00:00:00Z'));
   const [job] = operationalDoctorJobs([{ id:'qa', contentType:'doctor_job', title:'QA', subtitle:'QA 병원', createdAt:'2026-09-09 12:00:00', payload:{ website:'https://example.com', equipment:'초음파', staffCount:'30명', exposure:{start:'2026-09-10'}, banner:'/banners/templates/wellness-mint-v1.jpg', brandImageLayout:'template-overlay' } }]);
   assert.equal(job.website, 'https://example.com');
   assert.equal(job.equipment, '초음파');

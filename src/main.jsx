@@ -1178,7 +1178,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               <div><dt>근무시간</dt><dd>{locked ? job.schedule : job.workHours || job.schedule}</dd></div>
               <div><dt>휴무</dt><dd>{locked ? "의사 인증 후 무료 공개" : job.daysOff || "협의"}</dd></div>
             </dl>
-            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>{job.postedDate ? `${job.postedDate.replaceAll('-', '.')} ~ ` : ''}{job.deadline}</strong></span>{job.isDemo ? <em className="doctor-only-role-note">예시 공고 · 직접 지원 불가</em> : restricted && viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : restricted && hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
+            <div className="recruitment-deadline"><CalendarDays /><span><small>공고 모집기간</small><strong>{job.postedDate ? `${job.postedDate.replaceAll('-', '.')} ~ ` : ''}{job.deadline}</strong></span>{job.isDemo ? <em className="doctor-only-role-note">예시 공고 · 직접 지원 불가</em> : viewerAccess.loading ? <em className="doctor-only-role-note">회원 권한 확인 중</em> : hospitalViewer ? <em className="doctor-only-role-note"><LockKeyhole /> 의료인 회원만 지원 가능</em> : <Link to={`/request/job-seeker?job=${job.id}`}>이 병원에 직접 지원 <ArrowRight /></Link>}</div>
           </section>
           <section className={`doctor-decision-sheet ${memberUnlocked ? "is-unlocked" : "is-locked"}`}>
             <div className="decision-sheet-head">
@@ -3142,7 +3142,7 @@ function Checkout({ plan, auth }) {
               </section>}
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
-                  <span>02</span>
+                  <span>{isMainAdPlan ? '02' : '01'}</span>
                   <div><h2>병원 사진</h2><p>진료실·대기실·건물 등 실제 근무환경을 보여주는 상세 갤러리입니다.</p></div>
                   <em>선택사항</em>
                 </div>
@@ -3194,7 +3194,7 @@ function Checkout({ plan, auth }) {
               </section>
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
-                  <span>03</span>
+                  <span>{isMainAdPlan ? '03' : '02'}</span>
                   <div><h2>병원 기본정보</h2><p>지원자가 근무지와 진료환경을 이해하는 데 필요한 정보입니다.</p></div>
                   <em>필수항목 확인</em>
                 </div>
@@ -3321,7 +3321,7 @@ function Checkout({ plan, auth }) {
               </section>
               <section className="ad-form-section">
                 <div className="ad-form-section-head">
-                  <span>04</span>
+                  <span>{isMainAdPlan ? '04' : '03'}</span>
                   <div><h2>채용조건</h2><p>초빙 분야만 필수입니다. 나머지는 아는 만큼만 간단히 적어주세요.</p></div>
                   <em>필수 1개</em>
                 </div>
@@ -3398,7 +3398,7 @@ function Checkout({ plan, auth }) {
               </section>
               <section className="ad-form-section ad-form-final">
                 <div className="ad-form-section-head">
-                  <span>05</span>
+                  <span>{isMainAdPlan ? '05' : '04'}</span>
                   <div><h2>결제·게시 안내</h2><p>결제 방식을 선택하고 공고 등록을 완료해주세요.</p></div>
                 </div>
               <div className="payment-choice">
@@ -3686,7 +3686,9 @@ export function App() {
   const qa = useMemo(() => ({ active: qaActive, state: qaState || 'guest', info: qaInfo, select: selectQaState, exit: exitQaPreview }), [qaActive, qaState, qaInfo, selectQaState, exitQaPreview]);
   const auth = useAuthGate(qa);
   let page;
-  if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} />;
+  const remoteDetailRoute = ['/jobs/', '/headhunting/posts/', '/medical-staff/talents/', '/medical-staff/jobs/'].some(prefix => path.startsWith(prefix));
+  if (remoteDetailRoute && (!operations.ready || operations.error)) page = <section className="not-found" role="status"><h1>{operations.error ? '정보를 불러오지 못했습니다' : '최신 정보를 불러오고 있습니다'}</h1><p>{operations.error ? '연결 상태를 확인한 뒤 다시 시도해주세요.' : '공고와 회원 권한을 확인하고 있습니다.'}</p>{operations.error && <button className="button primary" onClick={() => { invalidateSiteOperations(); window.dispatchEvent(new PopStateEvent('popstate')); }}>다시 불러오기</button>}</section>;
+  else if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} />;
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
     const job = liveJobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));

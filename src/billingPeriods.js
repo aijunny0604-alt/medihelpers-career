@@ -20,3 +20,15 @@ export function normalizeExposureWindow(exposure) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return exposure;
   return { ...exposure, start, end:addInclusiveExposureDays(start, days), days };
 }
+
+export function exposureRemainingLabel(endDate, status, epochMs = Date.now()) {
+  if (status !== '노출 중' || !/^\d{4}-\d{2}-\d{2}$/.test(String(endDate || ''))) return '';
+  const [year, month, day] = String(endDate).split('-').map(Number);
+  const end = Date.UTC(year, month - 1, day);
+  const now = new Date(Number(epochMs) + 9 * 60 * 60 * 1000);
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const remaining = Math.floor((end - today) / 86400000) + 1;
+  if (remaining <= 0) return '노출 종료';
+  if (remaining === 1) return '오늘 종료';
+  return `노출 ${remaining}일 남음`;
+}

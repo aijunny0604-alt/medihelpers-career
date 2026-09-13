@@ -29,7 +29,9 @@ async function call(path,role='',body,method=body?'POST':'GET') {
 const cookies={};
 function record(name,actual,expected){output.push({name,pass:actual===expected,actual,expected});}
 for(const role of ['doctor','hospital','admin']){const r=await call('/api/auth/test-switch','',{key:role});cookies[role]=r.cookie;record('local login '+role,r.status,200);}
-for(const role of ['', 'doctor','hospital','admin']) for(const path of ['/api/account','/api/resumes','/api/member-center','/api/admin-console','/api/recruitment-crm','/api/payment-orders','/api/job-seeker-posts']) {const r=await call(path,role);output.push({name:'role matrix '+(role||'anonymous')+' '+path,status:r.status}); if(role==='hospital' && path==='/api/member-center') record('cold hospital member center',r.status,200);}
+const protectedPaths=['/api/account','/api/resumes','/api/member-center','/api/admin-console','/api/recruitment-crm','/api/payment-orders','/api/job-seeker-posts'];
+const expectedRoleStatuses={ '':[200,401,401,403,401,401,401], doctor:[200,200,200,403,401,200,200], hospital:[200,403,200,403,401,200,403], admin:[200,200,200,200,200,200,403] };
+for(const role of ['', 'doctor','hospital','admin']) for(const [index,path] of protectedPaths.entries()) {const r=await call(path,role);record('role matrix '+(role||'anonymous')+' '+path,r.status,expectedRoleStatuses[role][index]); if(role==='hospital' && path==='/api/member-center') record('cold hospital member center',r.status,200);}
 const resume=await call('/api/resumes','doctor',{title:'검수 이력서',name:'검수의사',phone:'010-0000-0000',profession:'의사',specialty:'내과',detail:{introduction:'검수 전용',contactVisibility:'ticket'},createNew:true});record('save resume',resume.status,201);
 const post=await call('/api/job-seeker-posts','doctor',{resumeId:resume.data.id,title:'검수 구직글',contactVisibility:'private'});record('create post',post.status,201);
 const duplicate=await call('/api/job-seeker-posts','doctor',{resumeId:resume.data.id,title:'duplicate'});record('duplicate post rejected',duplicate.status,409);
@@ -41,6 +43,7 @@ let detail=await call('/api/talent-detail/seeker-'+post.data.post.id,'hospital')
 record('first view costs one',sqlite.prepare('SELECT SUM(used_credits) n FROM talent_credit_pools').get().n,1);
 await call('/api/talent-detail/seeker-'+post.data.post.id,'hospital');record('repeat view no extra cost',sqlite.prepare('SELECT SUM(used_credits) n FROM talent_credit_pools').get().n,1);
 const doctorAccount=sqlite.prepare("SELECT account_id FROM auth_credentials WHERE email_normalized='doctor-test@medihelpers.co.kr'").get().account_id;
+sqlite.prepare("UPDATE resumes SET detail_json=json_set(detail_json,'$.photoUrl',?) WHERE id=?").run('/api/uploads/profiles/'+doctorAccount+'/audit.png',resume.data.id);
 env.UPLOADS={get:async()=>({httpMetadata:{contentType:'image/png'},body:new Uint8Array([137,80,78,71])})};
 const photo=await call('/api/uploads/profiles/'+doctorAccount+'/audit.png','hospital');record('ticket holder can view linked resume photo',photo.status,200);
 const originalSource=await readFile(new URL('../scripts/package-sites.mjs',import.meta.url),'utf8');
@@ -51,7 +54,7 @@ await call('/api/talent-detail/seeker-'+post.data.post.id,'hospital');record('re
 const beforeMissing=sqlite.prepare('SELECT SUM(used_credits) n FROM talent_credit_pools').get().n;
 detail=await call('/api/talent-detail/seeker-NONEXISTENT-AUDIT','hospital');
 record('nonexistent talent must not consume credit',sqlite.prepare('SELECT SUM(used_credits) n FROM talent_credit_pools').get().n,beforeMissing);
-output.push({name:'nonexistent talent response',status:detail.status,data:detail.data});
+record('nonexistent talent response',detail.status,404);
 record('missing target order rejected',(await call('/api/payment-orders','hospital',{productId:'talent-unlock-single',metadata:{talentId:'seeker-NONEXISTENT'}})).status,400);
 const secondResume=await call('/api/resumes','doctor',{title:'limit test',name:'Test',phone:'010-0000-0000',profession:'의사',createNew:true});
 const secondPost=await call('/api/job-seeker-posts','doctor',{resumeId:secondResume.data.id,title:'limit test'});
@@ -62,7 +65,7 @@ record('daily limit preserves credit',sqlite.prepare('SELECT SUM(used_credits) n
 delete env.TALENT_VIEW_DAILY_LIMIT;
 const single=await call('/api/payment-orders','hospital',{productId:'talent-unlock-single'});
 const singlePaid=await call('/api/payment-approve','hospital',{orderNumber:single.data.order.orderNumber});
-output.push({name:'single without talent target',orderStatus:single.status,approved:singlePaid.data.approved,entitlements:sqlite.prepare('SELECT COUNT(*) n FROM talent_unlocks WHERE order_id=?').get(single.data.order.id).n,credits:sqlite.prepare('SELECT COUNT(*) n FROM talent_credit_pools WHERE order_id=?').get(single.data.order.id).n});
+record('single without talent target',single.status===201 && singlePaid.data.approved===true && sqlite.prepare('SELECT COUNT(*) n FROM talent_unlocks WHERE order_id=?').get(single.data.order.id).n===0 && sqlite.prepare('SELECT COUNT(*) n FROM talent_credit_pools WHERE order_id=?').get(single.data.order.id).n===1,true);
 record('untargeted single grants exactly one credit',sqlite.prepare('SELECT total_credits n FROM talent_credit_pools WHERE order_id=?').get(single.data.order.id)?.n,1);
 const ad=await call('/api/payment-orders','hospital',{productId:'basic',metadata:{hospital:'검수병원',department:'내과',address:'서울',introduction:'검수 전용'}});
 record('ad draft before approval',sqlite.prepare('SELECT status FROM admin_content_records WHERE id=?').get(ad.data.order.contentRecordId)?.status,'draft');
@@ -86,6 +89,6 @@ record('hospital sees direct applicant',JSON.stringify(hospitalCenter.data).incl
 record('wrong consultation role rejected',(await call('/api/consultations','hospital',{requestType:'doctor',payload})).status,403);
 record('static fixture direct application rejected',(await call('/api/consultations','doctor',{requestType:'doctor',payload:{...payload,jobId:'seoul-wellness'}})).status,409);
 const refund=await call('/api/admin-console','admin',{action:'refund_create',payload:{orderId:order.data.order.id,amount:29000,reason:'local audit'}},'PATCH');record('current read-only admin blocks refund',refund.status,405);
-output.push({name:'refund operational limitation',status:refund.status,error:refund.data.error});
+record('read-only refund preserves paid order',sqlite.prepare('SELECT status FROM payment_orders WHERE id=?').get(order.data.order.id).status,'paid');
 console.log(JSON.stringify({checks:output,sqlErrors},null,2));
 if(output.some(r=>r.pass===false))process.exitCode=1;

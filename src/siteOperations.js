@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { sanitizeDisplayData } from './textIntegrity.js';
+import { normalizeExposureWindow } from './billingPeriods.js';
 
 export const defaultSiteOperations = {
   settings: { siteName:'메디헬퍼스', supportPhone:'051-342-5463', supportEmail:'hr@medihelpers.co.kr', announcement:'' },
@@ -10,6 +11,7 @@ export const defaultSiteOperations = {
 let cached = defaultSiteOperations;
 let pending;
 let fetchedAt = 0;
+let requestRevision = 0;
 // 공고를 등록·수정한 뒤 목록으로 이동해도 예전 캐시가 그대로 보이던 문제가 있었다.
 // (한 번 받아오면 다시 요청하지 않아, 브라우저를 새로고침해야만 새 공고가 보였다)
 // 짧은 TTL을 두고, 등록 성공 시에는 invalidateSiteOperations()로 즉시 캐시를 버린다.
@@ -18,15 +20,17 @@ const OPERATIONS_TTL_MS = 15000;
 function loadOperations(force = false) {
   const stale = force || !pending || (Date.now() - fetchedAt > OPERATIONS_TTL_MS);
   if (stale) {
+    const revision = ++requestRevision;
     pending = fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin' })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('site operations unavailable')))
       .then((value) => {
+        if (revision !== requestRevision) return pending;
         value = sanitizeDisplayData(value);
         cached = { ...defaultSiteOperations, ...value, settings:{ ...defaultSiteOperations.settings, ...(value.settings || {}) }, features:{ ...defaultSiteOperations.features, ...(value.features || {}) } };
         fetchedAt = Date.now();
         return cached;
       })
-      .catch(() => cached);
+      .catch(() => revision !== requestRevision ? pending : { ...cached, error:true });
   }
   return pending;
 }
@@ -43,17 +47,26 @@ export function useSiteOperations() {
   const [state, setState] = useState({ operations: cached, ready: false });
   useEffect(() => {
     let active = true;
-    const sync = () => { loadOperations().then((value) => active && setState({ operations:value, ready:true })); };
+    let syncRevision = 0;
+    const sync = () => { const revision = ++syncRevision; loadOperations().then((value) => active && revision === syncRevision && setState({ operations:value, ready:true })); };
+    const onAuthChanged = () => {
+      cached = defaultSiteOperations;
+      setState({ operations:cached, ready:false });
+      invalidateSiteOperations();
+      sync();
+    };
     sync();
     // SPA는 페이지를 오가도 이 훅이 다시 마운트되지 않는다(의존성이 비어 있어 1회만 실행).
     // 그래서 공고를 등록하고 목록으로 이동해도 예전 캐시가 계속 보였다.
     // 경로 변경·탭 복귀 시 다시 확인해서 TTL이 지났거나 무효화됐으면 서버를 새로 조회한다.
     window.addEventListener('popstate', sync);
+    window.addEventListener('medihelpers:auth-changed', onAuthChanged);
     const onVisible = () => { if (document.visibilityState === 'visible') sync(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       active = false;
       window.removeEventListener('popstate', sync);
+      window.removeEventListener('medihelpers:auth-changed', onAuthChanged);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
@@ -71,20 +84,17 @@ export function isHeadhuntBoardContent(item) {
 
 // 기간제 유료 공고: 노출 종료일(payload.exposureEnd, YYYY-MM-DD)이 지나면 목록에서 내린다.
 // 종료일이 없는 공고(관리자 무료 게시물 등)는 만료 대상이 아니다.
-function isExposureExpired(payload = {}) {
-  const end = payload.exposureEnd || payload.exposure?.end;
-  if (!end) return false;
-  // 종료일 '그날 자정까지' 노출: 종료일 다음 날 0시부터 만료.
-  const endDate = new Date(`${String(end).slice(0, 10)}T23:59:59`);
-  if (Number.isNaN(endDate.getTime())) return false;
-  return endDate.getTime() < Date.now();
+export function isExposureExpired(payload = {}, epochMs = Date.now()) {
+  const end = normalizeExposureWindow(payload.exposure)?.end || payload.exposureEnd;
+  const todayKorea = new Date(Number(epochMs) + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(end || '')) && String(end) < todayKorea;
 }
 
 export function operationalDoctorJobs(contents = []) {
   return contents.filter((item) => item.contentType === 'doctor_job' && !isHeadhuntBoardContent(item) && !isExposureExpired(item.payload)).map((item) => {
     const p = item.payload || {};
     const region = p.region || String(p.primary || '').split(/[ ·]/)[0] || '전국';
-    return { website:p.website || '', specialties:p.specialties || '', established:p.established || '', doctorCount:p.doctorCount || '', staffCount:p.staffCount || '', equipment:p.equipment || '', beds:p.beds || '', representative:p.representative || '', businessNumber:p.businessNumber || '', postedDate:String(p.exposure?.start || item.publishedAt || item.createdAt || '').slice(0,10), id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title || '의사 초빙공고', location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.pay || p.salaryBasis || (!p.fromHospital && p.secondary) || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:'관리자 등록', color:'#1769d4', summary:p.description || '관리자가 등록한 의사 초빙공고입니다.', benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier === 'spotlight' ? 'featured' : (p.adTier || undefined), logo:p.logo || undefined, banner:p.banner || undefined, brandImageLayout:p.brandImageLayout || undefined, facility:p.facility || undefined, hospitalPhotos:Array.isArray(p.facilityPhotos) ? p.facilityPhotos : [], posterImages:Array.isArray(p.posterImages) ? p.posterImages : [], brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
+    return { website:p.website || '', specialties:p.specialties || '', established:p.established || '', doctorCount:p.doctorCount || '', staffCount:p.staffCount || '', equipment:p.equipment || '', beds:p.beds || '', representative:p.representative || '', businessNumber:p.businessNumber || '', postedDate:String(p.exposure?.start || item.publishedAt || item.createdAt || '').slice(0,10), id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title || '의사 초빙공고', location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.pay || p.salaryBasis || (!p.fromHospital && p.secondary) || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:p.fromHospital ? '병원 등록' : '관리자 등록', color:'#1769d4', summary:p.description || (p.fromHospital ? '병원에서 등록한 의사 초빙공고입니다.' : '메디헬퍼스 의사 초빙공고입니다.'), benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier === 'spotlight' ? 'featured' : (p.adTier || undefined), logo:p.logo || undefined, banner:p.banner || undefined, brandImageLayout:p.brandImageLayout || undefined, facility:p.facility || undefined, hospitalPhotos:Array.isArray(p.facilityPhotos) ? p.facilityPhotos : [], posterImages:Array.isArray(p.posterImages) ? p.posterImages : [], brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
   });
 }
 

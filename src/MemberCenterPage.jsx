@@ -1,3 +1,4 @@
+import { exposureRemainingLabel } from './billingPeriods.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -15,6 +16,7 @@ import { cleanInquiryText } from './inquiryText.js';
 import { sanitizeDisplayData } from './textIntegrity.js';
 import HospitalAdEditPage from './HospitalAdEditPage.jsx';
 import ResumeSubmitPicker from './ResumeSubmitPicker.jsx';
+import SubmittedResume from './SubmittedResume.jsx';
 
 const hospitalDemo = {
   profile: { displayName: '김혜원', email: 'hospital@medihelpers.co.kr', phone: '010-2435-5463', organization: '메디헬퍼스 협력병원', jobTitle: '채용 담당자' },
@@ -72,17 +74,6 @@ function statusClass(value = '') {
   return '';
 }
 
-function exposureRemainingLabel(endDate, status) {
-  if (status !== '노출 중' || !/^\d{4}-\d{2}-\d{2}$/.test(String(endDate || ''))) return '';
-  const [year, month, day] = String(endDate).split('-').map(Number);
-  const end = Date.UTC(year, month - 1, day);
-  const now = new Date();
-  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const remaining = Math.floor((end - today) / 86400000) + 1;
-  if (remaining <= 0) return '노출 종료';
-  if (remaining === 1) return '오늘 종료';
-  return `노출 ${remaining}일 남음`;
-}
 
 function MemberGate({ failed = false, alreadySignedIn = false }) {
   // 불러오기 실패와 '로그인 필요'는 다른 상황이다. 예전에는 둘 다 로그인 안내가 떠서,
@@ -103,7 +94,7 @@ function HeadhunterMessagePanel({ role, profile, professionType = '', specialty 
   const doctorEligible = role === 'doctor' && String(professionType).trim() === '의사';
   const allowed = role === 'hospital' || doctorEligible;
   const [subject, setSubject] = useState(role === 'hospital' ? '의사 채용 상담' : '구직 상담');
-  const [fieldSpecialty, setFieldSpecialty] = useState(specialty || profile.organization || '');
+  const [fieldSpecialty, setFieldSpecialty] = useState(specialty || (role === 'doctor' ? profile.organization : '') || '');
   const [phone, setPhone] = useState(profile.phone || '');
   const [message, setMessage] = useState('');
   const [resumeId, setResumeId] = useState('');
@@ -256,7 +247,8 @@ export default function MemberCenterPage({ route, qa, auth }) {
             if (!data.signedIn || !data.account?.role) throw new Error('member center auth mismatch');
             setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
             if (data.profile) setProfile(data.profile);
-            if (data.notifications) setNotifications(data.notifications);
+            // A new test/account session must never inherit the previous member's consent.
+            setNotifications(data.notifications || { email:true, sms:true, service:true, marketing:false });
             setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], resume: data.resume || null, jobSeekerPosts: data.jobSeekerPosts || [], recommendedCandidates: data.recommendedCandidates || [], unlockedTalents:data.unlockedTalents || [], talentCredits:data.talentCredits || { total:0, used:0, remaining:0 } });
             return;
           }
@@ -352,6 +344,8 @@ export default function MemberCenterPage({ route, qa, auth }) {
       },
       response: item.adminNote || (directApplication ? '공고를 등록한 병원 채용담당자가 지원 내용을 확인 중입니다.' : '담당 헤드헌터가 내용을 확인 중입니다. 답변이 등록되면 이 화면에서 확인할 수 있습니다.'),
       directApplication,
+      resumeSnapshot: payload.resumeSnapshot || {},
+      applicationContact: directApplication ? { name:payload.name, phone:payload.phone, email:payload.email } : {},
       history: [
         [String(item.createdAt || '').slice(0, 16), directApplication ? '병원 직접 지원' : '상담 접수'],
         ...(item.updatedAt && item.updatedAt !== item.createdAt ? [[String(item.updatedAt).slice(0, 16), '처리 상태 변경']] : [])
@@ -365,7 +359,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
     .map((item) => {
       const adStatus = item.adStatus || '';
       const status = adStatus === 'published' && item.status === 'paid'
-        ? '노출 중'
+        ? (exposureRemainingLabel(item.exposure?.end, '노출 중') === '노출 종료' ? '노출 종료' : '노출 중')
         : adStatus === 'draft'
           ? (item.status === 'paid' ? '게시 준비 중' : '결제 대기')
           : adStatus === 'hidden'
@@ -459,8 +453,12 @@ export default function MemberCenterPage({ route, qa, auth }) {
   const markAlertRead = async (alert, all = false) => {
     if (!qa.active) {
       try {
-        await fetch('/api/member-center', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify(all ? { action:'notifications_read_all' } : { action:'notification_read', notificationId:alert.id }) });
-      } catch {}
+        const response = await fetch('/api/member-center', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify(all ? { action:'notifications_read_all' } : { action:'notification_read', notificationId:alert.id }) });
+        if (!response.ok) throw new Error('알림 읽음 상태를 저장하지 못했습니다. 다시 시도해주세요.');
+      } catch {
+        window.dispatchEvent(new CustomEvent('medihelpers:notify', { detail:{ message:'알림 읽음 상태를 저장하지 못했습니다. 다시 시도해주세요.' } }));
+        return;
+      }
     }
     setServerData((current) => ({
       ...current,
@@ -509,8 +507,8 @@ export default function MemberCenterPage({ route, qa, auth }) {
   const saveProfile = async (event) => {
     event.preventDefault();
     const next = Object.fromEntries(new FormData(event.currentTarget).entries());
-    setProfile({ ...currentProfile, ...next });
     if (qa.active) {
+      setProfile({ ...currentProfile, ...next });
       setSaved('저장되었습니다.');
       window.setTimeout(() => setSaved(''), 2500);
       return;
@@ -523,6 +521,10 @@ export default function MemberCenterPage({ route, qa, auth }) {
     try {
       const res = await fetch('/api/member-center', { method: 'PATCH', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ profile: next, notifications, privacyVersion:PRIVACY_FORM_VERSION }) });
       if (res.ok) {
+        const result = await res.json();
+        setProfile({ ...currentProfile, ...result.profile });
+        if (result.notifications) setNotifications(result.notifications);
+        window.dispatchEvent(new CustomEvent('medihelpers:auth-changed'));
         setSaved('저장되었습니다.');
       } else {
         let message = '';
@@ -587,7 +589,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
           <section className="member-panel" id="member-saved-jobs"><div className="member-panel-head"><div><h3>관심 공고</h3><p>하트로 저장한 공고입니다. 로그인하면 다른 기기에서도 동일하게 보입니다.</p></div><a className="button outline" href={withBase('/jobs')}>공고 더 보기 <ArrowRight /></a></div>{savedJobs.length ? <div className="member-saved-jobs">{savedJobs.map((item) => <a key={item.jobId || item.id} href={withBase(`/jobs?open=${encodeURIComponent(item.jobId || item.id)}`)}><span><Heart /></span><div><strong>{item.title || item.jobId || item.id}</strong><small>{[item.dept, item.region].filter(Boolean).join(' · ') || '저장한 공고'}</small></div><ChevronRight /></a>)}</div> : <div className="member-empty"><Heart /><strong>저장한 공고가 없습니다</strong><p>채용 공고에서 하트를 누르면 이곳에 모입니다.</p></div>}</section>
         </>}
 
-        {tab === 'inquiries' && <><div className="member-page-head"><div><small>MESSAGES & MATCHING</small><h2>{role === 'hospital' ? '문의·후보 연결' : '상담·제안 내역'}</h2><p>{role === 'hospital' ? '헤드헌터에게 채용 문의를 보내고 의사 문의와 후보 추천을 확인합니다.' : '의사 회원은 이력서를 첨부해 구직 문의를 보내고 상담 진행 상태를 확인합니다.'}</p></div></div><HeadhunterMessagePanel role={role} profile={currentProfile} professionType={qa.active ? '의사' : auth?.registrationProfile?.professionType || ''} specialty={qa.active ? currentProfile.organization : auth?.registrationProfile?.specialty || currentProfile.organization} qa={qa.active} />{inquiries.length ? <section className="member-panel member-table-panel"><div className="member-table-head"><span>보낸 사람</span><span>문의 내용</span><span>접수일</span><span>상태</span></div>{inquiries.map((item) => <button type="button" className="member-inquiry-row" key={`${item.source}-${item.subject}`} onClick={() => openInquiry(item)}><strong>{item.name}</strong><div><b>{item.subject}</b><small>{memberFacingInquiryLabel(item)}</small></div><time>{item.time}</time><span className="member-inquiry-state"><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></span></button>)}</section> : <div className="member-empty member-empty-large"><MessageCircle /><strong>아직 상담·문의 내역이 없습니다</strong><p>새로운 상담이나 문의가 접수되면 진행 상태와 함께 표시됩니다.</p></div>}<div className="member-privacy-note"><ShieldCheck /><div><strong>{role === 'hospital' ? '의사 실명과 연락처는 동의 후 공개됩니다' : '내 실명과 연락처는 동의한 병원에만 전달됩니다'}</strong><p>메디헬퍼스 헤드헌터가 연결 범위를 확인한 뒤 필요한 정보만 안전하게 전달합니다.</p></div></div></>}
+        {tab === 'inquiries' && <><div className="member-page-head"><div><small>MESSAGES & MATCHING</small><h2>{role === 'hospital' ? '문의·후보 연결' : '상담·제안 내역'}</h2><p>{role === 'hospital' ? '헤드헌터에게 채용 문의를 보내고 의사 문의와 후보 추천을 확인합니다.' : '의사 회원은 이력서를 첨부해 구직 문의를 보내고 상담 진행 상태를 확인합니다.'}</p></div></div><HeadhunterMessagePanel role={role} profile={currentProfile} professionType={qa.active ? '의사' : auth?.registrationProfile?.professionType || ''} specialty={role === 'hospital' ? '' : auth?.registrationProfile?.specialty || currentProfile.organization} qa={qa.active} />{inquiries.length ? <section className="member-panel member-table-panel"><div className="member-table-head"><span>보낸 사람</span><span>문의 내용</span><span>접수일</span><span>상태</span></div>{inquiries.map((item) => <button type="button" className="member-inquiry-row" key={`${item.source}-${item.subject}`} onClick={() => openInquiry(item)}><strong>{item.name}</strong><div><b>{item.subject}</b><small>{memberFacingInquiryLabel(item)}</small></div><time>{item.time}</time><span className="member-inquiry-state"><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></span></button>)}</section> : <div className="member-empty member-empty-large"><MessageCircle /><strong>아직 상담·문의 내역이 없습니다</strong><p>새로운 상담이나 문의가 접수되면 진행 상태와 함께 표시됩니다.</p></div>}<div className="member-privacy-note"><ShieldCheck /><div><strong>{role === 'hospital' ? '의사 실명과 연락처는 동의 후 공개됩니다' : '내 실명과 연락처는 동의한 병원에만 전달됩니다'}</strong><p>메디헬퍼스 헤드헌터가 연결 범위를 확인한 뒤 필요한 정보만 안전하게 전달합니다.</p></div></div></>}
 
         {tab === 'payments' && <><div className="member-page-head"><div><small>BILLING & USAGE</small><h2>{role === 'hospital' ? '결제·사용이력' : '결제·이용 내역'}</h2><p>상품 결제와 실제 사용 상태를 같은 기준으로 확인합니다.</p></div></div>{role === 'hospital' && <section className="member-panel member-unlocked-talents" id="member-unlocked-talents"><div className="member-panel-head"><div><h3>열람 완료 인재</h3><p>열람권을 사용한 인재는 추가 차감 없이 계속 다시 볼 수 있습니다.</p></div><strong>{unlockedTalents.length}명</strong></div>{unlockedTalents.length ? <div className="member-unlocked-list">{unlockedTalents.map((talent) => <a key={talent.talentId} href={withBase(`/medical-staff/talents/${encodeURIComponent(talent.talentId)}`)}><span><BadgeCheck /></span><div><small>{String(talent.unlockedAt || '').slice(0,10) || '열람 완료'}</small><strong>{talent.title || '열람한 인재'}</strong><p>{talent.specialty || '상세 이력 확인'} · 기간 제한 없이 다시 열람</p></div><em>바로 보기 <ArrowRight /></em></a>)}</div> : <div className="member-empty"><Eye /><strong>아직 열람한 인재가 없습니다</strong><p>이력서 열람권을 사용하면 이곳에 기록되고 언제든 다시 볼 수 있습니다.</p></div>}</section>}{payments.length ? <section className="member-panel member-payment-list">{payments.map((item) => <div key={item.id} className="member-payment-row"><article><span><Receipt /></span><div><small>{item.id}</small><strong>{item.item}</strong><p>{item.date}</p></div><b>{item.amount}</b><em className={statusClass(item.status)}>{item.status}</em>{!qa.active && item.refundable && <button type="button" className="member-refund-btn" onClick={() => { setRefundFor(refundFor === item.id ? null : item.id); setRefundReason(''); setRefundMsg(''); }}>환불 요청</button>}{!qa.active && <button type="button" onClick={() => setReceipt(item)}>영수증</button>}</article>{refundFor === item.id && <div className="member-refund-form"><p className="member-refund-note">환불(청약철회)을 요청합니다. 이미 제공이 시작된 서비스는 이용분이 공제될 수 있으며, 처리 기준은 <a href={withBase('/refund')} target="_blank" rel="noreferrer">환불 정책</a>을 따릅니다.</p><textarea rows="2" placeholder="환불 사유를 입력해 주세요 (예: 단순 변심, 중복 결제, 서비스 미이용 등)" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><div className="member-refund-actions"><button type="button" className="button outline" onClick={() => setRefundFor(null)} disabled={refundBusy}>취소</button><button type="button" className="button primary" onClick={() => submitRefund(item.id)} disabled={refundBusy}>{refundBusy ? '접수 중…' : '환불 요청 접수'}</button></div></div>}</div>)}{refundMsg && <p className="member-refund-msg" role="status">{refundMsg}</p>}</section> : <div className="member-empty member-empty-large"><Receipt /><strong>아직 결제 내역이 없습니다</strong><p>공고 광고·인재 열람권 결제가 완료되면 영수증과 사용 상태가 표시됩니다.</p></div>}<section className="member-panel"><div className="member-panel-head"><div><h3>전체 사용 기록</h3><p>조회·상담·결제 등 계정 활동을 시간순으로 표시합니다.</p></div></div>{activities.length ? <div className="member-timeline">{activities.map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>기록된 사용 이력이 없습니다</strong><p>계정 활동이 발생하면 시간순으로 안전하게 기록됩니다.</p></div>}</section></>}
 
@@ -659,6 +661,8 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
             <h3>접수 정보</h3>
             <dl>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
           </section>}
+
+          {isDirectApplication && <SubmittedResume snapshot={inquiry.resumeSnapshot} contact={inquiry.applicationContact} />}
 
           <section className="inquiry-detail-response">
             <span><ShieldCheck /></span>

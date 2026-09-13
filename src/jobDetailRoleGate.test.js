@@ -9,7 +9,7 @@ test('only private headhunting positions keep the doctor-member gate', async () 
   assert.doesNotMatch(source, /const restricted = isAd \|\|/);
   assert.match(source, /Boolean\(!restricted \|\|/);
   assert.match(source, /누구나 전체 열람/);
-  assert.match(source, /restricted && viewerAccess\.loading/);
+  assert.match(source, /viewerAccess\.loading \? <em className="doctor-only-role-note">회원 권한 확인 중/);
   assert.match(source, /const hospitalViewer = Boolean\(/);
   assert.match(source, /상세조건은 의료인 회원만 볼 수 있습니다/);
   assert.match(source, /현재 로그인한 병원회원 계정에서는 보수·근무 일정·채용 조건을 열람하거나 지원할 수 없습니다/);

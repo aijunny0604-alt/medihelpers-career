@@ -319,7 +319,7 @@ async function ensureSchemaGroup(env, key, probeSql, statements, unavailableCode
 async function ensureAccountSchema(env) {
   // 새 계정 기능을 추가한 기존 D1에서도 전체 계정 스키마 문장을 한 번 실행하도록
   // 가장 최근 테이블을 probe한다. CREATE IF NOT EXISTS라 기존 회원 데이터는 유지된다.
-  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets, processing_consent_events LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
 }
 async function ensureConsultationSchema(env) {
   return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
@@ -480,14 +480,53 @@ async function runRetentionCleanup(env, triggerType = 'daily', actor = 'system')
       withdrawnAccounts:runChanges(results[12]),
       passwordResetTokens:runChanges(results[13])
     };
+    const privateUploads = await prunePrivateUploads(env);
     const expiredBackups = await pruneExpiredBackups(env);
     await env.DB.prepare("UPDATE data_protection_runs SET status='succeeded', detail_json=?, completed_at=CURRENT_TIMESTAMP WHERE id=?")
-      .bind(JSON.stringify({ deleted, expiredBackups, backupRetentionDays }), runId).run();
-    return { runId, deleted, expiredBackups };
+      .bind(JSON.stringify({ deleted, privateUploads, expiredBackups, backupRetentionDays }), runId).run();
+    return { runId, deleted, privateUploads, expiredBackups };
   } catch (error) {
     await writeProtectionFailure(env, runId, error && error.message);
     throw error;
   }
+}
+async function prunePrivateUploads(env, onlyOwner = '') {
+  const storage = env.UPLOADS || env.BACKUPS;
+  if (!storage) return 0;
+  await ensureConsultationSchema(env);
+  let deleted = 0;
+  // Retain photos referenced by a current resume or an already submitted snapshot.
+  // Seven days allow an uploaded draft to be saved before orphan cleanup.
+  for (const prefix of [onlyOwner ? 'profiles/' + onlyOwner + '/' : 'profiles/', ...(onlyOwner ? [] : ['verifications/hospitals/'])]) {
+    let cursor;
+    do {
+      const page = await storage.list({ prefix, limit:1000, ...(cursor ? {cursor} : {}) });
+      for (const object of page.objects || []) {
+        const photo = object.key.startsWith('profiles/');
+        if (photo) {
+          const url = '/api/uploads/' + object.key;
+          const referenced = await env.DB.prepare("SELECT 1 AS found WHERE EXISTS (SELECT 1 FROM resumes WHERE json_extract(detail_json,'$.photoUrl')=?) OR EXISTS (SELECT 1 FROM consultation_requests WHERE json_extract(payload_json,'$.resumeSnapshot.detail.photoUrl')=?)").bind(url,url).first();
+          if (referenced) continue;
+          const owner = await env.DB.prepare('SELECT account_id FROM auth_credentials WHERE account_id=? LIMIT 1').bind(object.key.split('/')[1]).first();
+          const uploaded = backupUploadedAt(object);
+          if (owner && (!uploaded || Date.parse(uploaded) > Date.now()-7*86400000)) continue;
+          await storage.delete(object.key); deleted++;
+        } else {
+          const record = await env.DB.prepare('SELECT id, retention_until AS until FROM hospital_verification_requests WHERE document_key=? LIMIT 1').bind(object.key).first();
+          const uploaded = backupUploadedAt(object);
+          const expiryText = String(record?.until || '').trim();
+          const expiry = Date.parse(/[zZ]|[+-][0-9]{2}:[0-9]{2}$/.test(expiryText) ? expiryText : expiryText.replace(' ','T')+'Z');
+          if (record && (!Number.isFinite(expiry) || expiry > Date.now())) continue;
+          if (!record && (!uploaded || Date.parse(uploaded) > Date.now()-7*86400000)) continue;
+          await storage.delete(object.key);
+          if (record) await env.DB.prepare('DELETE FROM hospital_verification_requests WHERE id=?').bind(record.id).run();
+          deleted++;
+        }
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+  }
+  return deleted;
 }
 async function createDataBackup(env, triggerType = 'daily', actor = 'system') {
   if (!env || !env.BACKUPS) throw new Error('BACKUP_STORAGE_UNAVAILABLE');
@@ -741,7 +780,7 @@ async function sendConsultationSms(env, record) {
   const signature = await hmacHex(env.SOLAPI_API_SECRET, date + salt);
   const label = record.requestType === 'doctor' ? '의사 구직' : '병원 구인';
   const text = '[메디헬퍼스] 새 '+label+' 상담 '+record.id+' / '+record.requesterName+' / '+record.phone;
-  const response = await fetch('https://api.solapi.com/messages/v4/send-many/detail', { method:'POST', headers:{ authorization:'HMAC-SHA256 apiKey='+env.SOLAPI_API_KEY+', date='+date+', salt='+salt+', signature='+signature, 'content-type':'application/json' }, body:JSON.stringify({ messages:[{ to:String(env.ALERT_SMS_TO).replace(/\D/g,''), from:String(env.SOLAPI_SENDER).replace(/\D/g,''), text }] }) });
+  const response = await fetch('https://api.solapi.com/messages/v4/send-many/detail', { method:'POST', headers:{ authorization:'HMAC-SHA256 apiKey='+env.SOLAPI_API_KEY+', date='+date+', salt='+salt+', signature='+signature, 'content-type':'application/json' }, body:JSON.stringify({ messages:[{ to:String(env.ALERT_SMS_TO).replace(/\\D/g,''), from:String(env.SOLAPI_SENDER).replace(/\\D/g,''), text }] }) });
   if (!response.ok) throw new Error('SMS_'+response.status);
   return 'sent';
 }
@@ -824,7 +863,7 @@ async function consultationApi(request, env, pathname) {
       try {
         const realJobId = String(payload.jobId).replace(/^admin-/, '');
         directJobRow = await env.DB.prepare(
-          "SELECT c.title, c.subtitle, c.status, c.created_by AS createdBy, a.id AS ownerAccountId, a.role AS ownerRole " +
+          "SELECT c.title, c.subtitle, c.status, c.payload_json AS payloadJson, c.created_by AS createdBy, a.id AS ownerAccountId, a.role AS ownerRole " +
           "FROM admin_content_records c LEFT JOIN account_admin_profiles ap ON lower(ap.email)=lower(c.created_by) " +
           "LEFT JOIN accounts a ON a.id=ap.account_id WHERE c.id=? AND c.content_type='doctor_job' AND c.status='published' LIMIT 1"
         ).bind(realJobId).first();
@@ -833,6 +872,7 @@ async function consultationApi(request, env, pathname) {
       if (!directJobRow || directJobRow.ownerRole !== 'hospital' || !directJobRow.ownerAccountId) {
         return json({ error:'이 공고의 등록 병원 계정을 확인할 수 없어 지원서를 전달하지 못했습니다. 다른 공고를 선택하거나 병원에 직접 문의해 주세요.' }, 409);
       }
+      if (isAdExposureExpired(parseJsonObject(directJobRow.payloadJson))) return json({ error:'노출 기간이 종료된 공고입니다. 현재 모집 중인 공고를 선택해주세요.' }, 409);
       payload.jobTitle = String(directJobRow.title || '').slice(0,300);
       payload.jobHospital = String(directJobRow.subtitle || '').slice(0,300);
       if (body.thirdPartyConsent !== true || body.recipient !== payload.jobHospital) return json({ error:'제공받는 병원 정보를 확인하고 개인정보 제공에 별도로 동의해주세요.' }, 400);
@@ -1212,12 +1252,17 @@ async function accountRecoveryApi(request, env, ctx) {
     if (!reset) return json({ error:'재설정 링크가 만료되었거나 이미 사용되었습니다. 새 링크를 요청해주세요.' }, 400);
     const salt = randomHex(16);
     const hash = await passwordHash(password, salt);
-    await env.DB.batch([
-      env.DB.prepare("UPDATE auth_credentials SET password_hash=?, password_salt=?, password_iterations=?, failed_attempts=0, locked_until=NULL, password_changed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(hash, salt, passwordIterations, reset.accountId),
-      env.DB.prepare("UPDATE account_password_resets SET used_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=? AND used_at IS NULL").bind(reset.accountId),
-      env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(reset.accountId),
-      env.DB.prepare("UPDATE account_recovery_requests SET status='resolved', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(reset.recoveryRequestId)
+    // Runtime-created and migration-created legacy DBs differ in this optional column.
+    // The reset record's used_at remains the canonical evidence on both schemas.
+    const credentialColumns = await env.DB.prepare('PRAGMA table_info(auth_credentials)').all();
+    const changeTimestamp = (credentialColumns.results || []).some(column => column.name === 'password_changed_at') ? 'password_changed_at=CURRENT_TIMESTAMP, ' : '';
+    const resetResults = await env.DB.batch([
+      env.DB.prepare("UPDATE auth_credentials SET password_hash=?, password_salt=?, password_iterations=?, failed_attempts=0, locked_until=NULL, " + changeTimestamp + "updated_at=CURRENT_TIMESTAMP WHERE account_id=? AND EXISTS (SELECT 1 FROM account_password_resets WHERE id=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP)").bind(hash, salt, passwordIterations, reset.accountId, reset.id),
+      env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=? AND changes()=1').bind(reset.accountId),
+      env.DB.prepare("UPDATE account_password_resets SET used_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=? AND used_at IS NULL AND EXISTS (SELECT 1 FROM account_password_resets WHERE id=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP)").bind(reset.accountId, reset.id),
+      env.DB.prepare("UPDATE account_recovery_requests SET status='resolved', updated_at=CURRENT_TIMESTAMP WHERE id=? AND changes()>0").bind(reset.recoveryRequestId)
     ]);
+    if (!runChanges(resetResults[0])) return json({ error:'재설정 링크가 만료되었거나 이미 사용되었습니다. 새 링크를 요청해주세요.' }, 400);
     return json({ reset:true }, 200);
   }
   const requestType = body.requestType === 'password' ? 'password' : body.requestType === 'id' ? 'id' : '';
@@ -1317,6 +1362,7 @@ async function accountApi(request, env, ctx) {
     if (length > 4096) return json({ error: '요청 크기가 너무 큽니다.' }, 413);
     let body;
     try { body = await readRequestObject(request); } catch { return json({ error: '올바른 가입 정보를 보내주세요.' }, 400); }
+    if (body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'최신 개인정보 처리 안내를 확인해주세요.' }, 400);
     if (!['doctor', 'hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error: '회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
@@ -1367,9 +1413,14 @@ async function accountApi(request, env, ctx) {
     const billing = await env.DB.prepare('SELECT COUNT(*) total FROM payment_orders WHERE account_id=?').bind(account.id).first();
     // 재가입 30일 제한을 위해 탈퇴 시각 기록(개인정보 아닌 user_key 해시만).
     const markWithdrawn = env.DB.prepare("INSERT INTO withdrawn_members (user_key, withdrawn_at) VALUES (?, CURRENT_TIMESTAMP) ON CONFLICT(user_key) DO UPDATE SET withdrawn_at=CURRENT_TIMESTAMP").bind(key);
+    const withdrawalCleanup = [
+      env.DB.prepare('DELETE FROM member_registration_profiles WHERE account_id=?').bind(account.id),
+      ...(Number(billing?.total || 0) > 0 ? [env.DB.prepare("UPDATE admin_content_records SET status='closed', updated_at=CURRENT_TIMESTAMP WHERE id IN (SELECT COALESCE(NULLIF(json_extract(metadata_json,'$.contentRecordId'),''), 'ad-order-' || id) FROM payment_orders WHERE account_id=? AND product_type='doctor_ad')").bind(account.id)] : [])
+    ];
     if (Number(billing?.total || 0) > 0) {
       await env.DB.batch([
         markWithdrawn,
+        ...withdrawalCleanup,
         env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM auth_credentials WHERE account_id=?').bind(account.id),
         env.DB.prepare('DELETE FROM job_seeker_posts WHERE account_id=?').bind(account.id),
@@ -1386,10 +1437,12 @@ async function accountApi(request, env, ctx) {
         env.DB.prepare("UPDATE account_admin_profiles SET status='withdrawn', email='', full_name='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id),
         env.DB.prepare("UPDATE member_profiles SET display_name='', phone='', organization='', job_title='', updated_at=CURRENT_TIMESTAMP WHERE account_id=?").bind(account.id)
       ]);
+      try { await prunePrivateUploads(env, account.id); } catch (error) { console.error('WITHDRAWAL_UPLOAD_CLEANUP_RETRY', error?.message); }
       return json({ deleted:true, retainedForBilling:true }, 200, { 'set-cookie':authCookie('', 0) });
     }
     await env.DB.batch([
       markWithdrawn,
+      ...withdrawalCleanup,
       env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM auth_credentials WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM job_seeker_posts WHERE account_id=?').bind(account.id),
@@ -1404,6 +1457,7 @@ async function accountApi(request, env, ctx) {
       env.DB.prepare('DELETE FROM consent_records WHERE account_id = ?').bind(account.id),
       env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(account.id)
     ]);
+    try { await prunePrivateUploads(env, account.id); } catch (error) { console.error('WITHDRAWAL_UPLOAD_CLEANUP_RETRY', error?.message); }
     return json({ deleted:true, retainedForBilling:false }, 200, { 'set-cookie':authCookie('', 0) });
   }
   return json({ error: '지원하지 않는 요청입니다.' }, 405);
@@ -1437,8 +1491,11 @@ async function uploadApi(request, env, pathname) {
         const ownerId = key.split('/')[1] || '';
         let allowed = Boolean(viewer && viewer.id === ownerId) || Boolean(await adminIdentity(request, env));
         if (!allowed && viewer?.role === 'hospital') {
-          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON (tu.talent_id = 'resume-' || r.id AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE tu.talent_id='seeker-' || p.id AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active') WHERE tu.hospital_account_id = ? AND r.account_id = ? LIMIT 1").bind(viewer.id, ownerId).first();
-          allowed = Boolean(grant);
+          const photoUrl = '/api/uploads/' + key;
+          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON (tu.talent_id = 'resume-' || r.id AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE tu.talent_id='seeker-' || p.id AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active') WHERE tu.hospital_account_id = ? AND r.account_id = ? AND json_extract(r.detail_json,'$.photoUrl')=? LIMIT 1").bind(viewer.id, ownerId, photoUrl).first();
+          // A submitted snapshot is independently shared with its receiving hospital.
+          const application = grant ? null : await env.DB.prepare("SELECT cr.id FROM consultation_requests cr JOIN admin_content_records c ON c.id=replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') WHERE lower(c.created_by)=? AND json_extract(cr.payload_json,'$.submissionChannel')='paid_job_direct' AND json_extract(cr.payload_json,'$.resumeSnapshot.detail.photoUrl')=? LIMIT 1").bind(identity.email.toLowerCase(), photoUrl).first();
+          allowed = Boolean(grant || application);
         }
         if (!allowed) return json({ error:'프로필 사진을 볼 권한이 없습니다.' }, 403);
       } catch { return json({ error:'프로필 사진 권한을 확인할 수 없습니다.' }, 503); }
@@ -1477,6 +1534,13 @@ async function uploadApi(request, env, pathname) {
     try { buffer = (await readLimitedBody(request,UPLOAD_MAX_BYTES)).buffer; } catch { return json({error:'이미지는 5MB 이하만 업로드할 수 있습니다.'},413); }
     if (!buffer || buffer.byteLength === 0) return json({ error:'빈 파일입니다. 이미지를 다시 선택해주세요.' }, 400);
     if (buffer.byteLength > UPLOAD_MAX_BYTES) return json({ error:'이미지는 5MB 이하만 업로드할 수 있습니다.' }, 413);
+    const bytes = new Uint8Array(buffer);
+    const ascii = (start, end) => String.fromCharCode(...bytes.slice(start, end));
+    const validImage = contentType === 'image/png' ? bytes.length >= 8 && [137,80,78,71,13,10,26,10].every((value,index)=>bytes[index]===value)
+      : contentType === 'image/jpeg' ? bytes.length >= 3 && bytes[0]===255 && bytes[1]===216 && bytes[2]===255
+      : contentType === 'image/webp' ? bytes.length >= 12 && ascii(0,4)==='RIFF' && ascii(8,12)==='WEBP'
+      : contentType === 'image/gif' && ['GIF87a','GIF89a'].includes(ascii(0,6));
+    if (!validImage) return json({ error:'이미지 형식과 파일 내용이 일치하지 않습니다. 원본 이미지를 선택해주세요.' }, 400);
     const objectKey = (isResumeProfile ? 'profiles/' : 'hospitals/') + ownerId + '/' + purpose + '/' + crypto.randomUUID() + '.' + ext;
     await uploadStorage.put(objectKey, buffer, { httpMetadata: { contentType: contentType }, customMetadata: { uploadedBy: ownerId, purpose: purpose } });
     // 병원 회원이면 활동 기록에 남겨 마이페이지에서 업로드 이력을 확인할 수 있게 한다(실패해도 업로드는 성공 처리).
@@ -1727,10 +1791,13 @@ async function memberCenterApi(request, env) {
   if (request.method === 'PATCH') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
     let body; try { body = await readRequestObject(request); } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
-    const profile = cleanMemberProfile(body.profile);
-    const preferences = body.notifications && typeof body.notifications === 'object' ? body.notifications : {};
+    const preferenceInput = body.notifications && typeof body.notifications === 'object' ? body.notifications : {};
+    if (['email','sms','service','marketing'].some(key => Object.hasOwn(preferenceInput,key) && typeof preferenceInput[key] !== 'boolean')) return json({ error:'알림 설정 값을 확인해주세요.' }, 400);
+    const previousProfile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id=?').bind(account.id).first();
+    const previousPreferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id=?').bind(account.id).first();
+    const profile = cleanMemberProfile({ ...previousProfile, ...(body.profile && typeof body.profile === 'object' ? body.profile : {}) });
+    const preferences = Object.fromEntries(['email','sms','service','marketing'].map(key => [key, Object.hasOwn(preferenceInput,key) ? preferenceInput[key] : previousPreferences ? Boolean(previousPreferences[key]) : key !== 'marketing']));
     if (preferences.marketing === true && body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'선택 이메일 수신 안내를 확인해주세요.' }, 400);
-    const previousPreferences = await env.DB.prepare('SELECT marketing_notifications AS marketing FROM member_preferences WHERE account_id=?').bind(account.id).first();
     const marketingEvents = Boolean(previousPreferences?.marketing) !== (preferences.marketing === true) ? [consentEvent(env, account.id, 'marketing', account.id, '', preferences.marketing === true)] : [];
     await env.DB.batch([
       ...marketingEvents,
@@ -1855,7 +1922,7 @@ async function jobSeekerPostApi(request, env, pathname) {
   let current = null;
   if (request.method === 'PATCH') {
     if (!suffix) return json({ error:'수정할 구직글을 확인해주세요.' }, 400);
-    current = await env.DB.prepare("SELECT id, resume_id AS resumeId FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
+    current = await env.DB.prepare("SELECT id, resume_id AS resumeId, contact_visibility AS contactVisibility FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
     if (!current) return json({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
   }
   const resumeId = s(body.resumeId || current?.resumeId, 100);
@@ -1882,6 +1949,7 @@ async function jobSeekerPostApi(request, env, pathname) {
     await env.DB.batch([
       consentEvent(env, account.id, 'posting', id),
       ...(contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id)] : []),
+      ...(contactVisibility === 'private' && current.contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id, '', false)] : []),
       env.DB.prepare("UPDATE job_seeker_posts SET resume_id=?, title=?, summary=?, specialty=?, desired_region=?, available_from=?, employment_type=?, contact_visibility=?, status='active', updated_at=CURRENT_TIMESTAMP WHERE id=? AND account_id=?").bind(resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, id, account.id),
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_seeker_post_update', '구직글을 수정했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
     ]);
@@ -2067,7 +2135,7 @@ async function paymentStorageType(env, product) {
   if (product?.type !== 'talent_search') return product?.type || '';
   try {
     const row = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='payment_orders' LIMIT 1").first();
-    if (/\btalent_search\b/.test(String(row?.sql || ''))) return 'talent_search';
+    if (/\\btalent_search\\b/.test(String(row?.sql || ''))) return 'talent_search';
   } catch {}
   return 'membership';
 }
@@ -2078,6 +2146,11 @@ function normalizeAdPayloadExposure(payload) {
   const exposure = normalizeExposureWindow(payload?.exposure);
   if (!exposure) return payload;
   return { ...payload, exposure, exposureEnd:exposure.end };
+}
+function isAdExposureExpired(payload = {}) {
+  const end = normalizeExposureWindow(payload?.exposure)?.end || payload?.exposureEnd;
+  const todayKorea = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
+  return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(end || '')) && String(end) < todayKorea;
 }
 function adTierForProduct(productId, productName) {
   const id = String(productId || '');
@@ -2730,13 +2803,7 @@ async function publicSiteOperationsApi(request, env) {
   };
   // 기간제 유료 공고: payload.exposureEnd(YYYY-MM-DD)가 지난 공고는 서버에서 제외해 노출을 중단한다.
   // 종료일이 없으면 계속 노출. 종료일 '그날 자정까지' 노출하고 다음 날부터 만료.
-  const isExpired = (payload) => {
-    const end = normalizeExposureWindow(payload?.exposure)?.end || payload?.exposureEnd;
-    if (!end) return false;
-    const todayKorea = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(String(end)) && String(end) < todayKorea;
-  };
-  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} payload = normalizeAdPayloadExposure(payload); const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload), rawPayload:payload }; }).filter(record => !isExpired(record.rawPayload)).map(({ rawPayload, ...record }) => record);
+  const contents = (contentResult.results || []).filter(row => allowedVisibility.has(row.visibility)).map(row => { let payload = {}; try { payload = JSON.parse(row.payloadJson || '{}'); } catch {} payload = normalizeAdPayloadExposure(payload); const { payloadJson, ...record } = row; return { ...record, payload:stripSensitive(row.contentType, payload), rawPayload:payload }; }).filter(record => !isAdExposureExpired(record.rawPayload)).map(({ rawPayload, ...record }) => record);
   // 구직글은 이력서와 분리해 게시 원장으로 노출한다. 선택한 이력서의 경력만 참조하며
   // 실명·전화·이메일은 이 공개 응답에 절대 포함하지 않는다.
   try {

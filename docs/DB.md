@@ -1,6 +1,8 @@
 # DB
 
-2026-09-12 배포 대기: `0013_processing_consent_events.sql`에 서비스별 동의·안내 확인 증빙을 추가했다. 계정·대상 식별번호, 범위, 안내 버전·사본, 서버 기록 시각을 보관하고 계정 삭제 시 연쇄 삭제한다. 부모 서비스 기록 정리 후 남은 증빙도 일일 보존 작업에서 정리한다. [구현·검증 범위](PRIVACY_ADMIN_UPDATE_2026-09-12.md).
+2026-09-13 기준: `0013_processing_consent_events.sql`에 서비스별 동의·안내 확인 증빙을 저장한다. 계정·대상 식별번호, 범위, 안내 버전·사본, 서버 기록 시각을 보관하고 계정 삭제 시 연쇄 삭제한다. 부모 서비스 기록 정리 후 남은 증빙도 일일 정리한다. 기존 DB에서 동의 테이블 누락을 탐지해 자동 초기화한다. [연결 모델·검증·배포 상태](INTEGRATION_AUDIT_2026-09-13.md).
+
+비밀번호 변경 시각 열은 과거 DB 생성 방식마다 다르므로 런타임에서 존재를 확인한다. 재설정 링크의 사용 시각이 공통 기준이다. 제출 이력서는 상담 payload의 불변 사본, 공개 구직글은 개인 이력서 참조이며 목적이 다르다. 프로필 PATCH는 생략값을 보존하고 탈퇴 시 추가 가입정보도 삭제한다.
 
 ## 2026-08-29 구직글 게시 원장
 
@@ -73,11 +75,13 @@
 - 후보자 동의 전에는 병원 응답에 직접 식별정보를 포함하지 않습니다.
 - 권한 만료, 환불, 소개 완료는 원본 거래 기록을 지우지 않고 상태 이력으로 남깁니다.
 
-## 실제 런타임 테이블 (2026-08-02 기준)
+## 실제 런타임 테이블 (2026-09-13 기준)
 
 `scripts/package-sites.mjs`가 요청 시 자동 생성하는 D1 테이블. 스키마 원본은 `db/schema.js`.
 
 **인증·회원**: `accounts`, `auth_credentials`, `auth_sessions`, `account_recovery_requests`, `account_password_resets`, `account_admin_profiles`, `member_profiles`, `member_preferences`, `member_activity`, `consent_records`, `consent_grants`, `withdrawn_members`
+
+추가 실제 테이블: `member_registration_profiles`(역할별 가입 기본값), `member_notifications`(회원 알림), `processing_consent_events`(서비스별 안내·동의·철회), `hospital_verification_requests`(사업자 서류), `job_seeker_posts`(구직 게시 원장), `inquiry_messages`(종료된 메시지 기능의 기존 기록), `data_protection_runs`(백업·보존 실행). 세션을 제외한 백업 대상은 39개이며 `scripts/package-sites.mjs`의 `backupTables`가 정확한 목록이다.
 
 **공고·인재**: `admin_content_records`(관리자 게시 공고·콘텐츠), `admin_categories`, `resumes`(의료인 이력서, `visibility`: public/proposal/private), `saved_jobs`(관심공고)
 
@@ -90,13 +94,13 @@
 **상담·CRM·감사**: `consultation_requests`, `recruitment_cases`, `candidate_submissions`(후보 동의 `consent_status`), `interview_events`, `access_audit_logs`(열람 감사), `admin_audit_logs`, `site_settings`, `feature_flags`
 
 ### 열람권·환불 규칙 (코드 기준)
-- **열람 상세 공개**: `GET /api/talent-detail/:id`는 병원+해당 인재 열람권일 때만 상세 제공. 열람권에는 기간 만료가 없으며, 이력서는 `visibility IN ('public','proposal')`만 실명·연락처를 내려준다(비공개 이력서 유출 방지).
-- **팩 크레딧 소모**: 비공개(private) 이력서에는 크레딧을 쓰지 않는다(낭비·열람 시도 차단).
+- **열람 상세 공개**: 병원+해당 인재 열람권에서 경력 상세를 제공한다. `seeker-*`는 활성 구직글이 선택한 이력서를 참조하며 개인 이력서는 private이어도 된다. 연락처는 별도의 `contact_visibility='ticket'` 선택이 있어야 제공한다. 연락처 비공개는 열람권보다 우선한다.
+- **팩 크레딧 소모**: 없는/삭제된 구직글과 직접 공개되지 않은 `resume-*` 대상은 차감하지 않는다. 같은 인재 재열람은 추가 차감하지 않는다.
 - **환불 회수**: 전액 환불 시 단건 열람권 + 그 결제의 크레딧 풀에서 발급된 열람권을 삭제하고 풀 크레딧을 소진 처리(`talentRevokeStatementsForOrder`).
 
 ### 백업·보존
 
-- `account_recovery_requests`는 백업 스키마 v0007부터, `account_password_resets`는 v0010부터 D1→R2 일일 백업 대상에 포함합니다. 사용했거나 만료된 재설정 토큰 기록은 7일 뒤 자동 정리합니다.
+- `account_recovery_requests`는 백업 스키마 v0007부터, `account_password_resets`는 v0010부터 백업에 포함합니다. 사용한 토큰은 다음 보존 실행에서, 미사용 만료 토큰은 만료 후 7일 뒤 정리합니다.
 - `data_protection_runs`: 일일·수동 백업과 보존기간 정리의 성공·실패, R2 객체 키, SHA-256 체크섬, 테이블별 행 수를 기록합니다.
 - 전체 D1 스냅샷은 별도 R2 `BACKUPS`에 저장하며 로그인 세션은 제외합니다.
 - 탈퇴·상담·채용·거래·감사 로그의 만료 정리는 `docs/DATA_PROTECTION.md`의 기준을 따릅니다.

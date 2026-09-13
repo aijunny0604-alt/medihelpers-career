@@ -3,10 +3,18 @@ import assert from 'node:assert/strict';
 import {
   HEADHUNT_BOARD_CHANNEL,
   isHeadhuntBoardContent,
+  isExposureExpired,
   operationalDoctorJobs,
   operationalMedicalJobs,
   operationalTalent,
 } from './siteOperations.js';
+
+test('공개 공고 만료는 방문자 시간대와 무관하게 한국 자정 및 원 계약을 따른다', () => {
+  const exposure = { start:'2026-09-01', days:13, end:'2099-01-01' };
+  assert.equal(isExposureExpired({exposure}, Date.parse('2026-09-13T14:59:59Z')), false);
+  assert.equal(isExposureExpired({exposure}, Date.parse('2026-09-13T15:00:00Z')), true);
+  assert.equal(isExposureExpired({exposureEnd:'unknown'}), false);
+});
 
 const records = [
   { id:'j1', contentType:'doctor_job', title:'정형외과 전문의 초빙', subtitle:'테스트병원', payload:{ department:'정형외과', region:'부산', pay:'월 1,500만원', deadline:'2026.08.31' } },
@@ -31,12 +39,7 @@ test('콘텐츠 유형이 다른 레코드는 각 공개 목록에 섞이지 않
 });
 
 const isoDay = (offsetDays) => {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return new Date(Date.now() + 9 * 3600000 + offsetDays * 86400000).toISOString().slice(0,10);
 };
 
 test('노출 종료일(exposureEnd)이 지난 기간제 공고는 목록에서 자동으로 제외된다', () => {

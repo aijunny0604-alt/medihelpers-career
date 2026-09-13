@@ -426,6 +426,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       try {
         const result = await accountRequest('POST', {
           role: memberType,
+          privacyVersion:PRIVACY_FORM_VERSION,
           termsAccepted: true,
           privacyAcknowledged: true,
           ageConfirmed: true
@@ -677,7 +678,7 @@ function SignupForm({ identity = {}, memberType, onComplete }) {
     if (!validation.valid) return;
     setSubmitting(true);
     try {
-      const result = await accountRequest('POST', form);
+      const result = await accountRequest('POST', { ...form, privacyVersion:PRIVACY_FORM_VERSION });
       onComplete(result.account);
     } catch (error) {
       setSubmitError(error.message);
