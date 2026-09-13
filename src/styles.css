@@ -6179,6 +6179,36 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 }
 
 /* Doctor career history: single records should use the available workspace width. */
+/* Detail branding needs enough horizontal space for hospital wordmarks. */
+.job-detail .detail-brand{gap:20px;padding-right:0}
+.job-detail .detail-brand>.hospital-logo.prominent{width:176px;height:104px;flex:0 0 176px;padding:6px;border:1px solid #d5e2ef;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(31,61,103,.08)}
+.job-detail .detail-brand>.hospital-logo.prominent img{width:100%;height:100%;padding:0;object-fit:contain;transform:none}
+.job-detail .detail-brand strong{font-size:clamp(24px,1.9vw,34px);line-height:1.35;overflow-wrap:anywhere}
+.job-detail .detail-brand small{font-size:14px}
+.job-detail .detail-heading.has-detail-banner{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px}
+.job-detail .detail-heading h2{font-size:clamp(32px,2.8vw,50px);line-height:1.3}
+.job-detail .detail-hero-banner{max-width:none}
+.job-detail .detail-hero-banner>div{left:18px;right:18px;bottom:16px;padding:14px 16px;background:rgba(255,255,255,.96);backdrop-filter:none}
+.job-detail .detail-hero-banner small{font-size:12px}
+.job-detail .detail-hero-banner strong{font-size:clamp(18px,1.45vw,26px);white-space:normal;overflow-wrap:anywhere}
+.job-detail .detail-hero-banner>div>span{margin-top:4px;font-size:13px}
+.job-detail .detail-banner-chip{font-size:11px;padding:6px 10px;backdrop-filter:none}
+@media(max-width:1100px){
+  .job-detail .detail-heading.has-detail-banner{grid-template-columns:minmax(0,1fr);gap:26px}
+  .job-detail .detail-hero-banner{width:100%;max-width:840px;justify-self:center}
+}
+@media(max-width:600px){
+  .job-detail .detail-brand{gap:14px;align-items:center}
+  .job-detail .detail-brand>.hospital-logo.prominent{width:120px;height:84px;flex-basis:120px;padding:4px;border-radius:14px}
+  .job-detail .detail-brand strong{font-size:22px}
+  .job-detail .detail-brand small{font-size:12px}
+  .job-detail .detail-heading h2{font-size:30px}
+  .job-detail .detail-hero-banner>div{left:10px;right:10px;bottom:10px;padding:9px 11px}
+  .job-detail .detail-hero-banner small{display:none}
+  .job-detail .detail-hero-banner strong{font-size:18px}
+  .job-detail .detail-hero-banner>div>span{font-size:12px}
+  .job-detail .detail-banner-chip{font-size:10px;padding:4px 8px}
+}
 .role-doctor .member-job-seeker-grid,
 .role-doctor .member-record-grid{
   grid-template-columns:minmax(0,1fr);
