@@ -10,6 +10,7 @@ import { sampleJobs as medicalStaffJobs } from './MedicalStaffPage.jsx';
 import { ReceiptModal } from './MemberCenterPage.jsx';
 import { withBase } from './basePath.js';
 import { authRequest } from './AccountPage.jsx';
+import { readStoredArray, writeStoredValue } from './browserStorage.js';
 
 const catalogContents = [
   ...jobs.map((job) => ({
@@ -195,6 +196,7 @@ export default function AdminConsolePage({ qa = false }) {
   const [notificationsOpen, setNotificationsOpen] = useState(() => {
     try { return new URLSearchParams(window.location.search).get('open') === 'notifications'; } catch { return false; }
   });
+  const [seenNotifications, setSeenNotifications] = useState({ key: '', ids: [] });
 
   // 관리자 데이터를 못 불러왔는지(권한 실패 등) 상태. true면 빈 콘솔 대신 안내 화면을 띄운다.
   const [loadError, setLoadError] = useState('');
@@ -239,6 +241,22 @@ export default function AdminConsolePage({ qa = false }) {
     }
     return items.slice(0, 12);
   }, [data.consultations, data.payments]);
+
+  // Reading an alert is separate from resolving the consultation or payment.
+  // Remember only IDs, per administrator in this browser; never store alert copy.
+  const notificationStorageKey = qa ? 'medihelpers-admin-alerts-seen:qa'
+    : data.admin?.email ? `medihelpers-admin-alerts-seen:${data.admin.email.toLowerCase()}` : '';
+  const seenIds = new Set(seenNotifications.key === notificationStorageKey
+    ? seenNotifications.ids : notificationStorageKey ? readStoredArray(notificationStorageKey) : []);
+  const unreadNotificationCount = notificationsOpen ? 0 : adminNotifications.filter((item) => !seenIds.has(item.id)).length;
+
+  useEffect(() => {
+    if (!notificationsOpen || !notificationStorageKey || loading || loadError) return;
+    const previous = readStoredArray(notificationStorageKey).filter((id) => typeof id === 'string');
+    const next = [...new Set([...previous, ...adminNotifications.map((item) => item.id)])].slice(-2048);
+    writeStoredValue(notificationStorageKey, next);
+    setSeenNotifications({ key: notificationStorageKey, ids: next });
+  }, [notificationsOpen, notificationStorageKey, adminNotifications, loading, loadError]);
 
   const select = (key) => setSection(key);
 
@@ -294,7 +312,7 @@ export default function AdminConsolePage({ qa = false }) {
         </div>
         <nav>
           <div className="admin-alert-wrap">
-            <button type="button" className="admin-alert-button" onClick={() => setNotificationsOpen((open) => !open)} aria-label="관리자 알림" aria-expanded={notificationsOpen} aria-controls="admin-alert-panel"><Bell /><span>알림</span>{adminNotifications.length > 0 && <b>{adminNotifications.length}</b>}</button>
+            <button type="button" className="admin-alert-button" onClick={() => setNotificationsOpen((open) => !open)} aria-label="관리자 알림" aria-expanded={notificationsOpen} aria-controls="admin-alert-panel"><Bell /><span>알림</span>{unreadNotificationCount > 0 && <b>{unreadNotificationCount}</b>}</button>
             {notificationsOpen && <section id="admin-alert-panel" className="admin-alert-panel" aria-label="관리자 알림">
               <header><div><small>ADMIN ALERTS</small><strong>확인할 운영 기록</strong></div><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="관리자 알림 닫기"><X /></button></header>
               <div>{adminNotifications.length ? adminNotifications.map((item) => <button type="button" key={item.id} onClick={() => { select(item.target); setNotificationsOpen(false); }}><span><Bell /></span><div><strong>{item.title}</strong><small>{item.copy}</small></div><ChevronRight /></button>) : <p><ShieldCheck /> 지금 확인할 새 기록이 없습니다.</p>}</div>
