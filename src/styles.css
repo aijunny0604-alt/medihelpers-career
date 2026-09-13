@@ -6177,3 +6177,17 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   body:has(main input:focus,main textarea:focus,main select:focus) .medi-angel-assistant:not(.is-open){visibility:hidden}
   .route-load-state{margin-top:66px}
 }
+
+/* Doctor career history: single records should use the available workspace width. */
+.role-doctor .member-job-seeker-grid,
+.role-doctor .member-record-grid{
+  grid-template-columns:minmax(0,1fr);
+}
+.role-doctor .member-job-seeker-grid article,
+.role-doctor .member-record-grid article{
+  width:100%;
+  box-sizing:border-box;
+}
+.role-doctor .member-record-grid article>a{
+  justify-content:center;
+}
