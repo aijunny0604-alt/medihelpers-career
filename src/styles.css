@@ -6178,6 +6178,21 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   .route-load-state{margin-top:66px}
 }
 
+.ad-apply-page .facility-photo-preview{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:22px}
+.ad-apply-page .facility-photo-preview figure{height:auto;border:1px solid #dbe6f3;background:#fff;border-radius:14px}
+.ad-apply-page .facility-photo-preview img{display:block;height:220px;object-fit:contain;background:#edf2f7}
+.ad-apply-page .facility-photo-preview figcaption{position:static;display:flex;flex-direction:column;gap:6px;padding:14px;background:#fff;color:#10213f;font-size:15px;border-radius:0}
+.ad-apply-page .facility-photo-preview figcaption span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#61738b;font-size:14px}
+.ad-apply-page .facility-photo-preview button{width:36px;height:36px;cursor:pointer}
+.ad-apply-page .facility-upload-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:20px}
+.ad-apply-page .facility-upload-actions>label{display:flex;flex-direction:row;align-items:center;gap:10px;padding:14px 22px;border:1px solid #1263e8;border-radius:12px;background:#1263e8;color:#fff;font-size:16px;font-weight:750;cursor:pointer}
+.ad-apply-page .facility-upload-actions input{position:absolute!important;width:1px!important;height:1px!important;min-height:1px!important;opacity:0;padding:0!important}
+.ad-apply-page .facility-upload-actions>span{color:#61738b;font-size:15px;line-height:1.6}
+.ad-apply-page .facility-photo-empty{min-height:140px;font-size:16px;padding:20px}
+.ad-apply-page .facility-photo-upload>em{font-size:14px;line-height:1.7;overflow-wrap:anywhere}
+@media(max-width:780px){.ad-apply-page .facility-photo-preview{grid-template-columns:repeat(2,minmax(0,1fr))}.ad-apply-page .facility-photo-preview img{height:150px}}
+@media(max-width:480px){.ad-apply-page .facility-photo-preview{grid-template-columns:1fr}.ad-apply-page .facility-photo-preview img{height:200px}.ad-apply-page .facility-upload-actions>label{width:100%;justify-content:center}}
+
 /* Recruitment form: preview/upload together, templates alongside. */
 .ad-apply-page .single-brand-upload{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"preview templates" "upload templates" "guide guide";align-items:start;gap:24px;padding:28px;background:#f7faff}
 .ad-apply-page .single-brand-upload>.banner-preview{grid-area:preview;width:100%;min-height:180px;aspect-ratio:3/1;margin:0}

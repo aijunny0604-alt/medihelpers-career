@@ -2779,10 +2779,13 @@ function Checkout({ plan, auth }) {
           file.size <= JOB_IMAGE_MAX_BYTES,
       )
       .slice(0, available);
-    if (valid.length !== selected.length)
-      setPhotoError(
-        "PNG·JPG·WEBP 이미지만 장당 5MB 이하로, 최대 6장까지 등록해주세요.",
-      );
+    const rejected = selected.filter((file) => !valid.includes(file));
+    if (rejected.length) setPhotoError(rejected.map((file) => {
+      const reason = !["image/png", "image/jpeg", "image/webp"].includes(file.type)
+        ? "지원하지 않는 형식 · PNG/JPG/WEBP로 저장해주세요"
+        : file.size > JOB_IMAGE_MAX_BYTES ? "5MB 초과" : "최대 6장 초과";
+      return `${file.name}: ${reason}`;
+    }).join(" / "));
     setFacilityPhotos((current) => [
       ...current,
       ...valid.map((file) => ({
@@ -3110,15 +3113,6 @@ function Checkout({ plan, auth }) {
                     <strong>병원 사진</strong>
                     <span>선택사항 · 예: 1600×1000px 가로형 · PNG·JPG·WEBP · 장당 5MB · 최대 6장</span>
                   </div>
-                  <label>
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      multiple
-                      onChange={selectFacilityPhotos}
-                    />
-                    <Upload /> 클릭·드래그·붙여넣기
-                  </label>
                 </div>
                 {facilityPhotos.length ? (
                   <div className="facility-photo-preview">
@@ -3136,7 +3130,8 @@ function Checkout({ plan, auth }) {
                           <X />
                         </button>
                         <figcaption>
-                          {index === 0 ? "대표 사진" : `${index + 1}번 사진`}
+                          <strong>{index === 0 ? "대표 사진" : `${index + 1}번 사진`}</strong>
+                          <span title={photo.name}>{photo.name}</span>
                         </figcaption>
                       </figure>
                     ))}
@@ -3144,10 +3139,17 @@ function Checkout({ plan, auth }) {
                 ) : (
                   <div className="facility-photo-empty">
                     <Building2 />
-                    <span>등록한 사진은 병원 상세정보에 갤러리로 노출됩니다.</span>
+                    <span>사진을 추가하면 이곳에서 미리 볼 수 있습니다.</span>
                   </div>
                 )}
-                {photoError && <em>{photoError}</em>}
+                <div className="facility-upload-actions">
+                  <label>
+                    <input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={selectFacilityPhotos} />
+                    <Upload /> {facilityPhotos.length ? "사진 더 추가" : "사진 선택"}
+                  </label>
+                  <span aria-live="polite">{facilityPhotos.length} / 6장 · 드래그하거나 Ctrl+V로 붙여넣을 수 있습니다.</span>
+                </div>
+                {photoError && <em role="alert">추가하지 못한 사진: {photoError}</em>}
               </section>
               </section>
               <section className="ad-form-section">
