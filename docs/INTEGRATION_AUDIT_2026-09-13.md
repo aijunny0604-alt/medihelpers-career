@@ -88,4 +88,14 @@ Worker 시험은 먼저 `npm run build`가 필요하다. Node의 SQLite 지원 �
 
 ## 배포 기록
 
-검증 소스를 GitHub 기준 브랜치와 Sites main에 동일 반영 후 기존 공개 사이트에 배포한다. 프로젝트 ID와 DB/BACKUPS 바인딩은 유지한다. 배포 버전·SHA·공개 자산/캐시·새 세션 역할 검사 결과는 배포 후 이 절과 STATUS/TEST/CHANGELOG에 기록한다. 내부 문서는 Git에서 관리하며 공개 `/docs/STATUS.md`는 404를 유지한다.
+공개 **버전 354** 배포 성공(2026-09-13 09:53 KST). 검증·배포 소스 `695f527c8f826949d4e2e7a7ee3edfbd84806c80`을 GitHub 기준 브랜치와 Sites main에 동일 반영했다. 기능 변경은 `3444995ce6d6136ba886b88251203beffe5ddf96`, 뒤 커밋은 시험 주석/공백 정리다. 프로젝트 ID와 DB/BACKUPS 바인딩 유지, 다른 기존 배포 작업트리도 미커밋 변경 없이 보존했다.
+
+- 사이트: https://medihelpers-career.junnyai.chatgpt.site/
+- saved version: `appgprj_6a55ef0d235881919bf6cbd7919e0355~appgver_f5dfae69fc288191b401311d12f7cd67`
+- deployment: `appgdep_6aa5f3efa3dc81919ede3afbca4ae0b8`, 상태 `succeeded`
+- 공개 JS `index-DcZsqYyb.js`, CSS `index-xKcLjdfn.css` 일치, HTML `no-store, max-age=0, must-revalidate`.
+- 09:56 KST 운영 점검 **62개 통과**: 쿠키 없는 새 일반회원·병원회원·관리자 로그인과 보호 API/반대 역할, 동의 원장/COUNT, 백업·문서 접근, 자산. 공개 홈 브라우저 표시 정상, 수집된 콘솔 오류 없음.
+- 운영 최신 성공 백업 다운로드의 SHA-256이 원장 및 응답 헤더와 일치했다. 해당 백업은 **9월 13일 01:33 KST, 스키마 0012/38개 테이블**로 이번 배포 이전 파일이다. 0013/39개 백업은 격리 시험에서 확인했으며 다음 자동 백업 전까지 운영에서 생성됐다고 보고하지 않는다. 관리자 수동 실행은 활성화하지 않았다.
+- 기록 파일: `C:/Users/ROSSA/medihelpers-audit-20260909/integration-live-results.json`(상태/체크섬/건수만, 백업 본문 미저장).
+
+Windows에서 Sites Node 포장 래퍼의 bash 검색이 실패해 같은 공식 `package-site.sh`를 Git Bash로 실행했다. 배포 압축에는 검증된 dist Worker·마이그레이션만 포함하며 manifest/Worker 일치를 확인했다. 내부 문서는 Git에서 관리하고 공개 `/docs/STATUS.md`는 404다. 이후 기록 커밋은 이 배포 결과 문서만 갱신하며 프로그램 배포 버전은 354로 유지한다.
