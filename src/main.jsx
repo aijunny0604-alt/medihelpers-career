@@ -157,42 +157,6 @@ function motionIsReduced() {
 getPerformanceProfile();
 
 function useScrollMotion(route) {
-  useLayoutEffect(() => {
-    const reduced = motionIsReduced();
-    if (reduced) return undefined;
-    const selector = [
-      '.page-hero-inner', '.section-head', '.quick-access', '.home-role-actions', '.member-teaser',
-      '.job-card', '.profession-explorer', '.profession-focus', '.premium-showcase', '.path-card', '.step', '.price-card', '.membership-card',
-      '.feature-grid > div', '.value-grid > div', '.community-grid > div', '.metrics-strip > div', '.ad-exposure-copy', '.exposure-rank-card',
-      '.notice-bar', '.consultation-layout', '.contact-card', '.policy-card', '.conversion',
-      '.matching-intro', '.report-picker', '.priority-panel', '.report-result', '.report-consult-card'
-    ].join(',');
-    const elements = [...document.querySelectorAll(selector)];
-    document.documentElement.classList.add('motion-enabled');
-    elements.forEach((element, index) => {
-      element.classList.add('scroll-reveal');
-      element.style.setProperty('--reveal-delay', `${(index % 4) * 65}ms`);
-    });
-    if (!('IntersectionObserver' in window)) {
-      elements.forEach((element) => element.classList.add('is-visible'));
-      return undefined;
-    }
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('is-visible');
-        observer.unobserve(entry.target);
-      });
-    }, { threshold: 0.1, rootMargin: '0px 0px -7% 0px' });
-    elements.forEach((element) => observer.observe(element));
-    return () => {
-      observer.disconnect();
-      elements.forEach((element) => {
-        element.classList.remove('scroll-reveal', 'is-visible');
-        element.style.removeProperty('--reveal-delay');
-      });
-    };
-  }, [route]);
 
   useEffect(() => {
     const reduced = motionIsReduced();
@@ -238,7 +202,6 @@ function jumpScrollTo(top) {
 // 언마운트된다 — useRef에 담으면 복귀 시점에 0으로 초기화되어 복원이 깨진다.
 
 function navigate(path, options = {}) {
-  const reducedMotion = motionIsReduced();
   const commitNavigation = () => {
     if (getRoute() !== path) window.history.pushState({}, '', withBase(path));
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -272,10 +235,7 @@ function navigate(path, options = {}) {
       if (window.scrollY > 0) jumpScrollTo(0);
     });
   };
-  const currentPage = document.querySelector('.route-stage');
-  if (reducedMotion || !currentPage) return commitNavigation();
-  currentPage.classList.add('route-leaving');
-  window.setTimeout(commitNavigation, 170);
+  commitNavigation();
 }
 
 function useAdaptivePerformance() {

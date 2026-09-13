@@ -6178,6 +6178,45 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   .route-load-state{margin-top:66px}
 }
 
+/* Navigation and history restoration must not animate the whole page. */
+html{scroll-behavior:auto!important}
+html body .app .route-stage,html body .app .route-stage.route-leaving,html body .app .scroll-reveal{
+  animation:none!important;transition:none!important;transform:none!important;filter:none!important;opacity:1!important;
+}
+/* Larger, readable career profiles at desktop and mobile widths. */
+.talent-detail-page{padding-inline:max(24px,calc((100vw - 1540px)/2))}
+.talent-detail-page .talent-detail-hero{padding:42px 48px 36px;gap:24px}
+.talent-detail-page .talent-detail-avatar{width:88px;height:88px}
+.talent-detail-page .talent-detail-hero h2{font-size:clamp(30px,2.4vw,40px);line-height:1.4;overflow-wrap:anywhere}
+.talent-detail-page .talent-detail-hero p{font-size:17px;line-height:1.7}
+.talent-detail-page .talent-detail-hero small,.talent-detail-page .talent-verified{font-size:14px}
+.talent-detail-page .talent-detail-body{padding:34px 48px 42px}
+.talent-detail-page .talent-detail-summary{gap:16px;margin-bottom:28px}
+.talent-detail-page .talent-detail-summary>div{min-height:104px;padding:22px 24px}
+.talent-detail-page .talent-detail-summary span,.talent-detail-page .talent-detail-title small{font-size:14px}
+.talent-detail-page .talent-detail-summary strong{font-size:20px}
+.talent-detail-page .talent-detail-section{padding:28px}
+.talent-detail-page .talent-detail-title h3{font-size:21px;line-height:1.5}
+.talent-detail-page .talent-focus-copy,.talent-detail-page .talent-consult-status li{font-size:17px;line-height:1.8;overflow-wrap:anywhere}
+.talent-detail-page .talent-strength-list span{font-size:15px;padding:10px 12px}
+.talent-detail-page .talent-detail-private{padding:26px;gap:18px}
+.talent-detail-page .talent-detail-private small,.talent-detail-page .talent-detail-private p{font-size:15px;line-height:1.75}
+.talent-detail-page .talent-detail-private h3{font-size:20px}
+.talent-detail-page .talent-detail-actions .button{min-height:56px;font-size:16px;padding-inline:26px}
+.talent-detail-page .talent-contact-grid dt{font-size:14px}
+.talent-detail-page .talent-contact-grid dd,.talent-detail-page .talent-career-item p{font-size:17px;line-height:1.8;overflow-wrap:anywhere}
+@media(max-width:780px){
+  .talent-detail-page{padding-inline:14px}
+  .talent-detail-page .talent-detail-hero{padding:26px 20px;gap:14px}
+  .talent-detail-page .talent-detail-avatar{width:56px;height:56px}
+  .talent-detail-page .talent-detail-hero h2{font-size:26px}
+  .talent-detail-page .talent-detail-hero p{font-size:16px}
+  .talent-detail-page .talent-detail-body{padding:24px 18px 30px}
+  .talent-detail-page .talent-detail-section,.talent-detail-page .talent-detail-private{padding:20px 18px}
+  .talent-detail-page .talent-detail-summary>div{min-height:88px;padding:18px 20px}
+  .talent-detail-page .talent-detail-title h3{font-size:19px}
+  .talent-detail-page .talent-focus-copy,.talent-detail-page .talent-consult-status li{font-size:16px}
+}
 /* Doctor career history: single records should use the available workspace width. */
 /* Detail branding needs enough horizontal space for hospital wordmarks. */
 .job-detail .detail-brand{gap:20px;padding-right:0}
