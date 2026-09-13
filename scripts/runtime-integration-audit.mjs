@@ -20,9 +20,7 @@ DB.batch=async statements=>{sqlite.exec('BEGIN');try{const result=statements.map
 const env={DB,ACCOUNT_HASH_SECRET:'audit-only-secret-never-used-outside-local-20260909',ADMIN_EMAILS:'admin@medihelpers.co.kr',SIGNUP_ENABLED:'true',LEGAL_DOCUMENT_STATUS:'approved',TEST_ACCOUNT_SWITCH_ENABLED:'true'};
 const output=[];
 async function call(path,role='',body,method=body?'POST':'GET') {
- // Existing positive fixtures explicitly represent a visitor accepting the current notices.
- // Negative consent cases override these values with false/null.
- 
+ // Every scenario supplies its own consent fields; this helper never adds consent.
  const headers={'content-type':'application/json',origin:'https://audit.local'};if(cookies[role])headers.cookie=cookies[role];
  const response=await worker.fetch(new Request('https://audit.local'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})}),env,{});
  let data;try{data=await response.json();}catch{data={};}
