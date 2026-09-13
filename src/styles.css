@@ -4806,6 +4806,8 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 /* 인재 열람권 — 열람 완료 시 연락처·상세 표시 */
 .talent-detail-unlocked{margin-top:18px;padding:20px 22px;border-radius:16px;border:1px solid #bfe4d8;background:linear-gradient(135deg,#f2fbf8,#eafaf4)}
 .talent-detail-unlocked .talent-detail-title span{background:#daf3ea;color:#159e7f}
+.talent-demo-note{margin:0 0 18px;padding:12px 14px;border-radius:10px;background:#fff;color:#396455;font-size:14px;line-height:1.7}
+.talent-detail-body{overflow-wrap:anywhere}
 .talent-contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;margin:14px 0 0}
 .talent-contact-grid>div{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-top:1px solid #d5ece3}
 .talent-contact-grid>div.wide{grid-column:1/-1}

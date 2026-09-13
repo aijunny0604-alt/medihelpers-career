@@ -1,5 +1,7 @@
 # ARCHITECTURE
 
+2026-09-13 후속: `talentDetailAccess.js`가 실제 상세의 성공/한도/404/통신 오류를 구분하고 명시적인 정적 예시만 무료 미리보기로 변환한다. DB 프로필은 `operationalTalent`를 통해 예시 플래그를 배제하며 실제 개인정보는 서버 권한 응답만 사용한다. 상세 컴포넌트는 인재 ID·계정 이메일·역할로 상태를 분리한다. [열람권 검증](TALENT_UNLOCK_FIX_2026-09-13.md).
+
 2026-09-13: 계정 API 유틸은 accountApi.js, 관리·회원·가입·이력서 등의 페이지는 lazy/Suspense로 분리한다. RouteBoundary가 청크 실패를 안내하고 package-sites.mjs가 모든 빌드 JS/CSS를 제공한다. 빌드 후 runtime-mobile-assets-audit.mjs로 산출물 누락을 검사한다.
 
 ## 현재 구조

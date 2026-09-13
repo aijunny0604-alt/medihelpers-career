@@ -46,6 +46,7 @@ import {
 } from './browserStorage.js';
 import { appBase, withBase } from './basePath.js';
 import { useAccountProfile } from './useAccountProfile.js';
+import { demoTalentDetail, loadTalentAccess, pendingTalentAccess } from './talentDetailAccess.js';
 import ResumeSubmitPicker from './ResumeSubmitPicker.jsx';
 import { balancedOrder, countByDept } from './jobExposure.js';
 import { installAuthenticatedFetch } from './authTransport.js';
@@ -2170,43 +2171,28 @@ const talentProfileGuide = {
   },
 };
 
-function TalentDetailPage({ person, canViewIdentity }) {
-  const guide = talentProfileGuide[person.dept] || {
+function TalentDetailPage({ person, canViewIdentity, auth }) {
+  const guide = person.isDemo ? (talentProfileGuide[person.dept] || {
     focus: `${person.preference} 조건을 중심으로 새로운 근무지를 검토합니다.`,
     strengths: ["전문의 경력", "희망 조건 상담 완료", "입사 일정 조율 가능"],
+  }) : {
+    focus: person.summary || '등록된 경력과 희망 조건을 확인하고, 구체적인 업무 범위와 입사 일정은 채용 상담에서 조율해주세요.',
+    strengths: ['경력·전문분야', '희망 지역·근무 조건', '입사 가능 시점'],
   };
   // 열람권 보유 시 서버가 연락처·상세를 내려준다. 없으면 unlocked:false.
-  const [unlock, setUnlock] = useState({ loading: true, unlocked: false, accessReason: "", contactProtected: false, detail: null, limited: false, message: "" });
+  const [unlock, setUnlock] = useState(pendingTalentAccess);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
+    if (person.isDemo) return;
     let active = true;
-    fetch(withBase(`/api/talent-detail/${encodeURIComponent(person.detailId || person.code)}`), { credentials: "same-origin", headers: { accept: "application/json" } })
-      // 429(열람 한도 초과)는 응답 본문(limited/message)을 읽어 사용자에게 안내한다.
-      .then((r) => r.json().catch(() => ({})).then((body) => ({ ok: r.ok, status: r.status, body })))
-      .then(({ body, status }) => { if (active) setUnlock({ loading: false, unavailable: status === 404 || status >= 500, unlocked: Boolean(body.unlocked), accessReason: body.accessReason || "", contactProtected: Boolean(body.contactProtected), detail: body.detail || null, limited: Boolean(body.limited), message: body.message || "" }); })
-      .catch(() => active && setUnlock({ loading: false, unlocked: false, accessReason: "", contactProtected: false, detail: null, limited: false, message: "" }));
-    return () => { active = false; };
-  }, [person.code, person.detailId]);
-  // 서버 상세(실제 이력서)가 있으면 그것, 없으면(정적 데모 인재) person 자체의 상세 필드로 폴백.
-  // [보안] 실명·연락처는 절대 클라이언트 데이터에서 만들지 않는다.
-  // 예전에는 person.fullName/phone/email을 그대로 썼는데, 그 값들이 정적 번들에 포함돼
-  // 로그인 없이 JS 파일만 받아도 후보자 연락처 전체를 긁어갈 수 있었다(열람권 모델 무력화).
-  // 실명·연락처는 서버가 열람권을 검증해 내려주는 unlock.detail에만 존재해야 한다.
-  const demoDetail = (person.introduction || person.skills || person.careers) ? {
-    name: person.name,
-    phone: '상담 시 안내',
-    email: '',
-    specialty: person.dept,
-    desiredRegions: person.region,
-    detail: {
-      introduction: person.introduction || '',
-      skills: person.skills || '',
-      licenseName: person.licenseName || '',
-      experienceYears: person.career || '',
-      school: person.school || '', major: person.major || '', graduation: person.graduation || '',
-      careers: person.careers || [],
-    },
-  } : null;
-  const d = unlock.detail || (unlock.unlocked ? demoDetail : null) || {};
+    const controller = new AbortController();
+    setUnlock(pendingTalentAccess);
+    loadTalentAccess(withBase(`/api/talent-detail/${encodeURIComponent(person.detailId || person.code)}`), fetch, controller.signal)
+      .then((result) => { if (active) setUnlock(result); });
+    return () => { active = false; controller.abort(); };
+  }, [person.code, person.detailId, person.isDemo, retry]);
+  const demoDetail = demoTalentDetail(person);
+  const d = demoDetail || (unlock.unlocked ? unlock.detail : null) || {};
   const ownerAccess = unlock.accessReason === 'owner' || Boolean(person.ownerView);
   return (
     <main className="talent-detail-page">
@@ -2216,9 +2202,9 @@ function TalentDetailPage({ person, canViewIdentity }) {
         <span className="talent-detail-avatar"><UserRound /></span>
         <div>
           <span className="talent-verified"><FileText /> {person.isDemo ? "예시 구직 프로필" : "구직 프로필"}</span>
-          <small>{talentDisplayName(person, canViewIdentity)} · {canViewIdentity ? "실명 확인" : "이름 비공개"}</small>
+          <small>{talentDisplayName(person, canViewIdentity)} · {person.isDemo ? "가상 인물" : "이름 비공개"}</small>
           <h2>{person.postTitle || `${person.dept} · ${person.career}`}</h2>
-          <p>개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.</p>
+          <p>{person.isDemo ? '열람권 없이 경력과 자기소개를 살펴볼 수 있는 예시 이력서입니다.' : '개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.'}</p>
           {person.contactVisibility === 'private' && <span className="talent-phone-private-alert"><LockKeyhole /> 전화번호 비공개 · 열람권 구매 후에도 미공개</span>}
         </div>
       </div>
@@ -2245,22 +2231,23 @@ function TalentDetailPage({ person, canViewIdentity }) {
           <section className="talent-detail-section talent-consult-status">
             <div className="talent-detail-title">
               <span><ClipboardCheck /></span>
-              <div><small>CONSULTATION CHECK</small><h3>상담에서 확인한 범위</h3></div>
+              <div><small>CONSULTATION CHECK</small><h3>채용 상담에서 확인할 내용</h3></div>
             </div>
             <ul>
-              <li><CircleCheck /> 전문과목과 전문의 경력</li>
+              <li><CircleCheck /> 전문분야와 경력</li>
               <li><CircleCheck /> 희망 지역과 근무 형태</li>
               <li><CircleCheck /> 입사 가능 시점과 조율 의사</li>
             </ul>
           </section>
         </div>
 
-        {unlock.unlocked ? (
+        {demoDetail || unlock.unlocked ? (
           <section className="talent-detail-unlocked">
             <div className="talent-detail-title">
               <span><BadgeCheck /></span>
-              <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
+              <div><small>{demoDetail ? 'SAMPLE · 무료 미리보기' : ownerAccess ? 'MY POST · 작성자 무료 열람' : unlock.accessReason === 'admin' ? '관리자 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{demoDetail ? '예시 이력서 미리보기' : ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
             </div>
+            {demoDetail && <p className="talent-demo-note">서비스 안내를 위한 가상 이력서입니다. 실제 구직자나 연락처가 아니며, 열람권 구매·차감 없이 볼 수 있습니다.</p>}
             {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 필요한 경우 메디헬퍼스 헤드헌터 상담을 이용해주세요.</p></div></div>}
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
@@ -2290,12 +2277,18 @@ function TalentDetailPage({ person, canViewIdentity }) {
           <section className={`talent-detail-private${unlock.limited ? ' talent-detail-limited' : ''}`}>
             <span className="talent-private-icon"><LockKeyhole /></span>
             <div>
-              {person.isDemo || unlock.unavailable ? <>
-                <small>현재 열람할 수 없는 구직 정보</small><h3>{person.isDemo ? "화면 안내용 예시 프로필입니다" : "인재 목록에서 다른 구직글을 선택해주세요"}</h3><p>이 정보에 대한 열람권은 구매할 수 없습니다.</p>
+              {unlock.loading ? <>
+                <small role="status">열람 상태 확인 중</small><h3>이력서를 불러오고 있습니다</h3>
+              </> : unlock.error ? <>
+                <small>일시적인 조회 오류</small><h3>열람 상태를 확인하지 못했습니다</h3><p role="alert">{unlock.message}</p>
+              </> : unlock.unavailable ? <>
+                <small>게시가 종료된 구직 정보</small><h3>인재 목록에서 다른 구직글을 선택해주세요</h3><p>삭제되거나 비공개로 전환된 이력서는 열람권으로도 볼 수 없습니다.</p>
               </> : unlock.limited ? <>
                 <small>금일 열람 한도 초과</small>
                 <h3>대량 정보 수집 방지를 위해 잠시 제한되었습니다</h3>
                 <p>{unlock.message || '금일 열람 한도를 초과했습니다. 잠시 후 다시 이용해 주세요.'} 추가 열람이 필요하면 담당자에게 문의해 주세요.</p>
+              </> : auth.role !== 'hospital' ? <>
+                <small>병원 회원 전용 열람</small><h3>실제 구직자의 상세 이력서는 병원 회원이 확인할 수 있습니다</h3><p>본인이 등록한 구직글은 무료로 열람할 수 있습니다. 화면을 둘러보려면 목록의 예시 이력서를 확인해주세요.</p>
               </> : <>
                 <small>이력서 열람권으로 열람할 수 있습니다</small>
                 <h3>경력 · 희망 조건 · 자기소개</h3>
@@ -2307,15 +2300,17 @@ function TalentDetailPage({ person, canViewIdentity }) {
 
         <div className="talent-detail-actions">
           <Link className="button outline" to="/medical-staff">목록 계속 보기</Link>
-          {person.isDemo || unlock.unavailable || unlock.loading ? null : ownerAccess ? (
+          {person.isDemo || unlock.unavailable || unlock.loading ? null : unlock.error ? (
+            <button className="button primary" type="button" onClick={() => { setUnlock(pendingTalentAccess); setRetry((value) => value + 1); }}>다시 불러오기 <ArrowRight /></button>
+          ) : ownerAccess ? (
             <Link className="button primary" to={person.jobSeekerPostId ? `/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit` : '/resume'}>내 구직글 수정 <ArrowRight /></Link>
           ) : unlock.unlocked ? (
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
           ) : unlock.limited ? (
             <a className="button primary" href="tel:0513425463"><Phone /> 담당자 문의</a>
-          ) : (
+          ) : auth.role === 'hospital' ? (
             <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${encodeURIComponent(person.detailId || person.code)}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
-          )}
+          ) : null}
         </div>
       </div>
       </div>
@@ -2664,7 +2659,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 </div>
                 <span className="medical-staff-career">{person.region || '전국'}</span>
                 <strong className="jobseeker-availability">{person.availability || '협의'}</strong>
-                <span className={`medical-staff-deadline js-lock ${identityOpen ? 'open' : ''}`}>{person.isDemo ? '예시 프로필' : person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : alreadyUnlocked ? <><CircleCheck size={14} /> 열람 완료</> : identityOpen ? <><Eye size={14} /> 관리자 열람</> : <><LockKeyhole size={14} /> 열람권</>}</span>
+                <span className={`medical-staff-deadline js-lock ${identityOpen || person.isDemo ? 'open' : ''}`}>{person.isDemo ? '예시 · 무료 보기' : person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : alreadyUnlocked ? <><CircleCheck size={14} /> 열람 완료</> : identityOpen ? <><Eye size={14} /> 관리자 열람</> : <><LockKeyhole size={14} /> 열람권</>}</span>
                 {person.ownerView && person.jobSeekerPostId
                   ? <span className="medical-staff-row-action jobseeker-owner-actions"><span className="jobseeker-owner-actions-label">내 글 관리</span><button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit`); }}><PencilLine /> 수정</button><button type="button" onClick={(event) => deleteOwnPost(event, person)}><Trash2 /> 삭제</button></span>
                   : <span className="medical-staff-row-action">{alreadyUnlocked ? '다시 보기' : '상세 보기'} <ArrowRight /></span>}
@@ -3521,7 +3516,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     const openHref = talentId ? `/medical-staff/talents/${encodeURIComponent(talentId)}` : '/medical-staff';
     return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '방금 결제한 의료인의 이력서를 바로 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 의료인 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/medical-staff">의료인 채용으로 <ArrowRight /></Link>}<Link className="button outline" to="/medical-staff">의료인 목록</Link></div></div></section>;
   }
-  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><div className="talent-unlock-account-note"><LockKeyhole /><span><strong>병원 회원가입 정보</strong><small>결제자 정보는 가입된 병원 계정과 자동 연결되며 이 화면에서 수정할 수 없습니다.</small></span></div><label><span>병원명</span><input required name="name" value={lockedCustomer.name} readOnly aria-readonly="true" /></label><label><span>담당자 연락처</span><input required name="phone" type="tel" value={lockedCustomer.phone} readOnly aria-readonly="true" /></label><label><span>이메일</span><input required name="email" type="email" value={lockedCustomer.email} readOnly aria-readonly="true" /></label><PrivacyNotice scope="checkout" /><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자의 공개 범위 내에서만 이용하며, 상품·환불 조건에 동의하고 개인정보 처리 안내를 확인했습니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting || !accountProfile.loaded || !lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
+  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}{accountProfile.loaded && (!lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email) && <div className="talent-unlock-account-note" role="alert"><span><strong>결제에 필요한 병원 회원정보가 비어 있습니다</strong><small>마이페이지에서 병원명과 연락처를 저장한 뒤 다시 이용해주세요.</small><Link to="/mypage?tab=profile">회원정보 수정 <ArrowRight size={14} /></Link></span></div>}<form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><div className="talent-unlock-account-note"><LockKeyhole /><span><strong>병원 회원가입 정보</strong><small>결제자 정보는 가입된 병원 계정과 자동 연결되며 이 화면에서 수정할 수 없습니다.</small></span></div><label><span>병원명</span><input required name="name" value={lockedCustomer.name} readOnly aria-readonly="true" /></label><label><span>담당자 연락처</span><input required name="phone" type="tel" value={lockedCustomer.phone} readOnly aria-readonly="true" /></label><label><span>이메일</span><input required name="email" type="email" value={lockedCustomer.email} readOnly aria-readonly="true" /></label><PrivacyNotice scope="checkout" /><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자의 공개 범위 내에서만 이용하며, 상품·환불 조건에 동의하고 개인정보 처리 안내를 확인했습니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting || !accountProfile.loaded || !lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
 }
 
 function TalentUnlockPage({ route, qa, auth }) {
@@ -3718,7 +3713,7 @@ export function App() {
       : canRevealTalentIdentity({ hospital: auth.role === 'hospital', admin: Boolean(auth.isAdmin), signedIn: auth.status === 'member' }, auth.status === 'member');
     page = operations.features.medicalStaffHub === false || !person
       ? <NotFoundPage />
-      : <AuthGate auth={auth} title="구직 인재 상세는 회원 전용입니다" description="회원 권한에서만 구직 인재의 경력과 희망 조건을 확인할 수 있습니다."><TalentDetailPage person={person} canViewIdentity={canViewIdentity} /></AuthGate>;
+      : <AuthGate auth={auth} title="구직 인재 상세는 회원 전용입니다" description="회원 권한에서만 구직 인재의 경력과 희망 조건을 확인할 수 있습니다."><TalentDetailPage key={`${talentId}:${auth.email || ''}:${auth.role}`} person={person} canViewIdentity={canViewIdentity} auth={auth} /></AuthGate>;
   }
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
