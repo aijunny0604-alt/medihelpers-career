@@ -6,6 +6,8 @@
 
 ## Current State
 
+- [HOSPITAL_DOCUMENT_CONSENT_2026-09-13.md](HOSPITAL_DOCUMENT_CONSENT_2026-09-13.md): **최신 후속 변경** — 병원 확인 전용 동의, 30일 보관, 확인 후 원본 파기, 즉시 가입 유지
+
 - [INTEGRATION_AUDIT_2026-09-13.md](INTEGRATION_AUDIT_2026-09-13.md): **최신 검수 기준** — 사용자 결정 이력, 전체 기능/DB 연결 표, 재현 결함 수정, 자동 527개·브라우저 검수 및 배포 기록
 - [PRIVACY_ADMIN_UPDATE_2026-09-12.md](PRIVACY_ADMIN_UPDATE_2026-09-12.md): **이전 후속 변경(9월 13일 후보에 포함)** — 관리자 표시 오류 수정, 서비스별 동의·증빙·철회, 229/36/58/63 검증 및 법률 확인 잔여 사항
 - [ADMIN_STORAGE_AUDIT_2026-09-12.md](ADMIN_STORAGE_AUDIT_2026-09-12.md): 관리자 직접 점검, 운영 백업 체크섬 검증, 격리 시험 32개, 표시 오류와 복구 한계

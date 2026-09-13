@@ -52,7 +52,7 @@ const roleContent = {
     title: '병원 회원가입',
     description: '채용 의뢰와 메디헬퍼스 헤드헌터 상담을 위한 기관 담당자 계정입니다.',
     afterTitle: '가입 즉시 병원 기능 이용',
-    afterCopy: '사업자등록증 PDF 또는 이미지는 기관 제출 이력으로 안전하게 보관되며, 별도 관리자 승인 없이 가입과 로그인이 바로 완료됩니다.',
+    afterCopy: '사업자등록증은 기관 정보 확인과 허위·도용 가입 방지에만 사용합니다. 가입과 로그인은 바로 완료됩니다.',
     benefits: [
       '채용공고 등록과 노출 관리',
       '전담 헤드헌터 후보 상담',
@@ -323,17 +323,18 @@ function PrivacyCopy({ memberType }) {
     <dl>
       <div><dt>수집 목적</dt><dd>회원 식별과 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의 처리, 결제·계약 내역 관리</dd></div>
       <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 병원명, 대표자명, 사업자등록번호, 주소, 사업자등록증 제출 파일' : ', 의료 직군, 활동 지역'}</dd></div>
-      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증 제출본과 제출 이력은 제출 후 3년까지 접근을 제한해 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
+      <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증은 확인 완료 시 삭제하며 제출 후 최대 30일 보관합니다. 확인 결과·일시는 탈퇴 시까지 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
       <div><dt>처리 근거</dt><dd>계정 생성·관리에 필요한 최소정보는 서비스 계약 이행을 위해 처리합니다. 아래 확인은 처리방침 전체에 대한 포괄 동의가 아닙니다. 상담·이력서 제출과 병원 제공 시에는 별도 안내와 동의를 받습니다.</dd></div>
       <div><dt>선택 정보</dt><dd>{memberType === 'hospital' ? '담당자 직책, 부서명, 상세 주소, 홈페이지와 팩스번호는 입력하지 않아도 가입할 수 있습니다.' : '전문 분야, 출생연도와 성별은 입력하지 않아도 가입할 수 있습니다.'} 광고성 정보 수신 동의도 가입 필수 동의와 분리해 별도로 받습니다.</dd></div>
     </dl>
-    <p className="signup-legal-notice"><b>개인정보 보호책임자: 이형석</b> hr@medihelpers.co.kr · 051-342-5463. 주민등록번호와 의료인 면허번호는 가입 단계에서 수집하지 않습니다. 병원 회원의 사업자등록증은 기관 제출 이력 보관 목적으로만 제한적으로 처리합니다. <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 전문</a>에서 처리위탁, 제3자 제공, 파기와 권리 행사 방법을 확인할 수 있습니다.</p>
+    <p className="signup-legal-notice"><b>개인정보 보호책임자: 이형석</b> hr@medihelpers.co.kr · 051-342-5463. 주민등록번호와 의료인 면허번호는 가입 단계에서 수집하지 않습니다. 사업자등록증은 기관 정보 확인 및 허위·도용 가입 방지에만 사용합니다. <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 전문</a>에서 처리위탁, 제3자 제공, 파기와 권리 행사 방법을 확인할 수 있습니다.</p>
   </>;
 }
 
-// 실제 계정을 만들지 않으며, 어떤 개인정보도 브라우저에 저장하지 않습니다.
+// 가입 정보와 동의는 서버에 함께 저장하며, 작성 중 개인정보는 브라우저 저장소에 남기지 않습니다.
 function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const [optionalPrivacyConsent, setOptionalPrivacyConsent] = useState(false);
+  const [hospitalDocumentConsent, setHospitalDocumentConsent] = useState(false);
   const content = roleContent[memberType];
   const RoleIcon = content.icon;
   const fields = useMemo(() => fieldsForRole(memberType), [memberType]);
@@ -413,9 +414,13 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       validation.valid = false;
       validation.errors.businessDocument = '사업자등록증 파일을 첨부해주세요.';
     }
+    if (memberType === 'hospital' && !hospitalDocumentConsent) {
+      validation.valid = false;
+      validation.errors.hospitalDocumentConsent = '병원 확인용 서류 수집·이용에 동의해주세요.';
+    }
     setErrors(validation.errors);
     if (!validation.valid) {
-      const firstInvalid = [...fields, 'businessDocument', 'termsAccepted', 'privacyAccepted', 'ageConfirmed'].find((key) => validation.errors[key]);
+      const firstInvalid = [...fields, 'businessDocument', 'hospitalDocumentConsent', 'termsAccepted', 'privacyAccepted', 'ageConfirmed'].find((key) => validation.errors[key]);
       // id 는 `signup-<role>-<field>` 형태로 항상 안전한 문자만 사용하므로 CSS.escape 없이 getElementById 로 직접 찾습니다.
       // (일부 구형 브라우저는 CSS.escape 를 지원하지 않습니다.)
       const node = firstInvalid && document.getElementById(`signup-${memberType}-${firstInvalid}`);
@@ -458,7 +463,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         professionType: draft.professionType,
         specialty: draft.specialty,
         region:draft.region, birthYear:draft.birthYear, gender:draft.gender,
-        optionalPrivacyConsent, privacyVersion:PRIVACY_FORM_VERSION,
+        optionalPrivacyConsent, hospitalDocumentConsent, privacyVersion:PRIVACY_FORM_VERSION,
         termsAccepted: true,
         privacyAcknowledged: true,
         ageConfirmed: true
@@ -504,7 +509,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
           <div className="signup-field-grid">{hospitalInfoFields().map(renderField)}</div>
         </section>
         <section className="signup-form-section hospital-document-section">
-          <header><span>03</span><div><h3>사업자등록증 제출</h3><p>기관 가입 이력을 남기기 위한 비공개 서류이며 가입 승인을 기다릴 필요는 없습니다.</p></div></header>
+          <header><span>03</span><div><h3>사업자등록증 제출</h3><p>기관 정보 확인과 허위·도용 가입 방지에만 사용합니다. 가입과 로그인은 바로 가능합니다.</p></div></header>
           <div
             id={`signup-${memberType}-businessDocument`}
             className={`hospital-document-upload ${documentDragging ? 'is-dragging' : ''} ${errors.businessDocument ? 'has-error' : ''}`}
@@ -520,7 +525,13 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
             {businessDocument && <button type="button" className="hospital-document-remove" aria-label="첨부 파일 삭제" onClick={() => setBusinessDocument(null)}><X /></button>}
           </div>
           {errors.businessDocument && <p className="signup-field-error" role="alert">{errors.businessDocument}</p>}
-          <p className="hospital-document-privacy"><ShieldCheck /> 제출본은 공개되지 않으며 관리자 DB 기록에서만 제한적으로 열람합니다. 가입은 즉시 완료됩니다.</p>
+          <p className="hospital-document-privacy"><ShieldCheck /> 비공개 서류입니다. 생년월일·주민등록번호 등 확인에 불필요한 정보는 가려서 제출해주세요.</p>
+          <details className="hospital-document-notice"><summary>서류 이용 목적·보관 안내</summary><PrivacyNotice scope="hospitalDocument" /></details>
+          <label className="signup-age-confirm">
+            <input id={`signup-${memberType}-hospitalDocumentConsent`} type="checkbox" checked={hospitalDocumentConsent} onChange={event => { setHospitalDocumentConsent(event.target.checked); setErrors(current => ({ ...current, hospitalDocumentConsent:'' })); }} aria-invalid={errors.hospitalDocumentConsent ? 'true' : undefined} />
+            <span><b>필수</b><strong>병원 확인용 서류 수집·이용에 동의합니다.</strong><small>기관 확인에만 사용 · 확인 완료 시 삭제 · 최대 30일 보관</small></span>
+          </label>
+          {errors.hospitalDocumentConsent && <p className="signup-field-error" role="alert">{errors.hospitalDocumentConsent}</p>}
         </section>
       </> : <>
         <section className="signup-form-section individual-account-section">

@@ -1,5 +1,9 @@
 # AUTH
 
+## 2026-09-13 병원 서류 후속 변경
+
+병원 서류 처리의 최신 기준은 [9월 13일 동의·파기](HOSPITAL_DOCUMENT_CONSENT_2026-09-13.md)다. 별도 `hospitalDocumentConsent === true`와 v1.2 안내가 필요하다. 가입과 로그인은 즉시 가능하다. 과거 verified/approved 값은 호환값이고 실제 기관 확인 결과가 아니며, `member_registration_profiles.hospitalDocument`에서 제출·확인·보관 종료를 구분한다. 관리자 서류 확인·파기만 새로 허용하고 나머지 업무 기록 변경은 계속 차단한다.
+
 ## 2026-09-13 검수 기준
 
 테스트 로그인·관리자 전환과 즉시 가입 정책을 유지한다. 개인정보 안내 버전은 `privacy-forms-v1.1-2026-09-12`이며 선택 가입정보·이메일 마케팅·연락처 공개는 개별 동의다. 서버가 문자열 true·구버전 안내를 거부하며 동의와 서비스 데이터를 함께 저장한다. [검수 결과](INTEGRATION_AUDIT_2026-09-13.md).

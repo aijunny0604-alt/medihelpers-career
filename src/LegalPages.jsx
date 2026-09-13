@@ -20,7 +20,7 @@ function LegalLayout({ eyebrow, title, description, children, privacyRevision = 
       <span><ShieldCheck /> {eyebrow}</span>
       <h1>{title}</h1>
       <p>{description}</p>
-      <div className="legal-effective"><b>시행일</b> {privacyRevision ? '2026년 9월 12일' : '2026년 7월 18일'} <i>{privacyRevision ? 'v1.1' : 'v1.0'}</i></div>
+      <div className="legal-effective"><b>시행일</b> {privacyRevision ? '2026년 9월 13일' : '2026년 7월 18일'} <i>{privacyRevision ? 'v1.2' : 'v1.0'}</i></div>
     </header>
     <div className="legal-layout">
       <article className="legal-document">{children}</article>
@@ -163,7 +163,8 @@ export function PrivacyPolicyPage() {
       <div className="legal-table">
         <div><b>회원·계정</b><span>회원 식별, 로그인, 계정 보안, 권한 제공</span><span>이름, 이메일, 휴대폰 번호, 비밀번호 단방향 해시, 회원 유형, 동의 일시·버전</span></div>
         <div><b>개인 회원</b><span>맞춤 채용정보, 이력서·상담 관리</span><span>의료 직군, 전문 분야, 활동 지역, 선택 입력한 경력·희망조건</span></div>
-        <div><b>병원 회원</b><span>기관 가입 이력, 공고·채용의뢰·결제 관리</span><span>담당자명·직책, 병원명, 대표자명, 연락처, 주소, 사업자등록증 제출본</span></div>
+        <div><b>병원 회원</b><span>회원 계정, 공고·채용의뢰·결제 관리</span><span>담당자명·직책, 병원명, 대표자명, 사업자등록번호, 연락처, 주소</span></div>
+        <div><b>병원 확인 서류</b><span>기관 정보 확인 및 허위·도용 가입 방지. 다른 목적으로 이용하지 않음</span><span>별도 동의를 받은 사업자등록증 제출본의 병원명·대표자명·사업자등록번호·사업장 주소, 확인 결과·일시</span></div>
         <div><b>상담·문의</b><span>상담 접수, 후보 추천, 면접·조건 조율</span><span>이름, 연락처, 이메일, 진료과·직군, 희망조건, 문의내용</span></div>
         <div><b>결제·계약</b><span>상품 제공, 결제 확인, 환불·분쟁 처리</span><span>회원·기관 식별정보, 상품, 금액, 결제수단, 승인·환불 상태와 일시</span></div>
       </div>
@@ -174,7 +175,7 @@ export function PrivacyPolicyPage() {
         <li>회원정보·개인 이력서: 삭제 또는 회원 탈퇴 시까지. 선택 정보는 입력하지 않아도 가입할 수 있습니다.</li>
         <li>이메일 마케팅 정보: 별도 선택 동의 후 동의 철회 또는 회원 탈퇴 시까지</li>
         <li>수집·제공 동의 증빙: 연결된 서비스 기록의 보존기간 이내, 회원 탈퇴 시 삭제. 결제 안내 확인 기록도 탈퇴 시 삭제하며 별도 거래 원장만 법정 기간 보존</li>
-        <li>병원 사업자등록증 제출본·제출 이력: 제출 후 3년</li>
+        <li>병원 사업자등록증 제출본: 확인 완료 시 삭제하며, 미확인 서류도 제출 후 최대 30일 보관합니다. 확인 결과·일시는 회원 탈퇴 시까지 보관합니다. 회원이 직접 입력한 병원 기본정보는 회원 관리 기준을 따릅니다.</li>
         <li>상담·채용 연결 기록: 상담 또는 채용 건 종료 후 3년</li>
         <li>계약 또는 청약철회 등에 관한 기록, 대금결제 및 재화 등의 공급에 관한 기록: 5년</li>
         <li>소비자 불만 또는 분쟁처리에 관한 기록: 3년</li>

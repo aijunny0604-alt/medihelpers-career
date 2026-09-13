@@ -124,7 +124,7 @@ const makeConsentSnapshot = ${makeConsentSnapshot.toString()};
 function consentEvent(env, accountId, scope, resourceId, recipient = '', granted = true) {
   return env.DB.prepare('INSERT INTO processing_consent_events (id, account_id, scope, resource_id, document_version, notice_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), accountId, scope, resourceId, PRIVACY_FORM_VERSION, JSON.stringify({ ...makeConsentSnapshot(scope, recipient), granted }));
 }
-const privacyNoticeVersion = 'privacy-v1.1-2026-09-12';
+const privacyNoticeVersion = 'privacy-v1.2-2026-09-13';
 const defaultPublicOrigin = 'https://medihelpers-career.junnyai.chatgpt.site';
 const publicSitemapRoutes = ['/', '/jobs', '/medical-staff', '/headhunting', '/advertise', '/terms', '/privacy', '/refund', '/withdrawal'];
 function publicOrigin(request) {
@@ -392,6 +392,15 @@ async function ensureHospitalVerificationSchema(env) {
   }
   try { await schemaReadyPromises.get('hospital-immediate-signup-v1'); }
   catch (error) { schemaReadyPromises.delete('hospital-immediate-signup-v1'); throw error; }
+  // 기본정보 자동입력은 서류 원본의 보관기간과 분리한다. 기존 입력값이 있으면 보존한다.
+  if (!schemaReadyPromises.has('hospital-document-purpose-v2')) {
+    schemaReadyPromises.set('hospital-document-purpose-v2', env.DB.batch([
+      env.DB.prepare("INSERT INTO member_registration_profiles (account_id, profile_json) SELECT h.account_id, json_object('hospitalName',h.hospital_name,'representativeName',h.representative_name,'businessNumber',h.business_number,'address',h.address) FROM hospital_verification_requests h JOIN auth_credentials c ON c.account_id=h.account_id WHERE h.id=(SELECT id FROM hospital_verification_requests WHERE account_id=h.account_id ORDER BY submitted_at DESC, rowid DESC LIMIT 1) ON CONFLICT(account_id) DO UPDATE SET profile_json=json_patch(excluded.profile_json,member_registration_profiles.profile_json)"),
+      env.DB.prepare("UPDATE hospital_verification_requests SET retention_until=datetime(submitted_at,'+30 days') WHERE julianday(retention_until)>julianday(submitted_at,'+30 days')")
+    ]));
+  }
+  try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
+  catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
 const backupSchemaVersion = '0013';
 const backupRetentionDays = 35;
@@ -495,9 +504,13 @@ async function prunePrivateUploads(env, onlyOwner = '') {
   if (!storage) return 0;
   await ensureConsultationSchema(env);
   let deleted = 0;
+  // DB에서 먼저 대상을 찾으므로 R2 삭제 후 DB 저장이 실패한 경우도 다음 실행에서 복구된다.
+  await ensureHospitalVerificationSchema(env);
+  const documents = await env.DB.prepare("SELECT id FROM hospital_verification_requests WHERE (?='' AND julianday(retention_until)<=julianday('now')) OR (account_id=? AND NOT EXISTS (SELECT 1 FROM auth_credentials c WHERE c.account_id=hospital_verification_requests.account_id))").bind(onlyOwner, onlyOwner).all();
+  for (const record of documents.results || []) { await purgeHospitalDocument(env, record.id); deleted++; }
   // Retain photos referenced by a current resume or an already submitted snapshot.
   // Seven days allow an uploaded draft to be saved before orphan cleanup.
-  for (const prefix of [onlyOwner ? 'profiles/' + onlyOwner + '/' : 'profiles/', ...(onlyOwner ? [] : ['verifications/hospitals/'])]) {
+  for (const prefix of [onlyOwner ? 'profiles/' + onlyOwner + '/' : 'profiles/', onlyOwner ? 'verifications/hospitals/' + onlyOwner + '/' : 'verifications/hospitals/']) {
     let cursor;
     do {
       const page = await storage.list({ prefix, limit:1000, ...(cursor ? {cursor} : {}) });
@@ -517,9 +530,9 @@ async function prunePrivateUploads(env, onlyOwner = '') {
           const expiryText = String(record?.until || '').trim();
           const expiry = Date.parse(/[zZ]|[+-][0-9]{2}:[0-9]{2}$/.test(expiryText) ? expiryText : expiryText.replace(' ','T')+'Z');
           if (record && (!Number.isFinite(expiry) || expiry > Date.now())) continue;
-          if (!record && (!uploaded || Date.parse(uploaded) > Date.now()-7*86400000)) continue;
-          await storage.delete(object.key);
-          if (record) await env.DB.prepare('DELETE FROM hospital_verification_requests WHERE id=?').bind(record.id).run();
+          if (!record && !onlyOwner && (!uploaded || Date.parse(uploaded) > Date.now()-7*86400000)) continue;
+          if (record) await purgeHospitalDocument(env, record.id);
+          else await storage.delete(object.key);
           deleted++;
         }
       }
@@ -748,7 +761,7 @@ async function sendSignupEmails(env, member) {
   const welcomeHtml = '<div style="max-width:600px;margin:0 auto;padding:38px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1.2px">WELCOME TO MEDIHELPERS</p><h1 style="margin:10px 0 16px;font-size:28px">'+escapeHtml(welcomeTitle)+'</h1><p style="line-height:1.8;color:#52657e">'+escapeHtml(welcomeCopy)+'</p><p style="margin:24px 0;padding:16px 18px;border-radius:12px;background:#f3f7fb;color:#173455"><b>로그인 이메일</b><br>'+escapeHtml(member.email)+'</p>'+welcomeAction+'<hr style="margin:30px 0;border:0;border-top:1px solid #e3eaf2"><p style="font-size:12px;line-height:1.7;color:#7b8ba0">본인이 신청하지 않았다면 hr@medihelpers.co.kr 또는 051-342-5463으로 알려주세요. 메디헬퍼스는 이메일로 비밀번호를 묻지 않습니다.</p></div>';
   const admins = signupAdminRecipients(env);
   const adminTitle = '신규 회원이 가입했습니다';
-  const adminHtml = '<div style="max-width:600px;margin:0 auto;padding:34px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1px">NEW MEMBER</p><h1 style="margin:10px 0 22px;font-size:25px">'+adminTitle+'</h1><table style="width:100%;border-collapse:collapse"><tr><th style="padding:11px;text-align:left;background:#f3f7fb">회원 유형</th><td style="padding:11px">'+roleLabel+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">이름·담당자</th><td style="padding:11px">'+escapeHtml(name)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 이메일</th><td style="padding:11px">'+escapeHtml(member.email)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">병원·전문 분야</th><td style="padding:11px">'+escapeHtml(member.organization || '-')+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 시각</th><td style="padding:11px">'+escapeHtml(member.createdAt || new Date().toISOString())+'</td></tr></table><p style="margin:18px 0 0;color:#52657e">'+(member.role === 'hospital' ? '사업자등록증 제출본은 승인 절차 없이 비공개 기록으로 보관됩니다.' : '')+'</p><p style="margin:26px 0 0"><a href="'+escapeHtml(origin + '/admin/console')+'" style="color:#1263e8;font-weight:700">관리자 DB 기록 확인</a></p><p style="margin-top:28px;font-size:12px;color:#7b8ba0">보안을 위해 비밀번호와 인증 정보는 이 메일에 포함하지 않습니다.</p></div>';
+  const adminHtml = '<div style="max-width:600px;margin:0 auto;padding:34px;font-family:Arial,sans-serif;color:#142e50"><p style="margin:0;color:#1263e8;font-size:12px;font-weight:700;letter-spacing:1px">NEW MEMBER</p><h1 style="margin:10px 0 22px;font-size:25px">'+adminTitle+'</h1><table style="width:100%;border-collapse:collapse"><tr><th style="padding:11px;text-align:left;background:#f3f7fb">회원 유형</th><td style="padding:11px">'+roleLabel+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">이름·담당자</th><td style="padding:11px">'+escapeHtml(name)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 이메일</th><td style="padding:11px">'+escapeHtml(member.email)+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">병원·전문 분야</th><td style="padding:11px">'+escapeHtml(member.organization || '-')+'</td></tr><tr><th style="padding:11px;text-align:left;background:#f3f7fb">가입 시각</th><td style="padding:11px">'+escapeHtml(member.createdAt || new Date().toISOString())+'</td></tr></table><p style="margin:18px 0 0;color:#52657e">'+(member.role === 'hospital' ? '사업자등록증은 기관 정보 확인 및 허위·도용 가입 방지에만 사용하며 확인 완료 시 또는 제출 후 30일에 삭제합니다.' : '')+'</p><p style="margin:26px 0 0"><a href="'+escapeHtml(origin + '/admin/console')+'" style="color:#1263e8;font-weight:700">관리자 DB 기록 확인</a></p><p style="margin-top:28px;font-size:12px;color:#7b8ba0">보안을 위해 비밀번호와 인증 정보는 이 메일에 포함하지 않습니다.</p></div>';
   const send = async (to, subject, html, errorPrefix) => {
     const response = await fetch('https://api.resend.com/emails', {
       method:'POST',
@@ -1125,6 +1138,7 @@ async function authApi(request, env, pathname, ctx) {
     const phoneDigits = String(body.phone || '').replace(/[^0-9]/g, '');
     if (!/^01[016789][0-9]{7,8}$/.test(phoneDigits)) return json({ error:'필수 연락처를 정확히 입력해주세요. 예: 010-1234-5678' }, 400);
     if (body.role === 'hospital') {
+      if (body.hospitalDocumentConsent !== true) return json({ error:'병원 확인용 서류 수집·이용에 동의해주세요.' }, 400);
       const hospitalName = String(body.hospitalName || '').trim();
       const representativeName = String(body.representativeName || '').trim();
       const businessNumber = String(body.businessNumber || '').replace(/[^0-9]/g, '');
@@ -1192,10 +1206,11 @@ async function authApi(request, env, pathname, ctx) {
       }
     }
     const registrationProfile = body.role === 'hospital'
-      ? { hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), institutionType:String(body.institutionType || '').trim().slice(0,80), website:String(body.website || '').trim().slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
+      ? { hospitalName:verificationRecord.hospitalName, representativeName:verificationRecord.representativeName, businessNumber:verificationRecord.businessNumber, address:verificationRecord.address, hospitalDocument:{ status:'submitted', submittedAt:new Date().toISOString() }, hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), institutionType:String(body.institutionType || '').trim().slice(0,80), website:String(body.website || '').trim().slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
       : { professionType:String(body.professionType || '').trim().slice(0,160), specialty:String(body.specialty || '').trim().slice(0,200), region:String(body.region || '').trim().slice(0,120), birthYear:String(body.birthYear || '').trim().slice(0,4), gender:String(body.gender || '').trim().slice(0,30) };
     const records = [
       ...(hasOptionalProfile ? [consentEvent(env, account.id, 'signupOptional', account.id)] : []),
+      ...(verificationRecord ? [consentEvent(env, account.id, 'hospitalDocument', verificationRecord.id)] : []),
       env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
       env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations),
       env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, verification_status, last_login_at) VALUES (?, ?, ?, 'active', ?, ?) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', verification_status=excluded.verification_status, last_login_at=excluded.last_login_at, updated_at=CURRENT_TIMESTAMP").bind(account.id, email, displayName, body.role === 'hospital' ? 'verified' : 'unverified', new Date().toISOString()),
@@ -1205,7 +1220,7 @@ async function authApi(request, env, pathname, ctx) {
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'age_confirmation', termsVersion),
       env.DB.prepare('INSERT OR IGNORE INTO consent_records (id, account_id, consent_type, document_version) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, 'privacy_notice_ack', privacyNoticeVersion)
     ];
-    if (verificationRecord) records.push(env.DB.prepare("INSERT INTO hospital_verification_requests (id, account_id, hospital_name, representative_name, business_number, address, document_key, original_filename, content_type, file_size, file_sha256, status, review_note, reviewed_by, reviewed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', '가입 즉시 완료', 'system-auto', CURRENT_TIMESTAMP)").bind(verificationRecord.id, account.id, verificationRecord.hospitalName, verificationRecord.representativeName, verificationRecord.businessNumber, verificationRecord.address, verificationRecord.documentKey, verificationRecord.originalFilename, verificationRecord.contentType, verificationRecord.fileSize, verificationRecord.fileSha256));
+    if (verificationRecord) records.push(env.DB.prepare("INSERT INTO hospital_verification_requests (id, account_id, hospital_name, representative_name, business_number, address, document_key, original_filename, content_type, file_size, file_sha256, status, review_note, reviewed_by, reviewed_at, retention_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', '가입 즉시 완료', 'system-auto', NULL, datetime('now','+30 days'))").bind(verificationRecord.id, account.id, verificationRecord.hospitalName, verificationRecord.representativeName, verificationRecord.businessNumber, verificationRecord.address, verificationRecord.documentKey, verificationRecord.originalFilename, verificationRecord.contentType, verificationRecord.fileSize, verificationRecord.fileSha256));
     if (body.role === 'hospital') {
       const adminEmails = String(env.ADMIN_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
       if (adminEmails.length) {
@@ -1348,6 +1363,8 @@ async function accountApi(request, env, ctx) {
       if (row.role === 'hospital') try {
         await ensureHospitalVerificationSchema(env);
         hospitalProfile = await env.DB.prepare('SELECT hospital_name AS hospitalName, representative_name AS representativeName, business_number AS businessNumber, address, status AS verificationStatus FROM hospital_verification_requests WHERE account_id = ? ORDER BY submitted_at DESC LIMIT 1').bind(row.id).first();
+        if (!hospitalProfile && registrationProfile?.hospitalName) hospitalProfile = { hospitalName:registrationProfile.hospitalName, representativeName:registrationProfile.representativeName, businessNumber:registrationProfile.businessNumber, address:registrationProfile.address };
+        if (hospitalProfile) hospitalProfile.verificationStatus = registrationProfile?.hospitalDocument?.status || 'submitted';
       } catch { hospitalProfile = null; }
     }
     return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity, isAdmin, profile:profile || null, registrationProfile:registrationProfile || null, hospitalProfile:hospitalProfile || null, email: identity.email, welcomeEmailAvailable, adminSignupEmailAvailable });
@@ -1368,6 +1385,7 @@ async function accountApi(request, env, ctx) {
     }
     // 재가입 제한(회원 탈퇴 약관 제4조): 탈퇴일로부터 30일 이내에는 재가입 불가.
     const existingAccount = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(key).first();
+    if (!existingAccount && body.role === 'hospital') return json({ error:'병원 회원가입 화면에서 사업자등록증과 서류 이용 동의를 함께 제출해주세요.' }, 400);
     if (!existingAccount) {
       const withdrawn = await env.DB.prepare("SELECT withdrawn_at AS at, (julianday('now') - julianday(withdrawn_at)) AS days FROM withdrawn_members WHERE user_key = ?").bind(key).first();
       if (withdrawn && Number(withdrawn.days) < 30) {
@@ -2838,19 +2856,58 @@ async function publicSiteOperationsApi(request, env) {
   return json({ settings, features, contents });
 }
 async function hospitalVerificationDocumentApi(request, env, pathname) {
-  if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
+  const completing = pathname.endsWith('/complete');
+  if (request.method !== (completing ? 'POST' : 'GET')) return json({ error:'지원하지 않는 요청입니다.' }, 405);
   const admin = await adminIdentity(request, env);
   if (!admin) return json({ error:'관리자 권한이 필요합니다.' }, 403);
+  if (completing && !sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   try { await ensureHospitalVerificationSchema(env); } catch { return json({ error:'병원 인증 저장소를 사용할 수 없습니다.' }, 503); }
   const relativePath = pathname.slice('/api/admin-hospital-verifications/'.length);
-  const requestId = decodeURIComponent(relativePath.endsWith('/document') ? relativePath.slice(0, -'/document'.length) : relativePath);
-  const record = await env.DB.prepare('SELECT document_key AS documentKey, original_filename AS originalFilename, content_type AS contentType FROM hospital_verification_requests WHERE id=? LIMIT 1').bind(requestId).first();
-  if (!record) return json({ error:'제출 서류를 찾을 수 없습니다.' }, 404);
+  let requestId;
+  try { requestId = decodeURIComponent(relativePath.slice(0, completing ? -'/complete'.length : -'/document'.length)); }
+  catch { return json({ error:'서류 주소를 확인해주세요.' }, 400); }
+  if (completing) {
+    let body;
+    try { body = await readRequestObject(request); } catch { return json({ error:'확인 요청을 확인해주세요.' }, 400); }
+    if (body.confirmed !== true) return json({ error:'기관 정보 확인 완료 후 처리해주세요.' }, 400);
+  }
+  const record = await env.DB.prepare("SELECT document_key AS documentKey, content_type AS contentType, review_note AS reviewNote, julianday(retention_until) IS NULL AS invalidExpiry, julianday(retention_until)<=julianday('now') AS expired FROM hospital_verification_requests WHERE id=? LIMIT 1").bind(requestId).first();
+  if (!record) return completing ? json({ deleted:true, alreadyDeleted:true }) : json({ error:'보관 중인 서류가 없습니다.' }, 404);
+  if (record.invalidExpiry) return json({ error:'서류 보관기간을 확인할 수 없습니다. 관리자에게 문의해주세요.' }, 503);
+  if (record.expired) {
+    try { await purgeHospitalDocument(env, requestId); }
+    catch { return json({ error:'서류 삭제를 마치지 못했습니다. 다시 시도해주세요. 원본 열람은 중단되었습니다.' }, 503); }
+    if (completing && record.reviewNote === '기관 확인 완료 · 서류 파기') return json({ deleted:true });
+    return json({ error:'보관기간이 종료된 서류입니다.' }, 410);
+  }
+  if (completing) {
+    try {
+      await ensureAdminConsoleSchema(env);
+      // 삭제 실패 시에도 더 이상 열람할 수 없게 하고 다음 보존 실행에서 재시도한다.
+      await env.DB.prepare("UPDATE hospital_verification_requests SET retention_until=CURRENT_TIMESTAMP, review_note='기관 확인 완료 · 서류 파기', reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?").bind(admin.email, requestId).run();
+      await purgeHospitalDocument(env, requestId);
+      return json({ deleted:true });
+    } catch { return json({ error:'서류 삭제를 마치지 못했습니다. 다시 시도해주세요. 원본 열람은 중단되었습니다.' }, 503); }
+  }
   const storage = env.UPLOADS || env.BACKUPS;
   if (!storage) return json({ error:'제출 서류 저장소를 사용할 수 없습니다.' }, 503);
   const object = await storage.get(record.documentKey);
   if (!object) return json({ error:'제출 서류 파일을 찾을 수 없습니다.' }, 404);
   return new Response(object.body, { status:200, headers:{ 'content-type':record.contentType || 'application/octet-stream', 'content-disposition':'inline; filename="business-registration"', 'cache-control':'private, no-store', 'x-content-type-options':'nosniff' } });
+}
+async function purgeHospitalDocument(env, requestId) {
+  const record = await env.DB.prepare('SELECT * FROM hospital_verification_requests WHERE id=? LIMIT 1').bind(requestId).first();
+  if (!record) return;
+  const storage = env.UPLOADS || env.BACKUPS;
+  if (!storage) throw new Error('HOSPITAL_DOCUMENT_STORAGE_UNAVAILABLE');
+  const checked = record.review_note === '기관 확인 완료 · 서류 파기' && record.reviewed_by !== 'system-auto';
+  const proof = JSON.stringify({ status:checked ? 'checked' : 'expired', ...(checked ? { checkedAt:record.reviewed_at } : {}), deletedAt:new Date().toISOString() });
+  await storage.delete(record.document_key);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE member_registration_profiles SET profile_json=json_set(profile_json,'$.hospitalDocument',json(?)), updated_at=CURRENT_TIMESTAMP WHERE account_id=? AND EXISTS (SELECT 1 FROM auth_credentials WHERE account_id=?) AND NOT EXISTS (SELECT 1 FROM hospital_verification_requests WHERE account_id=? AND submitted_at>?)").bind(proof, record.account_id, record.account_id, record.account_id, record.submitted_at),
+    ...(checked ? [env.DB.prepare('INSERT INTO admin_audit_logs (id, actor_email, action, subject, payload_json) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM hospital_verification_requests WHERE id=?)').bind(crypto.randomUUID(), record.reviewed_by, 'hospital_document_deleted', requestId, JSON.stringify({ checked:true }), requestId)] : []),
+    env.DB.prepare('DELETE FROM hospital_verification_requests WHERE id=?').bind(requestId)
+  ]);
 }
 async function adminConsoleApi(request, env, ctx) {
   const admin = await adminIdentity(request, env);
@@ -2880,7 +2937,7 @@ async function adminConsoleApi(request, env, ctx) {
       env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
       env.DB.prepare('SELECT id, group_key AS groupKey, name, slug, sort_order AS sortOrder, enabled FROM admin_categories ORDER BY group_key, sort_order, name').all(),
       env.DB.prepare('SELECT id, content_type AS contentType, title, subtitle, status, visibility, payload_json AS payloadJson, sort_order AS sortOrder, created_by AS createdBy, updated_by AS updatedBy, published_at AS publishedAt, created_at AS createdAt, updated_at AS updatedAt FROM admin_content_records ORDER BY sort_order DESC, updated_at DESC LIMIT 500').all(),
-      env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, a.updated_at AS updatedAt, COALESCE(ap.email,'') email, COALESCE(ap.full_name,'') fullName, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus, ap.last_login_at AS lastLoginAt, COALESCE(mp.phone,'') phone, COALESCE(mp.organization,'') organization, COALESCE(mp.job_title,'') jobTitle, (SELECT COUNT(*) FROM consent_records cr WHERE cr.account_id=a.id) consentCount, (SELECT COUNT(*) FROM payment_orders po WHERE po.account_id=a.id) orderCount, COALESCE((SELECT SUM(po.total_amount) FROM payment_orders po WHERE po.account_id=a.id AND po.status='paid'),0) lifetimeValue FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id LEFT JOIN member_profiles mp ON mp.account_id=a.id ORDER BY a.created_at DESC LIMIT 500").all(),
+      env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, a.updated_at AS updatedAt, COALESCE(ap.email,'') email, COALESCE(ap.full_name,'') fullName, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus, ap.last_login_at AS lastLoginAt, COALESCE(mp.phone,'') phone, COALESCE(mp.organization,'') organization, COALESCE(mp.job_title,'') jobTitle, (SELECT json_extract(rp.profile_json,'$.hospitalDocument.status') FROM member_registration_profiles rp WHERE rp.account_id=a.id) hospitalDocumentStatus, (SELECT COUNT(*) FROM consent_records cr WHERE cr.account_id=a.id) consentCount, (SELECT COUNT(*) FROM payment_orders po WHERE po.account_id=a.id) orderCount, COALESCE((SELECT SUM(po.total_amount) FROM payment_orders po WHERE po.account_id=a.id AND po.status='paid'),0) lifetimeValue FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id LEFT JOIN member_profiles mp ON mp.account_id=a.id ORDER BY a.created_at DESC LIMIT 500").all(),
       env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.account_id AS accountId, CASE WHEN po.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE po.product_type END AS productType, po.product_id AS productId, po.product_name AS productName, po.supply_amount AS supplyAmount, po.tax_amount AS taxAmount, po.total_amount AS totalAmount, po.status, po.payment_method AS paymentMethod, po.customer_name AS customerName, po.customer_email AS customerEmail, po.customer_phone AS customerPhone, po.metadata_json AS metadataJson, po.admin_note AS adminNote, po.paid_at AS paidAt, po.cancelled_at AS cancelledAt, po.created_at AS createdAt, po.updated_at AS updatedAt, a.role accountRole FROM payment_orders po JOIN accounts a ON a.id=po.account_id ORDER BY po.created_at DESC LIMIT 500").all(),
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_type AS transactionType, provider, provider_transaction_id AS providerTransactionId, amount, status, failure_code AS failureCode, failure_message AS failureMessage, processed_at AS processedAt FROM payment_transactions ORDER BY created_at DESC LIMIT 1000").all(),
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_id AS transactionId, amount, reason, status, requested_by AS requestedBy, provider_refund_id AS providerRefundId, processed_at AS processedAt, created_at AS createdAt FROM payment_refunds ORDER BY created_at DESC LIMIT 500").all(),
@@ -2891,7 +2948,7 @@ async function adminConsoleApi(request, env, ctx) {
       env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email_normalized AS email, status, created_at AS createdAt, updated_at AS updatedAt FROM account_recovery_requests ORDER BY created_at DESC LIMIT 300").all().catch(() => ({ results: [] }))
     ]);
     const [verificationResult, verificationMetric] = await Promise.all([
-      env.DB.prepare("SELECT h.id, h.account_id AS accountId, h.hospital_name AS hospitalName, h.representative_name AS representativeName, h.business_number AS businessNumber, h.address, h.original_filename AS originalFilename, h.content_type AS contentType, h.file_size AS fileSize, h.file_sha256 AS fileSha256, h.status, h.review_note AS reviewNote, h.reviewed_by AS reviewedBy, h.submitted_at AS submittedAt, h.reviewed_at AS reviewedAt, c.email_normalized AS email, COALESCE(mp.phone,'') AS phone FROM hospital_verification_requests h JOIN auth_credentials c ON c.account_id=h.account_id LEFT JOIN member_profiles mp ON mp.account_id=h.account_id ORDER BY CASE h.status WHEN 'pending' THEN 0 ELSE 1 END, h.submitted_at DESC LIMIT 300").all(),
+      env.DB.prepare("SELECT h.id, h.account_id AS accountId, h.hospital_name AS hospitalName, h.representative_name AS representativeName, h.business_number AS businessNumber, h.address, h.original_filename AS originalFilename, h.content_type AS contentType, h.file_size AS fileSize, h.file_sha256 AS fileSha256, h.status, h.review_note AS reviewNote, h.reviewed_by AS reviewedBy, h.submitted_at AS submittedAt, h.retention_until AS retentionUntil, h.reviewed_at AS reviewedAt, c.email_normalized AS email, COALESCE(mp.phone,'') AS phone FROM hospital_verification_requests h JOIN auth_credentials c ON c.account_id=h.account_id LEFT JOIN member_profiles mp ON mp.account_id=h.account_id ORDER BY CASE h.status WHEN 'pending' THEN 0 ELSE 1 END, h.submitted_at DESC LIMIT 300").all(),
       env.DB.prepare("SELECT SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending FROM hospital_verification_requests").first()
     ]);
     const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingKey === 'maintenanceMode' ? row.settingValue === 'true' : row.settingValue]));
@@ -3138,7 +3195,7 @@ async function responseFor(request, env, ctx) {
   if (pathname === '/api/recruitment-crm' || pathname.startsWith('/api/recruitment-crm/')) return recruitmentCrmApi(request, env, pathname);
   if (pathname === '/api/talent-access-audit') return talentAccessAuditApi(request, env);
   if (pathname === '/api/admin-console') return adminConsoleApi(request, env, ctx);
-  if (pathname.startsWith('/api/admin-hospital-verifications/') && pathname.endsWith('/document')) return hospitalVerificationDocumentApi(request, env, pathname);
+  if (pathname.startsWith('/api/admin-hospital-verifications/') && (pathname.endsWith('/document') || pathname.endsWith('/complete'))) return hospitalVerificationDocumentApi(request, env, pathname);
   if (pathname === '/api/uploads' || pathname.startsWith('/api/uploads/')) return uploadApi(request, env, pathname);
   if (pathname === '/api/admin-backups') return adminBackupsApi(request, env);
   if (pathname === '/api/data-protection-health') return dataProtectionHealthApi(request, env);

@@ -4625,6 +4625,12 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .hospital-document-remove svg{width:16px}
 .hospital-document-privacy{display:flex;gap:9px;align-items:flex-start;margin:14px 0 0;color:#527166;font-size:12px;line-height:1.65}
 .hospital-document-privacy svg{flex:0 0 auto;width:17px;color:#0c9c81}
+.hospital-document-notice{margin-top:16px;color:#273e5c;font-size:14px;line-height:1.7}
+.hospital-document-notice summary{cursor:pointer;font-weight:700;padding:8px 0}
+.hospital-document-section .signup-age-confirm span{flex-wrap:wrap;gap:7px}
+.hospital-document-section .signup-age-confirm small{flex-basis:100%;color:#61738a;font-size:13px;line-height:1.6}
+.hospital-document-feedback{padding:14px 18px;border-radius:12px;background:#edf5ff;color:#173d70;font-size:14px;line-height:1.7}
+.hospital-verification-result{flex-wrap:wrap}
 .hospital-document-section>.signup-field-error{display:block;margin:10px 0 0;color:#c23f3f;font-size:13px;font-style:normal;font-weight:750}
 .resume-contact-visibility{margin-top:26px;padding-top:25px;border-top:1px solid #dfe8f2}
 .resume-contact-visibility label:first-of-type.active{border-color:#13a184;background:#f0fbf8}

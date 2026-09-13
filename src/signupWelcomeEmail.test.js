@@ -27,7 +27,7 @@ test('신규 가입자는 환영 메일을 받고 대표자 메일에는 가입 
   assert.match(emailBlock, /신규 회원이 가입했습니다/);
   assert.match(emailBlock, /회원 유형/);
   assert.match(emailBlock, /가입 이메일/);
-  assert.match(emailBlock, /사업자등록증 제출본은 승인 절차 없이 비공개 기록으로 보관됩니다/);
+  assert.match(emailBlock, /사업자등록증은 기관 정보 확인 및 허위·도용 가입 방지에만 사용/);
   assert.doesNotMatch(emailBlock, /pendingHospital|승인 검토 요청/);
   assert.doesNotMatch(emailBlock, /body\.password|member\.password|password_hash|password_salt/);
 });

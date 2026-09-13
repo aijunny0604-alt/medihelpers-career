@@ -290,7 +290,7 @@ export default function AdminConsolePage({ qa = false }) {
       <div className="admin-console-top">
         <div>
           <span className="admin-console-mark"><ShieldCheck /></span>
-          <div><strong>메디헬퍼스 관리자 기록실</strong><small>운영 DB 조회 · 병원 가입 인증</small></div>
+          <div><strong>메디헬퍼스 관리자 기록실</strong><small>운영 DB 조회 · 기관 확인</small></div>
         </div>
         <nav>
           <div className="admin-alert-wrap">
@@ -307,7 +307,7 @@ export default function AdminConsolePage({ qa = false }) {
         <aside className="admin-sidebar">
           <div className="admin-profile">
             <span><UserRoundCog /></span>
-            <div><strong>운영 관리자</strong><small>{qa ? 'QA 기록 미리보기' : 'DB 기록 조회 · 병원 인증'}</small></div>
+            <div><strong>운영 관리자</strong><small>{qa ? 'QA 기록 미리보기' : 'DB 기록 조회 · 기관 확인'}</small></div>
           </div>
           {groups.map((group) => (
             <section key={group.title}>
@@ -322,18 +322,18 @@ export default function AdminConsolePage({ qa = false }) {
           <button className="admin-console-logout" type="button" onClick={logout} disabled={loggingOut}>
             <LogOut /><span>{loggingOut ? '로그아웃 중…' : '로그아웃'}</span>
           </button>
-          <div className="admin-security-note"><ShieldCheck /><p><strong>최소 권한 운영 원칙</strong><br />공고·결제·회원·병원 제출 서류는 관리자 화면에서 조회만 할 수 있습니다.</p></div>
+          <div className="admin-security-note"><ShieldCheck /><p><strong>최소 권한 운영 원칙</strong><br />공고·결제·회원 기록은 조회 전용입니다. 병원 확인용 서류는 확인 완료 후 원본을 삭제할 수 있습니다.</p></div>
         </aside>
         <main className="admin-workspace">
           <header className="admin-page-head">
-            <div><small>DATABASE RECORDS</small><h1>{currentLabel}</h1><p>자동 저장된 회원·결제·병원 제출 서류 기록을 읽기 전용으로 확인합니다.</p></div>
+            <div><small>DATABASE RECORDS</small><h1>{currentLabel}</h1><p>회원·결제 기록을 조회하고 병원 확인용 서류를 관리합니다.</p></div>
             <span className={loading ? 'loading' : ''}>{loading ? '데이터 동기화 중' : '운영 DB 연결'}</span>
           </header>
           {message && <div className="admin-message">{message}</div>}
           {section === 'dashboard' && <Dashboard data={data} select={select} />}
           {section === 'monitoring' && <OperationsMonitor data={data} select={select} />}
           {section === 'contents' && <ContentRecords data={data} />}
-          {section === 'members' && <Members data={data} />}
+          {section === 'members' && <Members data={data} setData={setData} />}
           {section === 'resumes' && <Resumes data={data} />}
           {section === 'payments' && <Payments data={data} />}
           {section === 'talentAudit' && <TalentAccessAudit active={section === 'talentAudit'} />}
@@ -715,9 +715,26 @@ function Features({ data, setData, mutate }) {
   </section>;
 }
 
-function Members({ data }) {
+function Members({ data, setData }) {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('all');
+  const [busyId, setBusyId] = useState('');
+  const [documentMessage, setDocumentMessage] = useState('');
+  const completeDocument = async (item) => {
+    if (busyId) return;
+    setBusyId(item.id);
+    setDocumentMessage('');
+    try {
+      const response = await fetch(withBase(`/api/admin-hospital-verifications/${encodeURIComponent(item.id)}/complete`), { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ confirmed:true }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '서류 처리를 완료하지 못했습니다.');
+      setData(current => ({ ...current, hospitalVerifications:(current.hospitalVerifications || []).filter(row => row.id !== item.id) }));
+      setDocumentMessage(result.alreadyDeleted ? '이미 삭제된 서류입니다. 최신 기록을 확인했습니다.' : '기관 확인 결과를 기록하고 제출 서류를 삭제했습니다. 가입·로그인은 그대로 유지됩니다.');
+      try { setData(await loadConsole()); }
+      catch { setDocumentMessage('서류 삭제는 완료됐습니다. 최신 확인 상태를 보려면 화면을 새로고침해주세요.'); }
+    } catch (error) { setDocumentMessage(error.message); }
+    finally { setBusyId(''); }
+  };
   const verificationRequests = data.hospitalVerifications || [];
   const members = (data.members || []).filter((member) => {
     const text = [member.email, member.fullName, member.phone, member.organization, member.jobTitle].join(' ').toLowerCase();
@@ -725,12 +742,13 @@ function Members({ data }) {
   });
   return <>
     <section className="admin-panel hospital-verification-queue">
-      <header><div><small>HOSPITAL DOCUMENT RECORDS</small><h2>병원 회원 사업자등록증 제출 이력</h2><p>병원 가입은 즉시 완료되며, 제출된 기관 정보와 비공개 서류는 기록 확인용으로만 조회합니다.</p></div><span className="hospital-verification-count">제출 기록 <b>{verificationRequests.length}</b>건</span></header>
+      <header><div><small>HOSPITAL DOCUMENT RECORDS</small><h2>병원 회원 사업자등록증 제출 이력</h2><p>기관 정보·담당자 소속을 확인한 뒤 원본을 삭제해주세요. 서류 제출만으로 확인 완료가 되지는 않으며, 가입·로그인은 바로 가능합니다.</p></div><span className="hospital-verification-count">보관 서류 <b>{verificationRequests.length}</b>건</span></header>
+      {documentMessage && <p role="status" className="hospital-document-feedback">{documentMessage}</p>}
       <div className="hospital-verification-list">
         {verificationRequests.map((item) => <article key={item.id} className={`hospital-verification-card ${item.status}`}>
-          <div className="hospital-verification-heading"><span><Building2 /></span><div><small>{String(item.submittedAt || '').slice(0,16).replace('T',' ')} 제출</small><strong>{item.hospitalName || '병원명 미등록'}</strong><p>{item.email} · {item.phone || '연락처 미등록'}</p></div><em>가입 완료</em></div>
+          <div className="hospital-verification-heading"><span><Building2 /></span><div><small>{formatAdminTime(item.submittedAt)} 제출</small><strong>{item.hospitalName || '병원명 미등록'}</strong><p>{item.email} · {item.phone || '연락처 미등록'}</p></div><em>서류 제출 완료</em></div>
           <dl><div><dt>대표자</dt><dd>{item.representativeName || '-'}</dd></div><div><dt>사업자등록번호</dt><dd>{item.businessNumber || '-'}</dd></div><div className="wide"><dt>병원 주소</dt><dd>{item.address || '-'}</dd></div><div><dt>제출 파일</dt><dd>{item.originalFilename || '-'} · {(Number(item.fileSize || 0) / 1024 / 1024).toFixed(2)}MB</dd></div></dl>
-          <p className="hospital-verification-result"><ShieldCheck /> 가입 즉시 완료 · 승인 또는 반려 처리 없음 {item.documentUrl && item.documentUrl !== '#' && <a className="button outline" href={withBase(item.documentUrl)} target="_blank" rel="noreferrer"><Eye /> 제출본 열기</a>}</p>
+          <p className="hospital-verification-result"><ShieldCheck /> 보관기한 {formatAdminTime(item.retentionUntil)} {item.documentUrl && item.documentUrl !== '#' && <a className="button outline" href={withBase(item.documentUrl)} target="_blank" rel="noreferrer"><Eye /> 제출본 열기</a>}{item.documentUrl && item.documentUrl !== '#' && <button type="button" className="button primary" disabled={Boolean(busyId)} onClick={() => completeDocument(item)}>{busyId === item.id ? '삭제 중…' : '기관 확인 완료 · 원본 삭제'}</button>}</p>
         </article>)}
         {!verificationRequests.length && <div className="admin-data-empty"><ShieldCheck /> 제출된 병원 사업자등록증 기록이 없습니다.</div>}
       </div>
@@ -762,7 +780,7 @@ function MemberRow({ member }) {
   return <div className="member-row">
     <div><strong>{member.fullName || '이름 미등록'}</strong><small>{member.email || '이메일 비공개'}</small><small>{member.phone || '연락처 미등록'}</small></div>
     <div><span className={`member-role ${member.role}`}>{member.role === 'doctor' ? '의사' : '병원'}</span><strong>{member.organization || member.jobTitle || '-'}</strong><small>{member.jobTitle || '직함 미등록'}</small></div>
-    <div><strong>{member.role === 'hospital' ? '가입 완료' : '의료인 회원'}</strong><small>계정 {statusLabel}</small></div>
+    <div><strong>{member.role === 'hospital' ? (member.hospitalDocumentStatus === 'checked' ? '기관 확인 완료' : '가입 완료') : '의료인 회원'}</strong><small>{member.role === 'hospital' && member.hospitalDocumentStatus === 'expired' ? '미확인 · 서류 보관 종료' : `계정 ${statusLabel}`}</small></div>
     <div><strong>동의 {member.consentCount || 0}건</strong><small>주문 {member.orderCount || 0}건</small><b>{Number(member.lifetimeValue || 0).toLocaleString()}원</b></div>
     <div><small>가입 {String(member.createdAt || '-').slice(0,16)}</small><small>최근 {String(member.lastLoginAt || '-').slice(0,16)}</small></div>
     <div><span className={`payment-status ${status}`}>{statusLabel}</span><small>자동 기록</small></div>
