@@ -1,3 +1,4 @@
+import { postPublicUntil } from './jobPostLifecycle.js';
 import { talent } from './data.js';
 import { demoTalentDetail } from './talentDetailAccess.js';
 // 로컬 개발 전용 가상 API 목(mock).
@@ -40,7 +41,15 @@ function mockDetailFor(talentId) {
   };
 }
 
-async function handle(method, path, bodyText) {
+async function handle(method, path, bodyText, query = '') {
+  const lifecyclePosts = read(LS.jobSeekerPosts, {});
+  let changed = false;
+  for (const post of Object.values(lifecyclePosts)) {
+    if (!post.publicUntil) { post.publicUntil = postPublicUntil(post.updatedAt || new Date()); changed = true; }
+    if (post.status === 'active' && post.publicUntil <= new Date().toISOString().slice(0,19).replace('T',' ')) {post.status='closed';post.hiddenReason='inactive';changed=true;}
+  }
+  if (changed) write(LS.jobSeekerPosts,lifecyclePosts);
+
   const body = (() => { try { return JSON.parse(bodyText || '{}'); } catch { return {}; } })();
 
   // 자체 로그인 목 — 서버 authApi(/api/auth/*) 계약과 동일한 형태로 반환.
@@ -163,6 +172,11 @@ async function handle(method, path, bodyText) {
   // 인재 상세: 부여된 열람권이 있으면 상세 공개
   if (path.startsWith('/api/talent-detail/') && method === 'GET') {
     const talentId = decodeURIComponent(path.slice('/api/talent-detail/'.length));
+    const targetPost = talentId.startsWith('seeker-') ? read(LS.jobSeekerPosts,{})[talentId.slice(7)] : null;
+    const targetSample = talent.find(p => p.code === talentId);
+    if (targetPost && targetPost.status !== 'active') return jsonRes({error:'비공개 구직글입니다.'},404);
+    if (new URLSearchParams(query).get('preview') === '1') return targetPost || targetSample ? jsonRes({available:true,contactVisibility:targetPost?.contactVisibility || 'private',isDemo:Boolean(targetSample)}) : jsonRes({error:'구직글을 찾을 수 없습니다.'},404);
+
     const session = read(LS.authSession, null);
     if (session?.role !== 'hospital') return jsonRes({unlocked:false,detail:null});
     const unlocks = read(LS.unlocks, {});
@@ -215,10 +229,15 @@ async function handle(method, path, bodyText) {
       posts[id].status = 'deleted'; write(LS.jobSeekerPosts, posts);
       return jsonRes({ deleted:true, id });
     }
+    if (method === 'PATCH' && body.action === 'set_visibility') {
+      if (!posts[id] || posts[id].status === 'deleted') return jsonRes({error:'본인 구직글을 찾을 수 없습니다.'},404);
+      posts[id] = {...posts[id],status:body.status,hiddenReason:body.status === 'closed' ? 'manual' : '',publicUntil:postPublicUntil(),updatedAt:new Date().toISOString()};
+      write(LS.jobSeekerPosts,posts);return jsonRes({saved:true,post:posts[id]});
+    }
     if (method === 'POST' || method === 'PATCH') {
       const nextId = id || `JSP-${Date.now().toString(36).toUpperCase()}`;
       if (!body.resumeId || !read(LS.resumes, {})[body.resumeId]) return jsonRes({ error:'연동할 본인 이력서를 선택해주세요.' }, 404);
-      posts[nextId] = { ...(posts[nextId] || {}), ...body, id:nextId, status:'active', updatedAt:new Date().toISOString() };
+      posts[nextId] = { ...(posts[nextId] || {}), ...body, id:nextId, status:posts[nextId]?.status || 'active', publicUntil:postPublicUntil(), updatedAt:new Date().toISOString() };
       write(LS.jobSeekerPosts, posts);
       return jsonRes({ saved:true, created:method === 'POST', post:posts[nextId] }, method === 'POST' ? 201 : 200);
     }
@@ -408,7 +427,7 @@ export function installDevApiMock() {
         const document = init.body.get('businessDocument');
         bodyText = JSON.stringify({ ...payload, businessDocumentName:document?.name || '', businessDocumentType:document?.type || '', businessDocumentSize:document?.size || 0 });
       }
-      const res = await handle(method, pathname, bodyText);
+      const res = await handle(method, pathname, bodyText, new URL(url,window.location.origin).search);
       // eslint-disable-next-line no-console
       console.info('[devApiMock]', method, pathname, '→', res.status);
       return res;

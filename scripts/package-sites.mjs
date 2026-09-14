@@ -1,3 +1,4 @@
+import { postPublicUntil } from '../src/jobPostLifecycle.js';
 import { talent } from '../src/data.js';
 import { demoTalentDetail } from '../src/talentDetailAccess.js';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -331,6 +332,15 @@ async function ensureAccountSchema(env) {
 async function ensureConsultationSchema(env) {
   return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
 }
+const postPublicUntil = ${postPublicUntil.toString()};
+async function expireJobPosts(env) {
+  // Backfill legacy deadlines separately from schema migrations; month ends clamp.
+  await env.DB.prepare("UPDATE job_seeker_posts SET public_until=datetime(min(date(updated_at,'+9 hours','+5 months'),date(updated_at,'+9 hours','start of month','+6 months','-1 day')) || ' ' || time(updated_at,'+9 hours'),'-9 hours') WHERE public_until='' AND status<>'deleted'").run();
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO member_activity (id,account_id,event_type,title,detail) SELECT 'auto-hide-' || id || '-' || public_until,account_id,'job_seeker_post_auto_hide','5개월 동안 관리하지 않은 구직글이 자동 비공개되었습니다.',title FROM job_seeker_posts WHERE status='active' AND public_until<=CURRENT_TIMESTAMP ON CONFLICT(id) DO NOTHING"),
+    env.DB.prepare("UPDATE job_seeker_posts SET status='closed', hidden_reason='inactive' WHERE status='active' AND public_until<=CURRENT_TIMESTAMP")
+  ]);
+}
 async function ensureMemberCenterSchema(env) {
   // 기존 운영 DB에도 구직글 원장과 이력서 연결을 추가하도록 최신 테이블을 probe로 사용한다.
   await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts, member_registration_profiles LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
@@ -349,6 +359,7 @@ async function ensureMemberCenterSchema(env) {
       }
     })());
   }
+  await expireJobPosts(env);
   try { await schemaReadyPromises.get('member-unlock-date-v1'); }
   catch (error) { schemaReadyPromises.delete('member-unlock-date-v1'); throw error; }
 }
@@ -409,7 +420,7 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
   catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
-const backupSchemaVersion = '0013';
+const backupSchemaVersion = '0014';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
@@ -1517,7 +1528,7 @@ async function uploadApi(request, env, pathname) {
         let allowed = Boolean(viewer && viewer.id === ownerId) || Boolean(await adminIdentity(request, env));
         if (!allowed && viewer?.role === 'hospital') {
           const photoUrl = '/api/uploads/' + key;
-          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON (tu.talent_id = 'resume-' || r.id AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE tu.talent_id='seeker-' || p.id AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active') WHERE tu.hospital_account_id = ? AND r.account_id = ? AND json_extract(r.detail_json,'$.photoUrl')=? LIMIT 1").bind(viewer.id, ownerId, photoUrl).first();
+          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON (tu.talent_id = 'resume-' || r.id AND r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE tu.talent_id='seeker-' || p.id AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active') WHERE tu.hospital_account_id = ? AND r.account_id = ? AND json_extract(r.detail_json,'$.photoUrl')=? LIMIT 1").bind(viewer.id, ownerId, photoUrl).first();
           // A submitted snapshot is independently shared with its receiving hospital.
           const application = grant ? null : await env.DB.prepare("SELECT cr.id FROM consultation_requests cr JOIN admin_content_records c ON c.id=replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') WHERE lower(c.created_by)=? AND json_extract(cr.payload_json,'$.submissionChannel')='paid_job_direct' AND json_extract(cr.payload_json,'$.resumeSnapshot.detail.photoUrl')=? LIMIT 1").bind(identity.email.toLowerCase(), photoUrl).first();
           allowed = Boolean(grant || application);
@@ -1610,7 +1621,7 @@ async function memberCenterApi(request, env) {
     if (account.role === 'doctor') {
       addQuery('resume', env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id));
       addQuery('jobSeekerPosts', env.DB.prepare(
-        "SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle " +
+        "SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle " +
         "FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.updated_at DESC LIMIT 50"
       ).bind(account.id));
     }
@@ -1924,10 +1935,10 @@ async function jobSeekerPostApi(request, env, pathname) {
   const suffix = pathname === '/api/job-seeker-posts' ? '' : decodeURIComponent(pathname.slice('/api/job-seeker-posts/'.length));
   if (request.method === 'GET') {
     if (suffix) {
-      const post = await env.DB.prepare("SELECT id, resume_id AS resumeId, title, summary, specialty, desired_region AS desiredRegion, available_from AS availableFrom, employment_type AS employmentType, contact_visibility AS contactVisibility, status, created_at AS createdAt, updated_at AS updatedAt FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
+      const post = await env.DB.prepare("SELECT id, resume_id AS resumeId, title, summary, specialty, desired_region AS desiredRegion, available_from AS availableFrom, employment_type AS employmentType, contact_visibility AS contactVisibility, public_until AS publicUntil, hidden_reason AS hiddenReason, status, created_at AS createdAt, updated_at AS updatedAt FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
       return post ? json({ signedIn:true, post }) : json({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
     }
-    const result = await env.DB.prepare("SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.updated_at DESC LIMIT 50").bind(account.id).all();
+    const result = await env.DB.prepare("SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.updated_at DESC LIMIT 50").bind(account.id).all();
     return json({ signedIn:true, posts:result.results || [] });
   }
   if (!['POST','PATCH','DELETE'].includes(request.method)) return json({ error:'지원하지 않는 요청입니다.' }, 405);
@@ -1947,16 +1958,31 @@ async function jobSeekerPostApi(request, env, pathname) {
   let current = null;
   if (request.method === 'PATCH') {
     if (!suffix) return json({ error:'수정할 구직글을 확인해주세요.' }, 400);
-    current = await env.DB.prepare("SELECT id, resume_id AS resumeId, contact_visibility AS contactVisibility FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
+    current = await env.DB.prepare("SELECT id, title, status, resume_id AS resumeId, contact_visibility AS contactVisibility FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
     if (!current) return json({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
+  }
+  if (current && body.action === 'set_visibility') {
+    if (!['active','closed'].includes(body.status)) return json({error:'공개 상태를 확인해주세요.'},400);
+    if (body.status === 'active' && (body.publicationAcknowledged !== true || body.privacyVersion !== PRIVACY_FORM_VERSION)) return json({error:'구직글 공개 범위를 확인해주세요.'},400);
+    if (body.status === 'active') {
+      const duplicate = await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE account_id=? AND resume_id=? AND status='active' AND id<>? LIMIT 1").bind(account.id,current.resumeId,current.id).first();
+      if (duplicate) return json({error:'이 이력서의 다른 공개 구직글이 있습니다. 먼저 해당 글을 비공개로 바꿔주세요.'},409);
+    }
+    const publicUntil = postPublicUntil();
+    await env.DB.batch([
+      ...(body.status === 'active' ? [consentEvent(env,account.id,'posting',current.id)] : []),
+      env.DB.prepare("UPDATE job_seeker_posts SET status=?,hidden_reason=?,public_until=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND account_id=? AND status<>'deleted'").bind(body.status,body.status === 'closed' ? 'manual' : '',publicUntil,current.id,account.id),
+      env.DB.prepare("INSERT INTO member_activity(id,account_id,event_type,title,detail) VALUES (?,?, 'job_seeker_post_visibility',?,?)").bind(crypto.randomUUID(),account.id,body.status === 'active' ? '구직글을 다시 공개했습니다.' : '구직글을 비공개로 변경했습니다.',current.title)
+    ]);
+    return json({saved:true,post:{id:current.id,status:body.status,hiddenReason:body.status === 'closed' ? 'manual' : '',publicUntil}});
   }
   const resumeId = s(body.resumeId || current?.resumeId, 100);
   if (body.publicationAcknowledged !== true || body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'구직글 공개 범위 안내를 확인해주세요.' }, 400);
   if (!resumeId) return json({ error:'연동할 이력서를 선택해주세요.' }, 400);
   const resume = await env.DB.prepare('SELECT id, title, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id=? AND account_id=? LIMIT 1').bind(resumeId, account.id).first();
   if (!resume) return json({ error:'본인 이력서에서 연동할 항목을 찾을 수 없습니다.' }, 404);
-  if (request.method === 'POST') {
-    const duplicate = await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE account_id=? AND resume_id=? AND status='active' LIMIT 1").bind(account.id, resumeId).first();
+  if (!current || current.status === 'active') {
+    const duplicate = await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE account_id=? AND resume_id=? AND status='active' AND id<>? LIMIT 1").bind(account.id, resumeId, current?.id || '').first();
     if (duplicate) return json({ error:'이 이력서에 연결된 구직글이 이미 있습니다. 기존 글을 수정해주세요.', existingPostId:duplicate.id }, 409);
   }
   const detail = parseJsonObject(resume.detailJson) || {};
@@ -1969,24 +1995,26 @@ async function jobSeekerPostApi(request, env, pathname) {
   const employmentType = s(body.employmentType || workTypes, 300);
   const contactVisibility = body.contactVisibility === 'ticket' ? 'ticket' : 'private';
   if (contactVisibility === 'ticket' && body.contactConsent !== true) return json({ error:'연락처 공개는 별도 선택 동의가 필요합니다. 원하지 않으면 비공개를 선택해주세요.' }, 400);
+  const publicUntil = postPublicUntil();
+  const postStatus = current?.status || 'active';
   const id = current?.id || ('JSP-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,5).toUpperCase());
   if (current) {
     await env.DB.batch([
       consentEvent(env, account.id, 'posting', id),
       ...(contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id)] : []),
       ...(contactVisibility === 'private' && current.contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id, '', false)] : []),
-      env.DB.prepare("UPDATE job_seeker_posts SET resume_id=?, title=?, summary=?, specialty=?, desired_region=?, available_from=?, employment_type=?, contact_visibility=?, status='active', updated_at=CURRENT_TIMESTAMP WHERE id=? AND account_id=?").bind(resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, id, account.id),
+      env.DB.prepare("UPDATE job_seeker_posts SET resume_id=?, title=?, summary=?, specialty=?, desired_region=?, available_from=?, employment_type=?, contact_visibility=?, public_until=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND account_id=?").bind(resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, publicUntil, id, account.id),
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_seeker_post_update', '구직글을 수정했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
     ]);
   } else {
     await env.DB.batch([
       consentEvent(env, account.id, 'posting', id),
       ...(contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id)] : []),
-      env.DB.prepare("INSERT INTO job_seeker_posts (id, account_id, resume_id, title, summary, specialty, desired_region, available_from, employment_type, contact_visibility) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, account.id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility),
+      env.DB.prepare("INSERT INTO job_seeker_posts (id, account_id, resume_id, title, summary, specialty, desired_region, available_from, employment_type, contact_visibility, public_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, account.id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, publicUntil),
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_seeker_post_create', '구직글을 등록했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
     ]);
   }
-  return json({ saved:true, created:!current, post:{ id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, status:'active' } }, current ? 200 : 201);
+  return json({ saved:true, created:!current, post:{ id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, status:postStatus, publicUntil } }, current ? 200 : 201);
 }
 // 관심공고(찜) 저장/조회. 로그인 회원의 서버 저장. 비로그인은 클라이언트 localStorage 사용.
 async function savedJobsApi(request, env) {
@@ -2049,18 +2077,20 @@ async function talentDetailApi(request, env, pathname) {
   const demo = testTalentDetail(env, talentId);
   const seekerPostId = talentId.startsWith('seeker-') ? talentId.slice('seeker-'.length) : '';
   const seekerPost = seekerPostId
-    ? await env.DB.prepare("SELECT id, account_id AS accountId, resume_id AS resumeId, contact_visibility AS contactVisibility FROM job_seeker_posts WHERE id=? AND status='active' LIMIT 1").bind(seekerPostId).first()
+    ? await env.DB.prepare("SELECT id, account_id AS accountId, resume_id AS resumeId, contact_visibility AS contactVisibility FROM job_seeker_posts WHERE id=? AND status<>'deleted' AND (status='active' OR account_id=?) LIMIT 1").bind(seekerPostId,account?.id || '').first()
     : null;
   const resumeId = seekerPost?.resumeId || (talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '');
   const resumeMeta = seekerPost || (resumeId
     ? await env.DB.prepare('SELECT account_id AS accountId, visibility FROM resumes WHERE id = ? LIMIT 1').bind(resumeId).first()
     : null);
   const isOwner = Boolean(account?.id && resumeMeta?.accountId === account.id);
+  if (!seekerPostId && resumeId && !isOwner && !isAdmin && await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND status<>'active' LIMIT 1").bind(resumeId).first()) return json({unlocked:false,detail:null,error:'비공개 구직 정보입니다.'},404);
   // 작성자 본인은 자신의 구직글을 무료 열람한다. 그 외에는 관리자 또는 병원 열람권이 필요하다.
   if (!account && !isAdmin) return json({ unlocked:false, detail:null });
   // 실제 상세를 제공할 수 있는 대상만 열람권을 소비한다.
   const availableResume = resumeId ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND account_id=? LIMIT 1").bind(resumeId, resumeMeta?.accountId || '').first() : null;
   if (!demo && (!availableResume || (!seekerPost && !isOwner && !isAdmin && !['public','proposal'].includes(resumeMeta?.visibility)))) return json({ unlocked:false, detail:null, error:'현재 열람할 수 없는 구직 정보입니다.' }, 404);
+  if (new URL(request.url).searchParams.get('preview') === '1') return json({available:true,contactVisibility:demo ? 'private' : (seekerPost ? seekerPost.contactVisibility : 'private'),isDemo:Boolean(demo)});
   // === 정보 유출 방어: 병원 계정의 열람 빈도를 검사한다(관리자는 예외). ===
   // 하루 상한(기본 30명)과 10분 폭주 임계(기본 15건)를 넘으면 차단하거나 경고를 남긴다.
   const DAILY_LIMIT = Number(env.TALENT_VIEW_DAILY_LIMIT || 30);
@@ -2121,7 +2151,7 @@ async function talentDetailApi(request, env, pathname) {
   // 열람권만 있으면 resume-<id>로 긁어갈 수 있다(본인이 공개하지 않은 정보 유출).
   if (resumeId || demo) {
     const r = demo ? { ...demo, name:'', phone:'', email:'', detailJson:JSON.stringify(demo.detail) } : seekerPost
-      ? await env.DB.prepare("SELECT r.id, r.name, r.phone, r.email, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' AND r.id=? LIMIT 1").bind(seekerPostId, resumeId).first()
+      ? await env.DB.prepare("SELECT r.id, r.name, r.phone, r.email, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status<>'deleted' AND (p.status='active' OR p.account_id=?) AND r.id=? LIMIT 1").bind(seekerPostId,account?.id || '',resumeId).first()
       : await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND (account_id = ? OR ? = 1 OR visibility IN ('public','proposal'))").bind(resumeId, account?.id || '', isAdmin ? 1 : 0).first();
     if (r) {
       if (!isOwner && !viewLogged) {
@@ -2380,7 +2410,11 @@ async function paymentOrderApi(request, env) {
       const target = testTalentDetail(env, targetId) || (targetId.startsWith('seeker-')
         ? await env.DB.prepare("SELECT r.id FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' LIMIT 1").bind(targetId.slice(7)).first()
         : targetId.startsWith('resume-') ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND visibility IN ('public','proposal') LIMIT 1").bind(targetId.slice(7)).first() : null);
-      if (!target) return json({ error:'현재 열람할 수 없는 구직 정보입니다. 인재 목록에서 다시 선택해주세요.' }, 400);
+      const hiddenLegacyPost = targetId.startsWith('resume-') && await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND status<>'active' LIMIT 1").bind(targetId.slice(7)).first();
+      if (!target || hiddenLegacyPost) return json({ error:'현재 열람할 수 없는 구직 정보입니다. 인재 목록에서 다시 선택해주세요.' }, 400);
+      const contactPost = targetId.startsWith('seeker-') ? await env.DB.prepare('SELECT contact_visibility AS visibility FROM job_seeker_posts WHERE id=?').bind(targetId.slice(7)).first() : null;
+      metadata.contactVisibilityAtPurchase = contactPost?.visibility === 'ticket' ? 'ticket' : 'private';
+      if (body.contactVisibilityAtCheckout === 'ticket' && metadata.contactVisibilityAtPurchase === 'private') return json({error:'작성자가 연락처를 비공개로 변경했습니다. 결제 안내를 다시 확인해주세요.',code:'CONTACT_VISIBILITY_CHANGED'},409);
       if (product.unlockCount === 1 && await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(account.id,targetId).first()) return json({ error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.' },409);
     }
     // 열람권 결제자 정보는 요청 본문을 신뢰하지 않고 회원가입 때 저장한 병원 원본으로 고정한다.
@@ -2556,8 +2590,9 @@ async function paymentApproveApi(request, env) {
         ? await env.DB.prepare("SELECT r.id FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' LIMIT 1").bind(talentId.slice(7)).first()
         : talentId.startsWith('resume-') ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND visibility IN ('public','proposal') LIMIT 1").bind(talentId.slice(7)).first() : null);
       // If the candidate disappeared or another purchase already opened it, preserve one usable credit.
-      if (existing || !target) { await creditOrder(); return; }
-      const grant = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, ?, ? WHERE ?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND ((?=1 AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active')))").bind(crypto.randomUUID(),order.accountId,talentId,order.id,null,demo?1:0,target.id || '',talentId.startsWith('resume-')?1:0,talentId.startsWith('seeker-')?talentId.slice(7):'').run();
+      const hiddenLegacyPost = talentId.startsWith('resume-') && await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND status<>'active' LIMIT 1").bind(talentId.slice(7)).first();
+      if (existing || !target || hiddenLegacyPost) { await creditOrder(); return; }
+      const grant = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, ?, ? WHERE ?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND ((?=1 AND r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active')))").bind(crypto.randomUUID(),order.accountId,talentId,order.id,null,demo?1:0,target.id || '',talentId.startsWith('resume-')?1:0,talentId.startsWith('seeker-')?talentId.slice(7):'').run();
       if (!runChanges(grant)) {
         const winner = await env.DB.prepare('SELECT order_id AS orderId FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?').bind(order.accountId,talentId).first();
         if (winner?.orderId !== order.id) await creditOrder();

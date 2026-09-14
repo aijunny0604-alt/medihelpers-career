@@ -176,16 +176,16 @@ export const talentUnlockPlans = [
   {
     id: 'talent-unlock-single', audience: 'hospital', name: '인재 열람권 (1명)', price: 3900, unlockCount: 1,
     description: '구직 공개에 동의한 의사·의료인 1명의 연락처와 이력서 상세를 열람합니다.',
-    features: ['후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '결제 즉시 열람 권한 부여', '열람 기록 안전 보관']
+    features: ['작성자가 공개한 연락처 확인', '근무기관 이력·자기소개 열람', '결제 즉시 열람 권한 부여', '열람 기록 안전 보관']
   },
   {
     id: 'talent-unlock-pack', audience: 'hospital', name: '인재 열람권 (10명 팩)', price: 29000, unlockCount: 10, featured: true,
     description: '여러 후보를 검토할 때 더 경제적인 10명 열람권입니다(1명당 2,900원).',
-    features: ['인재 10명 열람 (건당 2,900원)', '후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '잔여 수량 내 원하는 인재에 사용']
+    features: ['인재 10명 열람 (건당 2,900원)', '작성자가 공개한 연락처 확인', '근무기관 이력·자기소개 열람', '잔여 수량 내 원하는 인재에 사용']
   },
   {
     id: 'talent-unlock-pack30', audience: 'hospital', name: '인재 열람권 (30명 팩)', price: 69000, unlockCount: 30,
     description: '채용이 많은 병원을 위한 30명 열람권입니다(1명당 2,300원).',
-    features: ['인재 30명 열람 (건당 2,300원)', '후보 성명·연락처·이메일 확인', '근무기관 이력·자기소개 열람', '잔여 수량 내 원하는 인재에 사용']
+    features: ['인재 30명 열람 (건당 2,300원)', '작성자가 공개한 연락처 확인', '근무기관 이력·자기소개 열람', '잔여 수량 내 원하는 인재에 사용']
   }
 ];

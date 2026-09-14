@@ -1,3 +1,4 @@
+import { postStatusLabel, postDeadlineLabel } from './jobPostLifecycle.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -97,11 +98,21 @@ export default function JobSeekerPostPage({ postId = '' }) {
       }
       invalidateSiteOperations();
       setMessage(editing ? '구직글을 수정했습니다.' : '구직글을 등록했습니다.');
-      window.setTimeout(() => go('/medical-staff'), 500);
+      go('/mypage?tab=resume');
     } catch (error) { setFailed(true); setMessage(error.message); }
     finally { setBusy(false); }
   };
 
+  const toggleVisibility = async () => {
+    const status = form.status === 'active' ? 'closed' : 'active';
+    setBusy(true);
+    try {
+      const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(postId)}`), {method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({action:'set_visibility',status,publicationAcknowledged:true,privacyVersion:PRIVACY_FORM_VERSION})});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '공개 상태를 변경하지 못했습니다.');
+      setForm(current => ({...current,...data.post})); invalidateSiteOperations(); setFailed(false); setMessage(status === 'active' ? '다시 공개했습니다.' : '비공개로 변경했습니다.');
+    } catch(error) {setFailed(true);setMessage(error.message);} finally {setBusy(false);}
+  };
   const remove = async () => {
     if (!editing || !window.confirm('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
     setBusy(true); setMessage('');
@@ -122,7 +133,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
       <button type="button" className="job-seeker-editor-back" onClick={() => go('/medical-staff')}><ArrowLeft /> 구직 인재 목록</button>
       <header><small>MY JOB SEEKER POST</small><h1>{editing ? '내 구직글 수정' : '새 구직글 등록'}</h1><p>게시글은 이력서와 별도로 작성하고, 저장해둔 이력서 하나를 연결해 경력 정보를 활용합니다.</p></header>
       {message && <div className={`job-seeker-editor-message ${failed ? 'error' : 'success'}`}>{failed ? <TriangleAlert /> : <CircleCheck />} {message}</div>}
-      <form onSubmit={save}>
+      <p className="job-post-lifecycle-note">등록·수정·재공개 후 5개월 동안 관리하지 않으면 자동 비공개됩니다. 비공개 글은 본인이 계속 확인하고 다시 공개할 수 있습니다. 재공개 시 저장된 연락처 공개 설정을 유지합니다.</p>{editing && <div className="job-post-lifecycle-note"><strong>{postStatusLabel(form)}</strong>{form.status === 'active' && <span> · 자동 비공개 예정 {postDeadlineLabel(form.publicUntil)}</span>}<button className="button outline" type="button" disabled={busy} onClick={toggleVisibility}>{form.status === 'active' ? '비공개로 전환' : '다시 공개'}</button></div>}<form onSubmit={save}>
         <PrivacyNotice scope="posting" />{form.contactVisibility === 'ticket' && <><PrivacyNotice scope="contact" /><label className="consent"><input required type="checkbox" name="contactConsent" value="agreed" /><span>[선택] 열람권을 사용하는 병원 회원에게 연락처를 공개하는 데 동의합니다. 원하지 않으면 아래에서 비공개를 선택해주세요.</span></label></>}<label className="consent"><input required type="checkbox" name="publication" value="agreed" /><span>[필수] 위 공개 범위를 확인하고 구직글을 게시합니다.</span></label>
         <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>아래 저장된 이력서 중 하나를 반드시 선택합니다. 게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><button type="button" aria-invalid={failed && !form.resumeId ? "true" : undefined} aria-label="연동할 이력서 선택" className="button outline job-seeker-resume-manage" onClick={() => setResumeManagerOpen(true)}>이력서 선택·관리</button></div>
           <div className="job-seeker-resume-list">{resumes.map((resume) => { const linked = existingPosts.find((post) => post.resumeId === resume.id); return <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)}><span>{form.resumeId === resume.id ? <CircleCheck /> : <FileText />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, `완성도 ${resume.completion || 0}%`, linked ? '구직글 등록됨' : '새 구직글 작성 가능'].filter(Boolean).join(' · ')}</small></div></button>; })}</div>

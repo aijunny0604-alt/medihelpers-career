@@ -1,3 +1,5 @@
+import { postStatusLabel, postDeadlineLabel } from './jobPostLifecycle.js';
+import { invalidateSiteOperations } from './siteOperations.js';
 import { exposureRemainingLabel } from './billingPeriods.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
@@ -397,6 +399,19 @@ export default function MemberCenterPage({ route, qa, auth }) {
   // 역할에 맞는 카드 목록(병원=광고 주문, 의사=이력서).
   const recordCards = role === 'hospital' ? ads : resumeCards;
   const jobSeekerPosts = role === 'doctor' ? (serverData.jobSeekerPosts || []) : [];
+  const [postBusy, setPostBusy] = useState('');
+  const toggleJobSeekerPost = async (post) => {
+    const status = post.status === 'active' ? 'closed' : 'active';
+    setPostBusy(post.id);
+    try {
+      const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(post.id)}`), {method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({action:'set_visibility',status,privacyVersion:PRIVACY_FORM_VERSION,publicationAcknowledged:true})});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '공개 상태를 변경하지 못했습니다.');
+      setServerData(current => ({...current,jobSeekerPosts:current.jobSeekerPosts.map(item => item.id === post.id ? {...item,...data.post} : item)}));
+      invalidateSiteOperations();
+      notify(status === 'active' ? '구직글을 다시 공개했습니다.' : '구직글이 비공개되었습니다.', 'ok');
+    } catch(error) {notify(error.message);} finally {setPostBusy('');}
+  };
   const deleteJobSeekerPost = async (post) => {
     if (!post?.id || !window.confirm('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
     try {
@@ -404,6 +419,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || '구직글을 삭제하지 못했습니다.');
       setServerData((current) => ({ ...current, jobSeekerPosts:current.jobSeekerPosts.filter((item) => item.id !== post.id) }));
+      invalidateSiteOperations();
       notify('구직글을 삭제했습니다.', 'ok');
     } catch (error) { notify(error.message); }
   };
@@ -584,7 +600,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
 
         {(tab === 'ads' || tab === 'resume') && <>
           <div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '유료 공고는 삭제 없이 내용 수정과 노출 기간 확인만 제공합니다.' : '먼저 이력서를 만들고, 필요한 경우 이력서를 연결한 구직글을 게시합니다.'}</p></div><div className="member-page-head-actions"><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : serverData.resume ? '/resume' : `/resume?new=1&next=${encodeURIComponent('/mypage?tab=resume')}`)}>{role === 'hospital' ? '공고 등록' : serverData.resume ? '이력서 수정' : '이력서 만들기'} <ArrowRight /></a>{role === 'doctor' && serverData.resume && <a className="button outline" href={withBase('/job-seeker-posts/new')}>구직글 등록</a>}</div></div>
-          {role === 'doctor' && <section className="member-panel member-job-seeker-posts"><div className="member-panel-head"><div><h3>내 구직글</h3><p>연동 이력서와 연락처 공개 설정을 확인하고 수정·삭제할 수 있습니다.</p></div></div>{jobSeekerPosts.length ? <div className="member-job-seeker-grid">{jobSeekerPosts.map((post) => <article key={post.id}><div><span><BriefcaseBusiness /></span><em className="good">게시 중</em></div><small>연동 이력서 · {post.resumeTitle || post.resumeId}</small><h3>{post.title}</h3><p>{[post.specialty, post.desiredRegion, post.availableFrom].filter(Boolean).join(' · ') || '조건 협의'}</p><p className={`member-post-privacy ${post.contactVisibility === 'ticket' ? '' : 'is-private'}`}>{post.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 병원에 연락처 공개</> : <><LockKeyhole /> 전화번호 비공개 · 열람권으로도 미공개</>}</p><div className="member-post-actions"><a className="button outline" href={withBase(`/job-seeker-posts/${encodeURIComponent(post.id)}/edit`)}>수정</a><button type="button" className="button danger" onClick={() => deleteJobSeekerPost(post)}>삭제</button></div></article>)}</div> : <div className="member-empty"><BriefcaseBusiness /><strong>등록한 구직글이 없습니다</strong><p>새 구직글에서 저장된 이력서를 선택해 게시할 수 있습니다.</p></div>}</section>}
+          {role === 'doctor' && <section className="member-panel member-job-seeker-posts"><div className="member-panel-head"><div><h3>내 구직글</h3><p>내용 확인·수정, 비공개·재공개·삭제를 관리합니다. 마지막 등록·수정·재공개 후 5개월간 관리하지 않으면 자동 비공개됩니다.</p></div></div>{jobSeekerPosts.length ? <div className="member-job-seeker-grid">{jobSeekerPosts.map((post) => <article key={post.id}><div><span><BriefcaseBusiness /></span><em className={post.status === 'active' ? 'good' : ''}>{postStatusLabel(post)}</em></div><small>연동 이력서 · {post.resumeTitle || post.resumeId}</small><p className="member-post-deadline">{post.status === 'active' ? `자동 비공개 예정: ${postDeadlineLabel(post.publicUntil)}` : '외부 게시판에 노출되지 않습니다. 내 글은 계속 확인·수정할 수 있습니다.'}</p><h3>{post.title}</h3><p>{[post.specialty, post.desiredRegion, post.availableFrom].filter(Boolean).join(' · ') || '조건 협의'}</p><p className={`member-post-privacy ${post.contactVisibility === 'ticket' ? '' : 'is-private'}`}>{post.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 병원에 연락처 공개</> : <><LockKeyhole /> 전화번호 비공개 · 열람권으로도 미공개</>}</p><div className="member-post-actions"><a className="button outline" href={withBase(`/job-seeker-posts/${encodeURIComponent(post.id)}/edit`)}>내용 확인·수정</a><button type="button" className="button primary" disabled={postBusy === post.id} onClick={() => toggleJobSeekerPost(post)}>{postBusy === post.id ? '처리 중…' : post.status === 'active' ? '비공개로 전환' : '다시 공개'}</button><button type="button" className="button danger" disabled={postBusy === post.id} onClick={() => deleteJobSeekerPost(post)}>삭제</button></div></article>)}</div> : <div className="member-empty"><BriefcaseBusiness /><strong>등록한 구직글이 없습니다</strong><p>새 구직글에서 저장된 이력서를 선택해 게시할 수 있습니다.</p></div>}</section>}
           {recordCards.length ? <div className="member-record-grid">{recordCards.map((item) => <article key={item.contentRecordId || item.id || item.title}><div><span>{role === 'hospital' ? <Building2 /> : <FileText />}</span><em className={statusClass(item.status)}>{item.status}</em></div><small>{item.plan}</small><h3>{item.title}</h3><p><CalendarDays /> {item.period}</p>{role === 'hospital' && item.remainingLabel && <strong className="member-ad-remaining"><Clock3 /> {item.remainingLabel}</strong>}<dl><div><dt>{role === 'hospital' ? '조회' : '병원 확인'}</dt><dd>{item.views}</dd></div><div><dt>{role === 'hospital' ? '문의' : '제안·상담'}</dt><dd>{item.inquiries}</dd></div></dl><a className="button outline" href={withBase(role === 'hospital' && item.contentRecordId ? `/mypage/ads/${encodeURIComponent(item.contentRecordId)}/edit` : role === 'hospital' ? '/request/hiring' : '/resume')}>{role === 'hospital' && item.contentRecordId ? '공고 내용 수정' : role === 'hospital' ? '담당자에게 문의' : '저장된 이력서 수정'} <ArrowRight /></a></article>)}</div> : <div className="member-empty member-empty-large"><FileText /><strong>{role === 'hospital' ? '등록한 공고가 없습니다' : '등록한 이력서가 없습니다'}</strong><p>{role === 'hospital' ? '첫 공고를 등록하면 게시 상태와 반응을 이곳에서 확인할 수 있습니다.' : '이력서를 먼저 만들면 구직글에 연결해 사용할 수 있습니다.'}</p>{role === 'doctor' && <a className="button primary" href={withBase(`/resume?new=1&next=${encodeURIComponent('/mypage?tab=resume')}`)}>이력서 만들기 <ArrowRight /></a>}</div>}
           <section className="member-panel" id="member-saved-jobs"><div className="member-panel-head"><div><h3>관심 공고</h3><p>하트로 저장한 공고입니다. 로그인하면 다른 기기에서도 동일하게 보입니다.</p></div><a className="button outline" href={withBase('/jobs')}>공고 더 보기 <ArrowRight /></a></div>{savedJobs.length ? <div className="member-saved-jobs">{savedJobs.map((item) => <a key={item.jobId || item.id} href={withBase(`/jobs?open=${encodeURIComponent(item.jobId || item.id)}`)}><span><Heart /></span><div><strong>{item.title || item.jobId || item.id}</strong><small>{[item.dept, item.region].filter(Boolean).join(' · ') || '저장한 공고'}</small></div><ChevronRight /></a>)}</div> : <div className="member-empty"><Heart /><strong>저장한 공고가 없습니다</strong><p>채용 공고에서 하트를 누르면 이곳에 모입니다.</p></div>}</section>
         </>}

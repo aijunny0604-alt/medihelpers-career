@@ -6363,3 +6363,20 @@ html body .app .route-stage,html body .app .route-stage.route-leaving,html body 
 .role-doctor .member-record-grid article>a{
   justify-content:center;
 }
+
+/* Contact disclosure and publication controls */
+.jobseeker-contact-private{gap:8px;padding:9px 12px;border:1px solid #efb1ad;border-radius:10px;font-size:15px;line-height:1.5;font-weight:850;white-space:normal}
+.jobseeker-contact-private svg{width:19px;height:19px;flex:none}
+.jobseeker-contact-private.is-public{background:#eaf8f2;border-color:#9fd7c6;color:#076b55}
+.ms-job-top-row{flex-wrap:wrap;gap:10px}
+.checkout-contact-notice{padding:20px;margin:20px 0;border:2px solid #e9aaa5;border-radius:14px;background:#fff6f5;color:#912d25;font-size:17px;line-height:1.7}
+.checkout-contact-notice strong{display:flex;align-items:center;gap:10px;font-size:19px}
+.checkout-contact-notice p{margin:10px 0}
+.checkout-contact-notice .consent{color:#912d25;font-weight:750}
+.job-post-lifecycle-note{background:#eff6ff;border:1px solid #c6daf7;border-radius:14px;padding:18px 22px;font-size:16px;line-height:1.65;margin:16px 0}
+.job-post-lifecycle-note .button{margin-left:18px;min-height:44px}
+.member-post-deadline{padding:12px 14px;background:#f0f6fc;border-radius:10px;font-size:16px}
+.member-post-actions{flex-wrap:wrap}
+.member-post-actions .button{min-width:140px;font-size:16px;min-height:48px}
+.member-post-privacy{font-size:16px;font-weight:800}
+@media(max-width:600px){.jobseeker-contact-private{font-size:14px;padding:8px 10px}.checkout-contact-notice{padding:15px;font-size:16px}.checkout-contact-notice strong{font-size:18px}.job-post-lifecycle-note .button{margin:12px 0 0;display:flex;width:100%}.member-post-actions .button{min-width:100%;}}

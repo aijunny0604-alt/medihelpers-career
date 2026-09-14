@@ -192,6 +192,8 @@ export const memberCenterSchemaStatements = [
     employment_type TEXT NOT NULL DEFAULT '',
     contact_visibility TEXT NOT NULL DEFAULT 'private' CHECK (contact_visibility IN ('ticket','private')),
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','closed','deleted')),
+    public_until TEXT NOT NULL DEFAULT '',
+    hidden_reason TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,

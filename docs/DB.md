@@ -1,5 +1,9 @@
 # DB
 
+## 2026-09-15 구직글 공개 관리
+
+0014는 job_seeker_posts의 public_until/hidden_reason 열과 상태·기한 인덱스를 추가한다. 백업 스키마 버전은 0014, 테이블 수는 39개를 유지한다. active/closed/deleted 상태와 inactive/manual 비공개 사유를 사용한다. 자동 전환은 updated_at을 바꾸지 않고 member_activity에 이력을 남긴다. [상세 및 검증](JOB_POST_VISIBILITY_2026-09-15.md).
+
 ## 2026-09-13 병원 서류 후속 변경
 
 병원 기본값은 `member_registration_profiles`로 분리하고 서류 삭제 후에도 공고 자동입력을 유지한다. 확인 전용 동의는 `processing_consent_events`의 `hospitalDocument` 범위(v1.2)로 저장한다. 신규 INSERT는 retention_until을 명시적으로 제출 후 30일로 지정하며 기존 긴 보관기간도 단축한다. 과거 마이그레이션의 3년 DEFAULT는 호환 이력이며 현재 보관정책이 아니다. 확인·만료 후 R2 원본과 hospital_verification_requests 행을 지우고 최소 확인 결과만 가입 프로필에 남긴다. 테이블 추가 없이 0013/39개 구조를 유지한다. [상세](HOSPITAL_DOCUMENT_CONSENT_2026-09-13.md).

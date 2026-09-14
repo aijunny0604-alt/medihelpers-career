@@ -17,7 +17,7 @@ for (const column of ['created_at', 'unlocked_at']) {
       async first() { return db.prepare(sql).get() || null; },
       async run() { return db.prepare(sql).run(); }
     }; } } };
-    const ensure = new Function('ensureSchemaGroup', 'schemaReadyPromises', 'memberCenterSchemaStatements', code + ';return ensureMemberCenterSchema;')(async()=>{}, new Map(), []);
+    const ensure = new Function('ensureSchemaGroup', 'schemaReadyPromises', 'memberCenterSchemaStatements', 'expireJobPosts', code + ';return ensureMemberCenterSchema;')(async()=>{}, new Map(), [], async()=>{});
     await Promise.all([ensure(env), ensure(env)]);
     await ensure(env);
     assert.equal(db.prepare('SELECT unlocked_at FROM talent_unlocks').get().unlocked_at, '2026-08-01 10:30:00');

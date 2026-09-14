@@ -2013,6 +2013,7 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
         <div className="talent-grid talent-portal-list">
           {visibleTalent.map((person) => (
             <article className="talent-card" key={person.code}>
+              <span className={`jobseeker-contact-private ${person.contactVisibility === 'ticket' ? 'is-public' : ''}`}>{person.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 시 연락처 공개</> : <><LockKeyhole /> 연락처 비공개 · 구매 후에도 미공개</>}</span>
               <div className="talent-top">
                 <span className="avatar">
                   <UserRound />
@@ -2223,7 +2224,6 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
               {d.phone && <div><dt>연락처</dt><dd><a href={`tel:${String(d.phone).replace(/\D/g, '')}`}>{d.phone}</a></dd></div>}
               {d.email && <div><dt>이메일</dt><dd><a href={`mailto:${d.email}`}>{d.email}</a></dd></div>}
               {d.specialty && <div><dt>전문분야</dt><dd>{d.specialty}</dd></div>}
-              {(d.detail?.licenseName || d.detail?.licenseNumber) && <div><dt>면허·자격</dt><dd>{d.detail.licenseName}{d.detail.licenseNumber ? ` (${d.detail.licenseNumber})` : ''}</dd></div>}
               {d.detail?.experienceYears && <div><dt>총 경력</dt><dd>{d.detail.experienceYears}</dd></div>}
               {d.desiredRegions && <div><dt>희망 지역</dt><dd>{d.desiredRegions}</dd></div>}
               {(d.detail?.school || d.detail?.major) && <div><dt>학력</dt><dd>{[d.detail.school, d.detail.major, d.detail.graduation].filter(Boolean).join(' · ')}</dd></div>}
@@ -2622,7 +2622,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 <div className="medical-staff-job-main">
                   {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
                       실명은 서버가 권한을 검증하는 독립 상세 페이지에서만 공개된다. */}
-                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small>{person.contactVisibility === 'private' && <span className="jobseeker-contact-private"><LockKeyhole /> 전화번호 비공개</span>}</div>
+                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small><span className={`jobseeker-contact-private ${person.contactVisibility === 'ticket' ? 'is-public' : ''}`}>{person.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 시 연락처 공개</> : <><LockKeyhole /> 연락처 비공개 · 구매 후에도 미공개</>}</span></div>
                   <h3>{person.isDemo && '[예시] '}{person.postTitle || `${person.dept || '전문 인력'} · ${person.career || '경력 협의'}`}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
                 </div>
@@ -3418,6 +3418,16 @@ function Checkout({ plan, auth }) {
 }
 
 function TalentUnlockCheckout({ plan, talentId, auth }) {
+  const [contactPreview, setContactPreview] = useState({loading:Boolean(talentId)});
+  const [previewRetry, setPreviewRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setContactPreview({loading:Boolean(talentId)});
+    if (talentId) fetch(withBase(`/api/talent-detail/${encodeURIComponent(talentId)}?preview=1`), {credentials:'same-origin',cache:'no-store'})
+      .then(async response => { const data = await response.json(); if (!response.ok || !data.available) throw new Error('현재 열람 가능한 구직글인지 확인하지 못했습니다.'); if (active) setContactPreview({...data,loading:false}); })
+      .catch(error => {if (active) setContactPreview({loading:false,error:error.message});});
+    return () => {active=false;};
+  },[talentId, previewRetry]);
   const [done, setDone] = useState(false);
   const [paidInfo, setPaidInfo] = useState(null);
   const [submitError, setSubmitError] = useState('');
@@ -3442,10 +3452,10 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     try {
       const response = await fetch('/api/payment-orders', {
         method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ productId:plan.id, privacyVersion:PRIVACY_FORM_VERSION, checkoutAcknowledged:data.terms === 'agreed', paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
+        body:JSON.stringify({ productId:plan.id, privacyVersion:PRIVACY_FORM_VERSION, contactVisibilityAtCheckout:contactPreview.contactVisibility, checkoutAcknowledged:data.terms === 'agreed', paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || '결제 요청을 저장하지 못했습니다.');
+      if (!response.ok) { if (result.code === 'CONTACT_VISIBILITY_CHANGED') setPreviewRetry(v => v+1); throw new Error(result.error || '결제 요청을 저장하지 못했습니다.'); }
       const orderNumber = result.order?.orderNumber;
       createdOrder = result.order;
       rememberOrder(createdOrder);
@@ -3487,7 +3497,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     const openHref = talentId ? `/medical-staff/talents/${encodeURIComponent(talentId)}` : '/medical-staff';
     return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '방금 결제한 의료인의 이력서를 바로 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 의료인 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/medical-staff">의료인 채용으로 <ArrowRight /></Link>}<Link className="button outline" to="/medical-staff">의료인 목록</Link></div></div></section>;
   }
-  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><div className="talent-unlock-product"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}{accountProfile.loaded && (!lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email) && <div className="talent-unlock-account-note" role="alert"><span><strong>결제에 필요한 병원 회원정보가 비어 있습니다</strong><small>마이페이지에서 병원명과 연락처를 저장한 뒤 다시 이용해주세요.</small><Link to="/mypage?tab=profile">회원정보 수정 <ArrowRight size={14} /></Link></span></div>}</div><form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><div className="talent-unlock-account-note"><LockKeyhole /><span><strong>병원 회원가입 정보</strong><small>결제자 정보는 가입된 병원 계정과 자동으로 연결됩니다.</small></span></div><PrivacyNotice scope="checkout" /><label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자의 공개 범위 내에서만 이용하며, 상품·환불 조건에 동의하고 개인정보 처리 안내를 확인했습니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting || !accountProfile.loaded || !lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
+  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><div className="talent-unlock-product"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>현재는 가상 결제 테스트 중입니다</strong><span>실제 카드나 계좌에서 금액이 청구되지 않으며, 완료 즉시 테스트 열람권만 활성화됩니다.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}{accountProfile.loaded && (!lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email) && <div className="talent-unlock-account-note" role="alert"><span><strong>결제에 필요한 병원 회원정보가 비어 있습니다</strong><small>마이페이지에서 병원명과 연락처를 저장한 뒤 다시 이용해주세요.</small><Link to="/mypage?tab=profile">회원정보 수정 <ArrowRight size={14} /></Link></span></div>}</div><form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><div className="talent-unlock-account-note"><LockKeyhole /><span><strong>병원 회원가입 정보</strong><small>결제자 정보는 가입된 병원 계정과 자동으로 연결됩니다.</small></span></div><PrivacyNotice scope="checkout" />{talentId && <div className="checkout-contact-notice" role="status">{contactPreview.loading ? <strong>연락처 공개 설정 확인 중…</strong> : contactPreview.error ? <><strong>{contactPreview.error}</strong><button type="button" className="button outline" onClick={() => setPreviewRetry(v => v+1)}>다시 확인</button></> : contactPreview.contactVisibility === 'private' ? <><strong><LockKeyhole /> 연락처 비공개 이력서입니다</strong><p>{contactPreview.isDemo ? '테스트용 예시로 실제 전화번호와 이메일이 없습니다.' : '결제해도 전화번호와 이메일은 공개되지 않습니다. 경력·희망 조건·자기소개만 열람할 수 있습니다.'}</p><label className="consent"><input required type="checkbox" name="contactScope" value="agreed" /><span>연락처가 제공되지 않는 점을 확인했습니다.</span></label></> : <><strong><Eye /> 열람권 구매 병원에 연락처 공개</strong><p>작성자가 공개를 유지하는 동안 연락처를 확인할 수 있습니다.</p></>}</div>}<label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자의 공개 범위 내에서만 이용하며, 상품·환불 조건에 동의하고 개인정보 처리 안내를 확인했습니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting || contactPreview.loading || Boolean(contactPreview.error) || !accountProfile.loaded || !lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email}>{submitting ? '가상 결제 처리 중…' : '가상 결제로 열람권 활성화'} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 인재를 처음 열 때 1건만 차감되며, 같은 인재는 추가 차감 없이 다시 볼 수 있습니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
 }
 
 function TalentUnlockPage({ route, qa, auth }) {
