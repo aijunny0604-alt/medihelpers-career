@@ -2144,7 +2144,6 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
   const [unlock, setUnlock] = useState(pendingTalentAccess);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (person.isDemo) return;
     let active = true;
     const controller = new AbortController();
     setUnlock(pendingTalentAccess);
@@ -2152,7 +2151,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
       .then((result) => { if (active) setUnlock(result); });
     return () => { active = false; controller.abort(); };
   }, [person.code, person.detailId, person.isDemo, retry]);
-  const d = (!person.isDemo && unlock.unlocked ? unlock.detail : null) || {};
+  const d = (unlock.unlocked ? unlock.detail : null) || {};
   const ownerAccess = unlock.accessReason === 'owner' || Boolean(person.ownerView);
   return (
     <main className="talent-detail-page">
@@ -2164,7 +2163,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
           <span className="talent-verified"><FileText /> {person.isDemo ? "예시 구직 프로필" : "구직 프로필"}</span>
           <small>{talentDisplayName(person, canViewIdentity)} · {person.isDemo ? "가상 인물" : "이름 비공개"}</small>
           <h2>{person.postTitle || `${person.dept} · ${person.career}`}</h2>
-          <p>{person.isDemo ? '서비스 화면을 설명하기 위한 예시 프로필입니다. 상세 이력서는 비공개로 표시됩니다.' : '개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.'}</p>
+          <p>{person.isDemo ? '가상 인물의 테스트용 이력서입니다. 가상 결제 후 상세 열람 과정을 확인할 수 있습니다.' : '개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.'}</p>
           {person.contactVisibility === 'private' && <span className="talent-phone-private-alert"><LockKeyhole /> 전화번호 비공개 · 열람권 구매 후에도 미공개</span>}
         </div>
       </div>
@@ -2201,14 +2200,14 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
           </section>
         </div>
 
-        {person.isDemo ? (
+        {person.isDemo && !unlock.unlocked && !unlock.loading && !unlock.error && !unlock.unavailable ? (
           <section className="talent-demo-blind">
             <div className="talent-demo-masked" aria-hidden="true"><span /><span /><span /></div>
             <div className="talent-blind-cta">
               <span className="talent-blind-lock"><LockKeyhole aria-hidden="true" /></span>
               <h3>상세 이력서 비공개</h3>
-              <Link className="button primary" to="/talent-unlock?product=talent-unlock-single">이력서 열람권 구매 <ArrowRight /></Link>
-              <p>병원 회원 전용 · 실제 구직글에 사용하며, 이 예시 이력서는 열리지 않습니다.</p>
+              <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${encodeURIComponent(person.code)}`}>이력서 열람권 구매 <ArrowRight /></Link>
+              <p>병원 회원 전용 · 가상 결제로 이 예시 이력서를 열람합니다. 실제 청구는 없습니다.</p>
             </div>
           </section>
         ) : unlock.unlocked ? (
@@ -2217,7 +2216,8 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
               <span><BadgeCheck /></span>
               <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : unlock.accessReason === 'admin' ? '관리자 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
             </div>
-            {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 필요한 경우 메디헬퍼스 헤드헌터 상담을 이용해주세요.</p></div></div>}
+            {person.isDemo && <p className="talent-contact-protected">가상 결제로 열린 테스트 이력서입니다. 실제 구직자의 개인정보나 연락처는 포함하지 않습니다.</p>}
+            {!person.isDemo && unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 필요한 경우 메디헬퍼스 헤드헌터 상담을 이용해주세요.</p></div></div>}
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
               {d.phone && <div><dt>연락처</dt><dd><a href={`tel:${String(d.phone).replace(/\D/g, '')}`}>{d.phone}</a></dd></div>}
@@ -2269,7 +2269,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
 
         <div className="talent-detail-actions">
           <Link className="button outline" to="/medical-staff">목록 계속 보기</Link>
-          {person.isDemo || unlock.unavailable || unlock.loading ? null : unlock.error ? (
+          {unlock.unavailable || unlock.loading ? null : unlock.error ? (
             <button className="button primary" type="button" onClick={() => { setUnlock(pendingTalentAccess); setRetry((value) => value + 1); }}>다시 불러오기 <ArrowRight /></button>
           ) : ownerAccess ? (
             <Link className="button primary" to={person.jobSeekerPostId ? `/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit` : '/resume'}>내 구직글 수정 <ArrowRight /></Link>
@@ -2277,7 +2277,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
             <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
           ) : unlock.limited ? (
             <a className="button primary" href="tel:0513425463"><Phone /> 담당자 문의</a>
-          ) : auth.role === 'hospital' ? (
+          ) : !person.isDemo && auth.role === 'hospital' ? (
             <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${encodeURIComponent(person.detailId || person.code)}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
           ) : null}
         </div>
@@ -2628,7 +2628,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 </div>
                 <span className="medical-staff-career">{person.region || '전국'}</span>
                 <strong className="jobseeker-availability">{person.availability || '협의'}</strong>
-                <span className={`medical-staff-deadline js-lock ${identityOpen || person.isDemo ? 'open' : ''}`}>{person.isDemo ? '예시 · 무료 보기' : person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : alreadyUnlocked ? <><CircleCheck size={14} /> 열람 완료</> : identityOpen ? <><Eye size={14} /> 관리자 열람</> : <><LockKeyhole size={14} /> 열람권</>}</span>
+                <span className={`medical-staff-deadline js-lock ${identityOpen || person.isDemo ? 'open' : ''}`}>{person.isDemo ? (alreadyUnlocked ? '예시 · 열람 완료' : '예시 · 테스트 열람권') : person.ownerView ? <><Eye size={14} /> 내 글 · 무료</> : alreadyUnlocked ? <><CircleCheck size={14} /> 열람 완료</> : identityOpen ? <><Eye size={14} /> 관리자 열람</> : <><LockKeyhole size={14} /> 열람권</>}</span>
                 {person.ownerView && person.jobSeekerPostId
                   ? <span className="medical-staff-row-action jobseeker-owner-actions"><span className="jobseeker-owner-actions-label">내 글 관리</span><button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit`); }}><PencilLine /> 수정</button><button type="button" onClick={(event) => deleteOwnPost(event, person)}><Trash2 /> 삭제</button></span>
                   : <span className="medical-staff-row-action">{alreadyUnlocked ? '다시 보기' : '상세 보기'} <ArrowRight /></span>}

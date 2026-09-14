@@ -1,3 +1,5 @@
+import { talent } from './data.js';
+import { demoTalentDetail } from './talentDetailAccess.js';
 // 로컬 개발 전용 가상 API 목(mock).
 // 배포 빌드에는 절대 포함되지 않는다 — client.jsx에서 import.meta.env.DEV일 때만 install() 호출.
 // OpenAI Sites 서버(scripts/package-sites.mjs)가 로컬에 없어 /api/*가 404이므로,
@@ -161,6 +163,8 @@ async function handle(method, path, bodyText) {
   // 인재 상세: 부여된 열람권이 있으면 상세 공개
   if (path.startsWith('/api/talent-detail/') && method === 'GET') {
     const talentId = decodeURIComponent(path.slice('/api/talent-detail/'.length));
+    const session = read(LS.authSession, null);
+    if (session?.role !== 'hospital') return jsonRes({unlocked:false,detail:null});
     const unlocks = read(LS.unlocks, {});
     // 직접 열람권이 없으면 팩 크레딧으로 새로 연다(1개 소모).
     if (!unlocks[talentId]) {
@@ -173,13 +177,13 @@ async function handle(method, path, bodyText) {
       }
     }
     if (unlocks[talentId]) {
-      // 실제 이력서(resume-<id>)만 서버 상세를 흉내. 정적 데모(MH-...)는 detail:null로 반환해
-      // 클라이언트가 data.js의 데모 상세로 폴백하게 한다(실제 서버 동작과 동일).
+      // 로컬에서도 열람권 확인 후 예시 상세를 응답한다.
       const postId = talentId.startsWith('seeker-') ? talentId.slice('seeker-'.length) : '';
       const post = postId ? read(LS.jobSeekerPosts, {})[postId] : null;
       const resumeId = post?.resumeId || (talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '');
       const resume = resumeId ? read(LS.resumes, {})[resumeId] : null;
-      const source = resume ? { name:resume.name, phone:resume.phone, email:resume.email, specialty:resume.specialty, desiredRegions:resume.desiredRegions, detail:resume.detail || {} } : talentId.startsWith('resume-') ? mockDetailFor(talentId) : null;
+      const sample = talent.find(p => p.code === talentId);
+      const source = sample ? demoTalentDetail({...sample,isDemo:true}) : resume ? { name:resume.name, phone:resume.phone, email:resume.email, specialty:resume.specialty, desiredRegions:resume.desiredRegions, detail:resume.detail || {} } : talentId.startsWith('resume-') ? mockDetailFor(talentId) : null;
       const contactProtected = Boolean(resume && (post ? post.contactVisibility !== 'ticket' : resume.contactVisibility !== 'ticket'));
       const detail = source ? { ...source, name:contactProtected ? '' : source.name, phone:contactProtected ? '' : source.phone, email:contactProtected ? '' : source.email } : null;
       return jsonRes({ unlocked: true, contactProtected, detail });

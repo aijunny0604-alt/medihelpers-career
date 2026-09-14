@@ -78,14 +78,14 @@ await call(detailPath(ticket), 'hospital');
 record('single revisit has one grant', count('talent_unlocks'), 1);
 record('duplicate single purchase rejected', (await buy('talent-unlock-single', ticket.talentId)).status, 409);
 record('single purchase does not open other candidate', (await call(detailPath(privatePost), 'hospital')).data.unlocked, false);
-for (const talentId of ['MH-D-2048', 'seeker-missing']) {
+for (const talentId of ['MH-D-missing', 'seeker-missing']) {
   record('invalid target cannot be purchased ' + talentId, (await buy('talent-unlock-single', talentId)).status, 400);
 }
 const pack = await buy('talent-unlock-pack', '');
 record('pack approved', (await approve(pack.data.order)).data.approved, true);
 record('pack grants ten credits', one('SELECT SUM(total_credits) n FROM talent_credit_pools').n, 10);
 const before = usage();
-record('example API has no real résumé', (await call('/api/talent-detail/MH-D-2048', 'hospital')).status, 404);
+record('unknown example has no résumé', (await call('/api/talent-detail/MH-D-missing', 'hospital')).status, 404);
 record('example cannot spend a credit', usage(), before);
 const protectedDetail = await call(detailPath(privatePost), 'hospital');
 record('pack opens private-contact résumé', protectedDetail.data.unlocked, true);
@@ -99,6 +99,31 @@ record('mypage balance matches DB', (await call('/api/member-center', 'hospital'
 await call('/api/job-seeker-posts/' + privatePost.id, 'other', undefined, 'DELETE');
 record('deleted publication cannot disclose résumé', (await call(detailPath(privatePost), 'hospital')).status, 404);
 record('missing publication does not spend credit', usage(), 1);
+const sampleOrder = await buy('talent-unlock-single', 'MH-D-2048');
+record('sample targeted order', sampleOrder.status, 201);
+const beforeSampleApproval = usage();
+record('sample virtual payment', (await approve(sampleOrder.data.order)).data.testMode, true);
+record('single sample entitlement persisted', Boolean(one('SELECT id FROM talent_unlocks WHERE talent_id=?', 'MH-D-2048')), true);
+record('single sample does not spend pool', usage(), beforeSampleApproval);
+const sampleDetail = await call('/api/talent-detail/MH-D-2048', 'hospital');
+record('sample opens after payment', sampleDetail.data.unlocked, true);
+record('sample has introduction', Boolean(sampleDetail.data.detail?.detail?.introduction), true);
+record('sample has no real contact', sampleDetail.data.detail?.phone, '');
+record('sample repeat purchase rejected', (await buy('talent-unlock-single', 'MH-D-2048')).status, 409);
+const sampleBefore = usage();
+await call('/api/talent-detail/MH-D-2048', 'hospital');
+record('sample revisit no debit', usage(), sampleBefore);
+await call('/api/talent-detail/MH-D-2214', 'hospital');
+record('sample pack debit', usage(), sampleBefore + 1);
+await call('/api/talent-detail/MH-D-2214', 'hospital');
+record('sample pack repeat no debit', usage(), sampleBefore + 1);
+record('doctor cannot see paid sample', (await call('/api/talent-detail/MH-D-2048', 'doctor')).data.unlocked, false);
+const pendingSample = await buy('talent-unlock-single', 'MH-D-1982');
+env.PAYMENT_LIVE = 'true';
+record('pending sample cannot approve after live switch', (await approve(pendingSample.data.order)).status, 503);
+record('live mode rejects sample order', (await buy('talent-unlock-single', 'MH-D-1982')).status, 400);
+record('live mode disables sample detail', (await call('/api/talent-detail/MH-D-2048', 'hospital')).status, 404);
+delete env.PAYMENT_LIVE;
 record('no unexpected SQL errors', sqlErrors.filter(x => !x.includes('duplicate column name')).length, 0);
 if (sqlErrors.some(x => !x.includes('duplicate column name'))) console.error(JSON.stringify(sqlErrors));
 console.log(JSON.stringify({ checks: output.length, failed: output.filter(x => !x.pass), results: output }, null, 2));
