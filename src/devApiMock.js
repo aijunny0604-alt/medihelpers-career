@@ -175,7 +175,7 @@ async function handle(method, path, bodyText, query = '') {
     const targetPost = talentId.startsWith('seeker-') ? read(LS.jobSeekerPosts,{})[talentId.slice(7)] : null;
     const targetSample = talent.find(p => p.code === talentId);
     if (targetPost && targetPost.status !== 'active') return jsonRes({error:'비공개 구직글입니다.'},404);
-    if (new URLSearchParams(query).get('preview') === '1') return targetPost || targetSample ? jsonRes({available:true,contactVisibility:targetPost?.contactVisibility || 'private',isDemo:Boolean(targetSample)}) : jsonRes({error:'구직글을 찾을 수 없습니다.'},404);
+    if (new URLSearchParams(query).get('preview') === '1') return targetPost || targetSample ? jsonRes({available:true,contactVisibility:targetPost?.contactVisibility || targetSample?.contactVisibility || 'private',isDemo:Boolean(targetSample)}) : jsonRes({error:'구직글을 찾을 수 없습니다.'},404);
 
     const session = read(LS.authSession, null);
     if (session?.role !== 'hospital') return jsonRes({unlocked:false,detail:null});
@@ -198,7 +198,7 @@ async function handle(method, path, bodyText, query = '') {
       const resume = resumeId ? read(LS.resumes, {})[resumeId] : null;
       const sample = talent.find(p => p.code === talentId);
       const source = sample ? demoTalentDetail({...sample,isDemo:true}) : resume ? { name:resume.name, phone:resume.phone, email:resume.email, specialty:resume.specialty, desiredRegions:resume.desiredRegions, detail:resume.detail || {} } : talentId.startsWith('resume-') ? mockDetailFor(talentId) : null;
-      const contactProtected = Boolean(resume && (post ? post.contactVisibility !== 'ticket' : resume.contactVisibility !== 'ticket'));
+      const contactProtected = sample ? sample.contactVisibility !== 'ticket' : Boolean(resume && (post ? post.contactVisibility !== 'ticket' : resume.contactVisibility !== 'ticket'));
       const detail = source ? { ...source, name:contactProtected ? '' : source.name, phone:contactProtected ? '' : source.phone, email:contactProtected ? '' : source.email } : null;
       return jsonRes({ unlocked: true, contactProtected, detail });
     }

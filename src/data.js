@@ -1,3 +1,4 @@
+import { demoTalentScenario } from './demoTalentScenarios.js';
 export const jobs = [
   {
     id: 'samcheonpo-specialists', hospital: '삼천포제일병원', title: '각 과 전문의 의료진 초빙',
@@ -140,7 +141,7 @@ export const talent = [
   { code: 'MH-N-3021', name: '강○○', identityConsent: false, staffType: 'medical', profession: '간호사', dept: '병동 간호', career: '경력 6년', region: '서울·경기', preference: '상급종합 / 3교대 협의', available: '1개월 내', verified: true, licenseName: '간호사 면허', introduction: '상급종합병원 병동에서 6년간 근무한 간호사입니다. 3교대 근무 협의가 가능합니다.', skills: '병동 간호, 투약 관리, 환자 모니터링, EMR', careers: [{ institution: '서울○○병원', department: '내과 병동', position: '주임간호사', start: '2019-01', current: true, duties: '병동 간호 및 신규 교육' }] },
   { code: 'MH-R-3088', name: '문○○', identityConsent: false, staffType: 'medical', profession: '방사선사', dept: '영상의학', career: '경력 4년', region: '부산·경남', preference: 'CT·MRI / 주 5일', available: '즉시', verified: true, licenseName: '방사선사 면허', introduction: 'CT·MRI 촬영 경력 4년의 방사선사입니다. 주 5일 근무를 희망합니다.', skills: 'CT·MRI 촬영, 조영제 관리, 영상 QA, PACS', careers: [{ institution: '부산○○영상의학과', department: '영상의학', position: '방사선사', start: '2021-03', current: true, duties: 'CT·MRI 촬영 및 영상 관리' }] },
   { code: 'MH-P-3142', name: '양○○', identityConsent: false, staffType: 'medical', profession: '물리치료사', dept: '재활치료', career: '경력 8년', region: '경기·인천', preference: '재활병원 / 당직 없음', available: '협의', verified: true, licenseName: '물리치료사 면허', introduction: '재활병원에서 8년간 근무한 물리치료사입니다. 당직 없는 근무를 희망합니다.', skills: '도수치료, 운동치료, 신경계 재활, 통증 관리', careers: [{ institution: '○○재활병원', department: '물리치료실', position: '수석 물리치료사', start: '2017-02', current: true, duties: '도수·운동 치료 및 신규 교육' }] }
-];
+].map(person => ({...person, contactVisibility:demoTalentScenario(person.code).contactVisibility}));
 
 // 메인 광고를 먼저 보여준다(추천 상품이 앞). 설명은 '어디에 노출되는지'만 남기고 군더더기 제거.
 export const adPlans = [

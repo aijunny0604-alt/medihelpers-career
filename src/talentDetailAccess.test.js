@@ -4,13 +4,22 @@ import { demoTalentDetail, loadTalentAccess } from './talentDetailAccess.js';
 import { talent } from './data.js';
 import { operationalTalent } from './siteOperations.js';
 
-test('every bundled example exposes its existing introduction without contact data', () => {
+test('bundled examples use only approved synthetic contact fixtures', () => {
   for (const person of talent) {
     const preview = demoTalentDetail({ ...person, isDemo: true, phone: 'DO-NOT-COPY', email: 'DO-NOT-COPY', fullName: 'DO-NOT-COPY' });
     assert.equal(preview.detail.introduction, person.introduction || '');
     assert.equal(preview.specialty, person.dept);
     assert.ok(!JSON.stringify(preview).includes('DO-NOT-COPY'));
-    assert.equal(preview.name, undefined);
+    assert.equal(preview.contactVisibility, person.contactVisibility);
+    if (person.contactVisibility === 'ticket') {
+      assert.match(preview.name, /테스트/);
+      assert.equal(preview.phone, '010-0000-0000');
+      assert.match(preview.email, /@example\.invalid$/);
+    } else {
+      assert.equal(preview.name, '');
+      assert.equal(preview.phone, '');
+      assert.equal(preview.email, '');
+    }
   }
 });
 test('real published records cannot opt into the bundled preview path', () => {

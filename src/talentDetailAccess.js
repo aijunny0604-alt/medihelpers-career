@@ -1,13 +1,16 @@
 // Only static, explicitly labelled examples may use bundled résumé content.
 // Real member details always come from the server's entitlement response.
+import { demoTalentScenario } from './demoTalentScenarios.js';
 export function demoTalentDetail(person) {
   if (person?.isDemo !== true) return null;
+  const scenario = demoTalentScenario(person.code);
   return {
+    ...scenario,
     specialty: person.dept,
     desiredRegions: person.region,
     detail: {
       introduction: person.introduction || '', skills: person.skills || '',
-      licenseName: person.licenseName || '', experienceYears: person.career || '',
+      contactVisibility: scenario.contactVisibility, experienceYears: person.career || '',
       school: person.school || '', major: person.major || '', graduation: person.graduation || '',
       careers: (Array.isArray(person.careers) ? person.careers : []).filter(Boolean).map(({ institution, department, position, start, end, current, duties }) => ({ institution, department, position, start, end, current, duties })),
     },

@@ -2090,7 +2090,7 @@ async function talentDetailApi(request, env, pathname) {
   // 실제 상세를 제공할 수 있는 대상만 열람권을 소비한다.
   const availableResume = resumeId ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND account_id=? LIMIT 1").bind(resumeId, resumeMeta?.accountId || '').first() : null;
   if (!demo && (!availableResume || (!seekerPost && !isOwner && !isAdmin && !['public','proposal'].includes(resumeMeta?.visibility)))) return json({ unlocked:false, detail:null, error:'현재 열람할 수 없는 구직 정보입니다.' }, 404);
-  if (new URL(request.url).searchParams.get('preview') === '1') return json({available:true,contactVisibility:demo ? 'private' : (seekerPost ? seekerPost.contactVisibility : 'private'),isDemo:Boolean(demo)});
+  if (new URL(request.url).searchParams.get('preview') === '1') return json({available:true,contactVisibility:demo ? demo.contactVisibility : (seekerPost ? seekerPost.contactVisibility : 'private'),isDemo:Boolean(demo)});
   // === 정보 유출 방어: 병원 계정의 열람 빈도를 검사한다(관리자는 예외). ===
   // 하루 상한(기본 30명)과 10분 폭주 임계(기본 15건)를 넘으면 차단하거나 경고를 남긴다.
   const DAILY_LIMIT = Number(env.TALENT_VIEW_DAILY_LIMIT || 30);
@@ -2150,7 +2150,7 @@ async function talentDetailApi(request, env, pathname) {
   // 기본값이 private이라, 이 필터가 없으면 '구직 공개'를 선택하지 않은 의사의 연락처까지
   // 열람권만 있으면 resume-<id>로 긁어갈 수 있다(본인이 공개하지 않은 정보 유출).
   if (resumeId || demo) {
-    const r = demo ? { ...demo, name:'', phone:'', email:'', detailJson:JSON.stringify(demo.detail) } : seekerPost
+    const r = demo ? { ...demo, detailJson:JSON.stringify(demo.detail) } : seekerPost
       ? await env.DB.prepare("SELECT r.id, r.name, r.phone, r.email, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status<>'deleted' AND (p.status='active' OR p.account_id=?) AND r.id=? LIMIT 1").bind(seekerPostId,account?.id || '',resumeId).first()
       : await env.DB.prepare("SELECT id, name, phone, email, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id = ? AND (account_id = ? OR ? = 1 OR visibility IN ('public','proposal'))").bind(resumeId, account?.id || '', isAdmin ? 1 : 0).first();
     if (r) {
@@ -2413,7 +2413,7 @@ async function paymentOrderApi(request, env) {
       const hiddenLegacyPost = targetId.startsWith('resume-') && await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND status<>'active' LIMIT 1").bind(targetId.slice(7)).first();
       if (!target || hiddenLegacyPost) return json({ error:'현재 열람할 수 없는 구직 정보입니다. 인재 목록에서 다시 선택해주세요.' }, 400);
       const contactPost = targetId.startsWith('seeker-') ? await env.DB.prepare('SELECT contact_visibility AS visibility FROM job_seeker_posts WHERE id=?').bind(targetId.slice(7)).first() : null;
-      metadata.contactVisibilityAtPurchase = contactPost?.visibility === 'ticket' ? 'ticket' : 'private';
+      metadata.contactVisibilityAtPurchase = (contactPost?.visibility || testTalentDetail(env,targetId)?.contactVisibility) === 'ticket' ? 'ticket' : 'private';
       if (body.contactVisibilityAtCheckout === 'ticket' && metadata.contactVisibilityAtPurchase === 'private') return json({error:'작성자가 연락처를 비공개로 변경했습니다. 결제 안내를 다시 확인해주세요.',code:'CONTACT_VISIBILITY_CHANGED'},409);
       if (product.unlockCount === 1 && await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(account.id,targetId).first()) return json({ error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.' },409);
     }
