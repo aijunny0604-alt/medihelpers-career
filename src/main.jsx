@@ -2019,7 +2019,7 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
                   <UserRound />
                 </span>
                 <div>
-                  <small>{talentDisplayName(person, canViewIdentity)}</small>
+                  <strong className="talent-person-name">{talentDisplayName(person, canViewIdentity)}</strong>
                   <h3>
                     {person.dept} · {person.career}
                   </h3>
@@ -2162,7 +2162,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
         <span className="talent-detail-avatar"><UserRound /></span>
         <div>
           <span className="talent-verified"><FileText /> {person.isDemo ? "예시 구직 프로필" : "구직 프로필"}</span>
-          <small>{talentDisplayName(person, canViewIdentity)} · {person.isDemo ? "가상 인물" : "이름 비공개"}</small>
+          <div className="talent-person-identity"><strong className="talent-person-name">{talentDisplayName(person, canViewIdentity)}</strong><span className="talent-person-context">{person.isDemo ? "가상 인물" : "이름 비공개"}</span></div>
           <h2>{person.postTitle || `${person.dept} · ${person.career}`}</h2>
           <p>{person.isDemo ? '가상 인물의 테스트용 이력서입니다. 가상 결제 후 상세 열람 과정을 확인할 수 있습니다.' : '개인 식별정보 없이 병원이 먼저 검토할 수 있는 핵심 조건만 공개합니다.'}</p>
           {person.contactVisibility === 'private' && <span className="talent-phone-private-alert"><LockKeyhole /> 전화번호 비공개 · 열람권 구매 후에도 미공개</span>}
@@ -2622,7 +2622,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
                 <div className="medical-staff-job-main">
                   {/* [보안] 목록에서는 열람권 결제 여부와 무관하게 항상 이름을 가린다.
                       실명은 서버가 권한을 검증하는 독립 상세 페이지에서만 공개된다. */}
-                  <div className="ms-job-top-row"><small>{talentDisplayName(person, false)} · 이름 비공개</small><span className={`jobseeker-contact-private ${person.contactVisibility === 'ticket' ? 'is-public' : ''}`}>{person.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 시 연락처 공개</> : <><LockKeyhole /> 연락처 비공개 · 구매 후에도 미공개</>}</span></div>
+                  <div className="ms-job-top-row"><span className="talent-person-identity"><strong className="talent-person-name">{talentDisplayName(person, false)}</strong><span className="talent-person-context">이름 비공개</span></span><span className={`jobseeker-contact-private ${person.contactVisibility === 'ticket' ? 'is-public' : ''}`}>{person.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 시 연락처 공개</> : <><LockKeyhole /> 연락처 비공개 · 구매 후에도 미공개</>}</span></div>
                   <h3>{person.isDemo && '[예시] '}{person.postTitle || `${person.dept || '전문 인력'} · ${person.career || '경력 협의'}`}</h3>
                   <p><MapPin /> {person.region || '전국'} <i /> <BriefcaseBusiness /> {person.preference || person.type || '조건 협의'}</p>
                 </div>

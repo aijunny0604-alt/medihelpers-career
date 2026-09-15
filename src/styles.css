@@ -6382,3 +6382,11 @@ html body .app .route-stage,html body .app .route-stage.route-leaving,html body 
 @media(max-width:600px){.jobseeker-contact-private{font-size:14px;padding:8px 10px}.checkout-contact-notice{padding:15px;font-size:16px}.checkout-contact-notice strong{font-size:18px}.job-post-lifecycle-note .button{margin:12px 0 0;display:flex;width:100%}.member-post-actions .button{min-width:100%;}}
 
 .talent-demo-note{margin:0 0 20px;padding:12px 16px;border-radius:10px;background:#edf4fc;color:#536c8a;font-size:15px;line-height:1.6}
+
+/* Names have their own visual hierarchy, separate from disclosure notes. */
+.talent-person-identity{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 10px;min-width:0}
+.talent-card .talent-person-name,.medical-staff-job-main .talent-person-name{font-size:21px;font-weight:800;line-height:1.4;color:#10213f;letter-spacing:-.4px;overflow-wrap:anywhere}
+.talent-detail-hero .talent-person-name{font-size:28px;font-weight:800;line-height:1.4;color:#10213f;letter-spacing:-.5px;overflow-wrap:anywhere}
+.talent-person-context{font-size:13px;font-weight:600;line-height:1.5;color:#718198}
+.talent-detail-hero .talent-person-identity{margin:4px 0 8px}
+@media(max-width:780px){.talent-card .talent-person-name,.medical-staff-job-main .talent-person-name{font-size:19px}.talent-detail-hero .talent-person-name{font-size:24px}.talent-person-identity{gap:5px 8px}}
