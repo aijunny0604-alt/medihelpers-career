@@ -11,7 +11,9 @@
     "test": "node --test src/*.test.js",
     "test:runtime": "npm run build && node scripts/runtime-readiness-audit.mjs",
     "test:adversarial": "npm run build && node scripts/runtime-adversarial-audit.mjs",
-    "build:cf": "vite build --outDir client-build && node scripts/package-sites.mjs --target=cloudflare"
+    "build:cf": "vite build --outDir client-build && node scripts/package-sites.mjs --target=cloudflare",
+    "test:migration": "node --test scripts/migration-preflight.test.mjs",
+    "check:cf": "node scripts/cloudflare-preflight.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

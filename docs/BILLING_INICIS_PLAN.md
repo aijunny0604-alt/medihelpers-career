@@ -1,5 +1,7 @@
 # BILLING · 이니시스(INICIS) 결제 연동 계획
 
+> 2026-09-24 정정: 이 문서의 과거 구현/배포 수치와 “키만 넣으면 완료”, “기존 MID 무조건 재사용”, 특정 호스팅 약관 단정은 현재 판정이 아닙니다. [운영 전환 준비](MIGRATION_20260924.md)와 [현행 이니시스 가이드](INICIS_SETUP_GUIDE.md)를 우선합니다. 실제 PG·회원 이전·DNS 전환은 아직 미완료입니다.
+
 기준일: 2026-07-18 (작성) · 2026-07-22 (주석 추가)
 관련 문서: `BILLING.md`, `API.md`, `ARCHITECTURE.md`, `DB.md`, `INICIS_SETUP_GUIDE.md`
 

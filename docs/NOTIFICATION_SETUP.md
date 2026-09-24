@@ -14,6 +14,10 @@
 
 같은 `RESEND_API_KEY`와 `RESEND_FROM`은 회원 아이디 찾기 안내, 30분 비밀번호 재설정 링크, 회원가입 축하 메일에도 사용합니다. 계정 복구와 가입 축하 메일은 회원이 등록한 이메일로 직접 전송하고, 신규 가입 관리자 안내는 `ALERT_EMAIL_TO`로 보냅니다. 2026-08-14 운영 Sites 확인 기준 `RESEND_API_KEY`와 `RESEND_FROM`이 아직 등록되지 않았습니다.
 
+## 기존 메일 보존 — 2026-09-24
+
+현재 medihelpers.co.kr의 수신 MX는 Daum이며 SPF도 Daum을 참조한다. 발신용 DNS를 추가할 때 기존 수신 MX를 교체하지 않는다. 별도 발신 서브도메인을 우선 검토하고 DNS 전체 백업 후 해당 레코드만 적용한다.
+
 ## 가장 간단한 실제 메일 활성화 순서
 
 1. [Resend](https://resend.com)에 가입하고 **Domains**에서 `medihelpers.co.kr`을 추가합니다.
