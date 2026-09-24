@@ -1554,6 +1554,18 @@ function HomePage({ liveJobs = jobs, jobsReady = true }) {
   };
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
+    <section className="home-video-hero" aria-label="메디헬퍼스 소개">
+      <HeroMedia />
+      <div className="home-video-hero-overlay" />
+      <div className="home-video-hero-inner">
+        <span className="home-video-hero-eyebrow">MEDIHELPERS · 의사 헤드헌팅</span>
+        <h1>의사·의료인 채용,<br /><em>메디헬퍼스가 함께합니다</em></h1>
+        <p>초빙정보부터 비공개 이직상담, 전담 헤드헌팅까지. 병원과 의료진을 가장 잘 맞는 조건으로 잇습니다.</p>
+        <div className="home-video-hero-actions">
+          <Link className="button primary" to="/jobs">의사 초빙정보 보기 <ArrowRight /></Link>
+        </div>
+      </div>
+    </section>
     <section className="home-job-hub">
       <div className="home-job-hub-inner">
         <div className="home-job-hub-head"><div><span className="section-kicker">QUICK JOB FINDER</span><h2>조건으로 빠르게 찾기</h2></div><p>전체 공고 탐색과 상세 비교는 병원채용 페이지에서 이어집니다.</p></div>
@@ -1566,18 +1578,6 @@ function HomePage({ liveJobs = jobs, jobsReady = true }) {
             <button className="hero-search-button" onClick={search}>의사 초빙정보 보기 <ArrowRight /></button>
           </div>
           <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
-        </div>
-      </div>
-    </section>
-    <section className="home-video-hero" aria-label="메디헬퍼스 소개">
-      <HeroMedia />
-      <div className="home-video-hero-overlay" />
-      <div className="home-video-hero-inner">
-        <span className="home-video-hero-eyebrow">MEDIHELPERS · 의사 헤드헌팅</span>
-        <h1>의사·의료인 채용,<br /><em>메디헬퍼스가 함께합니다</em></h1>
-        <p>초빙정보부터 비공개 이직상담, 전담 헤드헌팅까지. 병원과 의료진을 가장 잘 맞는 조건으로 잇습니다.</p>
-        <div className="home-video-hero-actions">
-          <Link className="button primary" to="/jobs">의사 초빙정보 보기 <ArrowRight /></Link>
         </div>
       </div>
     </section>

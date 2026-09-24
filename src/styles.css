@@ -4540,7 +4540,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 @media(prefers-reduced-motion:reduce){.home-premium-loading-card i,.home-premium-loading-card b,.home-premium-loading-card span{animation:none}}
 
 /* Home recruitment hub: compact search hands off to the full jobs portal. */
-.home-job-hub{margin-top:76px;padding:30px max(24px,calc((100vw - 1440px)/2)) 34px;background:linear-gradient(135deg,#f6f9ff,#eff6ff 62%,#edf9f6)}
+.home-job-hub{margin-top:0;padding:30px max(24px,calc((100vw - 1440px)/2)) 34px;background:linear-gradient(135deg,#f6f9ff,#eff6ff 62%,#edf9f6)}
 .home-premium-showcase+.home-job-hub{margin-top:0}
 .home-job-hub-inner{max-width:1440px;margin:auto}
 .home-job-hub-head{display:flex;align-items:flex-end;justify-content:space-between;gap:36px;margin:0 4px 18px}
@@ -4577,7 +4577,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
   .home-premium-actions .button{padding-inline:12px;justify-content:center;font-size:12px}
   .home-premium-points{gap:6px}
   .home-premium-points span{font-size:11px;padding:7px 9px}
-  .home-job-hub{margin-top:66px;padding:24px 16px 26px}
+  .home-job-hub{margin-top:0;padding:24px 16px 26px}
   .home-premium-showcase+.home-job-hub{margin-top:0}
   .home-job-hub-head h1,.home-job-hub-head h2{font-size:27px}
   .home-job-hub-head p{font-size:14px;line-height:1.6}
