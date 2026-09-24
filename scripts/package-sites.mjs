@@ -368,7 +368,7 @@ async function ensureMemberCenterSchema(env) {
   catch (error) { schemaReadyPromises.delete('member-unlock-date-v1'); throw error; }
 }
 async function ensureCommerceSchema(env) {
-  return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events, ad_renewal_reservations LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
 }
 // 열람권 '묶음(팩)' 크레딧 풀. 병원이 팩을 사면 크레딧 N개가 적립되고,
 // 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권(talent_unlocks)을 발급한다.
@@ -424,7 +424,7 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
   catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
-const backupSchemaVersion = '0015';
+const backupSchemaVersion = '0016';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
@@ -1643,7 +1643,7 @@ async function memberCenterApi(request, env) {
     addQuery('preferences', env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id));
     addQuery('activity', env.DB.prepare("SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? AND event_type NOT IN ('inquiry_reply','inquiry_reply_sent') ORDER BY occurred_at DESC LIMIT 100").bind(account.id));
     addQuery('consultations', env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email));
-    addQuery('orders', env.DB.prepare("SELECT o.order_number AS orderNumber, o.product_id AS productId, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id));
+    addQuery('orders', env.DB.prepare("SELECT o.order_number AS orderNumber, o.product_id AS productId, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC, o.rowid DESC LIMIT 100").bind(account.id));
     if (account.role === 'doctor') {
       addQuery('resume', env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id));
       addQuery('jobSeekerPosts', env.DB.prepare(
@@ -1729,6 +1729,7 @@ async function memberCenterApi(request, env) {
         ...rest,
         exposure:normalizeExposureWindow(meta.exposure),
         contentRecordId:content?.id || '',
+        isRenewal:Boolean(meta.renewalContentId),
         adTitle:content?.title || cleanOrderValue(meta.title || meta.hospital, 180),
         adSubtitle:content?.subtitle || cleanOrderValue(meta.hospital, 180),
         adStatus:content?.status || '',
@@ -1909,7 +1910,7 @@ async function resumeApi(request, env) {
     const name = s(memberProfile?.name || body.name);
     const phone = s(memberProfile?.phone || body.phone, 40);
     const email = s(identity.email);
-    const profession = s(body.profession || registrationProfile?.professionType || memberProfile?.jobTitle);
+    const profession = s(registrationProfile?.professionType || body.profession || memberProfile?.jobTitle);
     const specialty = s(body.specialty || registrationProfile?.specialty || memberProfile?.organization);
     const desiredRegions = s(body.desiredRegions || registrationProfile?.region);
     const title = s(body.title || (name ? name + ' 이력서' : ''));
@@ -1933,6 +1934,11 @@ async function resumeApi(request, env) {
     } else if (body.createNew !== true) {
       // 기존 화면과의 호환: 별도 지시가 없으면 가장 최근 이력서를 수정한다.
       existing = await env.DB.prepare('SELECT id FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id).first();
+    }
+    if (existing) {
+      const published = await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND account_id=? AND status='active' AND (public_until IS NULL OR public_until>datetime('now')) LIMIT 1").bind(existing.id,account.id).first();
+      const missing = resumePublicationMissing({profession,specialty,desiredRegions,detail});
+      if (published && missing.length) return json({error:'공개 중인 구직글에 연결된 이력서입니다. 다음 내용을 유지하거나 구직글을 먼저 비공개로 변경해주세요: '+missing.join(', '),missingFields:missing},400);
     }
     const id = existing?.id || ('RES-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase());
     const detailJson = JSON.stringify(detail);
@@ -2484,7 +2490,7 @@ async function paymentOrderApi(request, env) {
     try {
       const linked = await env.DB.batch([
         env.DB.prepare('SELECT display_name AS name, phone, organization FROM member_profiles WHERE account_id=? LIMIT 1').bind(account.id),
-        env.DB.prepare('SELECT hospital_name AS hospitalName, representative_name AS representativeName, business_number AS businessNumber, address FROM hospital_verification_requests WHERE account_id=? AND status=? ORDER BY submitted_at DESC LIMIT 1').bind(account.id, 'approved'),
+        env.DB.prepare('SELECT hospital_name AS hospitalName, representative_name AS representativeName, business_number AS businessNumber, address FROM hospital_verification_requests WHERE account_id=? ORDER BY submitted_at DESC LIMIT 1').bind(account.id),
       ]);
       const member = linked[0]?.results?.[0] || {};
       const hospital = linked[1]?.results?.[0] || {};
@@ -2493,8 +2499,8 @@ async function paymentOrderApi(request, env) {
       metadata.phone = member.phone || '';
       metadata.email = identity.email || '';
       metadata.address ||= hospital.address || '';
-      metadata.representative ||= hospital.representativeName || '';
-      metadata.businessNumber ||= hospital.businessNumber || '';
+      metadata.representative = hospital.representativeName || '';
+      metadata.businessNumber = hospital.businessNumber || '';
       metadata.accountProfileLinked = true;
       customerName = metadata.manager;
       customerEmail = metadata.email;
@@ -2519,7 +2525,18 @@ async function paymentOrderApi(request, env) {
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_submission', '채용공고 결제를 시작했습니다.', ?)").bind(crypto.randomUUID(), account.id, (adContentRecord.title + ' · ' + orderNumber).slice(0,300))
     );
   }
-  await env.DB.batch(orderStatements);
+  if (renewalContent) orderStatements.unshift(
+    env.DB.prepare("DELETE FROM ad_renewal_reservations WHERE content_id=? AND (expires_at<=datetime('now') OR EXISTS (SELECT 1 FROM payment_orders o WHERE o.id=ad_renewal_reservations.order_id AND o.status NOT IN ('pending_review','awaiting_payment')))").bind(renewalContent.id),
+    env.DB.prepare("INSERT INTO ad_renewal_reservations(content_id,order_id,expires_at) VALUES (?,?,datetime('now','+30 minutes'))").bind(renewalContent.id,id)
+  );
+  try { await env.DB.batch(orderStatements); }
+  catch(error) {
+    if (renewalContent) {
+      const pending = await env.DB.prepare("SELECT o.order_number AS orderNumber FROM ad_renewal_reservations r JOIN payment_orders o ON o.id=r.order_id WHERE r.content_id=? AND o.account_id=? AND o.status IN ('pending_review','awaiting_payment') LIMIT 1").bind(renewalContent.id,account.id).first();
+      if(pending) return json({error:'진행 중인 재구매의 결과를 확인해주세요.',recoveryOrder:pending},409);
+    }
+    return json({error:'주문을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.'},503);
+  }
   // 이니시스 웹표준결제 파라미터(키 설정 시). 결제창은 이 값으로 호출한다.
   const inicis = await buildInicisPaymentParams(env, { orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone });
   return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'awaiting_payment', contentRecordId:adContentRecord?.id || '' }, inicis }, 201);

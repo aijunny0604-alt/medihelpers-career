@@ -26,6 +26,6 @@ export default function RenewAdButton({ ad, auth }) {
       completed();
     }catch(failure){setError(failure.message);setBusy(false);}
   }
-  if(order) return <PaymentRecoveryPanel order={order} message={error} onRecovered={completed} />;
+  if(order || (ad.isRenewal && ad.status === '결제 대기')) return <PaymentRecoveryPanel order={order || {orderNumber:ad.id}} message={error} onRecovered={completed} />;
   return <div className="renew-ad-action"><button className="button primary" type="button" disabled={busy} onClick={renew}>{busy ? '결제 처리 중…' : '재구매 · 30일 다시 노출'}</button><a href={withBase('/refund')}>환불 조건 확인</a>{error && <p role="alert" className="form-error">{error}</p>}</div>;
 }

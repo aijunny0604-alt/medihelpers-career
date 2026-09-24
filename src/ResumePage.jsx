@@ -58,7 +58,7 @@ export default function ResumePage({ auth }) {
       name: accountProfile.name || current.name,
       phone: accountProfile.phone || current.phone,
       email: accountProfile.email || current.email,
-      profession: current.profession || accountProfile.professionType,
+      profession: accountProfile.professionType || current.profession,
       specialty: current.specialty || accountProfile.specialty,
       region: current.region || accountProfile.region,
       desiredRegions: current.desiredRegions || accountProfile.region,
@@ -93,11 +93,11 @@ export default function ResumePage({ auth }) {
         setForm((current) => ({
           ...current,
           title: resume.title || '',
-          profession: resume.profession || '',
+          profession: accountProfile.professionType || resume.profession || '',
           specialty: resume.specialty || '',
-          name: resume.name || '',
-          phone: resume.phone || '',
-          email: resume.email || '',
+          name: accountProfile.name || resume.name || '',
+          phone: accountProfile.phone || resume.phone || '',
+          email: accountProfile.email || resume.email || '',
           desiredRegions: resume.desiredRegions || '',
           visibility: 'private',
           contactVisibility: 'private',
@@ -251,7 +251,7 @@ export default function ResumePage({ auth }) {
                 구직 게시판의 '의사 / 간호·의료인' 분류와 검색 필터가 어긋난다.
                 목록에 없는 직군은 '기타'를 고르고 직접 입력한다. */}
             <label><span>의료 직군 *</span>
-              <select required value={customProfession ? '기타' : PROFESSION_OPTIONS.includes(form.profession) ? form.profession : (form.profession ? '기타' : '')}
+              <select required disabled={Boolean(accountProfile.professionType)} value={customProfession ? '기타' : PROFESSION_OPTIONS.includes(form.profession) ? form.profession : (form.profession ? '기타' : '')}
                 onChange={(e) => { setCustomProfession(e.target.value === '기타'); update('profession', e.target.value === '기타' ? '' : e.target.value); }}>
                 <option value="">직군을 선택해주세요</option>
                 {PROFESSION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -259,7 +259,7 @@ export default function ResumePage({ auth }) {
               </select>
             </label>
             {(customProfession || (form.profession && !PROFESSION_OPTIONS.includes(form.profession))) && (
-              <label><span>직군 직접 입력 *</span><input required value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 응급구조사, 영양사" /></label>
+              <label><span>직군 직접 입력 *</span><input required readOnly={Boolean(accountProfile.professionType)} value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 응급구조사, 영양사" /></label>
             )}
             <label><span>전문분야·주요 업무</span><input value={form.specialty} onChange={(e) => update('specialty', e.target.value)} placeholder="예: 병동 간호, 소화기내과, MRI" /></label>
             <label><span>이름 *</span><input required readOnly value={accountProfile.name || form.name} onChange={(e) => update('name', e.target.value)} placeholder="홍길동" /></label>

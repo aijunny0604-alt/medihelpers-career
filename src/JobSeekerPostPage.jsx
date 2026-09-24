@@ -123,7 +123,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || '구직글을 삭제하지 못했습니다.');
       invalidateSiteOperations();
-      go(`/medical-staff/talents/seeker-${encodeURIComponent(data.post.id)}`);
+      go('/medical-staff');
     } catch (error) { setFailed(true); setMessage(error.message); setBusy(false); }
   };
 

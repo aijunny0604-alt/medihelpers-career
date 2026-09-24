@@ -2135,6 +2135,26 @@ const talentProfileGuide = {
   },
 };
 
+function OwnedAdDetail({ contentId, auth, qa }) {
+  const [job,setJob]=useState(null),[failed,setFailed]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    fetch(withBase('/api/member-center'),{credentials:'same-origin'}).then(async response=>{
+      if(!response.ok)throw Error();
+      const data=await response.json();
+      const order=(data.orders || []).find(item=>item.contentRecordId===contentId && item.adPayload);
+      if(!order)throw Error();
+      const mapped=operationalDoctorJobs([{id:contentId,title:order.adTitle,subtitle:order.adSubtitle,contentType:order.adContentType,payload:order.adPayload}],{includeExpired:true})[0];
+      if(!mapped)throw Error();
+      if(active)setJob(mapped);
+    }).catch(()=>{if(active)setFailed(true);});
+    return()=>{active=false;};
+  },[contentId,auth.email]);
+  if(failed)return <NotFoundPage />;
+  if(!job)return <section className="section" role="status">내 공고를 불러오고 있습니다.</section>;
+  return <><section className="section" role="status"><strong>작성자 확인 화면 · 현재 외부 목록에 노출되지 않는 공고입니다.</strong><p>내용 확인과 수정은 가능하며, 노출 연장은 마이페이지에서 관리해주세요.</p></section><JobDetailRoute job={job} qa={qa} auth={auth} /></>;
+}
+
 function OwnedTalentDetail({ talentId, auth }) {
   const [person,setPerson]=useState(null),[failed,setFailed]=useState(false);
   useEffect(()=>{
@@ -2239,7 +2259,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
               <div><small>{ownerAccess ? 'MY POST · 작성자 무료 열람' : unlock.accessReason === 'admin' ? '관리자 열람' : 'UNLOCKED · 열람권 확인'}</small><h3>{ownerAccess ? '내 구직글 상세' : unlock.contactProtected ? '이력서 상세' : '연락처·이력서 상세'}</h3></div>
             </div>
             {person.isDemo && <p className="talent-demo-note">운영 테스트용 가상 인물입니다. 표시된 연락처는 발신·전송되지 않는 테스트 정보입니다.</p>}
-            {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 필요한 경우 메디헬퍼스 헤드헌터 상담을 이용해주세요.</p></div></div>}
+            {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 연락처 공개 여부는 작성자가 직접 관리합니다.</p></div></div>}
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
               {d.phone && <div><dt>연락처</dt><dd><>{person.isDemo ? <span>{d.phone} <small>테스트 번호</small></span> : <span>{d.phone}</span>}</></dd></div>}
@@ -3688,7 +3708,7 @@ export function App() {
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
     const job = liveJobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
-    page = job ? <JobDetailRoute job={job} qa={qa} auth={auth} /> : <NotFoundPage />;
+    page = !operations.ready || auth.status === 'loading' ? <section className="section" role="status">공고를 불러오고 있습니다.</section> : job ? <JobDetailRoute job={job} qa={qa} auth={auth} /> : auth.role === 'hospital' && path.startsWith('/jobs/admin-') ? <OwnedAdDetail key={`${path}:${auth.email}`} contentId={decodeURIComponent(path.slice('/jobs/admin-'.length))} auth={auth} qa={qa} /> : <NotFoundPage />;
   }
   // /professions·/talent 별칭은 상단 ROUTE_ALIASES에서 동기 정규화되므로 여기 분기는 불필요(도달 불가).
   else if (path === '/headhunting') page = <AuthGate auth={auth} title="맞춤 헤드헌팅은 회원 전용입니다" description="메디헬퍼스 회원만 비공개 초빙정보와 상담 내용을 확인할 수 있습니다."><HeadhuntingPage route={route} operations={operations} liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} /></AuthGate>;

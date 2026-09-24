@@ -35,7 +35,7 @@ test('premium cards use the expanded responsive grid rotation component', () => 
 
 test('home and jobs cards open a shareable full-page JobDetail route', () => {
   assert.match(mainSource, /navigate\(`\/jobs\/\$\{encodeURIComponent\(job\.id\)\}`\)/);
-  assert.match(mainSource, /page = job \? <JobDetailRoute job=\{job\} qa=\{qa\} auth=\{auth\} \/>/);
+  assert.match(mainSource, /job \? <JobDetailRoute job=\{job\} qa=\{qa\} auth=\{auth\} \/>/);
   assert.doesNotMatch(mainSource, /setSelectedJob\(job\)/);
 });
 

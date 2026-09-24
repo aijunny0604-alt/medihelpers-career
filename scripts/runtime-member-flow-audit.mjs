@@ -52,6 +52,8 @@ const saved=await call('/api/resumes','owner',resumeInput),saved2=await call('/a
 record('new resume added',saved2.status,201);record('two distinct IDs',saved.data.id!==saved2.data.id,true);
 const resumes=(await call('/api/resumes','owner')).data.resumes;
 record('resume uses signup name',resumes[0].name,signup.displayName);record('resume uses signup email',resumes[0].email,signup.email);record('resume uses signup phone',resumes[0].phone,'010-0000-0000');
+const spoofProfession=await call('/api/resumes','owner',{...resumeInput,profession:'의사'});
+record('signup profession cannot be forged',one('SELECT profession FROM resumes WHERE id=?',spoofProfession.data.id).profession,'한의사');
 const weak=await call('/api/resumes','owner',{...resumeInput,title:'미완성 초안',detail:{introduction:''}});
 record('draft may be saved',weak.status,201);
 const postInput={...consent,publicationAcknowledged:true,resumeId:saved.data.id,title:'첫 구직글',contactVisibility:'private'};
@@ -64,10 +66,11 @@ await call('/api/job-seeker-posts/'+first.data.post.id,'owner',{...postInput,tit
 const published=(await call('/api/site-operations')).data.contents.filter(item=>item.id.startsWith('seeker-'));
 record('edit does not bump order',published[0]?.id,'seeker-'+second.data.post.id);
 record('original publication date unchanged',one('SELECT created_at d FROM job_seeker_posts WHERE id=?',first.data.post.id).d,'2026-01-01 00:00:00');
-const orderInput={...consent,checkoutAcknowledged:true,productId:'basic',metadata:{hospital:'위조 병원',title:'재노출 테스트',department:'한의사',address:'서울',banner:'/banners/templates/medical-blue-v1.jpg'}};
+const orderInput={...consent,checkoutAcknowledged:true,productId:'basic',metadata:{hospital:'위조 병원',title:'재노출 테스트',department:'한의사',address:'서울',banner:'/banners/templates/medical-blue-v1.jpg',representative:'위조 대표자',businessNumber:'1234567890'}};
 const order=(await call('/api/payment-orders','hospital',orderInput)).data.order;
 await call('/api/payment-approve','hospital',{orderNumber:order.orderNumber});
 record('registered hospital used',one('SELECT subtitle s FROM admin_content_records WHERE id=?',order.contentRecordId).s,'메디헬퍼스 테스트병원');
+record('business identity cannot be forged',JSON.parse(one('SELECT metadata_json m FROM payment_orders WHERE id=?',order.id).m).businessNumber,'');
 const renewal={...consent,checkoutAcknowledged:true,productId:'basic',renewContentId:order.contentRecordId};
 record('active ad cannot renew',(await call('/api/payment-orders','hospital',renewal)).status,409);
 record('non-owner cannot renew',(await call('/api/payment-orders','owner',renewal)).status,403);
@@ -97,6 +100,21 @@ const packRefund=await refundOrder(pack);
 record('virtual ticket refund',(await call('/api/admin-refund-review','admin',{refundId:packRefund,decision:'approve'})).data.refunded,true);
 record('ticket access revoked',(await call('/api/talent-detail/seeker-'+first.data.post.id,'hospital')).data.unlocked,false);
 record('remaining credits revoked',one('SELECT SUM(total_credits-used_credits) n FROM talent_credit_pools WHERE order_id=?',pack.id).n,0);
+// Audit regressions: published content remains meaningful and concurrent renewal is unique.
+const hollow=await call('/api/resumes','owner',{...resumeInput,createNew:false,resumeId:saved.data.id,detail:{introduction:''}});
+record('published resume cannot be emptied',hollow.status,400);
+await call('/api/resumes','owner',{...resumeInput,createNew:false,resumeId:saved.data.id});
+sqlite.prepare("UPDATE admin_content_records SET payload_json=json_set(payload_json,'$.exposure',NULL,'$.exposureEnd','2000-01-01') WHERE id=?").run(order.contentRecordId);
+const originalFirst=Statement.prototype.first;let pendingReaders=0,releasePending;const pendingGate=new Promise(resolve=>{releasePending=resolve;});
+Statement.prototype.first=async function(column){const result=await originalFirst.call(this,column);if(this.sql.includes("status IN ('pending_review','awaiting_payment')") && this.sql.includes('renewalContentId')){if(++pendingReaders===2)releasePending();await pendingGate;}return result;};
+const simultaneous=await Promise.all([call('/api/payment-orders','hospital',renewal),call('/api/payment-orders','hospital',renewal)]);
+Statement.prototype.first=originalFirst;
+record('one concurrent renewal succeeds',simultaneous.filter(r=>r.status===201).length,1);
+record('second concurrent renewal recovers same order',simultaneous.filter(r=>r.status===409 && r.data.recoveryOrder?.orderNumber).length,1);
+const latestOrder=simultaneous.find(r=>r.status===201).data.order;
+const centerOrders=(await call('/api/member-center','hospital')).data.orders;
+record('newest same-second renewal appears first',centerOrders.find(r=>r.contentRecordId===order.contentRecordId).orderNumber,latestOrder.orderNumber);
+record('pending renewal identifiable for recovery',centerOrders.find(r=>r.orderNumber===latestOrder.orderNumber).isRenewal,true);
 const newPassword='Changed-flow-2026!';
 record('wrong current password denied',(await call('/api/auth/change-password','owner',{currentPassword:'wrong',password:newPassword})).status,400);
 record('valid password change',(await call('/api/auth/change-password','owner',{currentPassword:signup.password,password:newPassword})).data.changed,true);
@@ -105,3 +123,14 @@ record('old password no longer logs in',(await call('/api/auth/login','',{email:
 record('new password logs in',(await call('/api/auth/login','',{email:signup.email,password:newPassword})).status,200);
 console.log(JSON.stringify({checks:output.length,failed:output.filter(item=>!item.pass),results:output},null,2));
 if(output.some(item=>!item.pass))process.exitCode=1;
+
+if(process.argv.includes('--serve') && !process.exitCode) {
+ const {createServer}=await import('node:http');
+ createServer(async(req,res)=>{
+  try {
+   const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);
+   const response=await worker.fetch(new Request('http://127.0.0.1:5195'+req.url,{method:req.method,headers:req.headers,...(body.length?{body}:{})}),env,{});
+   res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
+  }catch{res.writeHead(500);res.end('Local fixture error');}
+ }).listen(5195,'127.0.0.1',()=>console.log(JSON.stringify({preview:'http://127.0.0.1:5195/jobs/admin-'+order.contentRecordId})));
+}

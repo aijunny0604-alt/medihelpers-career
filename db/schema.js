@@ -235,6 +235,7 @@ export const memberCenterSchemaStatements = [
 ];
 
 export const commerceSchemaStatements = [
+  `CREATE TABLE IF NOT EXISTS ad_renewal_reservations (content_id TEXT PRIMARY KEY, order_id TEXT NOT NULL, expires_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS account_admin_profiles (
     account_id TEXT PRIMARY KEY,
     email TEXT NOT NULL DEFAULT '',

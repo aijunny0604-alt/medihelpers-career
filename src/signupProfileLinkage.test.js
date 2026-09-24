@@ -30,13 +30,13 @@ test('병원 공고 등록은 가입·제출 정보를 폼과 서버 양쪽에�
   assert.match(server, /metadata\.hospital = hospital\.hospitalName/);
 });
 
-test('의료인 이력서는 가입 정보로 빈 칸을 채우고 저장된 이력서를 우선한다', () => {
+test('의료인 이력서는 가입 직군을 유지하고 이력서 내용을 불러온다', () => {
   assert.match(resume, /export default function ResumePage\(\{ auth \}\)/);
   assert.match(resume, /name: accountProfile\.name \|\| current\.name/);
-  assert.match(resume, /profession: current\.profession \|\| accountProfile\.professionType/);
+  assert.match(resume, /profession: accountProfile\.professionType \|\| current\.profession/);
   assert.match(resume, /specialty: current\.specialty \|\| accountProfile\.specialty/);
   assert.match(resume, /desiredRegions: current\.desiredRegions \|\| accountProfile\.region/);
-  assert.match(server, /const profession = s\(body\.profession \|\| registrationProfile\?\.professionType/);
+  assert.match(server, /const profession = s\(registrationProfile\?\.professionType \|\| body\.profession/);
 });
 
 test('구직글은 전용 페이지에서 본인 이력서를 선택해 연결한다', () => {
