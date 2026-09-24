@@ -6,7 +6,7 @@ export function useAccountProfile(auth) {
   const hospitalProfile = auth?.hospitalProfile || {};
   return {
     loaded: auth?.status !== 'loading',
-    name: profile.name || auth?.identity?.displayName || '',
+    name: profile.name || profile.displayName || auth?.identity?.displayName || '',
     phone: profile.phone || '',
     email: auth?.email || auth?.identity?.email || '',
     organization: profile.organization || '',

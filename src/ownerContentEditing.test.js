@@ -48,7 +48,7 @@ test('ad image replacement supports select, drag-and-drop, and clipboard paste',
 
 test('medical professional keeps the existing owner-edit route through the saved resume', () => {
   assert.match(memberCenterSource, /저장된 이력서 수정/);
-  assert.match(memberCenterSource, /role === 'hospital' \? '\/request\/hiring' : '\/resume'/);
+  assert.match(memberCenterSource, /resume\?id=\$\{encodeURIComponent\(item\.id\)\}/);
 });
 
 test('hospital job conditions use only four practical inputs while preserving legacy data', () => {

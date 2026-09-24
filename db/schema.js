@@ -201,7 +201,7 @@ export const memberCenterSchemaStatements = [
   )`,
   `CREATE INDEX IF NOT EXISTS job_seeker_posts_account_idx ON job_seeker_posts(account_id, status, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS job_seeker_posts_public_idx ON job_seeker_posts(status, updated_at DESC)`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS job_seeker_posts_active_resume_idx ON job_seeker_posts(account_id, resume_id) WHERE status = 'active'`,
+  `CREATE INDEX IF NOT EXISTS job_seeker_posts_resume_lookup_idx ON job_seeker_posts(account_id, resume_id)`,
   // 기존 visibility=public 이력서는 운영 중인 구직글이 끊기지 않도록 1회 연결 원장으로 이관한다.
   `INSERT OR IGNORE INTO job_seeker_posts (
     id, account_id, resume_id, title, summary, specialty, desired_region,

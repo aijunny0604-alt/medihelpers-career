@@ -709,7 +709,7 @@ function AccountCard({ account, identity = {} }) {
   return <section className="signup-card account-complete">
     <span className="account-check"><CircleCheck /></span>
     <small>WELCOME TO MEDIHELPERS</small>
-    <h2>가입이 완료되었습니다</h2>
+    <h2>내 계정</h2>
     <p>{identity.displayName || identity.email || '회원'}님, 필요한 기능을 사용할 때만 추가 정보를 요청하겠습니다.</p>
     <dl><div><dt>회원 유형</dt><dd>{accountRoleLabel(account.role)}</dd></div><div><dt>가입 상태</dt><dd>기본 회원</dd></div><div><dt>마케팅 수신</dt><dd>미동의</dd></div></dl>
     <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><button className="button outline" type="button" onClick={signOut}>로그아웃</button></div>
@@ -869,9 +869,13 @@ export default function AccountPage({ memberType = '', loginOnly = false, auth }
     });
     return undefined;
   }, [auth]);
+  useEffect(() => {
+    if (loginOnly && !state.loading && state.account) window.location.replace(withBase(resolveLoginDestination({search:window.location.search,referrer:document.referrer,origin:window.location.origin,role:state.isAdmin ? 'admin' : state.account.role})));
+  },[loginOnly,state.loading,state.account?.role,state.isAdmin]);
   let content;
   if (state.loading) content = <section className="signup-card signup-loading" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /><strong>안전한 가입 상태를 확인하고 있습니다</strong></section>;
   else if (state.account && memberType) content = <SignedInSignupRouteNotice account={state.account} requestedRole={memberType} />;
+  else if (state.account && loginOnly) content = <section className="signup-card signup-loading" role="status"><LoaderCircle className="spin" /><strong>로그인되었습니다. 이동 중입니다.</strong></section>;
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;
   else if (loginOnly) content = <LoginCard testAccountsEnabled={state.testAccountsEnabled !== false} />;
   else if (!memberType) content = <MemberTypeChooser />;

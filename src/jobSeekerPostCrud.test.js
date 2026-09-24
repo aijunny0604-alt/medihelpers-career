@@ -15,7 +15,7 @@ const [server, schema, main, editor, member, hospitalEditor, styles] = await Pro
 test('구직글은 이력서와 분리된 원장에 연결하고 삭제 이력을 보존한다', () => {
   assert.match(schema, /CREATE TABLE IF NOT EXISTS job_seeker_posts/);
   assert.match(schema, /FOREIGN KEY \(resume_id\) REFERENCES resumes\(id\)/);
-  assert.match(schema, /WHERE status = 'active'/);
+  assert.match(schema, /job_seeker_posts_resume_lookup_idx/);
   assert.match(server, /UPDATE job_seeker_posts SET status='deleted'/);
   assert.match(server, /p\.status='active'/);
 });
@@ -45,11 +45,11 @@ test('구직글의 이력서 관리 버튼은 페이지 이동 없이 선택 모
   assert.doesNotMatch(editor, /className="button outline">이력서 관리<\/a>/);
 });
 
-test('이미 구직글이 연결된 이력서는 중복 등록 대신 기존 글 수정으로 안내한다', () => {
-  assert.match(editor, /existingPosts/);
-  assert.match(editor, /구직글 등록됨/);
-  assert.match(editor, /이 이력서에는 이미 구직글이 등록되어 있습니다/);
-  assert.match(editor, /기존 구직글 수정/);
+test('새 구직글은 기존 글과 독립적으로 등록하고 선택 이력서를 수정할 수 있다', () => {
+  assert.match(editor, /구직글 등록하기/);
+  assert.match(editor, /선택한 이력서 수정/);
+  assert.match(editor, /새 이력서 작성/);
+  assert.doesNotMatch(editor, /기존 구직글 수정/);
 });
 
 test('작성자는 게시판과 마이페이지에서 구직글을 수정·삭제한다', () => {

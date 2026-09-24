@@ -26,6 +26,7 @@ const steps = [
 export default function ResumePage({ auth }) {
   const createNew = (() => { try { return new URLSearchParams(window.location.search).get('new') === '1'; } catch { return false; } })();
   const nextPath = (() => { try { const next = new URLSearchParams(window.location.search).get('next') || ''; return next.startsWith('/') && !next.startsWith('//') ? next : ''; } catch { return ''; } })();
+  const requestedResumeId = new URLSearchParams(window.location.search).get('id') || '';
   const accountProfile = useAccountProfile(auth);
   const [step, setStep] = useState(0);
   const [completed, setCompleted] = useState(false);
@@ -54,9 +55,9 @@ export default function ResumePage({ auth }) {
     if (!accountProfile.loaded) return;
     setForm((current) => ({
       ...current,
-      name: current.name || accountProfile.name,
-      phone: current.phone || accountProfile.phone,
-      email: current.email || accountProfile.email,
+      name: accountProfile.name || current.name,
+      phone: accountProfile.phone || current.phone,
+      email: accountProfile.email || current.email,
       profession: current.profession || accountProfile.professionType,
       specialty: current.specialty || accountProfile.specialty,
       region: current.region || accountProfile.region,
@@ -84,7 +85,8 @@ export default function ResumePage({ auth }) {
       })
       .then((result) => {
         if (!active) return;
-        const resume = result?.resume || result?.resumes?.[0];
+        const resume = requestedResumeId ? result?.resumes?.find(item => item.id === requestedResumeId) : result?.resume || result?.resumes?.[0];
+        if (requestedResumeId && !resume) throw new Error('선택한 이력서를 찾을 수 없습니다.');
         if (!resume) return;
         const detail = resume.detail && typeof resume.detail === 'object' ? resume.detail : {};
         setSavedResumeId(resume.id || '');
@@ -145,7 +147,7 @@ export default function ResumePage({ auth }) {
       window.requestAnimationFrame(() => {
         const box = document.querySelector('input[type="checkbox"][name="consent"], .resume-consent input[type="checkbox"], input[type="checkbox"]');
         if (box) {
-          box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          box.scrollIntoView({ behavior: 'auto', block: 'center' });
           try { box.focus({ preventScroll: true }); } catch { box.focus(); }
         }
       });
@@ -198,7 +200,7 @@ export default function ResumePage({ auth }) {
         }
         setSubmitting(false);
         window.requestAnimationFrame(() => {
-          document.querySelector('.form-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          document.querySelector('.form-error')?.scrollIntoView({ behavior: 'auto', block: 'center' });
         });
         return;
       }
@@ -260,9 +262,9 @@ export default function ResumePage({ auth }) {
               <label><span>직군 직접 입력 *</span><input required value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 응급구조사, 영양사" /></label>
             )}
             <label><span>전문분야·주요 업무</span><input value={form.specialty} onChange={(e) => update('specialty', e.target.value)} placeholder="예: 병동 간호, 소화기내과, MRI" /></label>
-            <label><span>이름 *</span><input required value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="홍길동" /></label>
-            <label><span>휴대폰 *</span><input required type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="010-0000-0000" /></label>
-            <label><span>이메일 *</span><input required type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="me@example.com" /></label>
+            <label><span>이름 *</span><input required readOnly value={accountProfile.name || form.name} onChange={(e) => update('name', e.target.value)} placeholder="홍길동" /></label>
+            <label><span>휴대폰 *</span><input required type="tel" readOnly value={accountProfile.phone || form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="010-0000-0000" /></label>
+            <label><span>이메일 *</span><input required type="email" readOnly value={accountProfile.email || form.email} onChange={(e) => update('email', e.target.value)} placeholder="me@example.com" /></label>
             <label><span>현재 거주지역</span><input value={form.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산광역시" /></label>
           </div>
           <div className="resume-safe-note"><ShieldCheck /> 이름·연락처는 이력서에 안전하게 저장되며 게시판에 자동 노출되지 않습니다.</div>
@@ -277,7 +279,7 @@ export default function ResumePage({ auth }) {
           <PrivacyNotice scope="resume" />
           <label className="resume-consent"><input type="checkbox" required checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>[필수] 위 이력서 개인정보 수집·이용에 동의합니다.</span></label>
         </div>}
-        <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button key="next-step" type="button" className="button primary" onClick={(event) => { event.preventDefault(); if (event.currentTarget.form.reportValidity()) setStep((current) => Math.min(steps.length - 1, current + 1)); }}>다음 단계 <ChevronRight /></button> : <button key="save-resume" type="submit" className="button primary" disabled={submitting}>{submitting ? '등록 중…' : '이력서 등록하기'} <ArrowRight /></button>}</div>
+        <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button key="next-step" type="button" className="button primary" onClick={(event) => { event.preventDefault(); if (event.currentTarget.form.reportValidity()) setStep((current) => Math.min(steps.length - 1, current + 1)); }}>다음 단계 <ChevronRight /></button> : <button key="save-resume" type="submit" className="button primary" disabled={submitting}>{submitting ? '등록 중…' : savedResumeId ? '이력서 수정 저장' : '이력서 등록하기'} <ArrowRight /></button>}</div>
         {submitError && <p className="form-error" role="alert">
           {submitError}
           {needsLogin && <> <a className="button primary" href={withBase(`/login?next=${encodeURIComponent('/resume')}`)} style={{ marginLeft: 8 }}>로그인하러 가기</a></>}

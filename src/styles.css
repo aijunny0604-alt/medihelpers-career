@@ -6390,3 +6390,44 @@ html body .app .route-stage,html body .app .route-stage.route-leaving,html body 
 .talent-person-context{font-size:13px;font-weight:600;line-height:1.5;color:#718198}
 .talent-detail-hero .talent-person-identity{margin:4px 0 8px}
 @media(max-width:780px){.talent-card .talent-person-name,.medical-staff-job-main .talent-person-name{font-size:19px}.talent-detail-hero .talent-person-name{font-size:24px}.talent-person-identity{gap:5px 8px}}
+
+/* Member workspace: readable controls and explicit action hierarchy. */
+.member-center-shell {max-width:1680px;width:calc(100% - 64px);grid-template-columns:320px minmax(0,1fr);gap:32px}
+.member-side nav button {min-height:60px;font-size:18px;gap:14px}
+.member-mini-profile strong {font-size:21px;line-height:1.5}
+.member-mini-profile small,.member-center small {font-size:14px;line-height:1.6}
+.member-center p,.member-center label,.member-center input {font-size:17px;line-height:1.7}
+.member-panel h3,.member-record-grid h3 {font-size:23px}
+.member-record-grid em.good {background:#dff5ec;color:#08764e;border:1px solid #83d4b2;font-size:16px;font-weight:800;padding:9px 15px;border-radius:10px}
+.member-record-grid em.ended {background:#e7eaf0;color:#46546b;border:1px solid #bfc8d7;font-size:16px;font-weight:800;padding:9px 15px;border-radius:10px}
+.member-record-grid article:has(em.ended) {background:#f0f3f7;border-color:#c6ceda}
+input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
+.job-seeker-editor-actions,.resume-step-actions {display:flex;justify-content:space-between;gap:16px;padding:24px 0;align-items:center}
+.job-seeker-editor-actions>div {display:flex;gap:12px}
+.resume-manager-dialog footer {display:flex;gap:12px;flex-wrap:wrap}
+.action-confirm-dialog {border:1px solid #d8e3f3;border-radius:24px;padding:32px;width:min(480px,calc(100% - 32px));color:#10213f;box-shadow:0 24px 90px #10213f33}
+.action-confirm-dialog::backdrop {background:#10213f70}
+.action-confirm-dialog h2 {font-size:26px;margin:0 0 16px}
+.action-confirm-dialog p {font-size:18px;line-height:1.7;margin-bottom:28px}
+.action-confirm-buttons {display:flex;justify-content:flex-end;gap:12px}
+.password-change-form {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:24px}
+.password-change-form label {display:grid;gap:8px;font-weight:700}
+.password-change-form input {width:100%;min-width:0;border:1px solid #ccdbee;border-radius:12px;padding:15px}
+.password-change-form .form-error {grid-column:1/-1}
+.password-change-form button {justify-self:start}
+.recovery-page {font-size:18px}
+.recovery-page label,.recovery-page input,.recovery-page p {font-size:18px;line-height:1.7}
+.home-job-hub {padding-top:36px;padding-bottom:36px}
+@media(max-width:1080px){.member-center-shell{width:calc(100% - 32px);grid-template-columns:1fr;gap:20px}.member-side nav{grid-template-columns:repeat(3,minmax(0,1fr))}.password-change-form{grid-template-columns:1fr}.member-side nav button{font-size:16px}}
+@media(max-width:720px){.member-center-shell{grid-template-columns:1fr}.member-side nav{display:grid;min-width:0;grid-template-columns:repeat(2,minmax(0,1fr))}.member-side nav button{width:100%;min-width:0;padding:0 6px;gap:8px;white-space:normal}.job-seeker-editor-actions{flex-wrap:wrap}.job-seeker-editor-actions>div{flex-wrap:wrap}.action-confirm-dialog{padding:24px}.member-center p{font-size:16px}}
+
+.renew-ad-action {display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:16px}
+.renew-ad-action>a {font-size:14px;color:#41658d;text-decoration:underline}
+.refund-review-actions {display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.action-confirm-buttons .button {font-size:17px;min-height:52px}
+.signup-welcome-page .signup-confetti {display:none}
+.signup-welcome-card {box-shadow:0 20px 70px #10213f12;border:1px solid #dbe5f0}
+.signup-welcome-mark {animation:none!important}
+.hospital-photo-gallery img {aspect-ratio:8/5;object-fit:contain;background:#eff4f8}
+.recovery-shell {max-width:1420px;width:calc(100% - 48px)}
+@media(max-width:720px){.recovery-shell {width:calc(100% - 24px)}.renew-ad-action .button{width:100%}}

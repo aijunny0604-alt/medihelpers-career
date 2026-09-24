@@ -28,10 +28,10 @@ test('의료인 이력서 관리 동선은 저장된 서버 이력서를 불러�
     readFile(new URL('./ResumePage.jsx', import.meta.url), 'utf8')
   ]);
 
-  assert.match(memberCenter, /role === 'hospital' \? '\/request\/hiring' : '\/resume'/);
+  assert.match(memberCenter, /resume\?id=\$\{encodeURIComponent\(item\.id\)\}/);
   assert.match(memberCenter, /저장된 이력서 수정/);
   assert.match(resumePage, /fetch\(withBase\('\/api\/resumes'\)/);
-  assert.match(resumePage, /const resume = result\?\.resume \|\| result\?\.resumes\?\.\[0\]/);
+  assert.match(resumePage, /requestedResumeId \? result\?\.resumes\?\.find/);
   assert.match(resumePage, /setSavedResumeId\(resume\.id \|\| ''\)/);
   assert.match(resumePage, /photoUrl: detail\.photoUrl \|\| ''/);
   assert.match(resumePage, /if \(createNew\)/);

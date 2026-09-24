@@ -1,3 +1,4 @@
+import { resumePublicationMissing } from '../src/resumeReadiness.js';
 import { postPublicUntil } from '../src/jobPostLifecycle.js';
 import { talent } from '../src/data.js';
 import { demoTalentDetail } from '../src/talentDetailAccess.js';
@@ -224,7 +225,7 @@ const authSessionSeconds = 60 * 60 * 24 * 7;
 const passwordIterations = 100000;
 const testAccountPassword = 'medihelpers1234';
 const testAccountDefinitions = Object.freeze({
-  doctor: { email:'doctor-test@medihelpers.co.kr', role:'doctor', displayName:'의료인 회원' },
+  doctor: { email:'doctor-test@medihelpers.co.kr', role:'doctor', displayName:'의료인 회원', phone:'010-0000-0000' },
   admin: { email:'admin@medihelpers.co.kr', role:'doctor', displayName:'관리자' },
   hospital: {
     email:'hospital-test@medihelpers.co.kr', role:'hospital', displayName:'병원 회원',
@@ -332,7 +333,8 @@ async function ensureAccountSchema(env) {
 async function ensureConsultationSchema(env) {
   return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
 }
-const postPublicUntil = ${postPublicUntil.toString()};
+const postPublicUntil = ${postPublicUntil.toString()}
+${resumePublicationMissing.toString()};
 async function expireJobPosts(env) {
   // Backfill legacy deadlines separately from schema migrations; month ends clamp.
   await env.DB.prepare("UPDATE job_seeker_posts SET public_until=datetime(min(date(updated_at,'+9 hours','+5 months'),date(updated_at,'+9 hours','start of month','+6 months','-1 day')) || ' ' || time(updated_at,'+9 hours'),'-9 hours') WHERE public_until='' AND status<>'deleted'").run();
@@ -359,6 +361,8 @@ async function ensureMemberCenterSchema(env) {
       }
     })());
   }
+  if (!schemaReadyPromises.has('multiple-job-posts-v1')) schemaReadyPromises.set('multiple-job-posts-v1',env.DB.prepare('DROP INDEX IF EXISTS job_seeker_posts_active_resume_idx').run().catch(error=>{schemaReadyPromises.delete('multiple-job-posts-v1');throw error;}));
+  await schemaReadyPromises.get('multiple-job-posts-v1');
   await expireJobPosts(env);
   try { await schemaReadyPromises.get('member-unlock-date-v1'); }
   catch (error) { schemaReadyPromises.delete('member-unlock-date-v1'); throw error; }
@@ -420,7 +424,7 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
   catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
-const backupSchemaVersion = '0014';
+const backupSchemaVersion = '0015';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
@@ -1088,6 +1092,28 @@ async function authApi(request, env, pathname, ctx) {
       body = await readRequestObject(request);
     }
   } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+  if (pathname === '/api/auth/change-password') {
+    const identity = await authenticatedUser(request, env);
+    if (!identity?.accountId) return json({error:'로그인 후 비밀번호를 변경해주세요.'},401);
+    if (!validPassword(body.password)) return json({error:'새 비밀번호는 영문과 숫자를 포함한 8~128자로 입력해주세요.'},400);
+    const credential = await env.DB.prepare('SELECT password_hash AS hash,password_salt AS salt,password_iterations AS iterations,failed_attempts AS failures,locked_until AS lockedUntil FROM auth_credentials WHERE account_id=?').bind(identity.accountId).first();
+    if (!credential || credential.lockedUntil && new Date(credential.lockedUntil + 'Z').getTime() > Date.now()) return json({error:'잠시 후 다시 시도해주세요.'},429);
+    const currentHash = await passwordHash(String(body.currentPassword || ''),credential.salt,credential.iterations);
+    if (!constantTimeEqual(currentHash,credential.hash)) {
+      await env.DB.prepare("UPDATE auth_credentials SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts>=4 THEN datetime('now','+15 minutes') ELSE locked_until END WHERE account_id=?").bind(identity.accountId).run();
+      return json({error:'현재 비밀번호가 일치하지 않습니다.'},400);
+    }
+    if (body.password === body.currentPassword) return json({error:'현재 비밀번호와 다른 새 비밀번호를 입력해주세요.'},400);
+    const salt = randomHex(16);
+    const hash = await passwordHash(body.password,salt);
+    const results = await env.DB.batch([
+      env.DB.prepare('UPDATE auth_credentials SET password_hash=?,password_salt=?,password_iterations=?,failed_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE account_id=? AND password_hash=?').bind(hash,salt,passwordIterations,identity.accountId,credential.hash),
+      env.DB.prepare('DELETE FROM auth_sessions WHERE account_id=? AND changes()=1').bind(identity.accountId),
+      env.DB.prepare('UPDATE account_password_resets SET used_at=CURRENT_TIMESTAMP WHERE account_id=? AND used_at IS NULL').bind(identity.accountId)
+    ]);
+    if (!runChanges(results[0])) return json({error:'계정 상태가 변경되었습니다. 다시 로그인해주세요.'},409);
+    return json({changed:true},200,{'set-cookie':authCookie('',0)});
+  }
   if (pathname === '/api/auth/test-switch') {
     if (!testAccountSwitchEnabled(env)) return json({ error:'테스트 계정 전환이 비활성화되어 있습니다.' }, 404);
     let session;
@@ -1617,12 +1643,12 @@ async function memberCenterApi(request, env) {
     addQuery('preferences', env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id = ?').bind(account.id));
     addQuery('activity', env.DB.prepare("SELECT id, event_type AS eventType, title, detail, occurred_at AS occurredAt FROM member_activity WHERE account_id = ? AND event_type NOT IN ('inquiry_reply','inquiry_reply_sent') ORDER BY occurred_at DESC LIMIT 100").bind(account.id));
     addQuery('consultations', env.DB.prepare('SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE lower(email) = ? ORDER BY created_at DESC LIMIT 100').bind(identity.email));
-    addQuery('orders', env.DB.prepare("SELECT o.order_number AS orderNumber, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id));
+    addQuery('orders', env.DB.prepare("SELECT o.order_number AS orderNumber, o.product_id AS productId, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC LIMIT 100").bind(account.id));
     if (account.role === 'doctor') {
       addQuery('resume', env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id));
       addQuery('jobSeekerPosts', env.DB.prepare(
         "SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle " +
-        "FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.updated_at DESC LIMIT 50"
+        "FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.created_at DESC, p.id DESC LIMIT 50"
       ).bind(account.id));
     }
     if (account.role === 'hospital') {
@@ -1747,7 +1773,8 @@ async function memberCenterApi(request, env) {
       const source = body.content && typeof body.content === 'object' ? body.content : {};
       const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0,max);
       const title = s(source.title, 180);
-      const hospital = s(source.hospital, 180);
+      const registered = await env.DB.prepare('SELECT organization FROM member_profiles WHERE account_id=?').bind(account.id).first();
+      const hospital = s(registered?.organization || source.hospital, 180);
       if (!title || !hospital) return json({ error:'공고 제목과 병원명은 필수입니다.' }, 400);
       const current = parseJsonObject(owned.payloadJson) || {};
       const address = s(source.address, 300);
@@ -1831,7 +1858,9 @@ async function memberCenterApi(request, env) {
     if (['email','sms','service','marketing'].some(key => Object.hasOwn(preferenceInput,key) && typeof preferenceInput[key] !== 'boolean')) return json({ error:'알림 설정 값을 확인해주세요.' }, 400);
     const previousProfile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id=?').bind(account.id).first();
     const previousPreferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id=?').bind(account.id).first();
-    const profile = cleanMemberProfile({ ...previousProfile, ...(body.profile && typeof body.profile === 'object' ? body.profile : {}) });
+    const proposed = body.profile && typeof body.profile === 'object' ? body.profile : {};
+    if (Object.keys(proposed).some(key => ['displayName','phone','organization','jobTitle'].includes(key) && String(proposed[key] || '') !== String(previousProfile?.[key] || ''))) return json({ error:'가입한 회원정보는 직접 변경할 수 없습니다. 정보 정정은 고객센터에 문의해주세요.' },403);
+    const profile = cleanMemberProfile(previousProfile || {});
     const preferences = Object.fromEntries(['email','sms','service','marketing'].map(key => [key, Object.hasOwn(preferenceInput,key) ? preferenceInput[key] : previousPreferences ? Boolean(previousPreferences[key]) : key !== 'marketing']));
     if (preferences.marketing === true && body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'선택 이메일 수신 안내를 확인해주세요.' }, 400);
     const marketingEvents = Boolean(previousPreferences?.marketing) !== (preferences.marketing === true) ? [consentEvent(env, account.id, 'marketing', account.id, '', preferences.marketing === true)] : [];
@@ -1877,9 +1906,9 @@ async function resumeApi(request, env) {
       memberProfile = results[0]?.results?.[0] || null;
       registrationProfile = parseJsonObject(results[1]?.results?.[0]?.profileJson) || null;
     } catch {}
-    const name = s(body.name || memberProfile?.name);
-    const phone = s(body.phone || memberProfile?.phone, 40);
-    const email = s(body.email || identity.email);
+    const name = s(memberProfile?.name || body.name);
+    const phone = s(memberProfile?.phone || body.phone, 40);
+    const email = s(identity.email);
     const profession = s(body.profession || registrationProfile?.professionType || memberProfile?.jobTitle);
     const specialty = s(body.specialty || registrationProfile?.specialty || memberProfile?.organization);
     const desiredRegions = s(body.desiredRegions || registrationProfile?.region);
@@ -1938,7 +1967,7 @@ async function jobSeekerPostApi(request, env, pathname) {
       const post = await env.DB.prepare("SELECT id, resume_id AS resumeId, title, summary, specialty, desired_region AS desiredRegion, available_from AS availableFrom, employment_type AS employmentType, contact_visibility AS contactVisibility, public_until AS publicUntil, hidden_reason AS hiddenReason, status, created_at AS createdAt, updated_at AS updatedAt FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
       return post ? json({ signedIn:true, post }) : json({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
     }
-    const result = await env.DB.prepare("SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.updated_at DESC LIMIT 50").bind(account.id).all();
+    const result = await env.DB.prepare("SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.created_at DESC, p.id DESC LIMIT 50").bind(account.id).all();
     return json({ signedIn:true, posts:result.results || [] });
   }
   if (!['POST','PATCH','DELETE'].includes(request.method)) return json({ error:'지원하지 않는 요청입니다.' }, 405);
@@ -1965,8 +1994,9 @@ async function jobSeekerPostApi(request, env, pathname) {
     if (!['active','closed'].includes(body.status)) return json({error:'공개 상태를 확인해주세요.'},400);
     if (body.status === 'active' && (body.publicationAcknowledged !== true || body.privacyVersion !== PRIVACY_FORM_VERSION)) return json({error:'구직글 공개 범위를 확인해주세요.'},400);
     if (body.status === 'active') {
-      const duplicate = await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE account_id=? AND resume_id=? AND status='active' AND id<>? LIMIT 1").bind(account.id,current.resumeId,current.id).first();
-      if (duplicate) return json({error:'이 이력서의 다른 공개 구직글이 있습니다. 먼저 해당 글을 비공개로 바꿔주세요.'},409);
+      const linked = await env.DB.prepare('SELECT profession,specialty,desired_regions AS desiredRegions,detail_json AS detailJson FROM resumes WHERE id=? AND account_id=?').bind(current.resumeId,account.id).first();
+      const missing = resumePublicationMissing({...linked,detail:parseJsonObject(linked?.detailJson) || {}});
+      if (missing.length) return json({error:'공개할 이력서를 보완해주세요: '+missing.join(', '),missingFields:missing},400);
     }
     const publicUntil = postPublicUntil();
     await env.DB.batch([
@@ -1981,11 +2011,9 @@ async function jobSeekerPostApi(request, env, pathname) {
   if (!resumeId) return json({ error:'연동할 이력서를 선택해주세요.' }, 400);
   const resume = await env.DB.prepare('SELECT id, title, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id=? AND account_id=? LIMIT 1').bind(resumeId, account.id).first();
   if (!resume) return json({ error:'본인 이력서에서 연동할 항목을 찾을 수 없습니다.' }, 404);
-  if (!current || current.status === 'active') {
-    const duplicate = await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE account_id=? AND resume_id=? AND status='active' AND id<>? LIMIT 1").bind(account.id, resumeId, current?.id || '').first();
-    if (duplicate) return json({ error:'이 이력서에 연결된 구직글이 이미 있습니다. 기존 글을 수정해주세요.', existingPostId:duplicate.id }, 409);
-  }
   const detail = parseJsonObject(resume.detailJson) || {};
+  const missing = resumePublicationMissing({...resume, detail});
+  if (missing.length) return json({error:'공개할 이력서를 보완해주세요: ' + missing.join(', '),missingFields:missing},400);
   const workTypes = Array.isArray(detail.workTypes) ? detail.workTypes.join(' · ') : s(detail.workTypes, 300);
   const specialty = s(body.specialty || resume.specialty || resume.profession, 180);
   const title = s(body.title || (specialty ? specialty + ' · 구직 중' : resume.title || '구직 중인 의료인'), 180);
@@ -2403,6 +2431,19 @@ async function paymentOrderApi(request, env) {
   let customerPhone = cleanOrderValue(body.customerPhone);
   const paymentMethod = ['card','transfer'].includes(body.paymentMethod) ? body.paymentMethod : 'card';
   const metadata = body.metadata && typeof body.metadata === 'object' ? { ...body.metadata } : {};
+  let renewalContent = null;
+  if (body.renewContentId) {
+    if (product.type !== 'doctor_ad') return json({error:'공고 상품을 확인해주세요.'},400);
+    renewalContent = await env.DB.prepare("SELECT c.id,c.title,c.payload_json AS payloadJson,o.metadata_json AS metadataJson FROM admin_content_records c JOIN payment_orders o ON json_extract(o.metadata_json,'$.contentRecordId')=c.id WHERE c.id=? AND o.account_id=? AND o.product_id=? AND o.status='paid' ORDER BY o.paid_at DESC LIMIT 1").bind(String(body.renewContentId),account.id,productId).first();
+    if (!renewalContent) return json({error:'재노출할 본인 공고를 찾을 수 없습니다.'},404);
+    const old = parseJsonObject(renewalContent.payloadJson) || {};
+    if (!isAdExposureExpired(old)) return json({error:'노출 기간이 끝난 공고만 재구매할 수 있습니다.'},409);
+    const pending = await env.DB.prepare("SELECT id,order_number AS orderNumber FROM payment_orders WHERE account_id=? AND status IN ('pending_review','awaiting_payment') AND json_extract(metadata_json,'$.renewalContentId')=? AND created_at>datetime('now','-30 minutes') LIMIT 1").bind(account.id,renewalContent.id).first();
+    if (pending) return json({error:'진행 중인 재구매가 있습니다. 같은 주문의 결과를 확인해주세요.',recoveryOrder:{orderNumber:pending.orderNumber}},409);
+    Object.assign(metadata,parseJsonObject(renewalContent.metadataJson) || {},old,{title:renewalContent.title,renewalContentId:renewalContent.id});
+    delete metadata.exposure; delete metadata.exposureEnd;
+  }
+
   let adContentRecord = null;
   if (product.type === 'talent_search') {
     const targetId = String(metadata.talentId || '');
@@ -2447,20 +2488,21 @@ async function paymentOrderApi(request, env) {
       ]);
       const member = linked[0]?.results?.[0] || {};
       const hospital = linked[1]?.results?.[0] || {};
-      metadata.hospital ||= hospital.hospitalName || member.organization || '';
-      metadata.manager ||= member.name || '';
-      metadata.phone ||= member.phone || '';
-      metadata.email ||= identity.email || '';
+      metadata.hospital = hospital.hospitalName || member.organization || '';
+      metadata.manager = member.name || '';
+      metadata.phone = member.phone || '';
+      metadata.email = identity.email || '';
       metadata.address ||= hospital.address || '';
       metadata.representative ||= hospital.representativeName || '';
       metadata.businessNumber ||= hospital.businessNumber || '';
       metadata.accountProfileLinked = true;
-      customerName ||= metadata.manager;
-      customerEmail ||= metadata.email;
-      customerPhone ||= metadata.phone;
+      customerName = metadata.manager;
+      customerEmail = metadata.email;
+      customerPhone = metadata.phone;
     } catch {}
     try { await ensureAdminConsoleSchema(env); } catch { return json({ error:'공고 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     adContentRecord = adOrderContentRecord({ id, orderNumber, productId, productName:product.name, metadata, ownerEmail:identity.email });
+    if (renewalContent) adContentRecord.id = renewalContent.id;
     metadata.contentRecordId = adContentRecord.id;
   }
   const metadataJson = JSON.stringify(metadata);
@@ -2775,7 +2817,7 @@ function talentRevokeStatementsForOrder(env, orderId) {
 }
 async function seedAdminConsole(env) {
   const categories = [
-    ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','외과','general-surgery',20],
+    ['doctor_specialty','한의사','korean-medicine',5], ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','외과','general-surgery',20],
     ['doctor_specialty','정형외과','orthopedics',30], ['doctor_specialty','신경외과','neurosurgery',40],
     ['doctor_specialty','소아청소년과','pediatrics',50], ['doctor_specialty','산부인과','obstetrics-gynecology',60],
     ['doctor_specialty','가정의학과','family-medicine',70], ['doctor_specialty','영상의학과','radiology',80],
@@ -2876,7 +2918,7 @@ async function publicSiteOperationsApi(request, env) {
   // 구직글은 이력서와 분리해 게시 원장으로 노출한다. 선택한 이력서의 경력만 참조하며
   // 실명·전화·이메일은 이 공개 응답에 절대 포함하지 않는다.
   try {
-    const postRows = await env.DB.prepare("SELECT p.id AS postId, p.account_id AS accountId, p.title AS postTitle, p.summary, p.specialty AS postSpecialty, p.desired_region AS postRegion, p.available_from AS postAvailable, p.employment_type AS postEmployment, p.contact_visibility AS contactVisibility, p.updated_at AS updatedAt, r.id, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.status='active' ORDER BY p.updated_at DESC LIMIT 200").all();
+    const postRows = await env.DB.prepare("SELECT p.id AS postId, p.account_id AS accountId, p.title AS postTitle, p.summary, p.specialty AS postSpecialty, p.desired_region AS postRegion, p.available_from AS postAvailable, p.employment_type AS postEmployment, p.contact_visibility AS contactVisibility, p.updated_at AS updatedAt, r.id, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.status='active' ORDER BY p.created_at DESC, p.id DESC LIMIT 200").all();
     for (const r of (postRows.results || [])) {
       const detail = parseJsonObject(r.detailJson) || {};
       const career = detail.experienceYears ? String(detail.experienceYears) : (detail.career || '');
@@ -3151,6 +3193,7 @@ async function adminConsoleApi(request, env, ctx) {
     await env.DB.batch(statements);
     await writeAdminAudit(env, admin, 'payment_update', order.orderNumber, { from:order.status, to:status, amount:order.totalAmount });
   } else if (action === 'refund_create') {
+    if (String(env.PAYMENT_LIVE) === 'true' || env.INICIS_MID || env.INICIS_SIGN_KEY) return json({error:'실결제 환불은 PG 취소 결과 검증 연동이 필요합니다. 환불 완료로 기록할 수 없습니다.'},503);
     const orderId = String(payload.orderId || '');
     const amount = Math.max(0, Math.floor(Number(payload.amount) || 0));
     const reason = cleanOrderValue(payload.reason, 500);
@@ -3176,6 +3219,7 @@ async function adminConsoleApi(request, env, ctx) {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta), orderId));
       // 단건·팩 열람권 모두 회수(팩 크레딧 풀 포함).
       for (const stmt of talentRevokeStatementsForOrder(env, orderId)) statements.push(stmt);
+      if (meta.contentRecordId) statements.push(env.DB.prepare("UPDATE admin_content_records SET status='hidden',updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS (SELECT 1 FROM payment_orders WHERE id<>? AND status='paid' AND json_extract(metadata_json,'$.contentRecordId')=? AND json_extract(metadata_json,'$.exposure.end')>=date('now'))").bind(meta.contentRecordId,orderId,meta.contentRecordId));
     } else {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(orderId));
     }
@@ -3198,6 +3242,7 @@ async function adminConsoleApi(request, env, ctx) {
       await writeAdminAudit(env, admin, 'refund_resolve', refund.orderNumber, { refundId, decision:'reject' });
       return json({ saved:true });
     }
+    if (String(env.PAYMENT_LIVE) === 'true' || env.INICIS_MID || env.INICIS_SIGN_KEY) return json({error:'실결제 환불은 PG 취소 결과 검증 연동이 필요합니다.'},503);
     // approve: 환불 금액 확정(미지정 시 전액), 초과 방지.
     const already = await env.DB.prepare("SELECT COALESCE(SUM(amount),0) total FROM payment_refunds WHERE order_id=? AND status='succeeded'").bind(refund.orderId).first();
     const remaining = Number(refund.totalAmount) - Number(already?.total || 0);
@@ -3216,6 +3261,7 @@ async function adminConsoleApi(request, env, ctx) {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='refunded', metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta), refund.orderId));
       // 인재 열람권 회수: 환불 후 연락처 계속 열람 방지(단건·팩 크레딧 풀 모두).
       for (const stmt of talentRevokeStatementsForOrder(env, refund.orderId)) statements.push(stmt);
+      if (meta.contentRecordId) statements.push(env.DB.prepare("UPDATE admin_content_records SET status='hidden',updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS (SELECT 1 FROM payment_orders WHERE id<>? AND status='paid' AND json_extract(metadata_json,'$.contentRecordId')=? AND json_extract(metadata_json,'$.exposure.end')>=date('now'))").bind(meta.contentRecordId,refund.orderId,meta.contentRecordId));
     } else {
       statements.push(env.DB.prepare("UPDATE payment_orders SET status='partially_refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.orderId));
     }
@@ -3227,11 +3273,43 @@ async function adminConsoleApi(request, env, ctx) {
   }
   return json({ saved:true });
 }
+async function refundReviewApi(request,env) {
+  if (!await adminIdentity(request,env)) return json({error:'관리자 권한이 필요합니다.'},403);
+  if (request.method !== 'POST') return json({error:'지원하지 않는 요청입니다.'},405);
+  if (!sameOrigin(request)) return json({error:'허용되지 않은 요청입니다.'},403);
+  let body;try{body=await readRequestObject(request);}catch{return json({error:'요청 내용을 확인해주세요.'},400);}
+  if (!['approve','reject'].includes(body.decision)) return json({error:'처리 방식을 확인해주세요.'},400);
+  await ensureCommerceSchema(env);await ensureTalentCreditSchema(env);
+  const refund=await env.DB.prepare("SELECT r.id,r.order_id AS orderId,r.status,o.status AS orderStatus,o.total_amount AS totalAmount,o.metadata_json AS metadataJson FROM payment_refunds r JOIN payment_orders o ON o.id=r.order_id WHERE r.id=?").bind(String(body.refundId || '')).first();
+  if (!refund || refund.status !== 'requested') return json({error:'처리 대기 중인 환불 요청이 아닙니다.'},409);
+  if (body.decision === 'reject') {
+    const result=await env.DB.prepare("UPDATE payment_refunds SET status='rejected',processed_at=CURRENT_TIMESTAMP WHERE id=? AND status='requested'").bind(refund.id).run();
+    return runChanges(result)?json({saved:true}):json({error:'이미 처리된 요청입니다.'},409);
+  }
+  const transactions=await env.DB.prepare("SELECT provider FROM payment_transactions WHERE order_id=? AND transaction_type='capture' AND status='succeeded'").bind(refund.orderId).all();
+  if (String(env.PAYMENT_LIVE)==='true' || env.INICIS_MID || env.INICIS_SIGN_KEY || !(transactions.results||[]).length || (transactions.results||[]).some(row=>!['virtual','test','mock'].includes(row.provider))) return json({error:'실결제 환불은 PG 취소 결과 검증 연동이 필요합니다. 현재 화면은 가상 결제 환불 테스트 전용입니다.'},503);
+  if (refund.orderStatus !== 'paid') return json({error:'전액 취소 가능한 결제 상태가 아닙니다.'},409);
+  const claimed=await env.DB.prepare("UPDATE payment_refunds SET status='processing' WHERE id=? AND status='requested'").bind(refund.id).run();
+  if (!runChanges(claimed)) return json({error:'이미 처리 중인 환불입니다.'},409);
+  const meta=parseJsonObject(refund.metadataJson)||{};delete meta.exposure;
+  try {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE payment_orders SET status='refunded',metadata_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta),refund.orderId),
+      env.DB.prepare("UPDATE payment_refunds SET status='succeeded',amount=?,processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.totalAmount,refund.id),
+      env.DB.prepare("INSERT INTO payment_transactions (id,order_id,transaction_type,provider,provider_transaction_id,amount,status,processed_at) VALUES (?,?,'refund','virtual',?,?,'succeeded',CURRENT_TIMESTAMP)").bind(crypto.randomUUID(),refund.orderId,refund.id,refund.totalAmount),
+      ...talentRevokeStatementsForOrder(env,refund.orderId),
+      ...(meta.contentRecordId ? [env.DB.prepare("UPDATE admin_content_records SET status='hidden',updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS (SELECT 1 FROM payment_orders WHERE id<>? AND status='paid' AND json_extract(metadata_json,'$.contentRecordId')=? AND json_extract(metadata_json,'$.exposure.end')>=date('now'))").bind(meta.contentRecordId,refund.orderId,meta.contentRecordId)] : []),
+      env.DB.prepare("INSERT INTO payment_events (id,order_id,actor_key,event_type,detail_json) VALUES (?,?,?,'virtual_refund_completed',?)").bind(crypto.randomUUID(),refund.orderId,(await authenticatedUser(request,env)).email,JSON.stringify({refundId:refund.id,amount:refund.totalAmount}))
+    ]);
+  }catch(error){await env.DB.prepare("UPDATE payment_refunds SET status='requested' WHERE id=? AND status='processing'").bind(refund.id).run();return json({error:'환불을 완료하지 못했습니다. 결제 내역은 유지되며 다시 시도할 수 있습니다.'},503);}
+  return json({saved:true,refunded:true,virtual:true});
+}
 async function responseFor(request, env, ctx) {
   const pathname = new URL(request.url).pathname;
+  if (pathname === '/api/admin-refund-review') return refundReviewApi(request,env);
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
-  if (pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout' || pathname === '/api/auth/test-switch') return authApi(request, env, pathname, ctx);
+  if (pathname === '/api/auth/change-password' || pathname === '/api/auth/register' || pathname === '/api/auth/login' || pathname === '/api/auth/logout' || pathname === '/api/auth/test-switch') return authApi(request, env, pathname, ctx);
   if (pathname === '/api/account-recovery') return accountRecoveryApi(request, env, ctx);
   if (pathname === '/api/account') return accountApi(request, env, ctx);
   if (pathname === '/api/member-center') return memberCenterApi(request, env);

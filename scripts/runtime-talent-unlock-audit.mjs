@@ -72,7 +72,7 @@ record('virtual approval succeeds', paid.data.approved, true);
 record('no actual charge in local test', paid.data.testMode, true);
 const opened = await call(detailPath(ticket), 'hospital');
 record('single purchase opens target', opened.data.unlocked, true);
-record('consenting contact reaches hospital', opened.data.detail?.phone, '01000000000');
+record('consenting contact reaches hospital', opened.data.detail?.phone, '010-0000-0000');
 record('saved introduction reaches detail', opened.data.detail?.detail?.introduction.includes('로컬 시험 자료'), true);
 await call(detailPath(ticket), 'hospital');
 record('single revisit has one grant', count('talent_unlocks'), 1);

@@ -7,12 +7,12 @@ const [memberCenter, server] = await Promise.all([
   readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8')
 ]);
 
-test('병원과 의사 회원은 마이페이지에서 헤드헌터에게 직접 문의할 수 있다', () => {
+test('헤드헌터 신규 상담은 맞춤 헤드헌팅 페이지에서만 노출한다', () => {
   assert.match(memberCenter, /function HeadhunterMessagePanel/);
   assert.match(memberCenter, /헤드헌터에게 메시지 보내기/);
   assert.match(memberCenter, /submissionChannel:'mypage_headhunter'/);
   assert.match(memberCenter, /role === 'hospital'.*채용 문의 보내기.*이력서와 구직 문의 보내기/s);
-  assert.match(memberCenter, /<HeadhunterMessagePanel role=\{role\}/);
+  assert.doesNotMatch(memberCenter, /<HeadhunterMessagePanel role=\{role\}/);
 });
 
 test('의료인 중 가입 직군이 의사인 회원만 이력서 첨부 구직 문의를 보낸다', () => {

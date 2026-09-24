@@ -1,3 +1,5 @@
+import { resumePublicationMissing } from './resumeReadiness.js';
+import { confirmAction } from './confirmAction.js';
 import { postStatusLabel, postDeadlineLabel } from './jobPostLifecycle.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
@@ -63,7 +65,6 @@ export default function JobSeekerPostPage({ postId = '' }) {
   }, [editing, postId]);
 
   const selectedResume = useMemo(() => resumes.find((resume) => resume.id === form.resumeId), [resumes, form.resumeId]);
-  const existingPost = useMemo(() => !editing ? existingPosts.find((post) => post.resumeId === form.resumeId) : null, [editing, existingPosts, form.resumeId]);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const chooseResume = (resume) => setForm((current) => ({
     ...current,
@@ -86,6 +87,8 @@ export default function JobSeekerPostPage({ postId = '' }) {
   const save = async (event) => {
     event.preventDefault();
     if (!form.resumeId || !form.title.trim()) { setFailed(true); setMessage('연동할 이력서와 구직글 제목을 확인해주세요.'); return; }
+    const missing = resumePublicationMissing(selectedResume || {});
+    if (missing.length) { setFailed(true);setMessage('선택한 이력서를 먼저 보완해주세요: ' + missing.join(', '));return; }
     setBusy(true); setMessage(''); setFailed(false);
     try {
       const response = await fetch(withBase(editing ? `/api/job-seeker-posts/${encodeURIComponent(postId)}` : '/api/job-seeker-posts'), {
@@ -93,12 +96,11 @@ export default function JobSeekerPostPage({ postId = '' }) {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (response.status === 409 && data.existingPostId) go(`/job-seeker-posts/${encodeURIComponent(data.existingPostId)}/edit`);
         throw new Error(data.error || '구직글을 저장하지 못했습니다.');
       }
       invalidateSiteOperations();
       setMessage(editing ? '구직글을 수정했습니다.' : '구직글을 등록했습니다.');
-      go('/mypage?tab=resume');
+      go(`/medical-staff/talents/seeker-${encodeURIComponent(data.post.id)}`);
     } catch (error) { setFailed(true); setMessage(error.message); }
     finally { setBusy(false); }
   };
@@ -114,14 +116,14 @@ export default function JobSeekerPostPage({ postId = '' }) {
     } catch(error) {setFailed(true);setMessage(error.message);} finally {setBusy(false);}
   };
   const remove = async () => {
-    if (!editing || !window.confirm('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
+    if (!editing || !await confirmAction('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
     setBusy(true); setMessage('');
     try {
       const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(postId)}`), { method:'DELETE', credentials:'same-origin' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || '구직글을 삭제하지 못했습니다.');
       invalidateSiteOperations();
-      go('/mypage?tab=resume');
+      go(`/medical-staff/talents/seeker-${encodeURIComponent(data.post.id)}`);
     } catch (error) { setFailed(true); setMessage(error.message); setBusy(false); }
   };
 
@@ -135,10 +137,10 @@ export default function JobSeekerPostPage({ postId = '' }) {
       {message && <div className={`job-seeker-editor-message ${failed ? 'error' : 'success'}`}>{failed ? <TriangleAlert /> : <CircleCheck />} {message}</div>}
       <p className="job-post-lifecycle-note">등록·수정·재공개 후 5개월 동안 관리하지 않으면 자동 비공개됩니다. 비공개 글은 본인이 계속 확인하고 다시 공개할 수 있습니다. 재공개 시 저장된 연락처 공개 설정을 유지합니다.</p>{editing && <div className="job-post-lifecycle-note"><strong>{postStatusLabel(form)}</strong>{form.status === 'active' && <span> · 자동 비공개 예정 {postDeadlineLabel(form.publicUntil)}</span>}<button className="button outline" type="button" disabled={busy} onClick={toggleVisibility}>{form.status === 'active' ? '비공개로 전환' : '다시 공개'}</button></div>}<form onSubmit={save}>
         <PrivacyNotice scope="posting" />{form.contactVisibility === 'ticket' && <><PrivacyNotice scope="contact" /><label className="consent"><input required type="checkbox" name="contactConsent" value="agreed" /><span>[선택] 열람권을 사용하는 병원 회원에게 연락처를 공개하는 데 동의합니다. 원하지 않으면 아래에서 비공개를 선택해주세요.</span></label></>}<label className="consent"><input required type="checkbox" name="publication" value="agreed" /><span>[필수] 위 공개 범위를 확인하고 구직글을 게시합니다.</span></label>
-        <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>아래 저장된 이력서 중 하나를 반드시 선택합니다. 게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><button type="button" aria-invalid={failed && !form.resumeId ? "true" : undefined} aria-label="연동할 이력서 선택" className="button outline job-seeker-resume-manage" onClick={() => setResumeManagerOpen(true)}>이력서 선택·관리</button></div>
+        <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><Link2 /></span><div><h2>연동 이력서 선택</h2><p>공개 전 전문분야·희망지역·경력 소개(30자 이상)를 확인합니다. 아래 이력서 중 하나를 선택하세요. 게시글을 수정해도 원본 이력서는 별도로 안전하게 관리됩니다.</p></div><button type="button" aria-invalid={failed && !form.resumeId ? "true" : undefined} aria-label="연동할 이력서 선택" className="button outline job-seeker-resume-manage" onClick={() => setResumeManagerOpen(true)}>이력서 선택·관리</button><a className="button outline" href={withBase(`/resume?new=1&next=${encodeURIComponent('/job-seeker-posts/new')}`)}>새 이력서 작성</a></div>
           <div className="job-seeker-resume-list">{resumes.map((resume) => { const linked = existingPosts.find((post) => post.resumeId === resume.id); return <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)}><span>{form.resumeId === resume.id ? <CircleCheck /> : <FileText />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, `완성도 ${resume.completion || 0}%`, linked ? '구직글 등록됨' : '새 구직글 작성 가능'].filter(Boolean).join(' · ')}</small></div></button>; })}</div>
           {selectedResume && <p className="job-seeker-linked-note"><BriefcaseBusiness /> 현재 연결: <strong>{selectedResume.title || selectedResume.specialty || '내 이력서'}</strong></p>}
-          {existingPost && <div className="job-seeker-existing-post"><CircleCheck /><div><strong>이 이력서에는 이미 구직글이 등록되어 있습니다</strong><p>중복 등록하지 않고 기존 글을 바로 수정할 수 있습니다.</p></div><button type="button" className="button outline" onClick={() => go(`/job-seeker-posts/${encodeURIComponent(existingPost.id)}/edit`)}>기존 글 수정 <ArrowRight /></button></div>}
+
         </section>
 
         <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><FileText /></span><div><h2>게시글 내용</h2><p>병원이 목록에서 빠르게 이해할 수 있는 정보만 간단히 입력해주세요.</p></div></div>
@@ -149,7 +151,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
           <div className="job-seeker-contact-options"><label className={form.contactVisibility === 'private' ? 'selected' : ''}><input type="radio" name="contactVisibility" value="private" checked={form.contactVisibility === 'private'} onChange={update('contactVisibility')} /><EyeOff /><span><strong>연락처 비공개</strong><small>열람권을 구매한 병원에도 전화·이메일을 공개하지 않습니다.</small></span></label><label className={form.contactVisibility === 'ticket' ? 'selected' : ''}><input type="radio" name="contactVisibility" value="ticket" checked={form.contactVisibility === 'ticket'} onChange={update('contactVisibility')} /><Eye /><span><strong>열람권 구매 병원에 공개</strong><small>유효한 열람권을 사용한 병원에게만 연락처를 공개합니다.</small></span></label></div>
         </section>
 
-        <footer className="job-seeker-editor-actions"><div><button type="button" className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 취소</button>{editing && <button type="button" className="button danger" onClick={remove} disabled={busy}><Trash2 /> 구직글 삭제</button>}</div>{existingPost ? <button type="button" className="button primary" onClick={() => go(`/job-seeker-posts/${encodeURIComponent(existingPost.id)}/edit`)}>기존 구직글 수정 <ArrowRight /></button> : <button type="submit" className="button primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 내용 저장' : '구직글 등록'} <ArrowRight /></button>}</footer>
+        <footer className="job-seeker-editor-actions"><div><button type="button" className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 취소</button>{editing && <button type="button" className="button danger" onClick={remove} disabled={busy}><Trash2 /> 구직글 삭제</button>}</div><button type="submit" className="button primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 내용 저장' : '구직글 등록하기'} <ArrowRight /></button></footer>
       </form>
     </div>
     {resumeManagerOpen && <div className="resume-manager-overlay" onMouseDown={(event) => event.target === event.currentTarget && setResumeManagerOpen(false)}>
@@ -158,7 +160,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
         <div className="resume-manager-list" role="radiogroup" aria-label="구직글 연동 이력서 선택">
           {resumes.map((resume) => <button type="button" key={resume.id} className={form.resumeId === resume.id ? 'selected' : ''} onClick={() => chooseResume(resume)} role="radio" aria-checked={form.resumeId === resume.id}><span className="resume-radio">{form.resumeId === resume.id && <Check />}</span><div><strong>{resume.title || '내 이력서'}</strong><small>{[resume.profession, resume.specialty, resume.desiredRegions].filter(Boolean).join(' · ') || '상세정보 확인'}</small><em>완성도 {Number(resume.completion) || 0}% · 구직글과 별도 보관</em></div><b>{form.resumeId === resume.id ? '선택됨' : '선택'}</b></button>)}
         </div>
-        <footer><button type="button" className="button outline" onClick={() => setResumeManagerOpen(false)}>취소</button><button type="button" className="button primary" onClick={() => setResumeManagerOpen(false)}><Check /> 선택 완료</button></footer>
+        <footer><a className="button outline" href={withBase(`/resume?new=1&next=${encodeURIComponent(editing ? `/job-seeker-posts/${postId}/edit` : '/job-seeker-posts/new')}`)}>새 이력서 작성</a><a className="button outline" href={withBase(`/resume?id=${encodeURIComponent(form.resumeId)}&next=${encodeURIComponent(editing ? `/job-seeker-posts/${postId}/edit` : '/job-seeker-posts/new')}`)}>선택한 이력서 수정</a><button type="button" className="button primary" onClick={() => setResumeManagerOpen(false)}><Check /> 선택 완료</button></footer>
       </section>
     </div>}
   </main>;

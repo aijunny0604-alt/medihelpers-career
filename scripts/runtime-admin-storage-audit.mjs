@@ -62,12 +62,12 @@ record('posting rejects no acknowledgement',(await call('/api/job-seeker-posts',
 record('contact sharing rejects missing separate consent',(await call('/api/job-seeker-posts','doctor',{resumeId:saved.data.id,contactVisibility:'ticket',contactConsent:false})).status,400);
 const ad=await call('/api/payment-orders','hospital',{productId:'basic',metadata:{hospital:'동의 검수 병원',department:'내과',address:'서울',introduction:'합성 테스트'}});record('checkout consent saved',ad.status,201);
 await call('/api/payment-approve','hospital',{orderNumber:ad.data.order.orderNumber});
-const apply={requestType:'doctor',payload:{name:'가상 의사',phone:'01000000000',specialty:'내과',jobId:'admin-'+ad.data.order.contentRecordId,resumeId:saved.data.id},recipient:'동의 검수 병원'};
+const apply={requestType:'doctor',payload:{name:'가상 의사',phone:'01000000000',specialty:'내과',jobId:'admin-'+ad.data.order.contentRecordId,resumeId:saved.data.id},recipient:'메디헬퍼스 테스트병원'};
 record('direct application requires separate consent',(await call('/api/consultations','doctor',apply)).status,400);
 record('direct application rejects changed recipient',(await call('/api/consultations','doctor',{...apply,thirdPartyConsent:true,recipient:'다른 병원'})).status,400);
 const applied=await call('/api/consultations','doctor',{...apply,thirdPartyConsent:true});record('direct application with consent',applied.status,201);
 const directEvent=sqlite.prepare("SELECT notice_json FROM processing_consent_events WHERE scope='direct' AND resource_id=?").get(applied.data.id);
-record('actual recipient recorded',directEvent ? JSON.parse(directEvent.notice_json).recipient : null,'동의 검수 병원');
+record('actual recipient recorded',directEvent ? JSON.parse(directEvent.notice_json).recipient : null,'메디헬퍼스 테스트병원');
 const adminCounts=(await call('/api/admin-console','admin')).data.databaseCounts;
 for(const table of ['consultation_requests','payment_orders','payment_transactions','processing_consent_events'])record('exact count '+table,adminCounts[table],sqlite.prepare('SELECT COUNT(*) n FROM '+table).get().n);
 record('marketing without current notice rejected',(await call('/api/member-center','doctor',{profile:{},notifications:{marketing:true},privacyVersion:null},'PATCH')).status,400);

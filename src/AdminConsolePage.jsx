@@ -1,3 +1,5 @@
+import RefundReview from './RefundReview.jsx';
+import { confirmAction } from './confirmAction.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatAdminTime } from './adminStorage.js';
 import {
@@ -599,7 +601,7 @@ function ContentManager({ data, setData, mutate, qa }) {
   };
   const remove = async (item) => {
     if (item.source === 'catalog') return;
-    if (!window.confirm(`‘${item.title}’ 항목을 삭제할까요? 삭제 후에는 목록에서 복구할 수 없습니다.`)) return;
+    if (!await confirmAction(`‘${item.title}’ 항목을 삭제할까요? 삭제 후에는 목록에서 복구할 수 없습니다.`)) return;
     if (qa) setData((old) => ({ ...old, contents:(old.contents || []).filter((entry) => entry.id !== item.id), metrics:{ ...old.metrics, contents:Math.max(0,(old.metrics.contents || 0)-1) } }));
     await mutate('content_delete', { id:item.id }, '콘텐츠를 삭제했습니다.');
   };
@@ -860,7 +862,7 @@ function PaymentDetail({ payment, transactions, refunds }) {
       {payment.exposure && <div><dt>노출 기간</dt><dd>{payment.exposure.start} ~ {payment.exposure.end} <small>{payment.exposure.days ? `${payment.exposure.days}일 상품` : ''}{new Date(`${String(payment.exposure.end).slice(0,10)}T23:59:59`).getTime() < Date.now() ? ' · 노출 종료' : ' · 노출 중'}</small></dd></div>}
     </dl>
     <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{String(item.processedAt || '').slice(0,16)}</time></div>)}{!orderTransactions.length && <p>아직 저장된 거래 기록이 없습니다.</p>}</section>
-    <section className="payment-refund-requests"><h4><RotateCcw />환불 기록</h4>{orderRefunds.map((item) => <div key={item.id} className="refund-request-row"><div><strong>{Number(item.amount || 0).toLocaleString()}원 · {item.status}</strong><small>{item.reason || '사유 미입력'}</small><small>요청자 {item.requestedBy || '회원'} · {String(item.processedAt || item.createdAt || '').slice(0,16)}</small></div></div>)}{!orderRefunds.length && <p>저장된 환불 기록이 없습니다.</p>}</section>
+    <section className="payment-refund-requests"><h4><RotateCcw />환불 기록</h4>{orderRefunds.map((item) => <div key={item.id} className="refund-request-row"><div><strong>{Number(item.amount || 0).toLocaleString()}원 · {item.status}</strong><small>{item.reason || '사유 미입력'}</small><small>요청자 {item.requestedBy || '회원'} · {String(item.processedAt || item.createdAt || '').slice(0,16)}</small>{item.status === 'requested' && <RefundReview refund={item} />}</div></div>)}{!orderRefunds.length && <p>저장된 환불 기록이 없습니다.</p>}</section>
   </div>;
 }
 

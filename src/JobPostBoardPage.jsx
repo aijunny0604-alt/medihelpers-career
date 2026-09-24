@@ -1,3 +1,4 @@
+import { confirmAction } from './confirmAction.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Building2, CalendarDays, Check, CircleCheck, Eye, EyeOff,
@@ -142,7 +143,7 @@ export default function JobPostBoardPage() {
   };
 
   const remove = async (item) => {
-    if (!window.confirm(`‘${item.title}’ 공고를 삭제할까요? 삭제 후 복구할 수 없습니다.`)) return;
+    if (!await confirmAction(`‘${item.title}’ 공고를 삭제할까요? 삭제 후 복구할 수 없습니다.`)) return;
     setSaving(true);
     try {
       await callConsole('content_delete', { id: item.id });

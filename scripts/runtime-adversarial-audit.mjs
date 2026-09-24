@@ -74,7 +74,7 @@ for(const [path,role] of [['/api/resumes','doctor'],['/api/job-seeker-posts','do
  record('JSON null rejected '+path,r.status,400);
 }
 const malformed=await call('/api/talent-detail/%ZZ','hospital');record('malformed route is client error',malformed.status,400);
-const longResume=await call('/api/resumes','doctor',{title:'large input',name:'test',phone:'010-0000-0000',profession:'의사',createNew:true,detail:{introduction:'가'.repeat(130000)}});
+const longResume=await call('/api/resumes','doctor',{title:'large input',name:'test',phone:'010-0000-0000',profession:'의사',specialty:'내과',desiredRegions:'서울',detail:{introduction:'합성 시험용 경력입니다. 내과 외래 진료 경력과 희망 근무 조건을 검증합니다.'},createNew:true,detail:{introduction:'가'.repeat(130000)}});
 record('oversized resume rejected before storage',[400,413].includes(longResume.status),true);
 record('no invalid resume JSON persisted',count('SELECT COUNT(*) n FROM resumes WHERE NOT json_valid(detail_json)'),0);
 const longAd=await call('/api/payment-orders','hospital',{productId:'featured',metadata:{hospital:'test',department:'내과',address:'서울',introduction:'가'.repeat(15000)}});
@@ -86,7 +86,7 @@ record('form encoded payment return is processed',[200,303].includes(formRespons
 
 const targets=[];
 for(let i=0;i<8;i++) {
- const r=await call('/api/resumes','doctor',{title:'scenario '+i,name:'Test',phone:'010-0000-0000',profession:'의사',createNew:true});
+ const r=await call('/api/resumes','doctor',{title:'scenario '+i,name:'Test',phone:'010-0000-0000',profession:'의사',specialty:'내과',desiredRegions:'서울',detail:{introduction:'합성 시험용 경력입니다. 내과 외래 진료 경력과 희망 근무 조건을 검증합니다.'},createNew:true});
  const p=await call('/api/job-seeker-posts','doctor',{resumeId:r.data.id,title:'scenario '+i});
  targets.push('seeker-'+p.data.post.id);
 }
@@ -104,7 +104,7 @@ const repeatBuy=await call('/api/payment-orders','hospital',{productId:'talent-u
 record('cannot buy an already unlocked single target',repeatBuy.status,409);
 
 async function createTarget(label){
- const r=await call('/api/resumes','doctor',{title:label,name:'Test',phone:'010-0000-0000',profession:'의사',createNew:true});
+ const r=await call('/api/resumes','doctor',{title:label,name:'Test',phone:'010-0000-0000',profession:'의사',specialty:'내과',desiredRegions:'서울',detail:{introduction:'합성 시험용 경력입니다. 내과 외래 진료 경력과 희망 근무 조건을 검증합니다.'},createNew:true});
  const p=await call('/api/job-seeker-posts','doctor',{resumeId:r.data.id,title:label});return 'seeker-'+p.data.post.id;
 }
 const dailyTargets=[];for(let i=0;i<8;i++)dailyTargets.push(await createTarget('daily '+i));

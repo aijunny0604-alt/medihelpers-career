@@ -27,12 +27,12 @@ test('병원 공고 등록은 가입·제출 정보를 폼과 서버 양쪽에�
   assert.match(checkout, /accountProfile\.facilityType/);
   assert.match(server, /institutionType:String\(body\.institutionType/);
   assert.match(server, /metadata\.accountProfileLinked = true/);
-  assert.match(server, /metadata\.hospital \|\|= hospital\.hospitalName/);
+  assert.match(server, /metadata\.hospital = hospital\.hospitalName/);
 });
 
 test('의료인 이력서는 가입 정보로 빈 칸을 채우고 저장된 이력서를 우선한다', () => {
   assert.match(resume, /export default function ResumePage\(\{ auth \}\)/);
-  assert.match(resume, /name: current\.name \|\| accountProfile\.name/);
+  assert.match(resume, /name: accountProfile\.name \|\| current\.name/);
   assert.match(resume, /profession: current\.profession \|\| accountProfile\.professionType/);
   assert.match(resume, /specialty: current\.specialty \|\| accountProfile\.specialty/);
   assert.match(resume, /desiredRegions: current\.desiredRegions \|\| accountProfile\.region/);

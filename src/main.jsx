@@ -1,3 +1,4 @@
+import { confirmAction } from './confirmAction.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import FormValidationNotice from './FormValidationNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
@@ -61,7 +62,7 @@ const SignupWelcomePage = lazy(() => import('./AccountPage.jsx').then(m => ({ de
 
 installAuthenticatedFetch();
 
-const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
+const departments = ['전체 진료과', '한의사', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
 const RECRUITMENT_TYPES = ['봉직의', '대진의', '당직의', '기타'];
 const recruitmentTypes = ['전체 초빙', ...RECRUITMENT_TYPES];
@@ -91,7 +92,7 @@ function useSiteCategories() {
         const specialties = (groups.doctor_specialty || []).map((item) => item.name).filter(Boolean);
         const areas = (groups.region || []).map((item) => item.name).filter(Boolean);
         const roles = (groups.medical_role || []).map((item) => item.name).filter(Boolean);
-        setCategories({ departments:['전체 진료과', ...(specialties.length ? specialties : departments.slice(1))], regions:['전국', ...(areas.length ? areas : regions.slice(1))], medicalRoles:roles });
+        setCategories({ departments:[...new Set(['전체 진료과', '한의사', ...(specialties.length ? specialties : departments.slice(1))])], regions:['전국', ...(areas.length ? areas : regions.slice(1))], medicalRoles:roles });
       })
       .catch(() => {});
     return () => { active = false; };
@@ -1553,6 +1554,21 @@ function HomePage({ liveJobs = jobs, jobsReady = true }) {
   };
   const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
   return <>
+    <section className="home-job-hub">
+      <div className="home-job-hub-inner">
+        <div className="home-job-hub-head"><div><span className="section-kicker">QUICK JOB FINDER</span><h2>조건으로 빠르게 찾기</h2></div><p>전체 공고 탐색과 상세 비교는 병원채용 페이지에서 이어집니다.</p></div>
+        <div className="hero-search-card" role="search" aria-label="의사 초빙정보 검색">
+          <div className="hero-search-title"><span><Search /></span><div><strong>의사 초빙정보 바로 찾기</strong><small>초빙유형·진료과·지역을 선택하세요</small></div><em className="hero-search-badge">의사 전용</em></div>
+          <div className="hero-search-fields">
+            <label><small>초빙 유형</small><span><BriefcaseBusiness size={19} /><HeroSelect label="초빙 유형" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></span></label>
+            <label><small>진료과</small><span><Stethoscope size={19} /><HeroSelect label="진료과" value={dept} onChange={setDept} options={siteCategories.departments} /></span></label>
+            <label><small>지역</small><span><MapPin size={19} /><HeroSelect label="지역" value={region} onChange={setRegion} options={siteCategories.regions} /></span></label>
+            <button className="hero-search-button" onClick={search}>의사 초빙정보 보기 <ArrowRight /></button>
+          </div>
+          <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
+        </div>
+      </div>
+    </section>
     <section className="home-video-hero" aria-label="메디헬퍼스 소개">
       <HeroMedia />
       <div className="home-video-hero-overlay" />
@@ -1577,21 +1593,7 @@ function HomePage({ liveJobs = jobs, jobsReady = true }) {
           : <HomePremiumLoading />}
       </div>
     </section>}
-    <section className="home-job-hub">
-      <div className="home-job-hub-inner">
-        <div className="home-job-hub-head"><div><span className="section-kicker">QUICK JOB FINDER</span><h2>조건으로 빠르게 찾기</h2></div><p>전체 공고 탐색과 상세 비교는 병원채용 페이지에서 이어집니다.</p></div>
-        <div className="hero-search-card" role="search" aria-label="의사 초빙정보 검색">
-          <div className="hero-search-title"><span><Search /></span><div><strong>의사 초빙정보 바로 찾기</strong><small>초빙유형·진료과·지역을 선택하세요</small></div><em className="hero-search-badge">의사 전용</em></div>
-          <div className="hero-search-fields">
-            <label><small>초빙 유형</small><span><BriefcaseBusiness size={19} /><HeroSelect label="초빙 유형" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></span></label>
-            <label><small>진료과</small><span><Stethoscope size={19} /><HeroSelect label="진료과" value={dept} onChange={setDept} options={siteCategories.departments} /></span></label>
-            <label><small>지역</small><span><MapPin size={19} /><HeroSelect label="지역" value={region} onChange={setRegion} options={siteCategories.regions} /></span></label>
-            <button className="hero-search-button" onClick={search}>의사 초빙정보 보기 <ArrowRight /></button>
-          </div>
-          <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
-        </div>
-      </div>
-    </section>
+
     <section className="section soft home-job-feed" id="featured-jobs"><div className="section-head"><div><span className="section-kicker">BASIC RECRUITMENT AD</span><h2>베이직 광고 초빙공고</h2><p>베이직 광고 상품으로 등록된 공고입니다. 메인 광고는 채용정보 최상단에서 확인하세요.</p></div><Link className="button outline" to="/jobs">전체 병원채용 보기 <ArrowRight size={17} /></Link></div><div className="job-grid unified-job-grid">{latestStandardJobs.map((job) => <JobCard key={job.id} job={job} variant="compact" saved={saved.includes(job.id)} onSave={() => toggleSaved(job.id)} onOpen={() => openJobPage(job)} />)}</div><div className="home-job-feed-more"><Link className="button primary" to="/jobs">모든 채용공고 검색하기 <Search size={17} /></Link></div></section>
   </>;
 }
@@ -2133,6 +2135,25 @@ const talentProfileGuide = {
   },
 };
 
+function OwnedTalentDetail({ talentId, auth }) {
+  const [person,setPerson]=useState(null),[failed,setFailed]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    Promise.all([
+      fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(talentId.slice(7))}`),{credentials:'same-origin'}),
+      fetch(withBase('/api/resumes'),{credentials:'same-origin'})
+    ]).then(async responses=>{if(responses.some(response=>!response.ok))throw Error();return Promise.all(responses.map(response=>response.json()));}).then(([{post},{resumes}])=>{
+      const resume=resumes.find(item=>item.id===post.resumeId);
+      if(!resume)throw Error();
+      if(active)setPerson({detailId:talentId,code:talentId,jobSeekerPostId:post.id,postTitle:post.title,dept:post.specialty,career:'',region:post.desiredRegion,preference:post.employmentType||'협의',available:post.availableFrom||'협의',summary:post.summary,contactVisibility:post.contactVisibility,isDemo:false,name:'',ownerView:true});
+    }).catch(()=>{if(active)setFailed(true);});
+    return()=>{active=false;};
+  },[talentId,auth.email]);
+  if(failed)return <NotFoundPage />;
+  if(!person)return <section className="member-loading" role="status">내 구직글을 불러오고 있습니다.</section>;
+  return <TalentDetailPage person={person} canViewIdentity={false} auth={auth} />;
+}
+
 function TalentDetailPage({ person, canViewIdentity, auth }) {
   const guide = person.isDemo ? (talentProfileGuide[person.dept] || {
     focus: `${person.preference} 조건을 중심으로 새로운 근무지를 검토합니다.`,
@@ -2221,8 +2242,8 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
             {unlock.contactProtected && <div className="talent-contact-protected"><LockKeyhole /><div><strong>전화번호 비공개 · 열람권으로도 공개되지 않습니다</strong><p>열람권으로 경력과 희망 조건은 확인할 수 있지만 전화번호와 이메일은 공개되지 않습니다. 필요한 경우 메디헬퍼스 헤드헌터 상담을 이용해주세요.</p></div></div>}
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
-              {d.phone && <div><dt>연락처</dt><dd><>{person.isDemo ? <span>{d.phone} <small>테스트 번호</small></span> : <a href={`tel:${String(d.phone).replace(/\D/g, '')}`}>{d.phone}</a>}</></dd></div>}
-              {d.email && <div><dt>이메일</dt><dd><>{person.isDemo ? <span>{d.email} <small>테스트 이메일</small></span> : <a href={`mailto:${d.email}`}>{d.email}</a>}</></dd></div>}
+              {d.phone && <div><dt>연락처</dt><dd><>{person.isDemo ? <span>{d.phone} <small>테스트 번호</small></span> : <span>{d.phone}</span>}</></dd></div>}
+              {d.email && <div><dt>이메일</dt><dd><>{person.isDemo ? <span>{d.email} <small>테스트 이메일</small></span> : <span>{d.email}</span>}</></dd></div>}
               {d.specialty && <div><dt>전문분야</dt><dd>{d.specialty}</dd></div>}
               {d.detail?.experienceYears && <div><dt>총 경력</dt><dd>{d.detail.experienceYears}</dd></div>}
               {d.desiredRegions && <div><dt>희망 지역</dt><dd>{d.desiredRegions}</dd></div>}
@@ -2273,11 +2294,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
             <button className="button primary" type="button" onClick={() => { setUnlock(pendingTalentAccess); setRetry((value) => value + 1); }}>다시 불러오기 <ArrowRight /></button>
           ) : ownerAccess ? (
             <Link className="button primary" to={person.jobSeekerPostId ? `/job-seeker-posts/${encodeURIComponent(person.jobSeekerPostId)}/edit` : '/resume'}>내 구직글 수정 <ArrowRight /></Link>
-          ) : unlock.unlocked ? (
-            <Link className="button primary" to={`/headhunting?role=hospital&candidate=${person.code}`} onClick={() => trackConversion("talent_consult_cta", { candidate: person.code })}>헤드헌터와 채용 상담 <ArrowRight /></Link>
-          ) : unlock.limited ? (
-            <a className="button primary" href="tel:0513425463"><Phone /> 담당자 문의</a>
-          ) : !person.isDemo && auth.role === 'hospital' ? (
+          ) : unlock.unlocked || unlock.limited ? null : !person.isDemo && auth.role === 'hospital' ? (
             <Link className="button primary" to={`/talent-unlock?product=talent-unlock-single&talent=${encodeURIComponent(person.detailId || person.code)}`} onClick={() => trackConversion("talent_unlock_cta", { candidate: person.code })}>이력서 열람권 구매 <ArrowRight /></Link>
           ) : null}
         </div>
@@ -2424,7 +2441,7 @@ function HeadhuntBoard({ operations, qa }) {
   const visible = posts.filter((p) =>
     (filter === 'all' || (filter === 'doctor' ? p.kind === '의사' : p.kind === '의료인')) &&
     (region === '전체' || p.region === region) &&
-    (dept === '전체' || p.dept === dept) &&
+    (dept === '전체' || p.dept === dept || dept === '한의사' && p.profession === '한의사') &&
     (!keyword || `${p.title} ${p.hospital} ${p.region} ${p.dept}`.includes(keyword))
   );
   const total = visible.length;
@@ -2520,7 +2537,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const isHospitalMember = auth.role === 'hospital';
   const canWriteJobSeeker = auth.role === 'doctor';
   // 진료과·지역 옵션은 실제 데이터에서 동적으로 뽑는다.
-  const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.dept).filter(Boolean)))], [all]);
+  const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(['한의사', ...all.map((p) => p.dept).filter(Boolean)]))], [all]);
   const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.region).filter(Boolean)))], [all]);
 
   // 열람권(실명·연락처 열람) 여부 — 독립 상세 페이지가 서버에서 상세 권한을 재확인한다.
@@ -2545,7 +2562,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const rows = all.filter((p) =>
     !deletedPostIds.has(p.jobSeekerPostId) &&
     (filter === 'all' || (filter === 'doctor' ? (p.staffType || 'doctor') === 'doctor' : p.staffType === 'medical')) &&
-    (dept === '전체' || p.dept === dept) &&
+    (dept === '전체' || p.dept === dept || dept === '한의사' && p.profession === '한의사') &&
     (region === '전체' || p.region === region) &&
     (!keyword || `${p.postTitle || ''} ${p.dept || ''} ${p.region || ''} ${p.preference || ''} ${p.location || ''}`.includes(keyword))
   );
@@ -2555,7 +2572,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const deleteOwnPost = async (event, person) => {
     event.stopPropagation();
     const id = person.jobSeekerPostId;
-    if (!id || !window.confirm('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
+    if (!id || !await confirmAction('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
     try {
       const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(id)}`), { method:'DELETE', credentials:'same-origin' });
       const data = await response.json().catch(() => ({}));
@@ -3176,7 +3193,7 @@ function Checkout({ plan, auth }) {
                   <span>병원명 <b className="required-label">필수</b></span>
                   <input
                     required
-                    name="hospital"
+                    readOnly name="hospital"
                     placeholder="병원명을 입력해주세요"
                     defaultValue={accountProfile.hospitalName}
                   />
@@ -3209,13 +3226,13 @@ function Checkout({ plan, auth }) {
                 </label>
                 <label>
                   <span>담당자명 <b className="required-label">필수</b></span>
-                  <input required name="manager" placeholder="담당자 성함" defaultValue={accountProfile.name} />
+                  <input required readOnly name="manager" placeholder="담당자 성함" defaultValue={accountProfile.name} />
                 </label>
                 <label>
                   <span>연락처 <b className="required-label">필수</b></span>
                   <input
                     required
-                    name="phone"
+                    readOnly name="phone"
                     type="tel"
                     inputMode="numeric"
                     autoComplete="tel"
@@ -3231,7 +3248,7 @@ function Checkout({ plan, auth }) {
                   <span>이메일 <b className="required-label">필수</b></span>
                   <input
                     required
-                    name="email"
+                    readOnly name="email"
                     type="email"
                     placeholder="billing@hospital.co.kr"
                     defaultValue={accountProfile.email}
@@ -3256,11 +3273,11 @@ function Checkout({ plan, auth }) {
                 </label>
                 <label>
                   <span>대표자명 <i>선택</i></span>
-                  <input name="representative" placeholder="대표자 성함" defaultValue={accountProfile.representativeName} />
+                  <input readOnly name="representative" placeholder="대표자 성함" defaultValue={accountProfile.representativeName} />
                 </label>
                 <label>
                   <span>사업자번호 <i>선택</i></span>
-                  <input name="businessNumber" inputMode="numeric" placeholder="000-00-00000" defaultValue={accountProfile.businessNumber} />
+                  <input readOnly name="businessNumber" inputMode="numeric" placeholder="000-00-00000" defaultValue={accountProfile.businessNumber} />
                 </label>
                 <label>
                   <span>개원연도 <i>선택</i></span>
@@ -3692,7 +3709,9 @@ export function App() {
     const canViewIdentity = qa?.active
       ? canRevealTalentIdentity(qa.info.capabilities, true)
       : canRevealTalentIdentity({ hospital: auth.role === 'hospital', admin: Boolean(auth.isAdmin), signedIn: auth.status === 'member' }, auth.status === 'member');
-    page = operations.features.medicalStaffHub === false || !person
+    page = operations.features.medicalStaffHub !== false && !person && talentId.startsWith('seeker-') && auth.role === 'doctor'
+      ? <OwnedTalentDetail talentId={talentId} auth={auth} />
+      : operations.features.medicalStaffHub === false || !person
       ? <NotFoundPage />
       : <AuthGate auth={auth} title="구직 인재 상세는 회원 전용입니다" description="회원 권한에서만 구직 인재의 경력과 희망 조건을 확인할 수 있습니다."><TalentDetailPage key={`${talentId}:${auth.email || ''}:${auth.role}`} person={person} canViewIdentity={canViewIdentity} auth={auth} /></AuthGate>;
   }

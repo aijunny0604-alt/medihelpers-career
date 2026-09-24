@@ -32,9 +32,9 @@ for(const role of ['doctor','hospital','admin']){const r=await call('/api/auth/t
 const protectedPaths=['/api/account','/api/resumes','/api/member-center','/api/admin-console','/api/recruitment-crm','/api/payment-orders','/api/job-seeker-posts'];
 const expectedRoleStatuses={ '':[200,401,401,403,401,401,401], doctor:[200,200,200,403,401,200,200], hospital:[200,403,200,403,401,200,403], admin:[200,200,200,200,200,200,403] };
 for(const role of ['', 'doctor','hospital','admin']) for(const [index,path] of protectedPaths.entries()) {const r=await call(path,role);record('role matrix '+(role||'anonymous')+' '+path,r.status,expectedRoleStatuses[role][index]); if(role==='hospital' && path==='/api/member-center') record('cold hospital member center',r.status,200);}
-const resume=await call('/api/resumes','doctor',{title:'검수 이력서',name:'검수의사',phone:'010-0000-0000',profession:'의사',specialty:'내과',detail:{introduction:'검수 전용',contactVisibility:'ticket'},createNew:true});record('save resume',resume.status,201);
+const resume=await call('/api/resumes','doctor',{title:'검수 이력서',name:'검수의사',phone:'010-0000-0000',profession:'의사',specialty:'내과',desiredRegions:'서울',detail:{introduction:'합성 시험용 경력입니다. 내과 외래 진료 경력과 희망 근무 조건을 검증합니다.',contactVisibility:'ticket'},createNew:true});record('save resume',resume.status,201);
 const post=await call('/api/job-seeker-posts','doctor',{resumeId:resume.data.id,title:'검수 구직글',contactVisibility:'private'});record('create post',post.status,201);
-const duplicate=await call('/api/job-seeker-posts','doctor',{resumeId:resume.data.id,title:'duplicate'});record('duplicate post rejected',duplicate.status,409);
+const duplicate=await call('/api/job-seeker-posts','doctor',{resumeId:resume.data.id,title:'duplicate'});record('independent second post created',duplicate.status,201);
 const order=await call('/api/payment-orders','hospital',{productId:'talent-unlock-pack'});record('create credit order',order.status,201);
 const approve=await call('/api/payment-approve','hospital',{orderNumber:order.data.order.orderNumber});record('approve virtual pack',approve.data.approved,true);
 await call('/api/payment-approve','hospital',{orderNumber:order.data.order.orderNumber});
@@ -56,7 +56,7 @@ detail=await call('/api/talent-detail/seeker-NONEXISTENT-AUDIT','hospital');
 record('nonexistent talent must not consume credit',sqlite.prepare('SELECT SUM(used_credits) n FROM talent_credit_pools').get().n,beforeMissing);
 record('nonexistent talent response',detail.status,404);
 record('missing target order rejected',(await call('/api/payment-orders','hospital',{productId:'talent-unlock-single',metadata:{talentId:'seeker-NONEXISTENT'}})).status,400);
-const secondResume=await call('/api/resumes','doctor',{title:'limit test',name:'Test',phone:'010-0000-0000',profession:'의사',createNew:true});
+const secondResume=await call('/api/resumes','doctor',{title:'limit test',name:'Test',phone:'010-0000-0000',profession:'의사',specialty:'내과',desiredRegions:'서울',detail:{introduction:'합성 시험용 경력입니다. 내과 외래 진료 경력과 희망 근무 조건을 검증합니다.'},createNew:true});
 const secondPost=await call('/api/job-seeker-posts','doctor',{resumeId:secondResume.data.id,title:'limit test'});
 env.TALENT_VIEW_DAILY_LIMIT='1';
 const beforeLimit=sqlite.prepare('SELECT SUM(used_credits) n FROM talent_credit_pools').get().n;
@@ -82,7 +82,7 @@ record('deleted target preserves credit',sqlite.prepare('SELECT SUM(used_credits
 record('deleted post photo denied',(await call('/api/uploads/profiles/'+doctorAccount+'/audit.png','hospital')).status,403);
 const payload={name:'검수의사',hospital:'검수병원',phone:'010-0000-0000',specialty:'내과',message:'로컬 검수 전용',resumeId:resume.data.id};
 const consultation=await call('/api/consultations','doctor',{requestType:'doctor',payload});record('doctor consultation saved locally',consultation.status,201);
-const application=await call('/api/consultations','doctor',{requestType:'doctor',thirdPartyConsent:true,recipient:'검수병원',payload:{...payload,jobId:'admin-'+ad.data.order.contentRecordId}});
+const application=await call('/api/consultations','doctor',{requestType:'doctor',thirdPartyConsent:true,recipient:'메디헬퍼스 테스트병원',payload:{...payload,jobId:'admin-'+ad.data.order.contentRecordId}});
 record('direct application to paid job saved',application.status,201);
 const hospitalCenter=await call('/api/member-center','hospital');
 record('hospital sees direct applicant',JSON.stringify(hospitalCenter.data).includes(resume.data.id),true);

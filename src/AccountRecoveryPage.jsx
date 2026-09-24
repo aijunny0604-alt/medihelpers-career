@@ -3,8 +3,8 @@ import { ArrowRight, Check, KeyRound, LockKeyhole, Mail, MessageCircle, ShieldCh
 import { withBase } from './basePath.js';
 
 const genericMessage = {
-  id: '입력한 정보와 일치하는 계정이 있으면 가입 이메일로 아이디 안내를 보냈습니다.',
-  password: '입력한 이메일과 일치하는 계정이 있으면 비밀번호 재설정 링크를 보냈습니다.',
+  id: '입력한 정보와 일치하는 계정이 있으면 가입 이메일로 아이디 안내를 발송합니다. 도착하지 않으면 잠시 후 다시 확인해주세요.',
+  password: '입력한 이메일과 일치하는 계정이 있으면 비밀번호 재설정 링크를 발송합니다. 도착하지 않으면 잠시 후 다시 확인해주세요.',
 };
 
 export default function AccountRecoveryPage() {

@@ -90,7 +90,7 @@ export default function HospitalAdEditPage({ ad }) {
       invalidateSiteOperations();
       setForm((current) => ({ ...current, logo, banner }));
       setLogoFile(null); setBannerFile(null); setSaved(true);
-      window.scrollTo({ top:0, behavior:'smooth' });
+      window.location.assign(withBase(`/jobs/admin-${encodeURIComponent(ad.contentRecordId)}`));
     } catch (submitError) {
       setError(submitError.message || '공고를 수정하지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally { setSubmitting(false); }
@@ -102,7 +102,7 @@ export default function HospitalAdEditPage({ ad }) {
     <form className="owned-ad-edit-form" onSubmit={submit}>
       <section className="member-panel"><div className="member-panel-head"><div><h3>공고 기본정보</h3><p>구직자가 목록에서 먼저 확인하는 제목과 병원 정보입니다.</p></div><PencilLine /></div><div className="owned-ad-form-grid">
         <label className="wide"><span>공고 제목 *</span><input required value={form.title} onChange={(event) => update('title', event.target.value)} /></label>
-        <label><span>병원·기관명 *</span><input required value={form.hospital} onChange={(event) => update('hospital', event.target.value)} /></label>
+        <label><span>병원·기관명 *</span><input readOnly required value={form.hospital} onChange={(event) => update('hospital', event.target.value)} /></label>
         <label><span>기관 유형</span><input value={form.facilityType} onChange={(event) => update('facilityType', event.target.value)} placeholder="예: 종합병원, 의원, 검진센터" /></label>
         <label className="wide"><span>주소</span><input value={form.address} onChange={(event) => update('address', event.target.value)} /></label>
         <label className="wide"><span>홈페이지</span><input type="url" value={form.website} onChange={(event) => update('website', event.target.value)} placeholder="https://" /></label>
