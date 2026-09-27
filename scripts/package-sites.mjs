@@ -92,7 +92,9 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
   "export async function handleApiRoute() { return new Response('Not Found', { status: 404 }); }",
   "export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }",
 ].join('\n');
-const server = `${migrationControl.toString()}
+const inicisServer = (await readFile('server/inicisStandard.js', 'utf8')).replace(/^export /gm, '');
+const server = `${inicisServer}
+${migrationControl.toString()}
 ${migrationGate.toString()}
 ${normalizeContactPhone.toString()}
 ${normalizeWebsiteUrl.toString()}
@@ -387,7 +389,7 @@ async function ensureMemberCenterSchema(env) {
   catch (error) { schemaReadyPromises.delete('member-unlock-date-v1'); throw error; }
 }
 async function ensureCommerceSchema(env) {
-  return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events, ad_renewal_reservations LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events, ad_renewal_reservations, payment_pg_attempts, payment_pg_refunds LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
 }
 // 열람권 '묶음(팩)' 크레딧 풀. 병원이 팩을 사면 크레딧 N개가 적립되고,
 // 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권(talent_unlocks)을 발급한다.
@@ -443,13 +445,13 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
   catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
-const backupSchemaVersion = '0017';
+const backupSchemaVersion = '0018';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
   'consultation_requests','member_profiles','member_registration_profiles','member_preferences','member_activity','member_notifications','inquiry_messages',
   'resumes','job_seeker_posts','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
-  'payment_transactions','payment_refunds','payment_receipts','payment_events',
+  'payment_transactions','payment_refunds','payment_receipts','payment_events','payment_pg_attempts','payment_pg_refunds',
   'payment_webhook_events','recruitment_cases','candidate_submissions','interview_events',
   'consent_grants','billing_records','access_audit_logs','admin_content_records',
   'admin_categories','site_settings','feature_flags','admin_audit_logs',
@@ -2361,8 +2363,8 @@ async function publishAdOrderContent(env, order, metadataJson = order?.metadataJ
   if (!contentRecordId) return;
   const exposure = normalizeExposureWindow(meta.exposure);
   const exposureEnd = cleanOrderValue(exposure?.end, 10);
-  await env.DB.prepare("UPDATE admin_content_records SET status='published', published_at=COALESCE(published_at,CURRENT_TIMESTAMP), payload_json=json_set(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END, '$.adProductName', ?, '$.adTier', ?, '$.exposureEnd', ?, '$.exposure', json(?)), updated_at=CURRENT_TIMESTAMP WHERE id=?")
-    .bind(cleanOrderValue(product.name, 180), adTierForProduct(order.productId, product.name) || null, exposureEnd || null, JSON.stringify(exposure), contentRecordId).run();
+  await env.DB.prepare("UPDATE admin_content_records SET status='published', published_at=COALESCE(published_at,CURRENT_TIMESTAMP), payload_json=json_set(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END, '$.adProductName', ?, '$.adTier', ?, '$.exposureEnd', ?, '$.exposure', json(?)), updated_at=CURRENT_TIMESTAMP WHERE id=? AND EXISTS (SELECT 1 FROM payment_orders WHERE id=? AND status='paid') AND NOT EXISTS (SELECT 1 FROM payment_refunds WHERE order_id=? AND status='processing')")
+    .bind(cleanOrderValue(product.name, 180), adTierForProduct(order.productId, product.name) || null, exposureEnd || null, JSON.stringify(exposure), contentRecordId, order.id, order.id).run();
 }
 // 이전 광고 신청은 결제 원장에만 저장됐다. 관리자 콘솔 조회 시 한 번만 복구하고
 // contentRecordId를 주문 metadata에 기록해 관리자가 삭제한 공고가 되살아나지 않게 한다.
@@ -2569,20 +2571,7 @@ async function sha256Hex(value) {
 }
 // 이니시스 웹표준결제 요청 파라미터·서명 생성. MID/signKey 미설정 시 configured:false.
 async function buildInicisPaymentParams(env, order) {
-  if (!env.INICIS_MID || !env.INICIS_SIGN_KEY) return { configured:false };
-  const mid = env.INICIS_MID;
-  const timestamp = String(Date.now());
-  const amount = String(order.amount);
-  const oid = order.orderNumber;
-  // 이니시스 규격: signature=SHA256(oid=..&price=..&timestamp=..), mKey=SHA256(signKey)
-  const signature = await sha256Hex('oid=' + oid + '&price=' + amount + '&timestamp=' + timestamp);
-  const mKey = await sha256Hex(env.INICIS_SIGN_KEY);
-  return {
-    configured:true, mid, oid, price:amount, timestamp, signature, mKey,
-    goodname:order.productName, buyername:order.buyerName, buyeremail:order.buyerEmail || '', buyertel:order.buyerTel || '',
-    returnUrl:(env.SITE_ORIGIN || '') + '/api/payment-approve', closeUrl:(env.SITE_ORIGIN || '') + '/',
-    gopaymethod:'Card', currency:'WON', version:'1.0', mobile:false
-  };
+  return inicisRequestParams(env, order);
 }
 // 이니시스 결제창 리턴 → 서버가 최종 승인요청·금액검증 후 주문을 paid 처리한다.
 // INICIS 키 미설정 시: 결제 흐름을 시뮬레이션하는 테스트(가상) 모드로 동작한다.
@@ -2592,14 +2581,15 @@ async function paymentApproveApi(request, env) {
   const inicisReady = Boolean(env.INICIS_MID && env.INICIS_SIGN_KEY);
   // 안전장치: 실결제 의도(PAYMENT_LIVE=true)인데 키가 불완전하면 '무료 승인'을 막고 명시적으로 실패시킨다.
   // (프로덕션에서 키 누락/오타로 전 주문이 무료 통과되는 사고 방지)
-  if (env.PAYMENT_LIVE === 'true' && !inicisReady) {
+  if ((env.PAYMENT_LIVE === 'true' || env.INICIS_MID || env.INICIS_SIGN_KEY) && !inicisReady) {
     return json({ error:'결제 설정이 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.', code:'PG_NOT_CONFIGURED' }, 503);
   }
   const testMode = !inicisReady;
-  if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+  const fromPgForm = (request.headers.get('content-type') || '').includes('application/x-www-form-urlencoded');
+  if ((!fromPgForm || testMode) && !sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
+  if (!testMode && !['test','live'].includes(env.INICIS_ENV)) return json({error:'결제 환경 설정을 확인해주세요.'},503);
   try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 저장소를 사용할 수 없습니다.' }, 503); }
   let body;
-  const fromPgForm = (request.headers.get('content-type') || '').includes('application/x-www-form-urlencoded');
   try { body = fromPgForm ? Object.fromEntries((await request.formData()).entries()) : await readRequestObject(request); }
   catch { return json({ error:'결제 결과를 확인할 수 없습니다.' }, 400); }
   // 브라우저가 직접 이동해 온 경우(PG 리턴)에는 JSON이 아니라 결과 페이지로 보내야 한다.
@@ -2618,6 +2608,8 @@ async function paymentApproveApi(request, env) {
   if (!oid) return json({ error:'주문번호가 없습니다.' }, 400);
   const order = await env.DB.prepare('SELECT id, account_id AS accountId, total_amount AS totalAmount, status, product_id AS productId, product_type AS productType, metadata_json AS metadataJson FROM payment_orders WHERE order_number = ?').bind(oid).first();
   if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
+  // Cross-site PG returns cannot rely on SameSite login cookies. Bind them to the original server-signed order.
+  if (!testMode && fromPgForm && !await verifyInicisState(env, {orderNumber:oid, amount:order.totalAmount}, String(body.merchantData || ''))) return json({error:'결제 요청의 유효기간 또는 인증 정보를 확인해주세요.'},403);
   if (Object.hasOwn(testTalentDetails, String(parseJsonObject(order.metadataJson)?.talentId || '')) && !testTalentDetail(env, String(parseJsonObject(order.metadataJson)?.talentId || ''))) return json({ error:'예시 이력서는 가상 결제 테스트에서만 열람할 수 있습니다.' },400);
   // [보안] 주문 소유자 본인만 승인할 수 있다. 예전에는 주문번호만 알면
   // 누구나(비로그인 포함) 승인을 호출할 수 있었다.
@@ -2662,7 +2654,7 @@ async function paymentApproveApi(request, env) {
       await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env);
       const existingPool = await env.DB.prepare('SELECT id FROM talent_credit_pools WHERE order_id=? LIMIT 1').bind(order.id).first();
       if (existingPool) return;
-      const creditOrder = () => env.DB.prepare("INSERT INTO talent_credit_pools (id, hospital_account_id, order_id, total_credits, used_credits, expires_at) VALUES (?, ?, ?, ?, 0, ?) ON CONFLICT(order_id) DO NOTHING").bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, null).run();
+      const creditOrder = () => env.DB.prepare("INSERT INTO talent_credit_pools (id, hospital_account_id, order_id, total_credits, used_credits, expires_at) SELECT ?, ?, ?, ?, 0, ? WHERE EXISTS (SELECT 1 FROM payment_orders WHERE id=? AND status='paid') AND NOT EXISTS (SELECT 1 FROM payment_refunds WHERE order_id=? AND status='processing') ON CONFLICT(order_id) DO NOTHING").bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, null, order.id, order.id).run();
       if (unlockCount > 1 || !talentId) { await creditOrder(); return; }
       const existing = await env.DB.prepare('SELECT id, order_id AS orderId FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(order.accountId,talentId).first();
       if (existing?.orderId === order.id) return;
@@ -2673,7 +2665,7 @@ async function paymentApproveApi(request, env) {
       // If the candidate disappeared or another purchase already opened it, preserve one usable credit.
       const hiddenLegacyPost = talentId.startsWith('resume-') && await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND status<>'active' LIMIT 1").bind(talentId.slice(7)).first();
       if (existing || !target || hiddenLegacyPost) { await creditOrder(); return; }
-      const grant = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, ?, ? WHERE ?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND ((?=1 AND r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active')))").bind(crypto.randomUUID(),order.accountId,talentId,order.id,null,demo?1:0,target.id || '',talentId.startsWith('resume-')?1:0,talentId.startsWith('seeker-')?talentId.slice(7):'').run();
+      const grant = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM payment_orders WHERE id=? AND status='paid') AND NOT EXISTS (SELECT 1 FROM payment_refunds WHERE order_id=? AND status='processing') AND (?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND ((?=1 AND r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active'))))").bind(crypto.randomUUID(),order.accountId,talentId,order.id,null,order.id,order.id,demo?1:0,target.id || '',talentId.startsWith('resume-')?1:0,talentId.startsWith('seeker-')?talentId.slice(7):'').run();
       if (!runChanges(grant)) {
         const winner = await env.DB.prepare('SELECT order_id AS orderId FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?').bind(order.accountId,talentId).first();
         if (winner?.orderId !== order.id) await creditOrder();
@@ -2684,12 +2676,14 @@ async function paymentApproveApi(request, env) {
     }
   };
   const fulfillOrder = async metadataJson => {
+    const current = await env.DB.prepare('SELECT status FROM payment_orders WHERE id=?').bind(order.id).first();
+    if (current?.status !== 'paid') return json({approved:false,status:current?.status || 'unknown',error:'주문 상태가 변경됐습니다. 결제 내역을 새로 확인해주세요.'},409);
     try { await publishAdOrderContent(env, order, metadataJson); await recordTalentUnlock(); return null; }
     catch { return json({ approved:false, status:'paid', orderNumber:oid, fulfillmentPending:true, error:'결제는 처리됐지만 서비스 반영이 지연되고 있습니다. 추가 결제 없이 같은 주문으로 다시 확인해주세요.' }, 503); }
   };
   if (order.status === 'paid') {
     const pending = await fulfillOrder(order.metadataJson);
-    if (pending) return pending;
+    if (pending) return fromPgForm ? pgRedirect('pending',oid,'주문 상태와 서비스 반영을 확인 중입니다. 다시 결제하지 마세요.') : pending;
     if (fromPgForm) return pgRedirect('paid', oid, '');
     return json({ approved:true, status:'paid', orderNumber:oid, duplicated:true, testMode });
   }
@@ -2698,7 +2692,8 @@ async function paymentApproveApi(request, env) {
     await env.DB.batch([
       env.DB.prepare("UPDATE payment_orders SET status='paid', payment_method='card', paid_at=CURRENT_TIMESTAMP, metadata_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(metadataJson, order.id),
       env.DB.prepare("INSERT INTO payment_transactions (id, order_id, transaction_type, provider, provider_transaction_id, amount, status, processed_at) SELECT ?, ?, 'capture', ?, ?, ?, 'succeeded', CURRENT_TIMESTAMP WHERE changes()=1").bind(crypto.randomUUID(), order.id, provider, tid, Number(order.totalAmount)),
-      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) SELECT ?, ?, ?, 'payment_approved', 'paid', ? WHERE changes()=1").bind(crypto.randomUUID(), order.id, provider, JSON.stringify({tid,oid,testMode:provider==='test'}))
+      env.DB.prepare("INSERT INTO payment_events (id, order_id, actor_key, event_type, to_status, detail_json) SELECT ?, ?, ?, 'payment_approved', 'paid', ? WHERE changes()=1").bind(crypto.randomUUID(), order.id, provider, JSON.stringify({tid,oid,testMode:provider==='test'})),
+      env.DB.prepare("UPDATE payment_pg_attempts SET status='captured', updated_at=CURRENT_TIMESTAMP WHERE order_id=? AND EXISTS (SELECT 1 FROM payment_transactions WHERE order_id=? AND provider='inicis' AND provider_transaction_id=? AND transaction_type='capture' AND status='succeeded')").bind(order.id,order.id,tid)
     ]);
     return env.DB.prepare('SELECT status, metadata_json AS metadataJson FROM payment_orders WHERE id=?').bind(order.id).first();
   };
@@ -2713,72 +2708,32 @@ async function paymentApproveApi(request, env) {
     if (fromPgForm) return pgRedirect('paid', oid, '');
     return json({ approved:true, status:'paid', orderNumber:oid, tid, testMode:true, message:'테스트 결제가 완료되었습니다(실제 청구 없음).' });
   }
-  // 결제창 인증 실패
   if (resultCode && resultCode !== '0000') {
-    await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
-    const failMessage = String(body.resultMsg || '결제가 취소되었거나 실패했습니다.');
-    if (fromPgForm) return pgRedirect('failed', oid, failMessage);
-    return json({ approved:false, status:'failed', message:failMessage });
+    if (fromPgForm) return pgRedirect('failed', oid, '결제 인증이 취소되었거나 실패했습니다.');
+    return json({approved:false, status:'failed'},400);
   }
-  // [보안] 승인 검증 필수화: authToken/authUrl이 없으면 '승인되지 않은 요청'으로 즉시 실패시킨다.
-  // (과거에는 이 분기를 건너뛰면 검증 없이 paid로 통과해 공짜 결제가 가능했다 — fail closed로 변경)
-  if (!authToken || !authUrl) {
-    if (fromPgForm) return pgRedirect('failed', oid, '결제 인증 정보가 없습니다.');
-    return json({ approved:false, status:'failed', message:'결제 인증 정보가 없습니다.' }, 400);
+  if (!await verifyInicisState(env, {orderNumber:oid, amount:order.totalAmount}, String(body.merchantData || ''))) return json({error:'유효한 결제 요청이 필요합니다.'},403);
+  let outcome;
+  try {
+    const approvedMetadataJson = buildExposureMeta(order.metadataJson);
+    outcome = await processInicisApproval(env, {id:order.id, orderNumber:oid, amount:order.totalAmount}, body, async tid => {
+      const committed = await captureOrder('inicis', tid, approvedMetadataJson);
+      if (committed?.status !== 'paid') throw new Error('CAPTURE_NOT_COMMITTED');
+    });
+  } catch {
+    return fromPgForm ? pgRedirect('failed', oid, '결제 인증 정보를 확인할 수 없습니다.') : json({approved:false,error:'결제 인증 정보를 확인할 수 없습니다.'},400);
   }
-  // [보안] SSRF 방어: 승인 요청은 이니시스 도메인(https)으로만 보낸다.
-  // (authUrl은 외부 입력이라 공격자가 자기 서버를 지정하면 MID·signKey 파생값이 유출되고 승인 응답도 위조된다)
-  let authTarget;
-  try { authTarget = new URL(authUrl); } catch { authTarget = null; }
-  const allowedAuthHost = authTarget && authTarget.protocol === 'https:' && !authTarget.username && !authTarget.password && (!authTarget.port || authTarget.port === '443') && (authTarget.hostname === 'inicis.com' || authTarget.hostname.endsWith('.inicis.com'));
-  if (!allowedAuthHost) {
-    if (fromPgForm) return pgRedirect('failed', oid, '허용되지 않은 승인 주소입니다.');
-    return json({ approved:false, status:'failed', message:'허용되지 않은 승인 주소입니다.' }, 400);
+  if (outcome.status !== 'paid') {
+    const uncertain = ['review','pending'].includes(outcome.status);
+    const message = uncertain ? '결제 결과를 확인 중입니다. 다시 결제하지 말고 주문 내역을 확인해주세요.' : outcome.status === 'net_cancelled' ? '결제가 취소되었습니다. 주문 내역을 확인해주세요.' : '결제가 승인되지 않았습니다.';
+    if (fromPgForm) return pgRedirect(uncertain ? 'pending' : 'failed', oid, message);
+    return json({approved:false, status:outcome.status, message, reconciliationRequired:uncertain},uncertain ? 409 : 400);
   }
-  // 실제 승인요청: authUrl로 authToken을 전송해 최종 승인. 승인 금액이 주문 금액과 다르면 거절.
-  let approval = null;
-  {
-    const timestamp = String(Date.now());
-    const signature = await sha256Hex('authToken=' + authToken + '&timestamp=' + timestamp);
-    const verification = await sha256Hex('authToken=' + authToken + '&signKey=' + env.INICIS_SIGN_KEY + '&timestamp=' + timestamp);
-    try {
-      const res = await fetch(authTarget.toString(), { method:'POST', redirect:'error', signal:AbortSignal.timeout(15000), headers:{ 'content-type':'application/x-www-form-urlencoded' },
-        body:new URLSearchParams({ mid:env.INICIS_MID, authToken, timestamp, signature, verification, charset:'UTF-8', format:'JSON' }) });
-      if (!res.ok) throw new Error('PG_HTTP_ERROR');
-      approval = await res.json();
-    } catch {
-      if (fromPgForm) return pgRedirect('failed', oid, '승인 서버 통신에 실패했습니다.');
-      return json({ error:'승인 서버 통신에 실패했습니다.' }, 502);
-    }
-    const approvedAmount = Number(approval?.TotPrice || approval?.price || 0);
-    if (String(approval?.resultCode) !== '0000') {
-      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
-      if (fromPgForm) return pgRedirect('failed', oid, String(approval?.resultMsg || '승인 실패'));
-      return json({ approved:false, status:'failed', message:String(approval?.resultMsg || '승인 실패') });
-    }
-    // [보안] 승인 응답이 이 주문에 대한 것인지 확인(다른 주문의 승인 결과 재사용 방지).
-    const approvedOid = String(approval?.MOID || approval?.moid || approval?.oid || '');
-    if (approvedOid !== oid) {
-      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
-      if (fromPgForm) return pgRedirect('failed', oid, '주문 정보가 일치하지 않습니다.');
-      return json({ approved:false, status:'failed', message:'주문 정보가 일치하지 않습니다.' }, 400);
-    }
-    if (approvedAmount !== Number(order.totalAmount)) {
-      // 금액 위변조 방지: 승인금액≠주문금액이면 실패 처리.
-      await env.DB.prepare("UPDATE payment_orders SET status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending_review','awaiting_payment','failed')").bind(order.id).run();
-      if (fromPgForm) return pgRedirect('failed', oid, '결제 금액이 일치하지 않습니다.');
-      return json({ approved:false, status:'failed', message:'결제 금액이 일치하지 않습니다.' }, 400);
-    }
-  }
-  const tid = String(approval?.tid || '');
-  if (!tid) return json({ approved:false, error:'결제 거래번호를 확인할 수 없습니다.' },400);
-  const approvedMetadataJson = buildExposureMeta(order.metadataJson);
-  const committed = await captureOrder('inicis', tid, approvedMetadataJson);
-  if (committed?.status !== 'paid') return json({ approved:false, error:'주문 상태가 변경되어 승인할 수 없습니다.' }, 409);
+  const committed = await env.DB.prepare('SELECT metadata_json AS metadataJson FROM payment_orders WHERE id=?').bind(order.id).first();
   const pending = await fulfillOrder(committed.metadataJson);
-  if (pending) return pending;
+  if (pending) return fromPgForm ? pgRedirect('pending',oid,'결제는 완료됐으며 서비스 반영을 확인 중입니다. 다시 결제하지 마세요.') : pending;
   if (fromPgForm) return pgRedirect('paid', oid, '');
-  return json({ approved:true, status:'paid', orderNumber:oid, tid });
+  return json({approved:true,status:'paid',orderNumber:oid,tid:outcome.tid});
 }
 async function recruitmentCrmApi(request, env, pathname) {
   const admin = await adminIdentity(request, env);
@@ -3201,6 +3156,7 @@ async function adminConsoleApi(request, env, ctx) {
     await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, status, verification_status, admin_note, updated_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET status=excluded.status, verification_status=excluded.verification_status, admin_note=excluded.admin_note, updated_by=excluded.updated_by, updated_at=CURRENT_TIMESTAMP").bind(id, status, verificationStatus, note, admin.email).run();
     await writeAdminAudit(env, admin, 'member_update', id, { status, verificationStatus });
   } else if (action === 'payment_update') {
+    if (env.PAYMENT_LIVE === 'true' || env.INICIS_MID || env.INICIS_SIGN_KEY) return json({error:'실결제 상태는 PG 검증으로만 변경할 수 있습니다.'},409);
     const id = String(payload.id || '');
     const status = String(payload.status || '');
     const allowedStatuses = ['pending_review','awaiting_payment','paid','failed','cancelled'];
@@ -3319,13 +3275,37 @@ async function refundReviewApi(request,env) {
   let body;try{body=await readRequestObject(request);}catch{return json({error:'요청 내용을 확인해주세요.'},400);}
   if (!['approve','reject'].includes(body.decision)) return json({error:'처리 방식을 확인해주세요.'},400);
   await ensureCommerceSchema(env);await ensureTalentCreditSchema(env);
-  const refund=await env.DB.prepare("SELECT r.id,r.order_id AS orderId,r.status,o.status AS orderStatus,o.total_amount AS totalAmount,o.metadata_json AS metadataJson FROM payment_refunds r JOIN payment_orders o ON o.id=r.order_id WHERE r.id=?").bind(String(body.refundId || '')).first();
-  if (!refund || refund.status !== 'requested') return json({error:'처리 대기 중인 환불 요청이 아닙니다.'},409);
+  const refund=await env.DB.prepare("SELECT r.id,r.order_id AS orderId,r.status,r.reason,o.status AS orderStatus,o.total_amount AS totalAmount,o.metadata_json AS metadataJson FROM payment_refunds r JOIN payment_orders o ON o.id=r.order_id WHERE r.id=?").bind(String(body.refundId || '')).first();
+  if (!refund || !['requested','processing'].includes(refund.status)) return json({error:'처리 대기 중인 환불 요청이 아닙니다.'},409);
   if (body.decision === 'reject') {
     const result=await env.DB.prepare("UPDATE payment_refunds SET status='rejected',processed_at=CURRENT_TIMESTAMP WHERE id=? AND status='requested'").bind(refund.id).run();
     return runChanges(result)?json({saved:true}):json({error:'이미 처리된 요청입니다.'},409);
   }
-  const transactions=await env.DB.prepare("SELECT provider FROM payment_transactions WHERE order_id=? AND transaction_type='capture' AND status='succeeded'").bind(refund.orderId).all();
+  const transactions=await env.DB.prepare("SELECT provider,provider_transaction_id AS tid,amount FROM payment_transactions WHERE order_id=? AND transaction_type='capture' AND status='succeeded'").bind(refund.orderId).all();
+  const captures=transactions.results||[];
+  if (captures.some(row=>row.provider==='inicis')) {
+    if (env.INICIS_REFUNDS_ENABLED !== 'true') return json({error:'이니시스 취소 연동은 아직 활성화되지 않았습니다. PG 설정과 검증을 먼저 완료해주세요.'},503);
+    const prior=await env.DB.prepare("SELECT COUNT(*) AS count FROM payment_transactions WHERE order_id=? AND transaction_type='refund' AND status='succeeded'").bind(refund.orderId).first();
+    if (refund.orderStatus !== 'paid' || captures.length !== 1 || Number(captures[0].amount)!==Number(refund.totalAmount) || prior.count) return json({error:'전액 카드 취소 가능한 결제 상태가 아닙니다.'},409);
+    try { await inicisRefundFields(env,captures[0].tid,refund.reason); } catch { return json({error:'이니시스 취소 키·서버 IP 설정을 확인해주세요.'},503); }
+    if (refund.status==='requested') {
+      const claimed=await env.DB.prepare("UPDATE payment_refunds SET status='processing' WHERE id=? AND status='requested'").bind(refund.id).run();
+      if (!runChanges(claimed)) return json({error:'이미 처리 중인 환불입니다.'},409);
+    }
+    const meta=parseJsonObject(refund.metadataJson)||{};delete meta.exposure;
+    const finalize=async()=>env.DB.batch([
+      env.DB.prepare("UPDATE payment_orders SET status='refunded',metadata_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta),refund.orderId),
+      env.DB.prepare("UPDATE payment_refunds SET status='succeeded',amount=?,processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.totalAmount,refund.id),
+      env.DB.prepare("INSERT OR IGNORE INTO payment_transactions (id,order_id,transaction_type,provider,provider_transaction_id,amount,status,processed_at) VALUES (?,?,'refund','inicis',?,?,'succeeded',CURRENT_TIMESTAMP)").bind('inicis-refund-'+refund.id,refund.orderId,captures[0].tid,refund.totalAmount),
+      ...talentRevokeStatementsForOrder(env,refund.orderId),
+      ...(meta.contentRecordId ? [env.DB.prepare("UPDATE admin_content_records SET status='hidden',updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS (SELECT 1 FROM payment_orders WHERE id<>? AND status='paid' AND json_extract(metadata_json,'$.contentRecordId')=? AND json_extract(metadata_json,'$.exposure.end')>=date('now'))").bind(meta.contentRecordId,refund.orderId,meta.contentRecordId)] : []),
+      env.DB.prepare("INSERT OR IGNORE INTO payment_events (id,order_id,actor_key,event_type,detail_json) VALUES (?,?,?,'inicis_refund_completed',?)").bind('inicis-refund-event-'+refund.id,refund.orderId,(await authenticatedUser(request,env)).email,JSON.stringify({refundId:refund.id,amount:refund.totalAmount})),
+      env.DB.prepare("UPDATE payment_pg_refunds SET status='completed',updated_at=CURRENT_TIMESTAMP WHERE order_id=?").bind(refund.orderId)
+    ]);
+    const outcome=await processInicisRefund(env,refund,captures[0].tid,finalize);
+    if (outcome.status==='refunded') return json({saved:true,refunded:true,virtual:false});
+    return json({error:outcome.status==='pending_local'?'PG 취소는 확인됐지만 권한 회수 저장을 완료하지 못했습니다. 처리 결과 확인을 다시 눌러주세요.':'취소 결과를 확인 중입니다. PG 거래 내역과 대사하기 전 중복 취소하지 마세요.',reconciliationRequired:true},409);
+  }
   if (String(env.PAYMENT_LIVE)==='true' || env.INICIS_MID || env.INICIS_SIGN_KEY || !(transactions.results||[]).length || (transactions.results||[]).some(row=>!['virtual','test','mock'].includes(row.provider))) return json({error:'실결제 환불은 PG 취소 결과 검증 연동이 필요합니다. 현재 화면은 가상 결제 환불 테스트 전용입니다.'},503);
   if (refund.orderStatus !== 'paid') return json({error:'전액 취소 가능한 결제 상태가 아닙니다.'},409);
   const claimed=await env.DB.prepare("UPDATE payment_refunds SET status='processing' WHERE id=? AND status='requested'").bind(refund.id).run();
@@ -3370,7 +3350,7 @@ async function responseFor(request, env, ctx) {
   // 알려지지 않은 API 경로를 SPA로 넘기면 HTML 200이 반환되어 연동 실패를
   // 성공 응답으로 오인할 수 있다. API 네임스페이스는 항상 JSON 404로 끝낸다.
   if (pathname.startsWith('/api/')) return json({ error:'API 경로를 찾을 수 없습니다.' }, 404);
-  if (pathname === '/robots.txt') return new Response(robotsText(request), { status:200, headers:{ 'content-type':'text/plain; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
+  if (pathname === '/robots.txt') return new Response(env.STAGING_NOINDEX==='true' ? 'User-agent: *\\nDisallow: /\\n' : robotsText(request), { status:200, headers:{ 'content-type':'text/plain; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/sitemap.xml') return new Response(sitemapXml(request), { status:200, headers:{ 'content-type':'application/xml; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/manifest.webmanifest') return new Response(webManifest, { status:200, headers:{ 'content-type':'application/manifest+json; charset=utf-8', 'cache-control':'public, max-age=86400', 'x-content-type-options':'nosniff' } });
   if (Object.hasOwn(builtAssets, pathname)) {
@@ -3450,7 +3430,13 @@ export default {
         globalThis.__mhProtectionDate = today;
         ctx.waitUntil(runDailyDataProtection(env).catch(() => { globalThis.__mhProtectionDate = ''; }));
       }
-      return await responseFor(request, env, ctx);
+      const response = await responseFor(request, env, ctx);
+      if (env.STAGING_NOINDEX==='true') {
+        const headers = new Headers(response.headers);
+        headers.set('x-robots-tag','noindex, nofollow');
+        return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+      }
+      return response;
     } catch (error) {
       // [보안] 최상위 안전망. 핸들러 안에서 잡지 못한 DB 예외 등이 밖으로 나가면
       // 런타임이 D1 오류 문구가 담긴 HTML 500을 그대로 노출한다(내부정보 유출 + JSON 계약 깨짐).

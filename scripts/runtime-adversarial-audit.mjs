@@ -1,4 +1,5 @@
 import { PRIVACY_FORM_VERSION } from '../src/privacyConsent.js';
+import { inicisState } from '../server/inicisStandard.js';
 // Run after npm run build. Exercises the generated Worker with an isolated in-memory SQLite DB.
 import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
@@ -157,15 +158,15 @@ record('prepaid concurrent overflow is limited',directViews.filter(r=>r.status==
 delete env.TALENT_VIEW_DAILY_LIMIT;
 const originalFetch=globalThis.fetch;let gatewayCalls=0;
 globalThis.fetch=async()=>{gatewayCalls++;return new Response(JSON.stringify({resultCode:'0000',TotPrice:29000,tid:'mock-tid'}),{headers:{'content-type':'application/json'}})};
-const liveEnv={...env,INICIS_MID:'local-mock-only',INICIS_SIGN_KEY:'local-mock-only'};
+const liveEnv={...env,INICIS_ENV:'test',SITE_ORIGIN:'https://audit.local',INICIS_MID:'local-mock-only',INICIS_SIGN_KEY:'local-mock-only'};
 async function mockApproval(url) {
  const order=await createOrder();
- return worker.fetch(new Request('https://audit.local/api/payment-approve',{method:'POST',headers:{cookie:cookies.hospital,origin:'https://audit.local','content-type':'application/json'},body:JSON.stringify({orderNumber:order.orderNumber,authToken:'mock-only',authUrl:url})}),liveEnv,{});
+ return worker.fetch(new Request('https://audit.local/api/payment-approve',{method:'POST',headers:{cookie:cookies.hospital,origin:'https://audit.local','content-type':'application/json'},body:JSON.stringify({resultCode:'0000',mid:liveEnv.INICIS_MID,idc_name:'stg',netCancelUrl:'https://stgstdpay.inicis.com/api/netCancel',merchantData:await inicisState(liveEnv,{orderNumber:order.orderNumber,amount:order.totalAmount}),orderNumber:order.orderNumber,authToken:'mock-only',authUrl:url})}),liveEnv,{});
 }
 const badHost=await mockApproval('https://attacker-inicisXcom/approve');
 record('lookalike payment host blocked',badHost.status,400);
 record('lookalike host receives no outbound request',gatewayCalls,0);
-const missingOid=await mockApproval('https://audit.inicis.com/approve');record('approval without matching order ID rejected',missingOid.status,400);
+const missingOid=await mockApproval('https://stgstdpay.inicis.com/api/payAuth');record('approval without matching order ID remains unconfirmed',missingOid.status,409);
 globalThis.fetch=originalFetch;
 console.log(JSON.stringify({checks:output,failed:output.filter(r=>!r.pass)},null,2));
 if(output.some(r=>!r.pass))process.exitCode=1;

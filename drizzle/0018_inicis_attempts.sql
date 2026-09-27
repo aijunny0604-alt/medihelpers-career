@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS payment_pg_attempts (
+  order_id TEXT PRIMARY KEY REFERENCES payment_orders(id),
+  status TEXT NOT NULL,
+  result_code TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS payment_pg_refunds (
+  order_id TEXT PRIMARY KEY REFERENCES payment_orders(id),
+  refund_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

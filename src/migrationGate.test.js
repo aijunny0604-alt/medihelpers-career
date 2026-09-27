@@ -2,6 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { migrationControl, migrationGate } from './migrationGate.js';
 const req = (path, method='GET', headers={}) => new Request('https://example.invalid'+path,{method,headers});
+test('free staging allows viewing but blocks all mutations including PG returns',async()=>{
+  const env={STAGING_READ_ONLY:'true',MIGRATION_MODE:'open',CHECKOUT_ENABLED:'false'};
+  assert.equal(migrationGate(req('/'),env),null);
+  for(const path of ['/api/auth/login','/api/auth/register','/api/uploads','/api/payment-orders','/api/payment-approve','/api/admin-refund-review']) {
+    const response=migrationGate(req(path,'POST'),env);
+    assert.equal(response.status,503);assert.equal((await response.json()).code,'STAGING_READ_ONLY');
+  }
+});
 test('default mode preserves existing service; checkout pause only stops new orders', () => {
   assert.deepEqual(migrationControl(),{mode:'open',checkoutEnabled:true});
   assert.equal(migrationGate(req('/api/payment-orders','POST')),null);

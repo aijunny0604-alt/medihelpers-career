@@ -42,8 +42,8 @@ test('열람권은 상품 수량만 적립하고 새 인재마다 1건만 원자
   assert.match(serverSource, /'talent-unlock-pack30':\{[^}]*unlockCount:30/);
   assert.doesNotMatch(serverSource, /unlockDays/);
   assert.doesNotMatch(dataSource.slice(dataSource.indexOf('export const talentUnlockPlans')), /30일/);
-  assert.match(serverSource, /total_credits, used_credits, expires_at\) VALUES \(\?, \?, \?, \?, 0, \?\)/);
-  assert.match(serverSource, /order\.id, unlockCount, null\)\.run\(\)/);
+  assert.match(serverSource, /total_credits, used_credits, expires_at\) SELECT \?, \?, \?, \?, 0, \? WHERE EXISTS/);
+  assert.match(serverSource, /order\.id, unlockCount, null, order\.id, order\.id\)\.run\(\)/);
   assert.match(serverSource, /c\.used_credits<c\.total_credits/);
   assert.match(serverSource, /SET used_credits=used_credits\+1 WHERE hospital_account_id=/);
 });

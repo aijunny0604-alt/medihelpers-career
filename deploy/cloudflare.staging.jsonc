@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "medihelpers-staging",
+  "account_id": "1e0ba31ca051e54621c65a126a874280",
+  "main": "../dist-cf/server/index.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../dist-cf/public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "medihelpers-staging",
+    "database_id": "f29e16f1-c8b3-4151-96ce-be2239e4c3ce",
+    "migrations_dir": "../drizzle"
+  }],
+  // Free-only staging: no R2 subscription, uploads, scheduled backups, or paid services.
+  // No production data. No domain routes. Do not enable signup/checkout before readiness checks.
+  "vars": {
+    "STAGING_NOINDEX": "true",
+    "STAGING_READ_ONLY": "true",
+    "SITE_ORIGIN": "https://medihelpers-staging.aijunny0604.workers.dev",
+    "TEST_ACCOUNT_SWITCH_ENABLED": "false",
+    "SIGNUP_ENABLED": "false",
+    "PAYMENT_LIVE": "true",
+    "INICIS_ENV": "test",
+    "INICIS_REFUNDS_ENABLED": "false",
+    "CHECKOUT_ENABLED": "false",
+    "MIGRATION_MODE": "open",
+    "LEGAL_DOCUMENT_STATUS": "draft"
+  }
+}

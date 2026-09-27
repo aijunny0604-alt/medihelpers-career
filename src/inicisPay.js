@@ -44,17 +44,20 @@ function buildPayForm(inicis, order) {
     price: String(inicis.price),
     timestamp: String(inicis.timestamp),
     signature: inicis.signature,
+    verification: inicis.verification,
+    use_chkfake: 'Y',
+    merchantData: inicis.merchantData,
     mKey: inicis.mKey,
     currency: 'WON',
-    goodname: order.productName || '메디헬퍼스 서비스',
-    buyername: order.buyerName || '',
-    buyertel: order.buyerTel || '',
-    buyeremail: order.buyerEmail || '',
+    goodname: inicis.goodname || order.productName || '메디헬퍼스 서비스',
+    buyername: inicis.buyername || order.buyerName || '',
+    buyertel: inicis.buyertel || order.buyerTel || '',
+    buyeremail: inicis.buyeremail || order.buyerEmail || '',
     gopaymethod: inicis.gopaymethod || 'Card',
     // 결제창 인증 결과를 받을 서버 주소(이니시스에 등록된 도메인이어야 함)
     returnUrl: inicis.returnUrl,
     closeUrl: inicis.closeUrl,
-    acceptmethod: inicis.acceptmethod || 'HPP(1):below1000:va_receipt',
+    acceptmethod: inicis.acceptmethod || 'centerCd(Y)',
   };
 
   Object.entries(fields).forEach(([name, value]) => {

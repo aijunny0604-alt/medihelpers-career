@@ -14,6 +14,9 @@ export function migrationGate(request, env = {}) {
   const asJson = (body, status) => new Response(JSON.stringify(body), {
     status, headers: { ...headers, 'content-type': 'application/json; charset=utf-8', ...(status === 503 ? { 'retry-after': '300' } : {}) }
   });
+  if (env.STAGING_READ_ONLY === 'true' && !['GET','HEAD'].includes(request.method)) {
+    return asJson({ code:'STAGING_READ_ONLY', error:'무료 테스트 환경은 화면 확인 전용입니다. 회원가입·게시·결제는 아직 지원하지 않습니다.' },503);
+  }
   if (pathname === '/api/service-status') {
     if (!['GET', 'HEAD'].includes(request.method)) return asJson({ error: '지원하지 않는 요청입니다.' }, 405);
     return new Response(request.method === 'HEAD' ? null : JSON.stringify(control), {

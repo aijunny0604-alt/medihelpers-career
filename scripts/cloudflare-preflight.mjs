@@ -24,3 +24,15 @@ assert.notEqual((await post('/api/auth/test-switch', {key:'admin'})).status, 200
 assert.equal((await post('/api/payment-approve', {})).status, 503);
 checks.push('test admin disabled', 'missing PG keys fail closed');
 console.log(JSON.stringify({ checks, passed:checks.length, deployed:false, livePaymentVerified:false }, null, 2));
+const staging=JSON.parse((await readFile(new URL('../deploy/cloudflare.staging.jsonc',import.meta.url),'utf8')).replace(/^\s*\/\/.*$/gm,''));
+assert.equal(staging.r2_buckets,undefined);
+assert.equal(staging.routes,undefined);
+assert.equal(staging.vars.STAGING_READ_ONLY,'true');
+assert.equal(staging.vars.CHECKOUT_ENABLED,'false');
+assert.equal(staging.vars.INICIS_REFUNDS_ENABLED,'false');
+assert.equal(staging.vars.INICIS_SIGN_KEY,undefined);
+const staged=await worker.fetch(new Request('https://staging.example.com/robots.txt'),staging.vars,{});
+assert.match(await staged.text(),/Disallow: \//);
+assert.match(staged.headers.get('x-robots-tag'),/noindex/);
+assert.equal((await worker.fetch(new Request('https://staging.example.com/api/payment-approve',{method:'POST'}),staging.vars,{})).status,503);
+console.log('Free-only staging configuration and noindex verified (9 assertions).');

@@ -570,7 +570,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
     {paymentResult && !paymentNoticeClosed && (
       <div className={`payment-result-notice ${paymentResult === 'paid' ? 'ok' : 'fail'}`} role="status">
         <div>
-          <strong>{paymentResult === 'paid' ? '결제가 완료되었습니다' : '결제가 완료되지 않았습니다'}</strong>
+          <strong>{paymentResult === 'paid' ? '결제가 완료되었습니다' : paymentResult === 'pending' ? '결제 결과를 확인하고 있습니다' : '결제가 완료되지 않았습니다'}</strong>
           <p>
             {paymentResult === 'paid'
               ? '결제 내역과 이용 상태는 아래 결제·이용 내역에서 확인하실 수 있습니다.'
