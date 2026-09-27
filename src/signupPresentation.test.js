@@ -42,7 +42,7 @@ test('메인 헤더는 비회원에게 로그인과 별도의 회원가입 진�
 test('로그인·회원가입 화면에는 외부 플랫폼 계정 문구를 노출하지 않는다', async () => {
   const source = await readFile(new URL('./AccountPage.jsx', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /open\s*ai/i);
-  assert.match(source, /회원가입할 때 등록한 이메일과 비밀번호로 로그인합니다/);
+  assert.match(source, /가입 이메일 또는 이전이 완료된 기존 아이디로 로그인합니다/);
 });
 
 test('회원가입 로그인 이메일은 데스크톱 한 칸 폭으로 맞추고 모바일에서 전체 폭을 사용한다', async () => {

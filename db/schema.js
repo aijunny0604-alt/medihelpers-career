@@ -37,6 +37,13 @@ export const accountSchemaStatements = [
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS auth_credentials_email_idx ON auth_credentials(email_normalized)`,
+  `CREATE TABLE IF NOT EXISTS auth_login_aliases (
+    login_id TEXT PRIMARY KEY COLLATE BINARY,
+    account_id TEXT NOT NULL UNIQUE,
+    source TEXT NOT NULL CHECK (source='rankup'),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES auth_credentials(account_id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS auth_sessions (
     token_hash TEXT PRIMARY KEY,
     account_id TEXT NOT NULL,

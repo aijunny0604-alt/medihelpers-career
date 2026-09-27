@@ -629,10 +629,10 @@ function LoginCard({ testAccountsEnabled = false }) {
     <span className="signup-card-icon"><LockKeyhole /></span>
     <small>MEDIHELPERS ACCOUNT</small>
     <h2>메디헬퍼스 로그인</h2>
-    <p>회원가입할 때 등록한 이메일과 비밀번호로 로그인합니다.</p>
+    <p>가입 이메일 또는 이전이 완료된 기존 아이디로 로그인합니다.</p>
     <form onSubmit={submit}>
-      <label><span>이메일</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="example@email.com" required /></label>
-      <label><span>비밀번호</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="비밀번호를 입력해주세요" minLength={8} maxLength={128} required /></label>
+      <label><span>이메일 또는 기존 아이디</span><input type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="이메일 또는 기존 아이디" maxLength={254} required /></label>
+      <label><span>비밀번호</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="비밀번호를 입력해주세요" maxLength={128} required /></label>
       {error && <p className="signup-error" role="alert">{error}</p>}
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 로그인 중</> : <>로그인 <ArrowRight /></>}</button>
     </form>

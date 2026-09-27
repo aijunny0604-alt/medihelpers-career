@@ -1,5 +1,10 @@
 # TEST
 
+## 2026-09-27 — 비공개 이전 자료·기존 아이디 로그인 후속
+
+최신 상태: Cloudflare 네임서버 전환 완료, apex/www는 기존 Rankup IP 유지. 비공개 이전 보관함 1,205건 검증, 공고 초안 127건 중 126건 소유 회원 대조. 실제 계정·권리·공개 전환은 미완료. 아이디 로그인 DB 0019와 UI/API 구현, 자동 622개 및 build/build:cf 통과. 격리 새 세션 3역할 API와 브라우저 검증 완료. 작업 시작 기준 731eca42는 GitHub/Sites 미러 동일 확인. 이번 후보는 같은 SHA로 두 소스에 반영한 뒤 무료 읽기 전용 검수본에만 배포한다. 실제 배포 버전은 후속 검증 기록 참조. 중복 이메일 36계정·실제 메일·실 PG·정식 홈페이지 전환은 남아 있다. [상세](MIGRATION_LOGIN_20260927.md).
+
+
 최신 배포 후 결과: 앱 소스 `a154a82c65d634d6c7259296594e19dd9d4c52e1`, Worker `ed6de0a2-ef4b-456d-9497-b5bf6e83bf55`, 자산 `index-UQG68snD.js`. GitHub/Sites 동일 SHA 후 배포. HTTP 18개 통과(최신 HTML/자산, no-store/noindex, 익명 계정, 주문 인증, 쓰기 차단, 보호 초안 비노출). secrets 5개 유지. 실제 로그인 입력/테스트 전환 없음 화면 확인. 실서버 신규 역할별 로그인·PG 거래 미실행. 근거는 로컬 `C:/Users/ROSSA/medihelpers-audit-20260927/staging-http-audit.json`, `mobile-deploy.log`, `mobile-deployed-login.png`.
 
 2026-09-27 모바일 후속: 단위 325 + 준비 67/공격 58/회원 46/관리자 63/PG 68 + Cloudflare 22 + release/local 분리 8 = **657개 통과**. 모바일 CSP 포함 build/build:cf/Worker 문법 검증. 실제 PG 및 검수 서버 신규 3역할 로그인은 미실행(읽기 전용). 키 등록 버전 281baec7-092d-4a04-95ce-3b920624859c의 HTTP 18개 통과. 아래 617개 기록은 이전 앱 배포 결과다. [후속 범위](INICIS_MOBILE_20260927.md).

@@ -337,7 +337,7 @@ async function ensureSchemaGroup(env, key, probeSql, statements, unavailableCode
 async function ensureAccountSchema(env) {
   // 새 계정 기능을 추가한 기존 D1에서도 전체 계정 스키마 문장을 한 번 실행하도록
   // 가장 최근 테이블을 probe한다. CREATE IF NOT EXISTS라 기존 회원 데이터는 유지된다.
-  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets, processing_consent_events LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets, processing_consent_events, auth_login_aliases LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
 }
 async function ensureConsultationSchema(env) {
   return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
@@ -445,10 +445,10 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
   catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
-const backupSchemaVersion = '0018';
+const backupSchemaVersion = '0019';
 const backupRetentionDays = 35;
 const backupTables = [
-  'accounts','auth_credentials','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
+  'accounts','auth_credentials','auth_login_aliases','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
   'consultation_requests','member_profiles','member_registration_profiles','member_preferences','member_activity','member_notifications','inquiry_messages',
   'resumes','job_seeker_posts','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
   'payment_transactions','payment_refunds','payment_receipts','payment_events','payment_pg_attempts','payment_pg_refunds',
@@ -1148,12 +1148,16 @@ async function authApi(request, env, pathname, ctx) {
     const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:session.token } : {};
     return json({ signedIn:true, isAdmin:session.isAdmin, account:{ role:session.account.role }, identity:{ email:session.definition.email, displayName:session.definition.displayName }, ...sessionFallback }, 200, { 'set-cookie':authCookie(session.token, cookieMaxAge) });
   }
-  const email = normalizeEmail(body.email);
+  let email = normalizeEmail(body.email);
   const password = String(body.password || '');
-  if (!email || !validPassword(password)) return json({ error:'이메일과 영문·숫자를 포함한 8자 이상의 비밀번호를 확인해주세요.' }, 400);
+  const loginId = String(body.email || '').trim();
+  const loginInputValid = loginId.length > 0 && loginId.length <= 254 && password.length > 0 && password.length <= 128;
+  if (pathname === '/api/auth/login' ? !loginInputValid : (!email || !validPassword(password))) return json({ error:'로그인 정보를 확인해주세요. 새 비밀번호는 영문·숫자를 포함한 8자 이상이어야 합니다.' }, 400);
 
   if (pathname === '/api/auth/login') {
-    const credential = await env.DB.prepare("SELECT c.account_id AS accountId, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status, COALESCE(ap.verification_status,'unverified') AS verificationStatus FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE c.email_normalized=? LIMIT 1").bind(email).first();
+    // Email-shaped input is never resolved as a legacy alias, so aliases cannot shadow an email login.
+    // Aliases are created only by a verified import, never by client-supplied registration fields.
+    const credential = await env.DB.prepare("SELECT c.account_id AS accountId, c.email_normalized AS email, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status, COALESCE(ap.verification_status,'unverified') AS verificationStatus FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE " + (email ? "c.email_normalized=?" : "c.account_id=(SELECT account_id FROM auth_login_aliases WHERE login_id=? AND source='rankup')") + " LIMIT 1").bind(email || loginId).first();
     // [보안] 잠금 상태여도 즉시 응답하지 않는다.
     // 예전에는 잠긴 계정에만 429를 돌려줘서, 공격자가 아무 비밀번호나 5번 넣어보고
     // 상태 코드만으로 "이 이메일이 가입돼 있는지" 확인할 수 있었다(계정 열거).
@@ -1178,9 +1182,10 @@ async function authApi(request, env, pathname, ctx) {
           await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=?, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(failures, credential.accountId).run();
         }
       }
-      return json({ error:'이메일 또는 비밀번호가 올바르지 않습니다.' }, 401);
+      return json({ error:'이메일·아이디 또는 비밀번호가 올바르지 않습니다.' }, 401);
     }
     if (credential.status !== 'active') return json({ error:credential.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
+    email = credential.email;
     await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     await env.DB.prepare('UPDATE account_admin_profiles SET last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     // [보안] 관리자 계정은 세션·쿠키 수명을 12시간으로 단축(탈취 시 노출 시간 축소).
@@ -1497,6 +1502,7 @@ async function accountApi(request, env, ctx) {
     // 재가입 30일 제한을 위해 탈퇴 시각 기록(개인정보 아닌 user_key 해시만).
     const markWithdrawn = env.DB.prepare("INSERT INTO withdrawn_members (user_key, withdrawn_at) VALUES (?, CURRENT_TIMESTAMP) ON CONFLICT(user_key) DO UPDATE SET withdrawn_at=CURRENT_TIMESTAMP").bind(key);
     const withdrawalCleanup = [
+      env.DB.prepare('DELETE FROM auth_login_aliases WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM member_registration_profiles WHERE account_id=?').bind(account.id),
       ...(Number(billing?.total || 0) > 0 ? [env.DB.prepare("UPDATE admin_content_records SET status='closed', updated_at=CURRENT_TIMESTAMP WHERE id IN (SELECT COALESCE(NULLIF(json_extract(metadata_json,'$.contentRecordId'),''), 'ad-order-' || id) FROM payment_orders WHERE account_id=? AND product_type='doctor_ad')").bind(account.id)] : [])
     ];
