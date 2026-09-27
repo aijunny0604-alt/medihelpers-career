@@ -1,5 +1,7 @@
 # TEST
 
+최신 실제 배포 검증: 소스 `3c877ff3200299ee628c5476c9147e328006e38e`, Worker `8e9ae0f6-d16f-4d1d-8b5a-161c96af36ac`, asset `index-B2zALW3Z.js`. 동일 소스 GitHub/Sites 미러 확인. 자동 617개 및 build/build:cf 성공 후 실제 HTTP 18개 통과. 로그인 페이지 실제 비밀번호 입력 유지/테스트 전환 없음 확인. 신규 의료인·병원·관리자 로그인은 검수본 쓰기 차단으로 미실행. 실 PG 거래도 미실행. [로그·화면 근거](RELEASE_PREPARATION_20260927.md).
+
 2026-09-27 최신 후속: 단위 304 + Worker 준비 67/공격 58/회원 46/관리자 63/PG 49 + Cloudflare 22 + release/local 분리 8 = 617개 통과. build/build:cf/Worker 문법 통과. legacy 127건 초안의 중복 방지 및 원격 보호 상태 확인. 실결제는 모의 검증이며 실제 청구·취소 미실행. [범위](RELEASE_PREPARATION_20260927.md).
 
 2026-09-27 Cloudflare 실배포: 소스 f95f0353b0ccddc47875f5507963a5c706305333, 버전 1e83c7fa-074c-40f8-ad91-bb8dd335b14e. 실제 HTTP 17개 검사, 데스크톱 및 390px 모바일 폭 검수 통과. 익명 account 공개 응답 200/미로그인·주문 API 401, 쓰기 503, 신규 DB 계정/주문 0 확인. 로그인 역할별 검수 및 실제 PG는 차단 상태로 미실행. 기존 로컬 972개와 별개 결과. [근거](LAUNCH_PROGRESS_20260927.md).

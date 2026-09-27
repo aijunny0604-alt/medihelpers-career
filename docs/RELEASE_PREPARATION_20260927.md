@@ -26,7 +26,27 @@
 
 - 단위 304, Worker 준비 67 / 공격적 입력 58 / 회원 흐름 46 / 관리자 저장 63 / PG 49, Cloudflare 사전검사 22, 배포/로컬 fixture 분리 8 = **617개 통과**.
 - npm run build 및 build:cf, Worker 문법, git diff --check 통과. PG 검증은 모의 응답/격리 DB이며 실제 카드 승인·취소가 아니다.
-- 이번 배포 대상은 무료 읽기 전용 Cloudflare 검수본이다. 정식 DNS·Rankup·기존 Sites는 변경하지 않는다. 배포 SHA/버전/실제 URL 결과는 후속 기록한다.
+- 무료 읽기 전용 Cloudflare 검수본 배포 성공: 소스 `3c877ff3200299ee628c5476c9147e328006e38e`, Worker 버전 `8e9ae0f6-d16f-4d1d-8b5a-161c96af36ac`. 배포 전 GitHub 기준 브랜치와 Sites 소스 미러의 동일 SHA를 확인했다. Sites 공개본과 정식 DNS·Rankup은 변경하지 않았다.
+- 실제 URL https://medihelpers-staging.aijunny0604.workers.dev 에서 HTTP 18개 통과. 최신 asset `index-B2zALW3Z.js`, HTML no-store, 검색 차단, 익명 account 200 / 주문 조회 401 / 쓰기 503 / 없는 경로 404를 확인했다. 이전 초안은 공개 목록에 노출되지 않는다.
+- 실제 `/login` 화면에서 비밀번호 입력란은 유지되고 테스트 계정 전환은 없는 것을 확인했다. 읽기 전용 검수본이므로 실제 의료인·병원·관리자 로그인 및 역할별 허용 API 200 검증은 미실행이다. 격리 테스트 결과로 이를 대체하지 않는다.
+- 근거: `C:/Users/ROSSA/medihelpers-audit-20260927/release-deploy.log`, `staging-http-audit.json`, `release-http.log`, `cloudflare-release-login.png`.
+
+## 운영자 확인 체크리스트
+
+- [x] 기존 MID `UPmedihelp`와 면세 정책 유지. 기존 키 재발급/PG 설정 변경 없음.
+- [x] 기존 Rankup 사이트·호스팅·DNS 보존.
+- [x] 기본 배포 빌드에서 테스트 전환/예시 제외, 로컬 개발에서는 유지.
+- [x] 기존 공고 127건을 관리자 전용 초안으로 보존. 신규 결제나 유료 권리를 임의 생성하지 않음.
+- [x] 기존 이미지 91개 로컬 보존 및 해시 기록.
+- [x] 무료 Cloudflare 검수본 업데이트 및 위 범위 검증.
+- [ ] 기존 회원 이전 및 공고 소유권/광고 잔여기간 대조.
+- [ ] 이미지의 새 공개 저장 위치와 공고별 배치 검수.
+- [ ] 기존 PC 키의 새 서버 안전 설정 및 모바일 금액 위변조 키 확인/연동.
+- [ ] 실제 승인·취소·환불 후 권리 회수와 PG 원장 대사.
+- [ ] 정상 전체 백업 및 DNS·메일 기록을 이용한 복구 검증.
+- [ ] 정식 도메인 전환 및 실제 회원 역할별 재검증.
+
+모바일 확인 기준: https://manual.inicis.com/mobile/ 의 `P_TIMESTAMP`, `P_CHKFAKE`, `P_RESERVED` 금액 위변조 검증 규격. PC 키 존재만으로 모바일 준비 완료로 판단하지 않는다. 후속 확인 시 이니시스 세션이 로그인 화면으로 돌아가 재로그인을 요청했다. 비밀번호/키를 채팅에 요청하지 않았다.
 
 ## 정식 도메인 전환 전 남은 조건
 
