@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { normalizeWebsiteUrl } from './websiteUrl.js';
+import { notifyAction } from './confirmAction.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import {
@@ -94,7 +96,7 @@ const FIELD_META = {
   businessNumber: { label: '사업자등록번호', type: 'text', inputMode: 'numeric', placeholder: '000-00-00000', hint: '10자리 숫자. 기관 정보와 광고 결제 내역 연결에 사용합니다.' },
   address: { label: '병원 주소', type: 'text', autoComplete: 'street-address', placeholder: '주소 검색 버튼을 눌러주세요', wide: true, addressSearch: true, readOnly: true },
   addressDetail: { label: '상세 주소', optional: true, type: 'text', placeholder: '예: 5층 인사팀', wide: true },
-  website: { label: '홈페이지', optional: true, type: 'url', autoComplete: 'url', placeholder: 'https://www.hospital.co.kr' },
+  website: { label: '홈페이지', optional: true, type: 'text', autoComplete: 'url', placeholder: 'www.hospital.co.kr' },
   fax: { label: '팩스번호', optional: true, type: 'tel', inputMode: 'numeric', placeholder: '02-0000-0000', phone: true }
 };
 
@@ -210,7 +212,7 @@ function openAddressSearch(onSelect) {
       height: '100%'
     }).embed(host);
   }).catch(() => {
-    if (typeof window !== 'undefined') window.alert('주소 검색을 열 수 없습니다. 잠시 후 다시 시도해 주세요.');
+    if (typeof window !== 'undefined') void notifyAction('주소 검색을 열 수 없습니다. 잠시 후 다시 시도해 주세요.');
   });
 }
 
@@ -443,7 +445,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         businessNumber: draft.businessNumber,
         address: draft.address,
         addressDetail: draft.addressDetail,
-        website: draft.website,
+        website: normalizeWebsiteUrl(draft.website) || String(draft.website || '').trim(),
         fax: draft.fax,
         department: draft.department,
         professionType: draft.professionType,

@@ -6431,3 +6431,18 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .hospital-photo-gallery img {aspect-ratio:8/5;object-fit:contain;background:#eff4f8}
 .recovery-shell {max-width:1420px;width:calc(100% - 48px)}
 @media(max-width:720px){.recovery-shell {width:calc(100% - 24px)}.renew-ad-action .button{width:100%}}
+
+/* Banner artwork and typography form one surface, without a white text card. */
+.job-detail .detail-hero-banner.has-banner-copy:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,27,51,.8),rgba(7,27,51,.48) 60%,rgba(7,27,51,.08));pointer-events:none}
+.job-detail .detail-hero-banner.has-banner-copy>div{z-index:1;left:28px;right:28px;bottom:26px;padding:0;background:none;border:0;box-shadow:none;border-radius:0;backdrop-filter:none}
+.job-detail .detail-hero-banner.has-banner-copy small{color:#bedbff;letter-spacing:.08em;font-weight:750}
+.job-detail .detail-hero-banner.has-banner-copy strong{color:#fff;line-height:1.35;text-shadow:0 2px 8px #071b5133}
+.job-detail .detail-hero-banner.has-banner-copy>div>span{color:#e7f1ff}
+.job-detail .detail-banner-chip{z-index:2}
+.job-seeker-contact-fields{margin-top:24px;padding-top:20px;border-top:1px solid #dce5ef}
+.job-seeker-contact-fields p{line-height:1.7;color:#52677f}
+.job-seeker-contact-fields label{display:flex;flex-direction:column;gap:10px;font-weight:750}
+.job-seeker-contact-fields input{width:100%;min-width:0;box-sizing:border-box;padding:15px;border:1px solid #cbd9e9;border-radius:12px;font:inherit}
+.job-seeker-contact-fields small{display:block;margin-top:12px;color:#62758e;line-height:1.6}
+.job-seeker-contact-fields>.button{margin-top:16px}
+@media(max-width:720px){.job-detail .detail-hero-banner.has-banner-copy>div{left:18px;right:18px;bottom:18px}.job-seeker-contact-fields .form-grid{grid-template-columns:1fr}}

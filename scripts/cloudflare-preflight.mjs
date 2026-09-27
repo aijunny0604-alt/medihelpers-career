@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises';
 import worker from '../dist-cf/server/index.js';
 const config = await readFile(new URL('../dist-cf/wrangler.toml', import.meta.url), 'utf8');
 const checks = [];
-for (const value of ['run_worker_first = true', 'migrations_dir = "drizzle"', 'TEST_ACCOUNT_SWITCH_ENABLED = "false"', 'PAYMENT_LIVE = "true"', 'SIGNUP_ENABLED = "false"']) {
+for (const value of ['run_worker_first = true', 'migrations_dir = "drizzle"', 'TEST_ACCOUNT_SWITCH_ENABLED = "false"', 'PAYMENT_LIVE = "true"', 'SIGNUP_ENABLED = "false"', 'MIGRATION_MODE = "drain"', 'CHECKOUT_ENABLED = "false"']) {
   assert.ok(config.includes(value), value); checks.push(value);
 }
-const env = { TEST_ACCOUNT_SWITCH_ENABLED:'false', PAYMENT_LIVE:'true', SIGNUP_ENABLED:'false' };
+const env = { TEST_ACCOUNT_SWITCH_ENABLED:'false', PAYMENT_LIVE:'true', SIGNUP_ENABLED:'false', MIGRATION_MODE:'open' };
 for (const pathname of ['/', '/jobs', '/sitemap.xml', '/robots.txt']) {
   const response = await worker.fetch(new Request('https://www.medihelpers.co.kr' + pathname), env, {});
   const body = await response.text();

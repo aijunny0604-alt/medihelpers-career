@@ -1,5 +1,8 @@
 import { resumePublicationMissing } from '../src/resumeReadiness.js';
 import { postPublicUntil } from '../src/jobPostLifecycle.js';
+import { migrationControl, migrationGate } from '../src/migrationGate.js';
+import { normalizeContactPhone } from '../src/contactPhone.js';
+import { normalizeWebsiteUrl } from '../src/websiteUrl.js';
 import { talent } from '../src/data.js';
 import { demoTalentDetail } from '../src/talentDetailAccess.js';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -89,7 +92,11 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
   "export async function handleApiRoute() { return new Response('Not Found', { status: 404 }); }",
   "export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }",
 ].join('\n');
-const server = `const html = ${JSON.stringify(html)};
+const server = `${migrationControl.toString()}
+${migrationGate.toString()}
+${normalizeContactPhone.toString()}
+${normalizeWebsiteUrl.toString()}
+const html = ${JSON.stringify(html)};
 const builtAssets = ${JSON.stringify(builtAssets)};
 const logoSvg = ${JSON.stringify(logoSvg)};
 const ogBase64 = ${JSON.stringify(ogBase64)};
@@ -346,6 +353,18 @@ async function expireJobPosts(env) {
 async function ensureMemberCenterSchema(env) {
   // 기존 운영 DB에도 구직글 원장과 이력서 연결을 추가하도록 최신 테이블을 probe로 사용한다.
   await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts, member_registration_profiles LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
+  if (!schemaReadyPromises.has('job-post-contacts-v1')) {
+    schemaReadyPromises.set('job-post-contacts-v1', (async () => {
+      const columns = await env.DB.prepare('PRAGMA table_info(job_seeker_posts)').all();
+      const names = new Set((columns.results || []).map(column => column.name));
+      for (const name of ['contact_phone', 'additional_contact_phone']) {
+        if (names.has(name)) continue;
+        try { await env.DB.prepare("ALTER TABLE job_seeker_posts ADD COLUMN " + name + " TEXT NOT NULL DEFAULT ''").run(); }
+        catch { await env.DB.prepare('SELECT ' + name + ' FROM job_seeker_posts LIMIT 1').first(); }
+      }
+    })().catch(error => { schemaReadyPromises.delete('job-post-contacts-v1'); throw error; }));
+  }
+  await schemaReadyPromises.get('job-post-contacts-v1');
   // 0011 previously used created_at while the runtime reads unlocked_at.
   // Rename only that legacy column, preserving its values and default.
   if (!schemaReadyPromises.has('member-unlock-date-v1')) {
@@ -424,7 +443,7 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
   catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
-const backupSchemaVersion = '0016';
+const backupSchemaVersion = '0017';
 const backupRetentionDays = 35;
 const backupTables = [
   'accounts','auth_credentials','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
@@ -1250,7 +1269,7 @@ async function authApi(request, env, pathname, ctx) {
       }
     }
     const registrationProfile = body.role === 'hospital'
-      ? { hospitalName:verificationRecord.hospitalName, representativeName:verificationRecord.representativeName, businessNumber:verificationRecord.businessNumber, address:verificationRecord.address, hospitalDocument:{ status:'submitted', submittedAt:new Date().toISOString() }, hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), institutionType:String(body.institutionType || '').trim().slice(0,80), website:String(body.website || '').trim().slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
+      ? { hospitalName:verificationRecord.hospitalName, representativeName:verificationRecord.representativeName, businessNumber:verificationRecord.businessNumber, address:verificationRecord.address, hospitalDocument:{ status:'submitted', submittedAt:new Date().toISOString() }, hospitalRole:String(body.hospitalRole || '').trim().slice(0,160), department:String(body.department || '').trim().slice(0,160), institutionType:String(body.institutionType || '').trim().slice(0,80), website:(normalizeWebsiteUrl(body.website) || String(body.website || '').trim()).slice(0,500), fax:String(body.fax || '').trim().slice(0,40) }
       : { professionType:String(body.professionType || '').trim().slice(0,160), specialty:String(body.specialty || '').trim().slice(0,200), region:String(body.region || '').trim().slice(0,120), birthYear:String(body.birthYear || '').trim().slice(0,4), gender:String(body.gender || '').trim().slice(0,30) };
     const records = [
       ...(hasOptionalProfile ? [consentEvent(env, account.id, 'signupOptional', account.id)] : []),
@@ -1647,7 +1666,7 @@ async function memberCenterApi(request, env) {
     if (account.role === 'doctor') {
       addQuery('resume', env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id));
       addQuery('jobSeekerPosts', env.DB.prepare(
-        "SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle " +
+        "SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.contact_phone AS contactPhone, p.additional_contact_phone AS additionalContactPhone, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle " +
         "FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.created_at DESC, p.id DESC LIMIT 50"
       ).bind(account.id));
     }
@@ -1970,10 +1989,10 @@ async function jobSeekerPostApi(request, env, pathname) {
   const suffix = pathname === '/api/job-seeker-posts' ? '' : decodeURIComponent(pathname.slice('/api/job-seeker-posts/'.length));
   if (request.method === 'GET') {
     if (suffix) {
-      const post = await env.DB.prepare("SELECT id, resume_id AS resumeId, title, summary, specialty, desired_region AS desiredRegion, available_from AS availableFrom, employment_type AS employmentType, contact_visibility AS contactVisibility, public_until AS publicUntil, hidden_reason AS hiddenReason, status, created_at AS createdAt, updated_at AS updatedAt FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
+      const post = await env.DB.prepare("SELECT id, resume_id AS resumeId, title, summary, specialty, desired_region AS desiredRegion, available_from AS availableFrom, employment_type AS employmentType, contact_visibility AS contactVisibility, contact_phone AS contactPhone, additional_contact_phone AS additionalContactPhone, public_until AS publicUntil, hidden_reason AS hiddenReason, status, created_at AS createdAt, updated_at AS updatedAt FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
       return post ? json({ signedIn:true, post }) : json({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
     }
-    const result = await env.DB.prepare("SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.created_at DESC, p.id DESC LIMIT 50").bind(account.id).all();
+    const result = await env.DB.prepare("SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.contact_phone AS contactPhone, p.additional_contact_phone AS additionalContactPhone, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.created_at DESC, p.id DESC LIMIT 50").bind(account.id).all();
     return json({ signedIn:true, posts:result.results || [] });
   }
   if (!['POST','PATCH','DELETE'].includes(request.method)) return json({ error:'지원하지 않는 요청입니다.' }, 405);
@@ -1993,7 +2012,7 @@ async function jobSeekerPostApi(request, env, pathname) {
   let current = null;
   if (request.method === 'PATCH') {
     if (!suffix) return json({ error:'수정할 구직글을 확인해주세요.' }, 400);
-    current = await env.DB.prepare("SELECT id, title, status, resume_id AS resumeId, contact_visibility AS contactVisibility FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
+    current = await env.DB.prepare("SELECT id, title, status, resume_id AS resumeId, contact_visibility AS contactVisibility, contact_phone AS contactPhone, additional_contact_phone AS additionalContactPhone FROM job_seeker_posts WHERE id=? AND account_id=? AND status<>'deleted' LIMIT 1").bind(suffix, account.id).first();
     if (!current) return json({ error:'본인 구직글을 찾을 수 없습니다.' }, 404);
   }
   if (current && body.action === 'set_visibility') {
@@ -2015,7 +2034,7 @@ async function jobSeekerPostApi(request, env, pathname) {
   const resumeId = s(body.resumeId || current?.resumeId, 100);
   if (body.publicationAcknowledged !== true || body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'구직글 공개 범위 안내를 확인해주세요.' }, 400);
   if (!resumeId) return json({ error:'연동할 이력서를 선택해주세요.' }, 400);
-  const resume = await env.DB.prepare('SELECT id, title, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id=? AND account_id=? LIMIT 1').bind(resumeId, account.id).first();
+  const resume = await env.DB.prepare('SELECT id, title, phone, profession, specialty, desired_regions AS desiredRegions, detail_json AS detailJson FROM resumes WHERE id=? AND account_id=? LIMIT 1').bind(resumeId, account.id).first();
   if (!resume) return json({ error:'본인 이력서에서 연동할 항목을 찾을 수 없습니다.' }, 404);
   const detail = parseJsonObject(resume.detailJson) || {};
   const missing = resumePublicationMissing({...resume, detail});
@@ -2028,6 +2047,9 @@ async function jobSeekerPostApi(request, env, pathname) {
   const availableFrom = s(body.availableFrom || detail.available || '협의', 180);
   const employmentType = s(body.employmentType || workTypes, 300);
   const contactVisibility = body.contactVisibility === 'ticket' ? 'ticket' : 'private';
+  const contactPhone = normalizeContactPhone(body.contactPhone === undefined ? (current?.contactPhone || resume.phone) : body.contactPhone);
+  const additionalContactPhone = normalizeContactPhone(body.additionalContactPhone === undefined ? current?.additionalContactPhone : body.additionalContactPhone);
+  if (contactPhone === null || additionalContactPhone === null || (contactVisibility === 'ticket' && !contactPhone)) return json({error:'연락받을 기본 번호와 추가 연락처를 정확히 입력해주세요.'},400);
   if (contactVisibility === 'ticket' && body.contactConsent !== true) return json({ error:'연락처 공개는 별도 선택 동의가 필요합니다. 원하지 않으면 비공개를 선택해주세요.' }, 400);
   const publicUntil = postPublicUntil();
   const postStatus = current?.status || 'active';
@@ -2037,18 +2059,18 @@ async function jobSeekerPostApi(request, env, pathname) {
       consentEvent(env, account.id, 'posting', id),
       ...(contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id)] : []),
       ...(contactVisibility === 'private' && current.contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id, '', false)] : []),
-      env.DB.prepare("UPDATE job_seeker_posts SET resume_id=?, title=?, summary=?, specialty=?, desired_region=?, available_from=?, employment_type=?, contact_visibility=?, public_until=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND account_id=?").bind(resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, publicUntil, id, account.id),
+      env.DB.prepare("UPDATE job_seeker_posts SET resume_id=?, title=?, summary=?, specialty=?, desired_region=?, available_from=?, employment_type=?, contact_visibility=?, contact_phone=?, additional_contact_phone=?, public_until=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND account_id=?").bind(resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, contactPhone, additionalContactPhone, publicUntil, id, account.id),
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_seeker_post_update', '구직글을 수정했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
     ]);
   } else {
     await env.DB.batch([
       consentEvent(env, account.id, 'posting', id),
       ...(contactVisibility === 'ticket' ? [consentEvent(env, account.id, 'contact', id)] : []),
-      env.DB.prepare("INSERT INTO job_seeker_posts (id, account_id, resume_id, title, summary, specialty, desired_region, available_from, employment_type, contact_visibility, public_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, account.id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, publicUntil),
+      env.DB.prepare("INSERT INTO job_seeker_posts (id, account_id, resume_id, title, summary, specialty, desired_region, available_from, employment_type, contact_visibility, contact_phone, additional_contact_phone, public_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(id, account.id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, contactPhone, additionalContactPhone, publicUntil),
       env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'job_seeker_post_create', '구직글을 등록했습니다.', ?)").bind(crypto.randomUUID(), account.id, title.slice(0,300))
     ]);
   }
-  return json({ saved:true, created:!current, post:{ id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, status:postStatus, publicUntil } }, current ? 200 : 201);
+  return json({ saved:true, created:!current, post:{ id, resumeId, title, summary, specialty, desiredRegion, availableFrom, employmentType, contactVisibility, contactPhone, additionalContactPhone, status:postStatus, publicUntil } }, current ? 200 : 201);
 }
 // 관심공고(찜) 저장/조회. 로그인 회원의 서버 저장. 비로그인은 클라이언트 localStorage 사용.
 async function savedJobsApi(request, env) {
@@ -2111,7 +2133,7 @@ async function talentDetailApi(request, env, pathname) {
   const demo = testTalentDetail(env, talentId);
   const seekerPostId = talentId.startsWith('seeker-') ? talentId.slice('seeker-'.length) : '';
   const seekerPost = seekerPostId
-    ? await env.DB.prepare("SELECT id, account_id AS accountId, resume_id AS resumeId, contact_visibility AS contactVisibility FROM job_seeker_posts WHERE id=? AND status<>'deleted' AND (status='active' OR account_id=?) LIMIT 1").bind(seekerPostId,account?.id || '').first()
+    ? await env.DB.prepare("SELECT id, account_id AS accountId, resume_id AS resumeId, contact_visibility AS contactVisibility, contact_phone AS contactPhone, additional_contact_phone AS additionalContactPhone FROM job_seeker_posts WHERE id=? AND status<>'deleted' AND (status='active' OR account_id=?) LIMIT 1").bind(seekerPostId,account?.id || '').first()
     : null;
   const resumeId = seekerPost?.resumeId || (talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '');
   const resumeMeta = seekerPost || (resumeId
@@ -2197,13 +2219,13 @@ async function talentDetailApi(request, env, pathname) {
       const { detailJson, ...rest } = r;
       const storedDetail = parseJsonObject(detailJson) || {};
       const safeDetail = { ...storedDetail };
-      delete safeDetail.name; delete safeDetail.phone; delete safeDetail.email;
+      delete safeDetail.name; delete safeDetail.phone; delete safeDetail.email; delete safeDetail.contactPhone; delete safeDetail.additionalContactPhone;
       const accessReason = isOwner ? 'owner' : (isAdmin ? 'admin' : 'ticket');
       // 작성자·관리자는 운영 목적상 연락처를 확인할 수 있지만, 병원 열람권은 작성자가
       // 명시적으로 '열람권 구매 병원에 공개'를 고른 경우에만 연락처를 받는다.
       const revealContact = isOwner || isAdmin || (seekerPost ? seekerPost.contactVisibility === 'ticket' : storedDetail.contactVisibility === 'ticket');
       const protectedContact = accessReason === 'ticket' && !revealContact;
-      return json({ unlocked:true, accessReason, contactProtected:protectedContact, detail:{ ...rest, name:revealContact ? rest.name : '', phone:revealContact ? rest.phone : '', email:revealContact ? rest.email : '', detail:safeDetail } });
+      return json({ unlocked:true, accessReason, contactProtected:protectedContact, detail:{ ...rest, name:revealContact ? rest.name : '', phone:revealContact ? (seekerPost?.contactPhone || rest.phone) : '', additionalContactPhone:revealContact ? (seekerPost?.additionalContactPhone || '') : '', email:revealContact ? rest.email : '', detail:safeDetail } });
     }
   }
   // 실제 이력서가 없더라도(정적 샘플 등) 열람 사실은 기록해 빈도 집계에 반영.
@@ -3421,8 +3443,10 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
 export default {
   async fetch(request, env, ctx) {
     try {
+      const maintenanceResponse = migrationGate(request, env);
+      if (maintenanceResponse) return maintenanceResponse;
       const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
-      if (ctx && ctx.waitUntil && env && env.DB && env.BACKUPS && globalThis.__mhProtectionDate !== today) {
+      if (migrationControl(env).mode === 'open' && ctx && ctx.waitUntil && env && env.DB && env.BACKUPS && globalThis.__mhProtectionDate !== today) {
         globalThis.__mhProtectionDate = today;
         ctx.waitUntil(runDailyDataProtection(env).catch(() => { globalThis.__mhProtectionDate = ''; }));
       }
@@ -3488,6 +3512,9 @@ if (!inlineAssets) {
     'TEST_ACCOUNT_SWITCH_ENABLED = "false"',
     'PAYMENT_LIVE = "true"',
     'SIGNUP_ENABLED = "false"',
+    '# 이전 준비 중 신규 환경은 점검 상태. 대사/승인 후에만 open으로 전환.',
+    'MIGRATION_MODE = "drain"',
+    'CHECKOUT_ENABLED = "false"',
     'LEGAL_DOCUMENT_STATUS = "draft"',
     '# ADMIN_EMAILS는 검증된 실제 운영자만 secret으로 설정한다.',
     ''

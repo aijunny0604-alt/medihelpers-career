@@ -11,6 +11,7 @@ const code = source.slice(start, source.indexOf('async function ensureCommerceSc
 for (const column of ['created_at', 'unlocked_at']) {
   test(`member center supports ${column} schema without losing dates`, async () => {
     const db = new DatabaseSync(':memory:');
+    db.exec("CREATE TABLE job_seeker_posts (id TEXT PRIMARY KEY); INSERT INTO job_seeker_posts VALUES ('existing-post')");
     db.exec(`CREATE TABLE talent_unlocks (id TEXT, ${column} TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP); INSERT INTO talent_unlocks VALUES ('existing','2026-08-01 10:30:00');`);
     const env = { DB:{ prepare(sql) { return {
       async all() { return { results:db.prepare(sql).all() }; },
@@ -20,6 +21,7 @@ for (const column of ['created_at', 'unlocked_at']) {
     const ensure = new Function('ensureSchemaGroup', 'schemaReadyPromises', 'memberCenterSchemaStatements', 'expireJobPosts', code + ';return ensureMemberCenterSchema;')(async()=>{}, new Map(), [], async()=>{});
     await Promise.all([ensure(env), ensure(env)]);
     await ensure(env);
+    assert.deepEqual({...db.prepare('SELECT contact_phone, additional_contact_phone FROM job_seeker_posts').get()}, {contact_phone:'',additional_contact_phone:''});
     assert.equal(db.prepare('SELECT unlocked_at FROM talent_unlocks').get().unlocked_at, '2026-08-01 10:30:00');
     db.exec("INSERT INTO talent_unlocks (id) VALUES ('new')");
     assert.ok(db.prepare("SELECT unlocked_at FROM talent_unlocks WHERE id='new'").get().unlocked_at);

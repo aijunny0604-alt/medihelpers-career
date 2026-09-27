@@ -1,4 +1,4 @@
-import { confirmAction } from './confirmAction.js';
+import { confirmAction, notifyAction } from './confirmAction.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import FormValidationNotice from './FormValidationNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
@@ -62,7 +62,7 @@ const SignupWelcomePage = lazy(() => import('./AccountPage.jsx').then(m => ({ de
 
 installAuthenticatedFetch();
 
-const departments = ['전체 진료과', '한의사', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의'];
+const departments = ['전체 진료과', '내과', '정형외과', '소아청소년과', '가정의학과', '영상의학과', '마취통증의학과', '전문의', '한의사'];
 const regions = ['전국', '서울', '경기', '인천', '부산', '경남', '충북', '강원'];
 const RECRUITMENT_TYPES = ['봉직의', '대진의', '당직의', '기타'];
 const recruitmentTypes = ['전체 초빙', ...RECRUITMENT_TYPES];
@@ -92,7 +92,7 @@ function useSiteCategories() {
         const specialties = (groups.doctor_specialty || []).map((item) => item.name).filter(Boolean);
         const areas = (groups.region || []).map((item) => item.name).filter(Boolean);
         const roles = (groups.medical_role || []).map((item) => item.name).filter(Boolean);
-        setCategories({ departments:[...new Set(['전체 진료과', '한의사', ...(specialties.length ? specialties : departments.slice(1))])], regions:['전국', ...(areas.length ? areas : regions.slice(1))], medicalRoles:roles });
+        setCategories({ departments:[...new Set(['전체 진료과', ...(specialties.length ? specialties : departments.slice(1)).filter(x => x !== '한의사'), '한의사'])], regions:['전국', ...(areas.length ? areas : regions.slice(1))], medicalRoles:roles });
       })
       .catch(() => {});
     return () => { active = false; };
@@ -554,7 +554,7 @@ function Header({ path, qa, operations, auth }) {
       // useAuthGate가 백그라운드에서 다시 확인하므로 느린 네트워크에서도 역할이 되돌아가지 않는다.
       setOpen(false);
     } catch (error) {
-      window.alert(`테스트 계정 전환에 실패했습니다: ${error.message}`);
+      void notifyAction(`테스트 계정 전환에 실패했습니다: ${error.message}`);
     } finally {
       setSwitchingRole('');
     }
@@ -1118,7 +1118,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
           </div>
         </div>
         {detailBanner && (
-          <div className="detail-hero-banner" aria-label={`${job.hospital} 채용 배너`}>
+          <div className={`detail-hero-banner${!isFullBrandBanner ? ' has-banner-copy' : ''}`} aria-label={`${job.hospital} 채용 배너`}>
             <img src={detailBanner} alt="" />
             {adTierPresentation && <span className={`detail-banner-chip ad-tier-${adTierPresentation.key}`}>{adTierPresentation.label}</span>}
             {!isFullBrandBanner && (
@@ -2263,6 +2263,7 @@ function TalentDetailPage({ person, canViewIdentity, auth }) {
             <dl className="talent-contact-grid">
               {d.name && <div><dt>성명</dt><dd>{d.name}</dd></div>}
               {d.phone && <div><dt>연락처</dt><dd><>{person.isDemo ? <span>{d.phone} <small>테스트 번호</small></span> : <span>{d.phone}</span>}</></dd></div>}
+              {d.additionalContactPhone && <div><dt>추가 연락처</dt><dd><span>{d.additionalContactPhone}</span></dd></div>}
               {d.email && <div><dt>이메일</dt><dd><>{person.isDemo ? <span>{d.email} <small>테스트 이메일</small></span> : <span>{d.email}</span>}</></dd></div>}
               {d.specialty && <div><dt>전문분야</dt><dd>{d.specialty}</dd></div>}
               {d.detail?.experienceYears && <div><dt>총 경력</dt><dd>{d.detail.experienceYears}</dd></div>}
@@ -2557,7 +2558,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   const isHospitalMember = auth.role === 'hospital';
   const canWriteJobSeeker = auth.role === 'doctor';
   // 진료과·지역 옵션은 실제 데이터에서 동적으로 뽑는다.
-  const deptOptions = useMemo(() => ['전체', ...Array.from(new Set(['한의사', ...all.map((p) => p.dept).filter(Boolean)]))], [all]);
+  const deptOptions = useMemo(() => ['전체', ...Array.from(new Set([...all.map((p) => p.dept).filter(x => x && x !== '한의사'), '한의사']))], [all]);
   const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.region).filter(Boolean)))], [all]);
 
   // 열람권(실명·연락처 열람) 여부 — 독립 상세 페이지가 서버에서 상세 권한을 재확인한다.
@@ -3285,7 +3286,7 @@ function Checkout({ plan, auth }) {
                 </label>
                 <label>
                   <span>홈페이지 <i>선택</i></span>
-                  <input name="website" type="url" placeholder="https://hospital.co.kr" defaultValue={accountProfile.website} />
+                  <input name="website" type="text" placeholder="홈페이지 주소 (선택)" defaultValue={accountProfile.website} />
                 </label>
                 <label>
                   <span>진료과목 <i>선택</i></span>

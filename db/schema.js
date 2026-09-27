@@ -191,6 +191,8 @@ export const memberCenterSchemaStatements = [
     available_from TEXT NOT NULL DEFAULT '',
     employment_type TEXT NOT NULL DEFAULT '',
     contact_visibility TEXT NOT NULL DEFAULT 'private' CHECK (contact_visibility IN ('ticket','private')),
+    contact_phone TEXT NOT NULL DEFAULT '',
+    additional_contact_phone TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','closed','deleted')),
     public_until TEXT NOT NULL DEFAULT '',
     hidden_reason TEXT NOT NULL DEFAULT '',

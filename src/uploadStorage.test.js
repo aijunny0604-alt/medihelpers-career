@@ -103,7 +103,7 @@ test('basic ads do not upload or render a banner stage', () => {
 
 test('job detail displays the selected banner in its hero heading', () => {
   assert.match(mainSource, /const detailBanner = job\.banner \|\| job\.cardBanner/);
-  assert.match(mainSource, /className="detail-hero-banner"/);
+  assert.match(mainSource, /detail-hero-banner\$\{!isFullBrandBanner/);
 });
 
 test('job detail never shrinks its wide banner into the square institution mark', () => {

@@ -29,7 +29,6 @@ function digitsOnly(value) {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_PATTERN = /^01[016789]\d{7,8}$/;
-const URL_PATTERN = /^https?:\/\/.+/i;
 
 function requiredText(value, label, minimum = 2) {
   const text = String(value ?? '').trim();
@@ -133,7 +132,7 @@ export function validateField(field, draft = {}) {
     case 'representativeName': return requiredText(draft.representativeName, '대표자명');
     case 'businessNumber': return validateBusinessNumber(draft.businessNumber);
     case 'address': return requiredText(draft.address, '병원 주소', 5);
-    case 'website': return URL_PATTERN.test(String(draft.website ?? '').trim()) ? '' : '홈페이지 주소는 http:// 또는 https://로 시작해주세요.';
+    case 'website': return ''; // 선택 항목: 자유 입력, 가입 차단 없음
     default: return '';
   }
 }

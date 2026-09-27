@@ -1,4 +1,5 @@
 import { resumePublicationMissing } from './resumeReadiness.js';
+import { normalizeContactPhone } from './contactPhone.js';
 import { confirmAction } from './confirmAction.js';
 import { postStatusLabel, postDeadlineLabel } from './jobPostLifecycle.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
@@ -16,6 +17,7 @@ function go(path) {
 const emptyForm = {
   resumeId: '', title: '', specialty: '', desiredRegion: '', availableFrom: '협의',
   employmentType: '', summary: '', contactVisibility: 'private',
+  contactPhone: '', additionalContactPhone: '',
 };
 
 export default function JobSeekerPostPage({ postId = '' }) {
@@ -46,12 +48,13 @@ export default function JobSeekerPostPage({ postId = '' }) {
       const nextResumes = resumeData.resumes || [];
       setResumes(nextResumes);
       const post = postData?.post;
-      if (post) setForm({ ...emptyForm, ...post });
+      if (post) setForm({ ...emptyForm, ...post, contactPhone:post.contactPhone || nextResumes.find(r => r.id === post.resumeId)?.phone || '' });
       else if (nextResumes[0]) {
         const resume = nextResumes[0];
         setForm((current) => ({
           ...current,
           resumeId: resume.id,
+          contactPhone: resume.phone || '',
           title: resume.specialty ? `${resume.specialty} · 구직 중` : resume.title || '',
           specialty: resume.specialty || resume.profession || '',
           desiredRegion: resume.desiredRegions || '',
@@ -87,6 +90,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
   const save = async (event) => {
     event.preventDefault();
     if (!form.resumeId || !form.title.trim()) { setFailed(true); setMessage('연동할 이력서와 구직글 제목을 확인해주세요.'); return; }
+    if (normalizeContactPhone(form.contactPhone) === null || normalizeContactPhone(form.additionalContactPhone) === null || (form.contactVisibility === 'ticket' && !form.contactPhone.trim())) { setFailed(true); setMessage('연락받을 기본 번호와 추가 연락처를 정확히 입력해주세요.'); return; }
     const missing = resumePublicationMissing(selectedResume || {});
     if (missing.length) { setFailed(true);setMessage('선택한 이력서를 먼저 보완해주세요: ' + missing.join(', '));return; }
     setBusy(true); setMessage(''); setFailed(false);
@@ -149,6 +153,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
 
         <section className="job-seeker-editor-card"><div className="job-seeker-editor-heading"><span><EyeOff /></span><div><h2>연락처 공개 여부</h2><p>병원이 이력서 열람권을 구매해도 이 설정을 넘을 수 없습니다.</p></div></div>
           <div className="job-seeker-contact-options"><label className={form.contactVisibility === 'private' ? 'selected' : ''}><input type="radio" name="contactVisibility" value="private" checked={form.contactVisibility === 'private'} onChange={update('contactVisibility')} /><EyeOff /><span><strong>연락처 비공개</strong><small>열람권을 구매한 병원에도 전화·이메일을 공개하지 않습니다.</small></span></label><label className={form.contactVisibility === 'ticket' ? 'selected' : ''}><input type="radio" name="contactVisibility" value="ticket" checked={form.contactVisibility === 'ticket'} onChange={update('contactVisibility')} /><Eye /><span><strong>열람권 구매 병원에 공개</strong><small>유효한 열람권을 사용한 병원에게만 연락처를 공개합니다.</small></span></label></div>
+          {form.contactVisibility === 'ticket' && <div className="job-seeker-contact-fields"><p>연락받을 번호를 확인해주세요. 처음에는 회원가입 때 등록한 번호가 입력되며, 이 구직글에서 사용할 번호로 변경할 수 있습니다.</p><div className="form-grid"><label><span>연락받을 기본 번호 *</span><input type="tel" autoComplete="tel" required maxLength={20} value={form.contactPhone} onChange={update('contactPhone')} placeholder="010-1234-5678" /></label><label><span>추가 연락처 (선택)</span><input type="tel" maxLength={20} value={form.additionalContactPhone} onChange={update('additionalContactPhone')} placeholder="휴대전화 또는 유선번호" /></label></div><button className="button outline" type="button" onClick={() => setForm(current => ({...current,contactPhone:selectedResume?.phone || ''}))}>가입 연락처로 되돌리기</button><small>가입정보는 변경되지 않습니다. 두 번호 모두 이 구직글의 연락처 공개 설정을 따릅니다.</small></div>}
         </section>
 
         <footer className="job-seeker-editor-actions"><div><button type="button" className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 취소</button>{editing && <button type="button" className="button danger" onClick={remove} disabled={busy}><Trash2 /> 구직글 삭제</button>}</div><button type="submit" className="button primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 내용 저장' : '구직글 등록하기'} <ArrowRight /></button></footer>

@@ -1,3 +1,4 @@
+import { notifyAction } from './confirmAction.js';
 import RenewAdButton from './RenewAdButton.jsx';
 import PasswordChange from './PasswordChange.jsx';
 import { confirmAction } from './confirmAction.js';
@@ -742,7 +743,7 @@ export function ReceiptModal({ payment, buyerName, onClose }) {
   };
   const printReceipt = () => {
     const w = window.open('', '_blank', 'width=640,height=800');
-    if (!w) { alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.'); return; }
+    if (!w) { notifyAction('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.'); return; }
     w.document.write(buildDocHtml());
     w.document.close();
     w.focus();
@@ -764,7 +765,7 @@ export function ReceiptModal({ payment, buyerName, onClose }) {
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png'); a.download = `영수증_${payment.id}.png`; a.click();
     };
-    img.onerror = () => alert('이미지 저장에 실패했습니다. 인쇄 → PDF로 저장을 이용해 주세요.');
+    img.onerror = () => notifyAction('이미지 저장에 실패했습니다. 인쇄 → PDF로 저장을 이용해 주세요.');
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   };
   return <div className="inquiry-detail-overlay" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
