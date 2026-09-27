@@ -1717,6 +1717,9 @@ async function memberCenterApi(request, env) {
       ).bind(account.id,identityPrincipal(identity)));
       addQuery('ownedAds', env.DB.prepare("SELECT DISTINCT c.id, c.content_type AS contentType, c.title, c.subtitle, c.status, c.payload_json AS payloadJson, c.updated_at AS updatedAt FROM admin_content_records c JOIN payment_orders o ON COALESCE(NULLIF(json_extract(o.metadata_json,'$.contentRecordId'),''), 'ad-order-' || o.id)=c.id WHERE o.account_id=? AND o.product_type='doctor_ad' AND o.status IN ('paid','awaiting_payment') AND c.content_type IN ('doctor_job','medical_job') ORDER BY c.updated_at DESC LIMIT 200").bind(account.id));
     }
+    // Legacy ownership is independent of a newly fabricated payment order.
+    // Both immutable account ID and credential principal must match server-imported metadata.
+    if (account.role === 'hospital') addQuery('migratedAds', env.DB.prepare("SELECT c.id,c.title,c.subtitle,c.status,c.payload_json AS payloadJson FROM admin_content_records c WHERE c.content_type IN ('doctor_job','medical_job') AND lower(c.created_by)=? AND json_extract(c.payload_json,'$.migration.ownerMapping.accountId')=? AND json_extract(c.payload_json,'$.migration.ownerMapping.bindingStatus')='protected-account-linked' AND NOT EXISTS (SELECT 1 FROM payment_orders o WHERE o.account_id=? AND COALESCE(NULLIF(json_extract(o.metadata_json,'$.contentRecordId'),''),'ad-order-' || o.id)=c.id AND o.status IN ('paid','awaiting_payment')) ORDER BY c.created_at DESC LIMIT 200").bind(identityPrincipal(identity),account.id,account.id));
     const queryResults = await env.DB.batch(queryStatements);
     const resultsByName = new Map(queryNames.map((name, index) => [name, queryResults[index] || { results:[] }]));
     const rows = name => resultsByName.get(name)?.results || [];
@@ -1764,6 +1767,10 @@ async function memberCenterApi(request, env) {
         });
       } catch { ownedAdContents = []; }
     }
+    const migratedAds = rows('migratedAds').map(row => {
+      const migration = parseJsonObject(row.payloadJson)?.migration || {};
+      return { id:row.id,title:row.title,subtitle:row.subtitle,status:row.status,originalCreated:String(migration.originalDates?.created || ''),services:Array.isArray(migration.services)?migration.services.filter(s=>typeof s==='string'):[],editable:false,exposureVerified:false };
+    });
     const ownedAdContentById = new Map(ownedAdContents.map(record => [record.id, record]));
     const orderList = (orders.results || []).map(row => {
       const { metadataJson, ...rest } = row;
@@ -1782,7 +1789,7 @@ async function memberCenterApi(request, env) {
         adUpdatedAt:content?.updatedAt || ''
       };
     });
-    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity:publicIdentity(identity), profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates, unlockedTalents, talentCredits:{ total:Number(talentCreditSummary.total)||0, used:Number(talentCreditSummary.used)||0, remaining:Number(talentCreditSummary.remaining)||0 } });
+    return json({ signedIn:true, isAdmin, account:{ role:account.role, createdAt:account.createdAt }, identity:publicIdentity(identity), profile:profile || null, notifications:preferences ? { email:Boolean(preferences.email), sms:Boolean(preferences.sms), service:Boolean(preferences.service), marketing:Boolean(preferences.marketing) } : null, alerts, unreadCount, activity:activity.results || [], consultations:consultationRows.map(row => { const { payloadJson, ...record } = row; return { ...record, payload:parseJsonObject(payloadJson) }; }), orders:orderList, migratedAds, resume:resume || null, jobSeekerPosts:jobSeekerPostsResult.results || [], recommendedCandidates, unlockedTalents, talentCredits:{ total:Number(talentCreditSummary.total)||0, used:Number(talentCreditSummary.used)||0, remaining:Number(talentCreditSummary.remaining)||0 } });
   }
   if (request.method === 'POST') {
     if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);

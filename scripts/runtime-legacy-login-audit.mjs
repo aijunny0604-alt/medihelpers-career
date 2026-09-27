@@ -105,6 +105,18 @@ for(const n of [1,2]) {
  sqlite.prepare("INSERT INTO consultation_requests(id,request_type,requester_name,phone,email,specialty,payload_json) VALUES(?,'doctor','Synthetic Applicant','01000000000',?,'내과',?)").run('hospital-application-'+n,sharedEmail,JSON.stringify({ownerAccountId:isolated[1].id,jobId:'admin-legacy-job-'+n,submissionChannel:'paid_job_direct'}));
  const login=await call('/api/auth/login',{email:alias,password:'hospital'+n});check(login.status,200);check(login.body.isAdmin,false);
  const center=await call('/api/member-center',null,login.cookie);check(center.status,200);check(center.body.orders.map(r=>r.orderNumber),['LEGACY-ORDER-'+n]);
+ // An imported ad has no new payment order, and must remain visible only to its own hospital.
+ const migrationPayload=JSON.stringify({migration:{originalDates:{created:'2020-01-02'},services:['기존 광고 : 2020.01.02~2020.02.01'],ownerMapping:{accountId:id,bindingStatus:'protected-account-linked',legacyId:alias}}});
+ sqlite.prepare("INSERT INTO admin_content_records(id,content_type,title,status,visibility,payload_json,created_by) VALUES(?,'doctor_job','Imported ad','draft','admin',?,?)").run('imported-ad-'+n,migrationPayload,principal);
+ const imported=await call('/api/member-center',null,login.cookie);check(imported.status,200);check(imported.body.migratedAds.map(r=>r.id),['imported-ad-'+n]);
+ check(imported.body.migratedAds[0].editable,false);check(imported.body.migratedAds[0].exposureVerified,false);
+ check(imported.body.migratedAds[0].originalCreated,'2020-01-02');check(imported.body.migratedAds[0].payloadJson,undefined);check(imported.body.orders.length,1);
+ sqlite.prepare('UPDATE admin_content_records SET created_by=? WHERE id=?').run('someone-else@example.invalid','imported-ad-'+n);
+ check((await call('/api/member-center',null,login.cookie)).body.migratedAds.length,0);
+ sqlite.prepare('UPDATE admin_content_records SET created_by=?,payload_json=json_set(payload_json,\'$.migration.ownerMapping.accountId\',?) WHERE id=?').run(principal,'wrong-account','imported-ad-'+n);
+ check((await call('/api/member-center',null,login.cookie)).body.migratedAds.length,0);
+ sqlite.prepare('UPDATE admin_content_records SET payload_json=? WHERE id=?').run(migrationPayload,'imported-ad-'+n);
+ check((await call('/api/member-center',null,login.cookie)).body.migratedAds.length,1);
  // Direct applications are scoped by the immutable credential principal, not the shared email.
  check(center.body.consultations.filter(r=>r.id.startsWith('hospital-application-')).map(r=>r.id),['hospital-application-'+n]);
  check((await call('/api/resumes',null,login.cookie)).status,403);
