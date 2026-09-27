@@ -2,7 +2,7 @@
 
 ## 2026-09-27 Cloudflare 이전 후속
 
-Resend 무료 계정에서 `notify.medihelpers.co.kr`(Tokyo) 인증 완료. 기존 Daum 수신 MX/SPF 유지, 해당 발송 서브도메인의 TXT/CNAME 3개만 추가. 실제 사용할 발신자는 `메디헬퍼스 <no-reply@notify.medihelpers.co.kr>`이다. 도메인 한정 Sending access 키 생성은 사용자에게 인계했으며 현재 키 등록/실제 수신 검증은 미완료다. 대상 서버는 Cloudflare이며 아래 Sites 설정 절차는 과거 기록이다. [현재 상태](ACCOUNT_ISOLATION_20260927.md).
+Resend 무료 계정에서 `notify.medihelpers.co.kr`(Tokyo) 인증 완료. 기존 Daum 수신 MX/SPF 유지, 해당 발송 서브도메인의 TXT/CNAME 3개만 추가. 발신자는 `메디헬퍼스 <no-reply@notify.medihelpers.co.kr>`이다. 도메인 한정 Sending access 키와 발신자 설정을 Cloudflare 비밀 설정에 등록했고, 운영자에게 승인받은 테스트 메일 1건의 전달 및 실제 수신을 확인했다. 비밀번호 재설정은 격리 DB·합성 계정·가로챈 메일 전송으로 31개 검사 통과했으며 실제 기존 회원 재설정 완료 검증과는 구별한다. 관리자 수신자/SMS 및 정식 가입 활성화는 아직 완료하지 않았다. 아래 Sites 설정 절차와 ‘미설정’ 표현은 과거 기록이다. [현재 상태](PROTECTED_IMPORT_20260927.md).
 
 기준일: 2026-08-14
 관련 코드: `scripts/package-sites.mjs` (`sendConsultationEmail`, `sendRecoveryEmail`, `sendSignupEmails`, `sendConsultationSms`)
