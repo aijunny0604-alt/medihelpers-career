@@ -1,5 +1,7 @@
 # 현재 구현 상태
 
+최신 실제 검수 배포: 소스 `a154a82c65d634d6c7259296594e19dd9d4c52e1`(GitHub/Sites 미러 동일), Cloudflare Worker `ed6de0a2-ef4b-456d-9497-b5bf6e83bf55`, 자산 `index-UQG68snD.js`. 자동 657개와 실제 HTTP 18개 통과. 배포 후 secrets 5개 보존 확인. 로그인 입력 유지/테스트 전환 없음 브라우저 확인. 실서버 신규 3역할 로그인·실 PG 거래는 읽기 전용으로 미실행. www DNS `121.254.171.115` 유지. 이후 문서 커밋은 이 앱 배포 결과 기록만 추가한다.
+
 2026-09-27 후속 후보: 기존 이니시스 MID/면세/WEB 키 유지, 사용자 생성 모바일 Hash Key와 INIAPI KEY/IV를 Cloudflare secrets로 등록 완료. 키 등록 버전 281baec7-092d-4a04-95ce-3b920624859c(앱 소스는 아래 3c877ff). 모바일 승인·망취소·CSP 구현과 자동 657개 검사 통과. 후보 자산 index-UQG68snD.js. 실제 거래/3역할 신규 로그인/정식 도메인 전환 미완료. GitHub 기준 브랜치/Sites 소스 동일 후보로 동기화 후 무료 읽기 전용 검수본 배포. [상세·남은 조건](INICIS_MOBILE_20260927.md).
 
 최신 Cloudflare 검수본: 소스 `3c877ff3200299ee628c5476c9147e328006e38e`, Worker `8e9ae0f6-d16f-4d1d-8b5a-161c96af36ac`. GitHub/Sites 소스 동일 확인 후 배포, 자동 617개 + 실제 HTTP 18개 통과. 실제 로그인 입력란 유지/테스트 전환 제외 확인. 읽기 전용이므로 실서버 역할별 로그인·실 PG는 미검증. 정식 www 도메인 전환은 미완료이며 기존 Rankup 유지. [확인 체크리스트](RELEASE_PREPARATION_20260927.md).

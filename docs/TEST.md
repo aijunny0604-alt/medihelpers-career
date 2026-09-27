@@ -1,5 +1,7 @@
 # TEST
 
+최신 배포 후 결과: 앱 소스 `a154a82c65d634d6c7259296594e19dd9d4c52e1`, Worker `ed6de0a2-ef4b-456d-9497-b5bf6e83bf55`, 자산 `index-UQG68snD.js`. GitHub/Sites 동일 SHA 후 배포. HTTP 18개 통과(최신 HTML/자산, no-store/noindex, 익명 계정, 주문 인증, 쓰기 차단, 보호 초안 비노출). secrets 5개 유지. 실제 로그인 입력/테스트 전환 없음 화면 확인. 실서버 신규 역할별 로그인·PG 거래 미실행. 근거는 로컬 `C:/Users/ROSSA/medihelpers-audit-20260927/staging-http-audit.json`, `mobile-deploy.log`, `mobile-deployed-login.png`.
+
 2026-09-27 모바일 후속: 단위 325 + 준비 67/공격 58/회원 46/관리자 63/PG 68 + Cloudflare 22 + release/local 분리 8 = **657개 통과**. 모바일 CSP 포함 build/build:cf/Worker 문법 검증. 실제 PG 및 검수 서버 신규 3역할 로그인은 미실행(읽기 전용). 키 등록 버전 281baec7-092d-4a04-95ce-3b920624859c의 HTTP 18개 통과. 아래 617개 기록은 이전 앱 배포 결과다. [후속 범위](INICIS_MOBILE_20260927.md).
 
 최신 실제 배포 검증: 소스 `3c877ff3200299ee628c5476c9147e328006e38e`, Worker `8e9ae0f6-d16f-4d1d-8b5a-161c96af36ac`, asset `index-B2zALW3Z.js`. 동일 소스 GitHub/Sites 미러 확인. 자동 617개 및 build/build:cf 성공 후 실제 HTTP 18개 통과. 로그인 페이지 실제 비밀번호 입력 유지/테스트 전환 없음 확인. 신규 의료인·병원·관리자 로그인은 검수본 쓰기 차단으로 미실행. 실 PG 거래도 미실행. [로그·화면 근거](RELEASE_PREPARATION_20260927.md).
