@@ -44,6 +44,14 @@ export const accountSchemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES auth_credentials(account_id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS account_contact_identities (
+    account_id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source='rankup'),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES auth_credentials(account_id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS account_contact_email_idx ON account_contact_identities(email)`,
   `CREATE TABLE IF NOT EXISTS auth_sessions (
     token_hash TEXT PRIMARY KEY,
     account_id TEXT NOT NULL,

@@ -59,6 +59,56 @@ sqlite.prepare('UPDATE auth_login_aliases SET login_id=? WHERE account_id=?').ru
 sqlite.prepare('DELETE FROM auth_credentials WHERE account_id=?').run(doctorId);
 check(sqlite.prepare('SELECT COUNT(*) n FROM auth_login_aliases WHERE account_id=?').get(doctorId).n,0);
 check((await call('/api/auth/login',{email:aliases.doctor,password:oldPassword})).status,401);
+// Two legacy users may share a real mailbox, including an administrator's mailbox.
+// Their credential principal and account ownership remain independent.
+const sharedEmail=emails.admin;
+const isolated=[];
+for(const n of [1,2]) {
+ const id='legacy-isolated-'+n, principal='rankup:'+id, alias='shared-mail-'+n;
+ sqlite.prepare("INSERT INTO accounts(id,user_key,role) VALUES(?,?,'doctor')").run(id,'isolated-user-key-'+n);
+ sqlite.prepare('INSERT INTO auth_credentials(account_id,email_normalized,password_hash,password_salt,password_iterations) VALUES(?,?,?,?,100000)').run(id,principal,pbkdf2Sync('oldpass'+n,Buffer.from(salt,'hex'),100000,32,'sha256').toString('hex'),salt);
+ sqlite.prepare("INSERT INTO account_contact_identities(account_id,email,source) VALUES(?,?,'rankup')").run(id,sharedEmail);
+ sqlite.prepare("INSERT INTO auth_login_aliases(login_id,account_id,source) VALUES(?,?,'rankup')").run(alias,id);
+ sqlite.prepare("INSERT INTO member_profiles(account_id,display_name,phone) VALUES(?,?,?)").run(id,'Synthetic '+n,'010-0000-000'+n);
+ sqlite.prepare("INSERT INTO resumes(id,account_id,title) VALUES(?,?,?)").run('isolated-resume-'+n,id,'Resume '+n);
+ sqlite.prepare("INSERT INTO consultation_requests(id,request_type,requester_name,phone,email,specialty,payload_json) VALUES(?,'doctor',?,'01000000000',?,'내과',?)").run('isolated-consultation-'+n,'Synthetic '+n,sharedEmail,JSON.stringify({ownerAccountId:id,message:'private '+n}));
+ const login=await call('/api/auth/login',{email:alias,password:'oldpass'+n});
+ check(login.status,200);check(login.body.identity.email,sharedEmail);check(login.body.isAdmin,false);
+ const account=await call('/api/account',null,login.cookie);check(account.status,200);check(account.body.account.id,id);check(account.body.identity.principal,undefined);check(account.body.identity.userKey,undefined);
+ check((await call('/api/admin-console',null,login.cookie)).status,403);
+ const resumeList=await call('/api/resumes',null,login.cookie);check(resumeList.status,200);check(resumeList.body.resumes.map(r=>r.id),['isolated-resume-'+n]);
+ const center=await call('/api/member-center',null,login.cookie);check(center.status,200);check(center.body.consultations.map(r=>r.id),['isolated-consultation-'+n]);
+ isolated.push({id,alias,cookie:login.cookie});
+}
+// Sharing a mailbox cannot issue a reset for an arbitrary first account.
+const resetCount=()=>sqlite.prepare('SELECT COUNT(*) n FROM account_password_resets').get().n;
+const beforeReset=resetCount();
+check((await call('/api/account-recovery',{requestType:'password',email:sharedEmail})).status,202);
+check(resetCount(),beforeReset);
+check((await call('/api/account-recovery',{requestType:'password',email:isolated[0].alias})).status,202);
+check(resetCount(),beforeReset+1);
+check(sqlite.prepare('SELECT account_id id,email_normalized email FROM account_password_resets ORDER BY rowid DESC LIMIT 1').get().id,isolated[0].id);
+check(sqlite.prepare('SELECT email_normalized email FROM account_password_resets ORDER BY rowid DESC LIMIT 1').get().email,sharedEmail);
+// Suspension takes effect for already issued sessions as well as future login attempts.
+sqlite.prepare("INSERT INTO account_admin_profiles(account_id,email,status) VALUES(?,?,'suspended') ON CONFLICT(account_id) DO UPDATE SET status='suspended'").run(isolated[0].id,sharedEmail);
+check((await call('/api/resumes',null,isolated[0].cookie)).status,401);
+check((await call('/api/resumes',null,isolated[1].cookie)).status,200);
+for(const n of [1,2]) {
+ const id='legacy-hospital-'+n, principal='rankup:'+id, alias='shared-hospital-'+n;
+ sqlite.prepare("INSERT INTO accounts(id,user_key,role) VALUES(?,?,'hospital')").run(id,'hospital-user-key-'+n);
+ sqlite.prepare('INSERT INTO auth_credentials(account_id,email_normalized,password_hash,password_salt,password_iterations) VALUES(?,?,?,?,100000)').run(id,principal,pbkdf2Sync('hospital'+n,Buffer.from(salt,'hex'),100000,32,'sha256').toString('hex'),salt);
+ sqlite.prepare("INSERT INTO account_contact_identities(account_id,email,source) VALUES(?,?,'rankup')").run(id,sharedEmail);
+ sqlite.prepare("INSERT INTO auth_login_aliases(login_id,account_id,source) VALUES(?,?,'rankup')").run(alias,id);
+ sqlite.prepare("INSERT INTO member_profiles(account_id,display_name,organization) VALUES(?,?,?)").run(id,'Manager '+n,'Hospital '+n);
+ sqlite.prepare("INSERT INTO payment_orders(id,order_number,account_id,product_type,product_id,product_name,status,metadata_json) VALUES(?,?,?,'doctor_ad','basic','Legacy ad','paid',?)").run('legacy-order-'+n,'LEGACY-ORDER-'+n,id,JSON.stringify({contentRecordId:'legacy-job-'+n}));
+ sqlite.prepare("INSERT INTO admin_content_records(id,content_type,title,subtitle,status,payload_json,created_by) VALUES(?,'doctor_job',?,?,'published','{}',?)").run('legacy-job-'+n,'Ad '+n,'Hospital '+n,principal);
+ sqlite.prepare("INSERT INTO consultation_requests(id,request_type,requester_name,phone,email,specialty,payload_json) VALUES(?,'doctor','Synthetic Applicant','01000000000',?,'내과',?)").run('hospital-application-'+n,sharedEmail,JSON.stringify({ownerAccountId:isolated[1].id,jobId:'admin-legacy-job-'+n,submissionChannel:'paid_job_direct'}));
+ const login=await call('/api/auth/login',{email:alias,password:'hospital'+n});check(login.status,200);check(login.body.isAdmin,false);
+ const center=await call('/api/member-center',null,login.cookie);check(center.status,200);check(center.body.orders.map(r=>r.orderNumber),['LEGACY-ORDER-'+n]);
+ // Direct applications are scoped by the immutable credential principal, not the shared email.
+ check(center.body.consultations.filter(r=>r.id.startsWith('hospital-application-')).map(r=>r.id),['hospital-application-'+n]);
+ check((await call('/api/resumes',null,login.cookie)).status,403);
+}
 console.log(JSON.stringify({checks,failed:0,scope:'isolated generated-worker API tests; no real member data or real PG calls'}));
 if(process.argv.includes('--serve')) {
  for(const role of Object.keys(aliases)) {

@@ -1,5 +1,9 @@
 # 상담 알림(메일·문자) 설정 가이드
 
+## 2026-09-27 Cloudflare 이전 후속
+
+Resend 무료 계정에서 `notify.medihelpers.co.kr`(Tokyo) 인증 완료. 기존 Daum 수신 MX/SPF 유지, 해당 발송 서브도메인의 TXT/CNAME 3개만 추가. 실제 사용할 발신자는 `메디헬퍼스 <no-reply@notify.medihelpers.co.kr>`이다. 도메인 한정 Sending access 키 생성은 사용자에게 인계했으며 현재 키 등록/실제 수신 검증은 미완료다. 대상 서버는 Cloudflare이며 아래 Sites 설정 절차는 과거 기록이다. [현재 상태](ACCOUNT_ISOLATION_20260927.md).
+
 기준일: 2026-08-14
 관련 코드: `scripts/package-sites.mjs` (`sendConsultationEmail`, `sendRecoveryEmail`, `sendSignupEmails`, `sendConsultationSms`)
 

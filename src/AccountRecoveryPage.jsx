@@ -123,11 +123,11 @@ export default function AccountRecoveryPage() {
         </form> : <form onSubmit={requestRecovery}>
           <span className="recovery-icon">{mode === 'id' ? <Mail /> : <LockKeyhole />}</span>
           <h2>{mode === 'id' ? '가입 이메일로 아이디 받기' : '비밀번호 재설정 링크 받기'}</h2>
-          <p>{mode === 'id' ? '회원가입 때 입력한 이름과 휴대전화 번호를 확인한 뒤 가입 이메일로 안내합니다.' : '회원가입 때 등록한 이메일을 입력하면 30분 동안 한 번 사용할 수 있는 링크를 보내드립니다.'}</p>
+          <p>{mode === 'id' ? '회원가입 때 입력한 이름과 휴대전화 번호를 확인한 뒤 가입 이메일로 안내합니다.' : '가입 이메일 또는 기존 아이디를 입력해주세요. 이메일을 여러 계정이 함께 사용하는 경우 기존 아이디를 입력하면 해당 계정의 등록 이메일로 안내합니다.'}</p>
           {mode === 'id' ? <>
             <label><span>이름 또는 담당자명</span><input required name="name" autoComplete="name" placeholder="회원가입 때 입력한 이름" /></label>
             <label><span>휴대전화</span><input required name="phone" type="tel" autoComplete="tel" placeholder="010-0000-0000" /></label>
-          </> : <label><span>가입 이메일</span><input required name="email" type="email" autoComplete="email" placeholder="example@email.com" /></label>}
+          </> : <label><span>이메일 또는 기존 아이디</span><input required name="email" type="text" maxLength={254} autoComplete="username" placeholder="가입 이메일 또는 기존 아이디" /></label>}
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button primary full" type="submit" disabled={submitting}>{submitting ? '요청 중' : '이메일로 안내받기'} {!submitting && <ArrowRight />}</button>
         </form>}
