@@ -56,7 +56,7 @@ await call('/api/admin-console','admin');
 const createOrder=async(productId='talent-unlock-pack',metadata={})=>(await call('/api/payment-orders','hospital',{productId,metadata})).data.order;
 const approve=order=>call('/api/payment-approve','hospital',{orderNumber:order.orderNumber});
 const count=(sql,...args)=>sqlite.prepare(sql).get(...args).n;
-const pgEnv={...env,INICIS_ENV:'test',INICIS_MID:'INIpayTest',INICIS_SIGN_KEY:'synthetic-sign-key',SITE_ORIGIN:'https://audit.local',PAYMENT_LIVE:'true'};
+const pgEnv={...env,INICIS_TAX_CONTRACT:'taxable',PAYMENT_PRODUCT_TAX_JSON:'{"talent-unlock-pack":"taxable"}',INICIS_ENV:'test',INICIS_MID:'INIpayTest',INICIS_SIGN_KEY:'synthetic-sign-key',SITE_ORIGIN:'https://audit.local',PAYMENT_LIVE:'true'};
 const originalFetch=globalThis.fetch;
 let pgCalls=0, activeOrder;
 const vendorBody=()=>({resultCode:'0000',mid:pgEnv.INICIS_MID,MOID:activeOrder.orderNumber,TotPrice:String(activeOrder.totalAmount),payMethod:'Card',tid:'SYNTHETIC-'+activeOrder.id});
@@ -112,6 +112,22 @@ beforeStatement={pattern:/INSERT INTO talent_credit_pools/,run:()=>sqlite.prepar
 await form(makeBody(value));
 record('concurrent refund blocks late credit grant',count('SELECT COUNT(*) n FROM talent_credit_pools WHERE order_id=?',value.order.id),0);
 record('late fulfillment cannot undo refunded order',sqlite.prepare('SELECT status FROM payment_orders WHERE id=?').get(value.order.id).status,'refunded');
+// Misconfiguration cannot leave an order, consent or ad draft behind.
+const guardedOrder = (overrides={},metadata={}) => worker.fetch(new Request('https://audit.local/api/payment-orders',{method:'POST',headers:{cookie:cookies.hospital,origin:'https://audit.local','content-type':'application/json'},body:JSON.stringify({productId:'talent-unlock-pack',privacyVersion:PRIVACY_FORM_VERSION,privacyConsent:true,checkoutAcknowledged:true,metadata})}),{...pgEnv,...overrides},{});
+for(const overrides of [{INICIS_TAX_CONTRACT:''},{INICIS_TAX_CONTRACT:'exempt'},{PAYMENT_PRODUCT_TAX_JSON:'{}'},{INICIS_SIGN_KEY:''}]) {
+ const before=count('SELECT COUNT(*) n FROM payment_orders');
+ record('unconfirmed PG configuration rejected',(await guardedOrder(overrides)).status,503);
+ record('rejected configuration creates no order',count('SELECT COUNT(*) n FROM payment_orders'),before);
+}
+const zeroVatResponse=await guardedOrder({INICIS_TAX_CONTRACT:'merchant',PAYMENT_PRODUCT_TAX_JSON:'{"talent-unlock-pack":"exempt"}'},{taxSnapshot:{mode:'taxable',taxAmount:999999}});
+record('confirmed exempt product creates order',zeroVatResponse.status,201);
+const zeroVat=await zeroVatResponse.json();
+const storedTax=sqlite.prepare('SELECT total_amount,supply_amount,tax_amount,metadata_json FROM payment_orders WHERE id=?').get(zeroVat.order.id);
+record('zero VAT stored exactly',storedTax.tax_amount,0);
+record('exempt supply equals total',storedTax.supply_amount,storedTax.total_amount);
+record('client tax snapshot overwritten',JSON.parse(storedTax.metadata_json).taxSnapshot.mode,'exempt');
+record('merchant taxfree sent to PG',zeroVat.inicis.taxfree,String(storedTax.total_amount));
+record('merchant zero tax sent to PG',zeroVat.inicis.tax,'0');
 globalThis.fetch=originalFetch;
 console.log(JSON.stringify({passed:output.filter(r=>r.pass).length,total:output.length,failures:output.filter(r=>!r.pass)},null,2));
 if(output.some(r=>!r.pass))process.exitCode=1;

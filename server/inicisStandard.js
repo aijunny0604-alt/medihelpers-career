@@ -1,5 +1,24 @@
 // Server-only WEBSTANDARD adapter. Never import this module into browser code.
 // Specification and endpoint map: manual.inicis.com/pay/stdpay_pc.html and general_pc.zip.
+export function paymentTax(env, productId, amount) {
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('PG_AMOUNT_INVALID');
+  const pg = env.PAYMENT_LIVE === 'true' || Boolean(env.INICIS_MID || env.INICIS_SIGN_KEY);
+  let mode = 'taxable', contract = 'virtual';
+  if (pg) {
+    contract = env.INICIS_TAX_CONTRACT;
+    if (!['taxable', 'exempt', 'merchant'].includes(contract)) throw new Error('PG_TAX_NOT_CONFIGURED');
+    let policies;
+    try { policies = JSON.parse(env.PAYMENT_PRODUCT_TAX_JSON); } catch { throw new Error('PG_TAX_NOT_CONFIGURED'); }
+    if (!policies || Array.isArray(policies) || !Object.hasOwn(policies, productId)) throw new Error('PG_TAX_NOT_CONFIGURED');
+    mode = policies[productId];
+    if (!['taxable', 'exempt'].includes(mode)) throw new Error('PG_TAX_NOT_CONFIGURED');
+    if (contract !== 'merchant' && contract !== mode) throw new Error('PG_TAX_CONTRACT_MISMATCH');
+  }
+  const supplyAmount = mode === 'exempt' ? amount : Math.round(amount / 1.1);
+  return {version:1, mode, contract, totalAmount:amount, supplyAmount,
+    taxAmount:amount - supplyAmount, taxFreeAmount:mode === 'exempt' ? amount : 0};
+}
+
 export async function inicisHash(value, algorithm = 'SHA-256') {
   const bytes = await crypto.subtle.digest(algorithm, new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
@@ -32,6 +51,7 @@ export async function inicisRequestParams(env, order) {
   if (!env.INICIS_MID || !env.INICIS_SIGN_KEY) return {configured:false};
   if (!['test','live'].includes(env.INICIS_ENV)) throw new Error('PG_ENV_REQUIRED');
   if (!Number.isSafeInteger(Number(order.amount)) || Number(order.amount) <= 0) throw new Error('PG_AMOUNT_INVALID');
+  const tax = paymentTax(env, order.productId, Number(order.amount));
   const origin = inicisOrigin(env), oid = order.orderNumber, price = String(order.amount), timestamp = String(Date.now());
   return {
     configured:true, live:env.INICIS_ENV === 'live', version:'1.0', mid:env.INICIS_MID, oid, price, timestamp,
@@ -40,7 +60,8 @@ export async function inicisRequestParams(env, order) {
     mKey:await inicisHash(env.INICIS_SIGN_KEY), merchantData:await inicisState(env, order),
     goodname:order.productName, buyername:order.buyerName, buyeremail:order.buyerEmail || '', buyertel:order.buyerTel || '',
     returnUrl:origin + '/api/payment-approve', closeUrl:origin + '/mypage?payment=closed',
-    gopaymethod:'Card', currency:'WON', acceptmethod:'centerCd(Y)', mobile:false
+    gopaymethod:'Card', currency:'WON', acceptmethod:'centerCd(Y)', mobile:false,
+    ...(tax.contract === 'merchant' ? {tax:String(tax.taxAmount), taxfree:String(tax.taxFreeAmount)} : {})
   };
 }
 

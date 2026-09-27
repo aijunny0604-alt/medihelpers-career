@@ -1,3 +1,4 @@
+import { DEMO_MODE } from './demoMode.js';
 export const QA_PREVIEW_STORAGE_KEY = 'medihelpers_qa_preview_state';
 
 export const QA_STATE_OPTIONS = Object.freeze([
@@ -49,7 +50,7 @@ export const QA_STATE_OPTIONS = Object.freeze([
 ]);
 
 export function normalizeQaState(value) {
-  return QA_STATE_OPTIONS.some((option) => option.id === value) ? value : '';
+  return DEMO_MODE && QA_STATE_OPTIONS.some((option) => option.id === value) ? value : '';
 }
 
 export function getQaStateInfo(value) {

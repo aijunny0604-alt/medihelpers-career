@@ -1,4 +1,5 @@
 import { clearSessionToken, storeSessionToken } from './authTransport.js';
+import { DEMO_MODE } from './demoMode.js';
 
 export async function authRequest(action, body = {}) {
   const formData = typeof FormData !== 'undefined' && body instanceof FormData;
@@ -16,7 +17,7 @@ export async function authRequest(action, body = {}) {
   return data;
 }
 
-export const TEST_ACCOUNTS = [
+export const TEST_ACCOUNTS = !DEMO_MODE ? [] : [
   { key: 'doctor', label: '일반회원', loginLabel: '의료인 회원', role: 'doctor' },
   { key: 'admin', label: '관리자', loginLabel: '관리자', role: 'doctor' },
   { key: 'hospital', label: '병원회원', loginLabel: '병원 회원', role: 'hospital' }

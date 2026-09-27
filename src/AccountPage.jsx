@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { DEMO_MODE } from './demoMode.js';
 import { normalizeWebsiteUrl } from './websiteUrl.js';
 import { notifyAction } from './confirmAction.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
@@ -580,7 +581,7 @@ function SignedOutCard({ memberType }) {
 // 테스트용 계정. 관리자 판별은 서버 ADMIN_EMAILS와 일치해야 하므로 admin@medihelpers.co.kr 사용.
 
 
-function LoginCard({ testAccountsEnabled = true }) {
+function LoginCard({ testAccountsEnabled = false }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -644,7 +645,7 @@ function LoginCard({ testAccountsEnabled = true }) {
       <a className="signup-login-join-button" href={withBase('/signup')}><UserRound /> 회원가입하기 <ArrowRight /></a>
     </div>
     <a className="signup-recovery-link" href={withBase('/account/recovery')}>비밀번호를 잊으셨나요?</a>
-    {testAccountsEnabled && <div className="login-test-accounts">
+    {DEMO_MODE && testAccountsEnabled && <div className="login-test-accounts">
       <small>테스트 계정으로 바로 로그인</small>
       <div className="login-test-buttons">
         {TEST_ACCOUNTS.map((acct) => <button key={acct.key} type="button" className="button outline" disabled={submitting} onClick={() => loginTest(acct)}>{acct.loginLabel}</button>)}

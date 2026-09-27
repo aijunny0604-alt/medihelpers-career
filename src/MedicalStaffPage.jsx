@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { withBase } from './basePath.js';
 import { operationalMedicalJobs } from './siteOperations.js';
+import { DEMO_MODE } from './demoMode.js';
 
 const categories = ['전체 직군', '간호직', '보건관련직', '의료기사직', '약무직', '의사직', '제약·기타직'];
 
@@ -34,7 +35,7 @@ function roleGroup(role = '') {
   return '제약·기타직';
 }
 
-export const sampleJobs = [
+export const sampleJobs = !DEMO_MODE ? [] : [
   { id:'ms-01', role:'간호사', title:'외래·검진센터 간호사', hospital:'서울 온누리검진센터', region:'서울 강남', type:'정규직', career:'경력 2년↑', pay:'연 4,200만원~', deadline:'D-5', summary:'건강검진과 외래 진료가 원활하게 진행되도록 환자 안내부터 검사 전후 간호까지 함께합니다.', workHours:'평일 08:00~17:00 · 토요일 격주 오전', daysOff:'일요일·공휴일 휴무', responsibilities:['외래 환자 문진 및 진료 보조','건강검진 수검자 안내와 검사 전후 간호','의약품·비품 및 감염관리'], requirements:['간호사 면허 소지자','임상 경력 2년 이상','검진센터 또는 외래 경력자 우대'], benefits:['중식 제공','연차·경조휴가','직원 건강검진 지원'] },
   { id:'ms-02', role:'방사선사', title:'MRI·CT 방사선사', hospital:'수원 중앙영상의학센터', region:'경기 수원', type:'주 5일', career:'경력 3년↑', pay:'연 4,500만원~', deadline:'D-8', summary:'MRI·CT 촬영 품질과 환자 안전을 함께 관리할 경력 방사선사를 찾습니다.', workHours:'평일 08:30~17:30 · 주 5일', daysOff:'주말·공휴일 휴무', responsibilities:['MRI·CT 검사 및 영상 품질 관리','검사 전 환자 확인과 안전 안내','장비 일상점검 및 검사실 운영'], requirements:['방사선사 면허 소지자','MRI 또는 CT 경력 3년 이상','환자 응대와 협업이 원활한 분'], benefits:['성과 인센티브','보수교육비 지원','직원·가족 검진 할인'] },
   { id:'ms-03', role:'임상병리사', title:'진단검사실 임상병리사', hospital:'부산 메디컬병원', region:'부산 해운대', type:'정규직', career:'신입·경력', pay:'경력별 협의', deadline:'D-12', summary:'진단검사의 정확성과 신속한 결과 보고를 책임질 임상병리사를 채용합니다.', workHours:'주 40시간 · 근무표에 따른 교대', daysOff:'월 8회 이상 · 연차 별도', responsibilities:['검체 접수·전처리 및 진단검사','검사 장비 정도관리와 시약 관리','결과 검토 및 이상치 보고'], requirements:['임상병리사 면허 소지자','신입 지원 가능','종합병원 검사실 경력자 우대'], benefits:['기숙사 협의','보수교육 지원','구내식당 운영'] },

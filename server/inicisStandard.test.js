@@ -4,8 +4,8 @@ import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {inicisRequestParams, inicisState, verifyInicisState, inicisEndpoints, validateInicisApproval, processInicisApproval, inicisRefundFields, processInicisRefund} from './inicisStandard.js';
-const env = {INICIS_ENV:'test',INICIS_MID:'INIpayTest',INICIS_SIGN_KEY:'synthetic-only-signing-secret',SITE_ORIGIN:'https://staging.example.com'};
-const order = {id:'order-id',orderNumber:'ORDER-1',amount:59000};
+const env = {INICIS_TAX_CONTRACT:'taxable',PAYMENT_PRODUCT_TAX_JSON:'{"synthetic":"taxable"}',INICIS_ENV:'test',INICIS_MID:'INIpayTest',INICIS_SIGN_KEY:'synthetic-only-signing-secret',SITE_ORIGIN:'https://staging.example.com'};
+const order = {id:'order-id',orderNumber:'ORDER-1',productId:'synthetic',amount:59000};
 const response = {resultCode:'0000',mid:env.INICIS_MID,MOID:order.orderNumber,TotPrice:'59000',payMethod:'Card',tid:'SYNTHETIC-TID-12345'};
 const body = {resultCode:'0000',mid:env.INICIS_MID,idc_name:'stg',authToken:'synthetic-token',authUrl:'https://stgstdpay.inicis.com/api/payAuth',netCancelUrl:'https://stgstdpay.inicis.com/api/netCancel'};
 function database() {

@@ -1,5 +1,6 @@
 import { demoTalentScenario } from './demoTalentScenarios.js';
-export const jobs = [
+import { DEMO_MODE } from './demoMode.js';
+export const jobs = !DEMO_MODE ? [] : [
   {
     id: 'samcheonpo-specialists', hospital: '삼천포제일병원', title: '각 과 전문의 의료진 초빙',
     location: '경남 사천시', region: '경남', type: '정규직', dept: '전문의', pay: '협의 후 결정',
@@ -124,7 +125,7 @@ export const jobs = [
   }
 ];
 
-export const talent = [
+export const talent = !DEMO_MODE ? [] : [
   { code: 'MH-D-2490', name: '김○○', identityConsent: false, dept: '소화기내과', career: '전문의 9년', region: '부산·경남', preference: '내시경 중심 / 주 5일 · 당직 협의', available: '1개월 내', verified: true, licenseName: '의사 면허', school: '부산대학교 의과대학', major: '의학과', graduation: '졸업', title: '소화기내과 전문의 · 부산경남 이직 희망', introduction: '대학병원과 종합병원에서 소화기내과 전문의로 9년간 근무하며 위·대장 내시경 및 용종절제술 다수를 시행했습니다. 검진센터 및 병원급 소화기 클리닉에서 내시경 진료를 중심으로 안정적으로 근무할 수 있는 자리를 찾고 있습니다. 부산·경남 지역을 우선하나 조건에 따라 협의 가능합니다.', skills: '위·대장 내시경, 용종절제술(EMR), 복부 초음파, 검진 결과 상담, EMR 능숙', careers: [{ institution: '부산○○종합병원', department: '소화기내과', position: '전문의', start: '2018-03', current: true, duties: '위·대장 내시경, 용종절제술, 소화기 외래' }, { institution: '△△대학교병원', department: '소화기내과', position: '전임의', start: '2015-03', end: '2018-02', duties: '내시경 시술 및 입원 진료' }] },
   { code: 'MH-D-2048', name: '김○○', identityConsent: false, dept: '내과', career: '전문의 8년', region: '서울·경기', preference: '검진센터 / 주 4.5일', available: '1개월 내', verified: true, licenseName: '의사 면허', school: '연세대학교 의과대학', major: '의학과', graduation: '졸업', introduction: '종합병원 내과 및 대형 검진센터에서 8년간 근무하며 만성질환 관리와 종합검진 판정 업무를 담당했습니다. 워라밸을 중시해 주 4.5일 검진센터 근무를 희망합니다.', skills: '내과 외래, 종합검진 판정, 만성질환 관리, 초음파, EMR', careers: [{ institution: '서울○○병원', department: '내과', position: '전문의', start: '2019-03', current: true, duties: '내과 외래·입원 진료, 종합검진 판정' }, { institution: '△△검진센터', department: '검진의학과', position: '검진의', start: '2016-03', end: '2019-02', duties: '종합검진 판정 및 결과 상담' }] },
   { code: 'MH-D-1982', name: '박○○', identityConsent: false, dept: '정형외과', career: '전문의 12년', region: '부산·경남', preference: '병원급 / 원장 포지션', available: '협의', verified: true, licenseName: '의사 면허', school: '부산대학교 의학전문대학원', major: '의학과', graduation: '졸업', introduction: '정형외과 전문의로 12년간 관절·척추 수술과 외래를 담당했으며, 병원급 원장 포지션을 희망합니다. 부산·경남 지역 정착을 원합니다.', skills: '관절경 수술, 척추 시술, 골절 정복, 재활 협진', careers: [{ institution: '부산○○정형외과병원', department: '정형외과', position: '진료과장', start: '2015-04', current: true, duties: '관절·척추 수술, 외래' }] },

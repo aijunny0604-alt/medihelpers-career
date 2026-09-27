@@ -1,4 +1,5 @@
 import { confirmAction, notifyAction } from './confirmAction.js';
+import { DEMO_MODE } from './demoMode.js';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import FormValidationNotice from './FormValidationNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
@@ -270,7 +271,7 @@ function useAuthGate(qa) {
   const [state, setState] = useState({
     status: 'loading', role: '', isAdmin: false, isHospital: false,
     account: null, identity: {}, profile: {}, registrationProfile: {}, hospitalProfile: {}, email: '',
-    signupEnabled: false, testAccountsEnabled: true,
+    signupEnabled: false, testAccountsEnabled: DEMO_MODE,
     welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
   });
   useEffect(() => {
@@ -283,7 +284,7 @@ function useAuthGate(qa) {
         isHospital: Boolean(caps.hospital),
         account: caps.signedIn ? { role: caps.hospital ? 'hospital' : 'doctor' } : null,
         identity: {}, profile: {}, registrationProfile: {}, hospitalProfile: {}, email: '', signupEnabled: true,
-        testAccountsEnabled: true, welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
+        testAccountsEnabled: DEMO_MODE, welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
       });
       return undefined;
     }
@@ -304,7 +305,7 @@ function useAuthGate(qa) {
         hospitalProfile: result.hospitalProfile || {},
         email: result.email || result.identity?.email || '',
         signupEnabled: Boolean(result.signupEnabled),
-        testAccountsEnabled: result.testAccountsEnabled !== false,
+        testAccountsEnabled: DEMO_MODE && result.testAccountsEnabled === true,
         welcomeEmailAvailable: Boolean(result.welcomeEmailAvailable),
         adminSignupEmailAvailable: Boolean(result.adminSignupEmailAvailable),
       });

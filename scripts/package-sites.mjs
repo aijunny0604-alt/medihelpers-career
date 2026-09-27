@@ -2452,14 +2452,17 @@ async function paymentOrderApi(request, env) {
   // [정책] 인재 열람권은 병원 회원만 구매한다(의사가 결제해도 열람 권한은 병원에만 부여되므로 애초에 막는다).
   if (product.type === 'talent_search' && account.role !== 'hospital') return json({ error:'인재 열람권은 병원 회원만 구매할 수 있습니다.' }, 403);
   const totalAmount = product.amount;
-  const supplyAmount = Math.round(totalAmount / 1.1);
-  const taxAmount = totalAmount - supplyAmount;
+  let taxSnapshot;
+  try { taxSnapshot = paymentTax(env, productId, totalAmount); }
+  catch { return json({error:'상품의 결제·세금 설정을 확인 중입니다. 잠시 후 다시 이용해주세요.',code:'PG_TAX_NOT_CONFIGURED'},503); }
+  const {supplyAmount, taxAmount} = taxSnapshot;
   const id = crypto.randomUUID();
   const orderNumber = createOrderNumber();
   let customerName = cleanOrderValue(body.customerName);
   let customerEmail = cleanOrderValue(body.customerEmail || identity.email);
   let customerPhone = cleanOrderValue(body.customerPhone);
   const paymentMethod = ['card','transfer'].includes(body.paymentMethod) ? body.paymentMethod : 'card';
+  if ((env.PAYMENT_LIVE === 'true' || env.INICIS_MID || env.INICIS_SIGN_KEY) && paymentMethod !== 'card') return json({error:'현재 이니시스 연동은 카드 결제만 지원합니다. 카드 결제를 선택해주세요.',code:'PG_METHOD_UNSUPPORTED'},400);
   const metadata = body.metadata && typeof body.metadata === 'object' ? { ...body.metadata } : {};
   let renewalContent = null;
   if (body.renewContentId) {
@@ -2535,6 +2538,13 @@ async function paymentOrderApi(request, env) {
     if (renewalContent) adContentRecord.id = renewalContent.id;
     metadata.contentRecordId = adContentRecord.id;
   }
+  // Reserved server snapshot: ignore any client-supplied tax policy or amounts.
+  metadata.taxSnapshot = taxSnapshot;
+  let inicis;
+  try {
+    if ((env.PAYMENT_LIVE === 'true' || env.INICIS_MID || env.INICIS_SIGN_KEY) && !(env.INICIS_MID && env.INICIS_SIGN_KEY)) throw new Error('PG_NOT_CONFIGURED');
+    inicis = await buildInicisPaymentParams(env, {productId, orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone});
+  } catch { return json({error:'결제 설정을 확인 중입니다. 잠시 후 다시 이용해주세요.',code:'PG_NOT_CONFIGURED'},503); }
   const metadataJson = JSON.stringify(metadata);
   if (metadataJson.length > 11000) return json({ error:'공고 내용이 너무 깁니다. 내용을 줄여주세요.' }, 413);
   const storedProductType = await paymentStorageType(env, product);
@@ -2562,7 +2572,6 @@ async function paymentOrderApi(request, env) {
     return json({error:'주문을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.'},503);
   }
   // 이니시스 웹표준결제 파라미터(키 설정 시). 결제창은 이 값으로 호출한다.
-  const inicis = await buildInicisPaymentParams(env, { orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone });
   return json({ order:{ id, orderNumber, productName:product.name, totalAmount, status:'awaiting_payment', contentRecordId:adContentRecord?.id || '' }, inicis }, 201);
 }
 async function sha256Hex(value) {

@@ -1,4 +1,5 @@
 import { notifyAction } from './confirmAction.js';
+import { paymentAmounts } from './paymentAmounts.js';
 import RenewAdButton from './RenewAdButton.jsx';
 import PasswordChange from './PasswordChange.jsx';
 import { confirmAction } from './confirmAction.js';
@@ -435,13 +436,11 @@ export default function MemberCenterPage({ route, qa, auth }) {
     } catch (error) { notify(error.message); }
   };
   const payments = qa.active ? demo.payments : serverData.orders.map((item) => {
-    const total = Number(item.totalAmount || 0);
-    const supply = Number(item.supplyAmount || Math.round(total / 1.1));
-    const tax = Number(item.taxAmount || (total - supply));
+    const {total, supply, tax} = paymentAmounts(item);
     const refundPending = Number(item.refundPending || 0) > 0;
     // 환불 요청 접수 후에는 상태를 '환불 요청 중'으로 보여주고 재요청 버튼을 숨긴다(중복 요청 방지).
     const label = refundPending ? '환불 요청 중' : (({ paid:'결제 완료', pending:'결제 대기', canceled:'취소', cancelled:'취소', refunded:'환불 완료', partially_refunded:'부분 환불' })[item.status] || item.status);
-    return { id:item.orderNumber, item:item.productName, amount:`${total.toLocaleString('ko-KR')}원`, date:String(item.paidAt || item.createdAt || '').slice(0, 10), status:label, rawStatus:item.status, refundable:['paid','partially_refunded'].includes(item.status) && !refundPending, total, supply, tax, method:item.paymentMethod || '카드', customerName:item.customerName || '' };
+    return { id:item.orderNumber, item:item.productName, amount:total === null ? '확인 필요' : `${total.toLocaleString('ko-KR')}원`, date:String(item.paidAt || item.createdAt || '').slice(0, 10), status:label, rawStatus:item.status, refundable:['paid','partially_refunded'].includes(item.status) && !refundPending, total, supply, tax, method:item.paymentMethod || '카드', customerName:item.customerName || '' };
   });
   const paidTotal = serverData.orders.filter((item) => item.status === 'paid').reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
   const resumeCompletion = serverData.resume ? `${Number(serverData.resume.completion) || 0}%` : '미등록';
@@ -713,13 +712,13 @@ function InquiryDetailPage({ inquiry, role, canAdmin }) {
   </article>;
 }
 
-// 세금계산서형 영수증. 부가세(공급가액+세액=합계) 표시, 인쇄·PDF·이미지 저장 지원.
+// Stored payment statement. Not a tax invoice or a PG-issued payment slip.
 const RECEIPT_OPERATOR = {
   name: '메디헬퍼스', representative: '이형석', businessNumber: '873-92-00515',
   address: '부산광역시 북구 만덕대로116번길 28', phone: '051-342-5463', email: 'hr@medihelpers.co.kr',
 };
 export function ReceiptModal({ payment, buyerName, onClose }) {
-  const won = (n) => `${Number(n || 0).toLocaleString('ko-KR')}원`;
+  const won = (n) => n === null || n === undefined ? '확인 필요' : `${Number(n).toLocaleString('ko-KR')}원`;
   const receiptRef = React.useRef(null);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -773,8 +772,8 @@ export function ReceiptModal({ payment, buyerName, onClose }) {
       <button className="inquiry-detail-close" onClick={onClose} aria-label="닫기"><X /></button>
       <div className="receipt-doc" ref={receiptRef}>
         <div className="rc">
-          <h1>결제 영수증</h1>
-          <div className="sub">영수증 번호 {payment.id} · {payment.date}</div>
+          <h1>결제 내역 확인서</h1>
+          <div className="sub">주문번호 {payment.id} · {payment.date}</div>
           <dl>
             <dt>상품명</dt><dd>{payment.item}</dd>
             <dt>구매자</dt><dd>{buyerName || '-'}</dd>
@@ -783,10 +782,11 @@ export function ReceiptModal({ payment, buyerName, onClose }) {
           </dl>
           <div className="amt">
             <div><span>공급가액</span><span>{won(payment.supply)}</span></div>
-            <div><span>부가세(VAT 10%)</span><span>{won(payment.tax)}</span></div>
-            <div className="total"><span>합계(부가세 포함)</span><span>{won(payment.total)}</span></div>
+            <div><span>부가세</span><span>{won(payment.tax)}</span></div>
+            <div className="total"><span>주문 합계</span><span>{won(payment.total)}</span></div>
           </div>
           <div className="biz">
+            이 문서는 사이트에 기록된 결제 내역입니다. 세금계산서·현금영수증·카드 매출전표를 대신하지 않습니다.<br />
             {RECEIPT_OPERATOR.name} · 대표 {RECEIPT_OPERATOR.representative}<br />
             사업자등록번호 {RECEIPT_OPERATOR.businessNumber}<br />
             {RECEIPT_OPERATOR.address}<br />

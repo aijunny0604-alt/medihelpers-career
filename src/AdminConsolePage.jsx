@@ -1,4 +1,5 @@
 import RefundReview from './RefundReview.jsx';
+import { paymentAmounts } from './paymentAmounts.js';
 import { confirmAction } from './confirmAction.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatAdminTime } from './adminStorage.js';
@@ -850,7 +851,7 @@ function PaymentDetail({ payment, transactions, refunds }) {
   const orderTransactions = transactions.filter((item) => item.orderId === payment.id);
   const orderRefunds = refunds.filter((item) => item.orderId === payment.id);
   // 영수증 모달용 매핑(회원 영수증과 동일 포맷).
-  const receiptPayload = { id:payment.orderNumber, item:payment.productName, date:String(payment.paidAt || payment.createdAt || '').slice(0,10), method:payment.paymentMethod === 'transfer' ? '계좌이체' : '카드', status:paymentStatusLabel[payment.status] || payment.status, total:Number(payment.totalAmount||0), supply:Number(payment.supplyAmount||Math.round(Number(payment.totalAmount||0)/1.1)), tax:Number(payment.taxAmount||(Number(payment.totalAmount||0)-Math.round(Number(payment.totalAmount||0)/1.1))), customerName:payment.customerName };
+  const receiptPayload = { id:payment.orderNumber, item:payment.productName, date:String(payment.paidAt || payment.createdAt || '').slice(0,10), method:payment.paymentMethod === 'transfer' ? '계좌이체' : '카드', status:paymentStatusLabel[payment.status] || payment.status, ...paymentAmounts(payment), customerName:payment.customerName };
   return <div className="admin-payment-detail">
     <header><div><small>ORDER DETAIL</small><h3>{payment.orderNumber}</h3></div><div className="admin-order-head-actions"><button type="button" className="admin-receipt-btn" onClick={() => setShowReceipt(true)}><ReceiptText /> 영수증</button><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status]}</span></div></header>
     {showReceipt && <ReceiptModal payment={receiptPayload} buyerName={payment.customerName} onClose={() => setShowReceipt(false)} />}

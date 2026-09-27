@@ -58,6 +58,8 @@ function buildPayForm(inicis, order) {
     returnUrl: inicis.returnUrl,
     closeUrl: inicis.closeUrl,
     acceptmethod: inicis.acceptmethod || 'centerCd(Y)',
+    tax: inicis.tax,
+    taxfree: inicis.taxfree,
   };
 
   Object.entries(fields).forEach(([name, value]) => {
