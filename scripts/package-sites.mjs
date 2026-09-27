@@ -2540,10 +2540,12 @@ async function paymentOrderApi(request, env) {
   }
   // Reserved server snapshot: ignore any client-supplied tax policy or amounts.
   metadata.taxSnapshot = taxSnapshot;
+  const paymentChannel = body.paymentChannel === 'mobile' || /Android|iPhone|iPad|iPod|Mobile/i.test(request.headers.get('user-agent') || '') ? 'mobile' : 'pc';
+  metadata.paymentChannel = paymentChannel;
   let inicis;
   try {
     if ((env.PAYMENT_LIVE === 'true' || env.INICIS_MID || env.INICIS_SIGN_KEY) && !(env.INICIS_MID && env.INICIS_SIGN_KEY)) throw new Error('PG_NOT_CONFIGURED');
-    inicis = await buildInicisPaymentParams(env, {productId, orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone});
+    inicis = await buildInicisPaymentParams(env, {channel:paymentChannel, productId, orderNumber, amount:totalAmount, productName:product.name, buyerName:customerName || identity.email, buyerEmail:customerEmail, buyerTel:customerPhone});
   } catch { return json({error:'결제 설정을 확인 중입니다. 잠시 후 다시 이용해주세요.',code:'PG_NOT_CONFIGURED'},503); }
   const metadataJson = JSON.stringify(metadata);
   if (metadataJson.length > 11000) return json({ error:'공고 내용이 너무 깁니다. 내용을 줄여주세요.' }, 413);
@@ -2613,12 +2615,20 @@ async function paymentApproveApi(request, env) {
   const resultCode = String(body.resultCode || body.P_STATUS || '');
   const authToken = String(body.authToken || '');
   const authUrl = String(body.authUrl || '');
-  const oid = String(body.orderNumber || body.oid || body.P_OID || '');
+  const mobileReturn = Object.hasOwn(body,'P_STATUS');
+  let mobileState = null;
+  if (mobileReturn && !testMode) {
+    try { mobileState = inicisMobileReturn(body); } catch { return json({error:'유효한 모바일 결제 요청이 필요합니다.'},403); }
+  }
+  const oid = mobileState?.oid || String(body.orderNumber || body.oid || body.P_OID || '');
   if (!oid) return json({ error:'주문번호가 없습니다.' }, 400);
   const order = await env.DB.prepare('SELECT id, account_id AS accountId, total_amount AS totalAmount, status, product_id AS productId, product_type AS productType, metadata_json AS metadataJson FROM payment_orders WHERE order_number = ?').bind(oid).first();
   if (!order) return json({ error:'주문을 찾을 수 없습니다.' }, 404);
   // Cross-site PG returns cannot rely on SameSite login cookies. Bind them to the original server-signed order.
-  if (!testMode && fromPgForm && !await verifyInicisState(env, {orderNumber:oid, amount:order.totalAmount}, String(body.merchantData || ''))) return json({error:'결제 요청의 유효기간 또는 인증 정보를 확인해주세요.'},403);
+  const returnState = mobileState?.state || String(body.merchantData || '');
+  const orderChannel = parseJsonObject(order.metadataJson)?.paymentChannel || 'pc';
+  if (!testMode && (mobileReturn ? orderChannel !== 'mobile' : orderChannel !== 'pc')) return json({error:'결제 요청 방식이 일치하지 않습니다.'},403);
+  if (!testMode && fromPgForm && !await verifyInicisState(env, {orderNumber:oid, amount:order.totalAmount}, returnState)) return json({error:'결제 요청의 유효기간 또는 인증 정보를 확인해주세요.'},403);
   if (Object.hasOwn(testTalentDetails, String(parseJsonObject(order.metadataJson)?.talentId || '')) && !testTalentDetail(env, String(parseJsonObject(order.metadataJson)?.talentId || ''))) return json({ error:'예시 이력서는 가상 결제 테스트에서만 열람할 수 있습니다.' },400);
   // [보안] 주문 소유자 본인만 승인할 수 있다. 예전에는 주문번호만 알면
   // 누구나(비로그인 포함) 승인을 호출할 수 있었다.
@@ -2717,15 +2727,15 @@ async function paymentApproveApi(request, env) {
     if (fromPgForm) return pgRedirect('paid', oid, '');
     return json({ approved:true, status:'paid', orderNumber:oid, tid, testMode:true, message:'테스트 결제가 완료되었습니다(실제 청구 없음).' });
   }
-  if (resultCode && resultCode !== '0000') {
+  if (resultCode && resultCode !== (mobileReturn ? '00' : '0000')) {
     if (fromPgForm) return pgRedirect('failed', oid, '결제 인증이 취소되었거나 실패했습니다.');
     return json({approved:false, status:'failed'},400);
   }
-  if (!await verifyInicisState(env, {orderNumber:oid, amount:order.totalAmount}, String(body.merchantData || ''))) return json({error:'유효한 결제 요청이 필요합니다.'},403);
+  if (!await verifyInicisState(env, {orderNumber:oid, amount:order.totalAmount}, returnState)) return json({error:'유효한 결제 요청이 필요합니다.'},403);
   let outcome;
   try {
     const approvedMetadataJson = buildExposureMeta(order.metadataJson);
-    outcome = await processInicisApproval(env, {id:order.id, orderNumber:oid, amount:order.totalAmount}, body, async tid => {
+    outcome = await (mobileReturn ? processInicisMobileApproval : processInicisApproval)(env, {id:order.id, orderNumber:oid, amount:order.totalAmount}, body, async tid => {
       const committed = await captureOrder('inicis', tid, approvedMetadataJson);
       if (committed?.status !== 'paid') throw new Error('CAPTURE_NOT_COMMITTED');
     });
@@ -3416,7 +3426,7 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
       // 카카오 우편번호 스크립트의 현재 운영 iframe은 postcode.map.kakao.com을 사용한다.
       // 이전 daum.net 주소도 호환성을 위해 유지한다.
       "frame-src 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com https://postcode.map.kakao.com https://postcode.map.daum.net https://www.google.com",
-      "form-action 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com",
+      "form-action 'self' https://stdpay.inicis.com https://stgstdpay.inicis.com https://mobile.inicis.com",
       "base-uri 'self'",
       "object-src 'none'",
       "frame-ancestors 'none'"

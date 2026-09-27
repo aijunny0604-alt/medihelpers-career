@@ -37,7 +37,7 @@ import { invalidateSiteOperations, isHeadhuntBoardContent, operationalDoctorJobs
 import JobLocationMap from './JobLocationMap.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
-import { openInicisPayment } from './inicisPay.js';
+import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
 import {
   appendStoredRecord,
   loadSavedFromServer,
@@ -2981,6 +2981,7 @@ function Checkout({ plan, auth }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           productId: plan.id,
+          paymentChannel: inicisPaymentChannel(),
           privacyVersion:PRIVACY_FORM_VERSION, checkoutAcknowledged:data.terms === 'agreed',
           paymentMethod: method,
           customerName: data.manager,
@@ -3491,7 +3492,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     try {
       const response = await fetch('/api/payment-orders', {
         method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ productId:plan.id, privacyVersion:PRIVACY_FORM_VERSION, contactVisibilityAtCheckout:contactPreview.contactVisibility, checkoutAcknowledged:data.terms === 'agreed', paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
+        body:JSON.stringify({ productId:plan.id, paymentChannel:inicisPaymentChannel(), privacyVersion:PRIVACY_FORM_VERSION, contactVisibilityAtCheckout:contactPreview.contactVisibility, checkoutAcknowledged:data.terms === 'agreed', paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) { if (result.code === 'CONTACT_VISIBILITY_CHANGED') setPreviewRetry(v => v+1); throw new Error(result.error || '결제 요청을 저장하지 못했습니다.'); }

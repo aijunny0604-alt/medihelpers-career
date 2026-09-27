@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { withBase } from './basePath.js';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
-import { openInicisPayment } from './inicisPay.js';
+import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
 import { confirmAction } from './confirmAction.js';
 import { usePaymentRecovery } from './usePaymentRecovery.js';
 import PaymentRecoveryPanel from './PaymentRecoveryPanel.jsx';
@@ -14,7 +14,7 @@ export default function RenewAdButton({ ad, auth }) {
     if (!await confirmAction(`${ad.title}\n${ad.plan} · 결제 완료일부터 30일 다시 노출합니다. 기존 공고 내용과 이미지를 그대로 사용합니다. 상품·환불 조건은 결제 내역의 환불 안내에서 확인할 수 있습니다.`,{title:'공고를 다시 노출할까요?',confirmLabel:'동의하고 재구매'})) return;
     setBusy(true);setError('');
     try {
-      const response=await fetch(withBase('/api/payment-orders'),{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({renewContentId:ad.contentRecordId,productId:ad.productId,checkoutAcknowledged:true,privacyVersion:PRIVACY_FORM_VERSION})});
+      const response=await fetch(withBase('/api/payment-orders'),{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({renewContentId:ad.contentRecordId,productId:ad.productId,paymentChannel:inicisPaymentChannel(),checkoutAcknowledged:true,privacyVersion:PRIVACY_FORM_VERSION})});
       const result=await response.json();
       if(result.recoveryOrder) setOrder(result.recoveryOrder);
       if(!response.ok) throw Error(result.error);

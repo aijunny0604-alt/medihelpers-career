@@ -52,6 +52,7 @@ export async function inicisRequestParams(env, order) {
   if (!['test','live'].includes(env.INICIS_ENV)) throw new Error('PG_ENV_REQUIRED');
   if (!Number.isSafeInteger(Number(order.amount)) || Number(order.amount) <= 0) throw new Error('PG_AMOUNT_INVALID');
   const tax = paymentTax(env, order.productId, Number(order.amount));
+  if (order.channel === 'mobile') return inicisMobileParams(env, order, tax);
   const origin = inicisOrigin(env), oid = order.orderNumber, price = String(order.amount), timestamp = String(Date.now());
   return {
     configured:true, live:env.INICIS_ENV === 'live', version:'1.0', mid:env.INICIS_MID, oid, price, timestamp,
@@ -63,6 +64,105 @@ export async function inicisRequestParams(env, order) {
     gopaymethod:'Card', currency:'WON', acceptmethod:'centerCd(Y)', mobile:false,
     ...(tax.contract === 'merchant' ? {tax:String(tax.taxAmount), taxfree:String(tax.taxFreeAmount)} : {})
   };
+}
+
+// INIpay Mobile WEB: stdpay_m.html and official general_mo.zip/properties.js.
+export async function inicisMobileHash(env, amount, oid, timestamp) {
+  if (!env.INICIS_MOBILE_HASH_KEY) throw new Error('PG_MOBILE_KEY_REQUIRED');
+  const digest = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(String(amount) + oid + timestamp + env.INICIS_MOBILE_HASH_KEY));
+  return btoa(String.fromCharCode(...new Uint8Array(digest)));
+}
+
+export async function inicisMobileParams(env, order, tax) {
+  if (env.INICIS_MOBILE_ENABLED !== 'true') throw new Error('PG_MOBILE_NOT_ENABLED');
+  const oid = String(order.orderNumber), amount = Number(order.amount), timestamp = String(Date.now());
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(oid) || !Number.isSafeInteger(amount) || amount <= 0 || amount > 99999999) throw new Error('PG_MOBILE_ORDER_INVALID');
+  const fit = (value, limit) => {
+    let result='';
+    for (const char of String(value)) {if (new TextEncoder().encode(result + char).length > limit) break; result+=char;}
+    return result;
+  };
+  const fields = {
+    P_INI_PAYMENT:'CARD', P_MID:env.INICIS_MID, P_OID:oid, P_AMT:String(amount),
+    P_GOODS:fit(order.productName || 'MediHelpers',80), P_UNAME:fit(order.buyerName || 'MediHelpers',30),
+    P_MOBILE:String(order.buyerTel || '').replace(/[^0-9-]/g,'').slice(0,15),
+    P_EMAIL:new TextEncoder().encode(order.buyerEmail || '').length <= 30 ? order.buyerEmail || '' : '', P_MNAME:'메디헬퍼스',
+    P_NEXT_URL:inicisOrigin(env) + '/api/payment-approve', P_CHARSET:'utf8',
+    P_TIMESTAMP:timestamp, P_CHKFAKE:await inicisMobileHash(env, amount, oid, timestamp),
+    P_RESERVED:'centerCd=Y&amt_hash=Y', P_NOTI:oid + '|' + await inicisState(env,order),
+    ...(tax.contract === 'merchant' ? {P_TAX:String(tax.taxAmount),P_TAXFREE:String(tax.taxFreeAmount)} : {})
+  };
+  return {configured:true, mobile:true, live:env.INICIS_ENV === 'live',
+    action:'https://mobile.inicis.com/smart/payment/', returnUrl:fields.P_NEXT_URL, fields};
+}
+
+export function inicisMobileReturn(body) {
+  const match = /^([A-Za-z0-9_-]{1,40})\|(\d{13}\.[a-f0-9]{64})$/.exec(String(body.P_NOTI || ''));
+  if (!match || (body.P_OID && body.P_OID !== match[1])) throw new Error('PG_MOBILE_RETURN_INVALID');
+  return {oid:match[1],state:match[2]};
+}
+
+export function inicisMobileEndpoints(env, body) {
+  const center = body.idc_name;
+  if (!(env.INICIS_ENV === 'test' ? center === 'stg' : env.INICIS_ENV === 'live' && ['fc','ks'].includes(center))) throw new Error('PG_CENTER_INVALID');
+  const base = 'https://' + center + 'mobile.inicis.com/smart/';
+  if (body.P_REQ_URL !== base + 'payReq.ini') throw new Error('PG_ENDPOINT_INVALID');
+  return {auth:base + 'payReq.ini',cancel:base + 'payNetCancel.ini'};
+}
+
+export async function inicisMobilePost(url, fields, fetcher = fetch) {
+  const response = await fetcher(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),
+    headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(fields)});
+  if (!response.ok) throw new Error('PG_HTTP_ERROR');
+  const text = await response.text();
+  if (text.length > 65536) throw new Error('PG_RESPONSE_INVALID');
+  if (text.trimStart().startsWith('{')) return JSON.parse(text);
+  const pairs = new URLSearchParams(text), data = Object.create(null);
+  for (const [key,value] of pairs) {
+    if (!/^[A-Za-z0-9_]+$/.test(key) || Object.hasOwn(data,key)) throw new Error('PG_RESPONSE_INVALID');
+    data[key] = value;
+  }
+  return data;
+}
+
+export function validateInicisMobileApproval(env, order, approval) {
+  return approval?.P_STATUS === '00' && approval.P_MID === env.INICIS_MID && approval.P_OID === order.orderNumber
+    && /^\d+$/.test(String(approval.P_AMT)) && Number(approval.P_AMT) === Number(order.amount)
+    && approval.P_TYPE === 'CARD' && typeof approval.P_TID === 'string' && /^[A-Za-z0-9_-]{40}$/.test(approval.P_TID)
+    && approval.P_TID.slice(10,20) === env.INICIS_MID;
+}
+
+export async function processInicisMobileApproval(env, order, body, capture, fetcher = fetch) {
+  if (env.INICIS_MOBILE_ENABLED !== 'true' || !env.INICIS_MOBILE_HASH_KEY) throw new Error('PG_MOBILE_NOT_CONFIGURED');
+  const endpoints = inicisMobileEndpoints(env,body);
+  if (body.P_STATUS !== '00' || !/^\d+$/.test(String(body.P_AMT)) || Number(body.P_AMT) !== Number(order.amount)
+    || !/^[A-Za-z0-9_-]{40}$/.test(String(body.P_TID)) || body.P_TID.slice(10,20) !== env.INICIS_MID) return {status:'rejected'};
+  const claim = await env.DB.prepare("INSERT OR IGNORE INTO payment_pg_attempts (order_id, status) VALUES (?, 'approving')").bind(order.id).run();
+  if (!claim.meta?.changes) return {status:'pending',duplicate:true};
+  const mark = (status, code='') => env.DB.prepare('UPDATE payment_pg_attempts SET status=?, result_code=?, updated_at=CURRENT_TIMESTAMP WHERE order_id=?').bind(status,code,order.id).run();
+  let approval;
+  const compensate = async () => {
+    let status='review';
+    try {
+      const timestamp=String(Date.now());
+      const cancelled=await inicisMobilePost(endpoints.cancel,{P_MID:env.INICIS_MID,P_TID:body.P_TID,P_AMT:String(order.amount),
+        P_OID:order.orderNumber,P_TIMESTAMP:timestamp,P_CHKFAKE:await inicisMobileHash(env,order.amount,order.orderNumber,timestamp)},fetcher);
+      if (cancelled.P_STATUS === '00' && /^[A-Za-z0-9_-]{40}$/.test(String(cancelled.P_TID)) && cancelled.P_TID.slice(10,20) === env.INICIS_MID
+        && (!approval?.P_TID || approval.P_TID === cancelled.P_TID)) status='net_cancelled';
+    } catch { /* Preserve claim for reconciliation after an uncertain network result. */ }
+    try { await mark(status); } catch { /* The original claim still prevents repeat approval. */ }
+    return {status};
+  };
+  try { approval=await inicisMobilePost(endpoints.auth,{P_MID:env.INICIS_MID,P_TID:body.P_TID},fetcher); }
+  catch { return compensate(); }
+  if (typeof approval?.P_STATUS === 'string' && approval.P_STATUS !== '00') {await mark('rejected',approval.P_STATUS.slice(0,20));return {status:'rejected'};}
+  if (!validateInicisMobileApproval(env,order,approval)) return compensate();
+  try {await capture(approval.P_TID);return {status:'paid',tid:approval.P_TID};}
+  catch {
+    try {if ((await env.DB.prepare('SELECT status FROM payment_pg_attempts WHERE order_id=?').bind(order.id).first())?.status === 'captured') return {status:'paid',tid:approval.P_TID};}
+    catch {return {status:'review'};}
+    return compensate();
+  }
 }
 
 export function inicisEndpoints(env, body) {

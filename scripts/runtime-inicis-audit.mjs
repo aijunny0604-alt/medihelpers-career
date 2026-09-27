@@ -128,6 +128,37 @@ record('exempt supply equals total',storedTax.supply_amount,storedTax.total_amou
 record('client tax snapshot overwritten',JSON.parse(storedTax.metadata_json).taxSnapshot.mode,'exempt');
 record('merchant taxfree sent to PG',zeroVat.inicis.taxfree,String(storedTax.total_amount));
 record('merchant zero tax sent to PG',zeroVat.inicis.tax,'0');
+// Mobile callbacks have no P_OID: recover the order only from signed P_NOTI.
+const mobileEnv={...pgEnv,INICIS_MOBILE_ENABLED:'true',INICIS_MOBILE_HASH_KEY:'synthetic-mobile-key'};
+const mobileCreate=(overrides={})=>worker.fetch(new Request('https://audit.local/api/payment-orders',{method:'POST',headers:{cookie:cookies.hospital,origin:'https://audit.local','user-agent':'Synthetic Android Mobile','content-type':'application/json'},body:JSON.stringify({productId:'talent-unlock-pack',privacyVersion:PRIVACY_FORM_VERSION,privacyConsent:true,checkoutAcknowledged:true,metadata:{paymentChannel:'pc'}})}),{...mobileEnv,...overrides},{});
+for(const overrides of [{INICIS_MOBILE_ENABLED:'false'},{INICIS_MOBILE_HASH_KEY:''}]) {
+ const before=count('SELECT COUNT(*) n FROM payment_orders');
+ record('unready mobile payment rejected',(await mobileCreate(overrides)).status,503);
+ record('unready mobile creates no order',count('SELECT COUNT(*) n FROM payment_orders'),before);
+}
+const mobileResponse=await mobileCreate();record('mobile Worker creates signed order',mobileResponse.status,201);
+const mobile=await mobileResponse.json();record('mobile selected by request UA',mobile.inicis.mobile,true);
+record('mobile channel cannot be overridden in client metadata',JSON.parse(sqlite.prepare('SELECT metadata_json FROM payment_orders WHERE id=?').get(mobile.order.id).metadata_json).paymentChannel,'mobile');
+const mobileTid='INIMX_CARD'+mobileEnv.INICIS_MID+'20260927123456789012';
+const mobileBody={P_STATUS:'00',P_TID:'INIMX_AUTH'+mobileEnv.INICIS_MID+'20260927123456789012',P_AMT:String(mobile.order.totalAmount),P_NOTI:mobile.inicis.fields.P_NOTI,idc_name:'stg',P_REQ_URL:'https://stgmobile.inicis.com/smart/payReq.ini'};
+const mobileForm=(b)=>worker.fetch(new Request('https://audit.local/api/payment-approve',{method:'POST',headers:{origin:'https://stgmobile.inicis.com','content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(b)}),mobileEnv,{});
+let mobileCalls=0;
+globalThis.fetch=async(url)=>{mobileCalls++;assert.equal(url,mobileBody.P_REQ_URL);return new Response(new URLSearchParams({P_STATUS:'00',P_MID:mobileEnv.INICIS_MID,P_OID:mobile.order.orderNumber,P_AMT:String(mobile.order.totalAmount),P_TYPE:'CARD',P_TID:mobileTid}));};
+record('mobile unsigned state rejected',(await mobileForm({...mobileBody,P_NOTI:''})).status,403);
+record('mobile conflicting order field rejected',(await mobileForm({...mobileBody,P_OID:'OTHER'})).status,403);
+record('invalid mobile return never calls provider',mobileCalls,0);
+record('mobile no-cookie callback redirects to paid',(await mobileForm(mobileBody)).headers.get('location')?.includes('payment=paid'),true);
+record('mobile order becomes paid',sqlite.prepare('SELECT status FROM payment_orders WHERE id=?').get(mobile.order.id).status,'paid');
+record('mobile credit pool granted once',count('SELECT COUNT(*) n FROM talent_credit_pools WHERE order_id=?',mobile.order.id),1);
+record('mobile capture ledger once',count("SELECT COUNT(*) n FROM payment_transactions WHERE order_id=? AND transaction_type='capture'",mobile.order.id),1);
+record('mobile duplicate redirects to same paid result',(await mobileForm(mobileBody)).headers.get('location')?.includes('payment=paid'),true);
+record('mobile duplicate never re-approves with PG',mobileCalls,1);
+record('mobile duplicate never re-grants credits',count('SELECT COUNT(*) n FROM talent_credit_pools WHERE order_id=?',mobile.order.id),1);
+record('PC callback cannot fulfill mobile order',(await form({resultCode:'0000',orderNumber:mobile.order.orderNumber,merchantData:mobile.inicis.fields.P_NOTI.split('|')[1]})).status,403);
+
 globalThis.fetch=originalFetch;
+const securityResponse=await worker.fetch(new Request('https://audit.local/'),env,{});
+const formAction=securityResponse.headers.get('content-security-policy')?.split(';').find(value=>value.trim().startsWith('form-action '));
+record('browser policy permits exact mobile payment origin',formAction?.split(/\s+/).includes('https://mobile.inicis.com'),true);
 console.log(JSON.stringify({passed:output.filter(r=>r.pass).length,total:output.length,failures:output.filter(r=>!r.pass)},null,2));
 if(output.some(r=>!r.pass))process.exitCode=1;

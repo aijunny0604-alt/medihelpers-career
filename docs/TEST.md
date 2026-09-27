@@ -1,5 +1,7 @@
 # TEST
 
+2026-09-27 모바일 후속: 단위 325 + 준비 67/공격 58/회원 46/관리자 63/PG 68 + Cloudflare 22 + release/local 분리 8 = **657개 통과**. 모바일 CSP 포함 build/build:cf/Worker 문법 검증. 실제 PG 및 검수 서버 신규 3역할 로그인은 미실행(읽기 전용). 키 등록 버전 281baec7-092d-4a04-95ce-3b920624859c의 HTTP 18개 통과. 아래 617개 기록은 이전 앱 배포 결과다. [후속 범위](INICIS_MOBILE_20260927.md).
+
 최신 실제 배포 검증: 소스 `3c877ff3200299ee628c5476c9147e328006e38e`, Worker `8e9ae0f6-d16f-4d1d-8b5a-161c96af36ac`, asset `index-B2zALW3Z.js`. 동일 소스 GitHub/Sites 미러 확인. 자동 617개 및 build/build:cf 성공 후 실제 HTTP 18개 통과. 로그인 페이지 실제 비밀번호 입력 유지/테스트 전환 없음 확인. 신규 의료인·병원·관리자 로그인은 검수본 쓰기 차단으로 미실행. 실 PG 거래도 미실행. [로그·화면 근거](RELEASE_PREPARATION_20260927.md).
 
 2026-09-27 최신 후속: 단위 304 + Worker 준비 67/공격 58/회원 46/관리자 63/PG 49 + Cloudflare 22 + release/local 분리 8 = 617개 통과. build/build:cf/Worker 문법 통과. legacy 127건 초안의 중복 방지 및 원격 보호 상태 확인. 실결제는 모의 검증이며 실제 청구·취소 미실행. [범위](RELEASE_PREPARATION_20260927.md).

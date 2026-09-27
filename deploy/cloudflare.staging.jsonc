@@ -29,6 +29,7 @@
     "SIGNUP_ENABLED": "false",
     "PAYMENT_LIVE": "true",
     "INICIS_ENV": "test",
+    "INICIS_MOBILE_ENABLED": "false",
     "INICIS_TAX_CONTRACT": "exempt",
     "PAYMENT_PRODUCT_TAX_JSON": "{\"basic\":\"exempt\",\"featured\":\"exempt\",\"talent-unlock-single\":\"exempt\",\"talent-unlock-pack\":\"exempt\",\"talent-unlock-pack30\":\"exempt\"}",
     "INICIS_REFUNDS_ENABLED": "false",
