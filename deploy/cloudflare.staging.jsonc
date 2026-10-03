@@ -18,12 +18,15 @@
     "database_id": "f29e16f1-c8b3-4151-96ce-be2239e4c3ce",
     "migrations_dir": "../drizzle"
   }],
-  // Free-only staging: no R2 subscription, uploads, scheduled backups, or paid services.
+  // Free-only staging: D1 uploads and native Time Travel; no R2 or paid services.
+  // Handler is scheduled but deletion remains disabled until production readiness.
+  "triggers": { "crons": ["17 * * * *"] },
   // Legacy jobs and migration archives are private drafts, not active accounts or entitlements.
   // No domain routes. Do not enable signup/checkout before readiness checks.
   "vars": {
     "STAGING_NOINDEX": "true",
     "STAGING_READ_ONLY": "true",
+    "D1_RETENTION_ENABLED": "false",
     "SITE_ORIGIN": "https://medihelpers-staging.aijunny0604.workers.dev",
     "TEST_ACCOUNT_SWITCH_ENABLED": "false",
     "SIGNUP_ENABLED": "false",

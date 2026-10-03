@@ -94,8 +94,10 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
 ].join('\n');
 const inicisServer = (await readFile('server/inicisStandard.js', 'utf8')).replace(/^export /gm, '');
 const uploadsServer = (await readFile('server/d1Uploads.js', 'utf8')).replace(/^export /gm, '');
+const retentionServer = (await readFile('server/d1Retention.js', 'utf8')).replace(/^export /gm, '');
 const server = `${inicisServer}
 ${uploadsServer}
+${retentionServer}
 function getUploadStorage(env) {
   return env.UPLOADS || env.BACKUPS || (env.D1_UPLOADS_ENABLED === 'true' && env.DB ? createD1UploadStorage(env.DB) : null);
 }
@@ -644,6 +646,7 @@ async function createDataBackup(env, triggerType = 'daily', actor = 'system') {
 }
 async function runDailyDataProtection(env) {
   if (!env || !env.DB || !env.BACKUPS) return;
+  if (env.STAGING_READ_ONLY === 'true' || migrationControl(env).mode !== 'open') return;
   await ensureAllSchemas(env);
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
   const claim = await env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value, updated_by) VALUES ('data_protection_daily_claim', ?, 'system') ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_by='system', updated_at=CURRENT_TIMESTAMP WHERE site_settings.setting_value<>excluded.setting_value")
@@ -3516,6 +3519,11 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
   return new Response('Not Found', { status: 404 });
 }
 export default {
+  async scheduled(event, env, ctx) {
+    const task = runBoundedD1Retention(env);
+    if (ctx?.waitUntil) ctx.waitUntil(task);
+    return await task;
+  },
   async fetch(request, env, ctx) {
     try {
       const adminAuthentication = await stagingAdminAuthentication(request, env);
