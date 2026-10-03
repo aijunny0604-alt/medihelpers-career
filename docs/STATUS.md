@@ -1,5 +1,8 @@
 # 현재 구현 상태
 
+배포 검증: 앱 소스 82b12011acad1cc68a705e341b3d862fa56fc1cb GitHub/Sites 일치, Cloudflare 버전 2b96835c-1d77-4eb9-942f-c6d19aed3286. HTTP18·변경 안내 원문 일치 확인. 회원282·주문0·파일0 유지, Cron 매시17분 등록·D1_RETENTION_ENABLED=false 및 읽기 전용 유지. 실제 역할별 검사는 격리 Worker150개 검사에 포함되며 운영 관리자 로그인은 보류 상태다.
+
+
 2026-10-03 무료 데이터 보호: D1 자동 Time Travel bookmark 조회·격리 DB 실제 복구 검증 완료. 한 번에 서류5건/고아 파일5개를 처리하는 원자적 정리와 scheduled 핸들러 구현, 검수/점검 모드 무실행. 850개 검사·build/build:cf 통과. 시간별 Cron은 등록하되 검수 자동 삭제 비활성 유지. 외부 자동 백업·실결제·정식 전환은 미완료. [상세](FREE_DATA_PROTECTION_20261003.md).
 
 

@@ -1,5 +1,8 @@
 # 무료 데이터 보호 후속 — 2026-10-03
 
+배포 검증: 앱 소스 82b12011acad1cc68a705e341b3d862fa56fc1cb GitHub/Sites 일치, Cloudflare 버전 2b96835c-1d77-4eb9-942f-c6d19aed3286. HTTP18·변경 안내 원문 일치 확인. 회원282·주문0·파일0 유지, Cron 매시17분 등록·D1_RETENTION_ENABLED=false 및 읽기 전용 유지. 실제 역할별 검사는 격리 Worker150개 검사에 포함되며 운영 관리자 로그인은 보류 상태다.
+
+
 ## 자동 복구 기록
 
 Cloudflare D1의 [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/)은 자동으로 복구 기록을 유지하며 Free 요금제의 복구 범위는 7일이다. 별도 R2 구독이나 이번 작업의 유료 업그레이드는 없다. 현재 검수 DB에서 복구 bookmark 조회를 확인했다.
