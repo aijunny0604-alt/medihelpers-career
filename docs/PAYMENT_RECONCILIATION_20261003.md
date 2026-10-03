@@ -55,3 +55,6 @@
 4. 진행 중인 구 주문 콜백·롤백 확인 후 정식 도메인 연결. 랭크업 보존 및 고객지원 문의 보류 요청 유지.
 
 전체 기준: [인수인계](HANDOFF_20260927.md), [복귀 실행서](ROLLBACK_RUNBOOK.md).
+
+검수 배포 소스 `cb901dff1e43be23609115bdce87033a561bf7d2`는 GitHub/Sites 동일 SHA 확인 후 Worker `89b5a974-e1df-4cc7-82fc-c02f9413a6ea`에 반영했다. 이번 검사 총 479개(단위371+PG86+CF22), build/build:cf 및 배포 후 HTTP18·release-notes 원문·account/no-store 확인. 인증 변경 없음; 이번 3역할 재시험은 수행하지 않았다. 실 PG 운영 거래와 정식 도메인 전환은 미완료.
+

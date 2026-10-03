@@ -1,5 +1,7 @@
 # TEST
 
+검수 배포 소스 `cb901dff1e43be23609115bdce87033a561bf7d2`는 GitHub/Sites 동일 SHA 확인 후 Worker `89b5a974-e1df-4cc7-82fc-c02f9413a6ea`에 반영했다. 이번 검사 총 479개(단위371+PG86+CF22), build/build:cf 및 배포 후 HTTP18·release-notes 원문·account/no-store 확인. 인증 변경 없음; 이번 3역할 재시험은 수행하지 않았다. 실 PG 운영 거래와 정식 도메인 전환은 미완료.
+
 ## 2026-10-03 Workers 통신 호환성
 
 단위371+생성 Worker PG86=457개 통과, build 통과. 15개 신규 검사는 세 PG 통신 함수의 301/302/303/307/308 거부 및 추가 요청/본문 처리 없음을 검증한다. Workers 원격 미리보기에서 공개 시험 자격정보로 조회 SUCCESS/CANCEL 및 기취소 500626 확인. 실제 운영 승인/환불과 구분한다. D1 로컬 복원 45테이블 무결성/외래키/행 해시 대조 통과. [상세](PAYMENT_RECONCILIATION_20261003.md).
