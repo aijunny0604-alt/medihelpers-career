@@ -10,3 +10,8 @@ site-build-v*.tar.gz
 .sites/
 .vite-*.log
 .tmp-vite-*.log
+__pycache__/
+/backups/
+/.backup/
+*.export.log
+*.verified.json
