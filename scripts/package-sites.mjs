@@ -93,7 +93,12 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
   "export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }",
 ].join('\n');
 const inicisServer = (await readFile('server/inicisStandard.js', 'utf8')).replace(/^export /gm, '');
+const uploadsServer = (await readFile('server/d1Uploads.js', 'utf8')).replace(/^export /gm, '');
 const server = `${inicisServer}
+${uploadsServer}
+function getUploadStorage(env) {
+  return env.UPLOADS || env.BACKUPS || (env.D1_UPLOADS_ENABLED === 'true' && env.DB ? createD1UploadStorage(env.DB) : null);
+}
 ${migrationControl.toString()}
 ${migrationGate.toString()}
 ${normalizeContactPhone.toString()}
@@ -550,7 +555,7 @@ async function runRetentionCleanup(env, triggerType = 'daily', actor = 'system')
   }
 }
 async function prunePrivateUploads(env, onlyOwner = '') {
-  const storage = env.UPLOADS || env.BACKUPS;
+  const storage = getUploadStorage(env);
   if (!storage) return 0;
   await ensureConsultationSchema(env);
   let deleted = 0;
@@ -1281,7 +1286,7 @@ async function authApi(request, env, pathname, ctx) {
     let verificationRecord = null;
     let storedDocumentKey = '';
     if (body.role === 'hospital') {
-      const uploadStorage = env.UPLOADS || env.BACKUPS;
+      const uploadStorage = getUploadStorage(env);
       if (!uploadStorage) {
         if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
         return json({ error:'사업자등록증 보관 저장소가 설정되지 않았습니다.' }, 503);
@@ -1330,7 +1335,7 @@ async function authApi(request, env, pathname, ctx) {
     }
     try { await env.DB.batch(records); }
     catch {
-      if (storedDocumentKey) try { await (env.UPLOADS || env.BACKUPS).delete(storedDocumentKey); } catch {}
+      if (storedDocumentKey) try { await getUploadStorage(env).delete(storedDocumentKey); } catch {}
       if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
       return json({ error:'이미 가입된 이메일이거나 가입 정보를 저장하지 못했습니다.' }, 409);
     }
@@ -1601,7 +1606,7 @@ function cleanMemberProfile(profile) {
 const UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 const UPLOAD_EXT = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'image/gif':'gif' };
 async function uploadApi(request, env, pathname) {
-  const uploadStorage = env.UPLOADS || env.BACKUPS;
+  const uploadStorage = getUploadStorage(env);
   if (!uploadStorage) return json({ error:'이미지 업로드 저장소가 설정되지 않았습니다. 관리자에게 문의해주세요.' }, 503);
   if (request.method === 'GET') {
     const key = decodeURIComponent(pathname.slice('/api/uploads/'.length));
@@ -1669,7 +1674,8 @@ async function uploadApi(request, env, pathname) {
       : contentType === 'image/gif' && ['GIF87a','GIF89a'].includes(ascii(0,6));
     if (!validImage) return json({ error:'이미지 형식과 파일 내용이 일치하지 않습니다. 원본 이미지를 선택해주세요.' }, 400);
     const objectKey = (isResumeProfile ? 'profiles/' : 'hospitals/') + ownerId + '/' + purpose + '/' + crypto.randomUUID() + '.' + ext;
-    await uploadStorage.put(objectKey, buffer, { httpMetadata: { contentType: contentType }, customMetadata: { uploadedBy: ownerId, purpose: purpose } });
+    try { await uploadStorage.put(objectKey, buffer, { httpMetadata: { contentType: contentType }, customMetadata: { uploadedBy: ownerId, purpose: purpose } }); }
+    catch { return json({error:'파일을 저장하지 못했습니다. 저장 공간 또는 연결 상태를 확인한 뒤 다시 시도해주세요.'},503); }
     // 병원 회원이면 활동 기록에 남겨 마이페이지에서 업로드 이력을 확인할 수 있게 한다(실패해도 업로드는 성공 처리).
     if (account) { try { await ensureMemberCenterSchema(env); await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'asset_upload', ?, ?)").bind(crypto.randomUUID(), account.id, ('이미지 업로드 · ' + purpose).slice(0,200), objectKey.slice(0,300)).run(); } catch {} }
     return json({ uploaded:true, url:'/api/uploads/' + objectKey, key:objectKey, purpose:purpose }, 201);
@@ -3046,7 +3052,7 @@ async function hospitalVerificationDocumentApi(request, env, pathname) {
       return json({ deleted:true });
     } catch { return json({ error:'서류 삭제를 마치지 못했습니다. 다시 시도해주세요. 원본 열람은 중단되었습니다.' }, 503); }
   }
-  const storage = env.UPLOADS || env.BACKUPS;
+  const storage = getUploadStorage(env);
   if (!storage) return json({ error:'제출 서류 저장소를 사용할 수 없습니다.' }, 503);
   const object = await storage.get(record.documentKey);
   if (!object) return json({ error:'제출 서류 파일을 찾을 수 없습니다.' }, 404);
@@ -3055,7 +3061,7 @@ async function hospitalVerificationDocumentApi(request, env, pathname) {
 async function purgeHospitalDocument(env, requestId) {
   const record = await env.DB.prepare('SELECT * FROM hospital_verification_requests WHERE id=? LIMIT 1').bind(requestId).first();
   if (!record) return;
-  const storage = env.UPLOADS || env.BACKUPS;
+  const storage = getUploadStorage(env);
   if (!storage) throw new Error('HOSPITAL_DOCUMENT_STORAGE_UNAVAILABLE');
   const checked = record.review_note === '기관 확인 완료 · 서류 파기' && record.reviewed_by !== 'system-auto';
   const proof = JSON.stringify({ status:checked ? 'checked' : 'expired', ...(checked ? { checkedAt:record.reviewed_at } : {}), deletedAt:new Date().toISOString() });

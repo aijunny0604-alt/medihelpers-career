@@ -8,7 +8,7 @@ sqlite.exec('PRAGMA foreign_keys=ON');
 for (const file of (await readdir(new URL('../drizzle/',import.meta.url))).filter(x=>x.endsWith('.sql')).sort()) sqlite.exec(await readFile(new URL('../drizzle/'+file,import.meta.url),'utf8'));
 class Statement {
   constructor(sql,args=[]) {this.sql=sql;this.args=args;}
-  bind(...args) {return new Statement(this.sql,args);}
+  bind(...args) {return new Statement(this.sql,args.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v));}
   async all() {return {results:sqlite.prepare(this.sql).all(...this.args),success:true};}
   async first(column) {const row=(await this.all()).results[0]||null;return column?row?.[column]:row;}
   async run() {const r=sqlite.prepare(this.sql).run(...this.args);return {success:true,meta:{changes:Number(r.changes)}};}
@@ -168,6 +168,20 @@ check((await call('/api/admin-console',null,freshAdmin.cookie)).status,403);
 const external=await worker.fetch(new Request('https://audit.local/api/auth/login',{method:'POST',headers:{origin:'https://other.invalid','content-type':'application/json'},body:JSON.stringify({email:emails.admin,password:'NewAdminPassword123'})}),env,{});
 check(external.status,503);
 env.STAGING_READ_ONLY='false';delete env.STAGING_ADMIN_AUTH_ENABLED;
+env.D1_UPLOADS_ENABLED='true';
+const uploader=await call('/api/auth/login',{email:isolated[1].alias,password:'oldpass2'});
+check(uploader.status,200);
+const photo=Uint8Array.from([137,80,78,71,13,10,26,10,...new Array(200).fill(0)]);
+const uploaded=await worker.fetch(new Request('https://audit.local/api/uploads',{method:'POST',headers:{origin:'https://audit.local',cookie:uploader.cookie,'content-type':'image/png','x-upload-purpose':'resume-profile'},body:photo}),env,{});
+check(uploaded.status,201);const uploadData=await uploaded.json();
+const imageRead=async cookie=>worker.fetch(new Request('https://audit.local'+uploadData.url,{headers:cookie?{cookie}:{}}),env,{});
+const ownerRead=await imageRead(uploader.cookie);check(ownerRead.status,200);check(new Uint8Array(await ownerRead.arrayBuffer()),photo);
+check((await imageRead()).status,401);
+const otherHospital=await call('/api/auth/login',{email:'shared-hospital-2',password:'hospital2'});
+check((await imageRead(otherHospital.cookie)).status,403);
+check(sqlite.prepare('SELECT count(*) n FROM upload_objects').get().n,1);
+sqlite.prepare('DELETE FROM upload_chunks').run();
+check((await imageRead(uploader.cookie)).status,500);
 console.log(JSON.stringify({checks,failed:0,scope:'isolated generated-worker API tests; no real member data or real PG calls'}));
 if(process.argv.includes('--serve')) {
  for(const role of Object.keys(aliases)) {

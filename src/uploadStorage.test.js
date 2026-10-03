@@ -11,7 +11,7 @@ const resumePageSource = readFileSync(new URL('./ResumePage.jsx', import.meta.ur
 const resumePhotoSource = readFileSync(new URL('./resumePhotoUpload.js', import.meta.url), 'utf8');
 
 test('Sites uses the existing R2 binding as an upload fallback', () => {
-  assert.match(serverSource, /const uploadStorage = env\.UPLOADS \|\| env\.BACKUPS/);
+  assert.match(serverSource, /return env\.UPLOADS \|\| env\.BACKUPS/);
   assert.match(serverSource, /uploadStorage\.get\(key\)/);
   assert.match(serverSource, /uploadStorage\.put\(objectKey/);
 });
