@@ -274,3 +274,34 @@ export async function processInicisRefund(env, refund, tid, finalize, fetcher = 
   try { await finalize(); return {status:'refunded'}; }
   catch { return {status:'pending_local'}; }
 }
+
+// Read-only INIAPI V2 inquiry. Never turn a query into a capture/refund or rights update.
+// https://manual.inicis.com/pay/etc-inquiry.html
+export async function inquireInicisCard(env, order, tid, fetcher = fetch, now = new Date()) {
+  if (!env.INICIS_API_KEY || !/^[A-Za-z0-9_]{10}$/.test(env.INICIS_MID || '') || !['test','live'].includes(env.INICIS_ENV)) throw new Error('PG_INQUIRY_NOT_CONFIGURED');
+  const clientIp = String(env.INICIS_CLIENT_IP || '');
+  if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(clientIp) || clientIp.split('.').some(n=>Number(n)>255)) throw new Error('PG_CLIENT_IP_REQUIRED');
+  if (!/^[A-Za-z0-9_-]{40}$/.test(tid || '')) throw new Error('PG_TID_INVALID');
+  if (!Number.isSafeInteger(order.totalAmount) || order.totalAmount <= 0 || !order.orderNumber) throw new Error('PG_AMOUNT_INVALID');
+  const timestamp = new Date(now.getTime()+9*3600000).toISOString().replace(/[-:T]/g,'').slice(0,14);
+  const data = {tid};
+  const fields = {mid:env.INICIS_MID,type:'inquiry',timestamp,clientIp,data,
+    hashData:await inicisHash(env.INICIS_API_KEY+env.INICIS_MID+'inquiry'+timestamp+JSON.stringify(data),'SHA-512')};
+  const endpoint = env.INICIS_ENV === 'test' ? 'https://stginiapi.inicis.com/v2/pg/inquiry' : 'https://iniapi.inicis.com/v2/pg/inquiry';
+  const response = await fetcher(endpoint,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),
+    headers:{'content-type':'application/json'},body:JSON.stringify(fields)});
+  if (!response.ok) throw new Error('PG_HTTP_ERROR');
+  const raw = await response.text();
+  if (raw.length > 65536) throw new Error('PG_RESPONSE_INVALID');
+  let result; try {result=JSON.parse(raw);} catch {throw new Error('PG_RESPONSE_INVALID');}
+  if (result?.resultCode !== 'SUCCESS') throw new Error('PG_INQUIRY_UNCONFIRMED');
+  if (result.mid !== env.INICIS_MID || result.tid !== tid || result.oid !== order.orderNumber
+    || !/^\d{1,12}$/.test(result.price) || Number(result.price) !== order.totalAmount
+    || !['Card','VCard'].includes(result.paymethod)) throw new Error('PG_INQUIRY_MISMATCH');
+  if (!['APPROVAL','CANCEL','PART_CANCEL'].includes(result.transactionStatus)) throw new Error('PG_INQUIRY_UNCONFIRMED');
+  const matched = (result.transactionStatus === 'APPROVAL' && order.status === 'paid')
+    || (result.transactionStatus === 'CANCEL' && order.status === 'refunded');
+  // Allow-list response fields: buyer/card/bank details and provider messages never leave this adapter.
+  return {providerStatus:result.transactionStatus,localStatus:order.status,amount:order.totalAmount,
+    matched,reconciliationRequired:!matched,checkedAt:now.toISOString()};
+}

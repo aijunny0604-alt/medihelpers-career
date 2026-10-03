@@ -3317,6 +3317,24 @@ async function adminConsoleApi(request, env, ctx) {
   }
   return json({ saved:true });
 }
+async function paymentInquiryApi(request,env) {
+  if (!await adminIdentity(request,env)) return json({error:'관리자 권한이 필요합니다.'},403);
+  if (request.method !== 'POST') return json({error:'지원하지 않는 요청입니다.'},405);
+  if (!sameOrigin(request)) return json({error:'허용되지 않은 요청입니다.'},403);
+  let body;try{body=await readRequestObject(request);}catch{return json({error:'요청 내용을 확인해주세요.'},400);}
+  await ensureCommerceSchema(env);
+  const order=await env.DB.prepare('SELECT id,order_number AS orderNumber,total_amount AS totalAmount,status FROM payment_orders WHERE id=?').bind(String(body.orderId || '')).first();
+  if (!order) return json({error:'주문을 찾을 수 없습니다.'},404);
+  const rows=await env.DB.prepare("SELECT provider_transaction_id AS tid,amount FROM payment_transactions WHERE order_id=? AND provider='inicis' AND transaction_type='capture' AND status='succeeded'").bind(order.id).all();
+  if (rows.results.length !== 1 || Number(rows.results[0].amount) !== Number(order.totalAmount)) return json({error:'확정된 이니시스 원거래가 한 건이어야 조회할 수 있습니다. 가맹점 관리자에서 원거래를 먼저 확인해주세요.'},409);
+  try {
+    const inquiry=await inquireInicisCard(env,{...order,totalAmount:Number(order.totalAmount)},rows.results[0].tid);
+    return json({inquiry,readOnly:true});
+  } catch(error) {
+    const config=['PG_INQUIRY_NOT_CONFIGURED','PG_CLIENT_IP_REQUIRED'].includes(error.message);
+    return json({error:config?'이니시스 거래 조회 설정 확인이 필요합니다.':'이니시스 거래 결과를 확인하지 못했습니다. 반복 결제·취소하지 말고 가맹점 관리자에서 확인해주세요.',reconciliationRequired:true},config?503:409);
+  }
+}
 async function refundReviewApi(request,env) {
   if (!await adminIdentity(request,env)) return json({error:'관리자 권한이 필요합니다.'},403);
   if (request.method !== 'POST') return json({error:'지원하지 않는 요청입니다.'},405);
@@ -3374,6 +3392,7 @@ async function refundReviewApi(request,env) {
 }
 async function responseFor(request, env, ctx) {
   const pathname = new URL(request.url).pathname;
+  if (pathname === '/api/admin-payment-inquiry') return paymentInquiryApi(request,env);
   if (pathname === '/api/admin-refund-review') return refundReviewApi(request,env);
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
