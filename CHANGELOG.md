@@ -1,5 +1,10 @@
 # 변경 이력
 
+## 2026-10-03 — Cloudflare PG 통신 오류 수정
+
+- Workers에서 거부되는 fetch redirect 옵션을 manual로 변경하고 기존 비정상 HTTP 거부를 유지했다. PC·모바일·조회 공통 통신에 적용했다.
+- 단위371/PG86 및 build 통과. 공개 시험 서버에서 조회와 기취소 응답 확인. 운영 실결제·정식 전환은 여전히 미완료. [근거](docs/PAYMENT_RECONCILIATION_20261003.md).
+
 ## 2026-10-03 — 관리자 이니시스 읽기 전용 거래 조회
 
 - 검수 배포 완료: GitHub/Sites 소스 `e8562c1` → Worker `0a79d9aa-6743-47d4-a248-9ac426875db3`. HTTP18 및 배포 안내문 일치·account no-store·조회 차단 확인. 실제 정식 도메인 전환/PG 실거래는 미완료다.

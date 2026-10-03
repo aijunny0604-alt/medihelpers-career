@@ -51,7 +51,7 @@ for(const changes of [{P_MID:'OTHER'},{P_OID:'OTHER'},{P_AMT:'1'},{P_AMT:'59000.
 });
 test('mobile duplicate returns approve and capture once',async()=>{
  const local=database();let calls=0;
- const fetcher=async(url,init)=>{calls++;assert.equal(url,body.P_REQ_URL);assert.equal(init.redirect,'error');return nvp(approval);};
+ const fetcher=async(url,init)=>{calls++;assert.equal(url,body.P_REQ_URL);assert.equal(init.redirect,'manual');return nvp(approval);};
  const results=await Promise.all([1,2,3].map(()=>processInicisMobileApproval({...env,DB:local.DB},order,body,local.capture,fetcher)));
  assert.equal(calls,1);assert.equal(results.filter(r=>r.status==='paid').length,1);local.db.close();
 });

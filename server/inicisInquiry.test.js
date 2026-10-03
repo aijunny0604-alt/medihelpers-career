@@ -9,7 +9,7 @@ const json=data=>async()=>new Response(JSON.stringify(data));
 test('inquiry signs exact V2 JSON, KST time, uses fixed test endpoint and never returns PII',async()=>{
  const now=new Date('2026-10-03T00:00:00Z');
  const actual=await inquireInicisCard(env,order,tid,async(url,request)=>{
-  assert.equal(url,'https://stginiapi.inicis.com/v2/pg/inquiry');assert.equal(request.redirect,'error');assert.equal(request.method,'POST');
+  assert.equal(url,'https://stginiapi.inicis.com/v2/pg/inquiry');assert.equal(request.redirect,'manual');assert.equal(request.method,'POST');
   const body=JSON.parse(request.body);assert.deepEqual(body.data,{tid});assert.equal(body.timestamp,'20261003090000');
   assert.equal(body.hashData,createHash('sha512').update('synthetic-onlyINIpayTestinquiry20261003090000'+JSON.stringify({tid})).digest('hex'));
   assert.equal(request.body.includes('synthetic-only'),false);

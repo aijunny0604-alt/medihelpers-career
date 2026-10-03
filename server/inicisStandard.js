@@ -111,7 +111,7 @@ export function inicisMobileEndpoints(env, body) {
 }
 
 export async function inicisMobilePost(url, fields, fetcher = fetch) {
-  const response = await fetcher(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),
+  const response = await fetcher(url,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),
     headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(fields)});
   if (!response.ok) throw new Error('PG_HTTP_ERROR');
   const text = await response.text();
@@ -185,7 +185,7 @@ export async function inicisAuthFields(env, authToken) {
 }
 
 export async function inicisPost(url, fields, fetcher = fetch) {
-  const response = await fetcher(url, {method:'POST', redirect:'error', signal:AbortSignal.timeout(15000),
+  const response = await fetcher(url, {method:'POST', redirect:'manual', signal:AbortSignal.timeout(15000),
     headers:{'content-type':'application/x-www-form-urlencoded'}, body:new URLSearchParams(fields)});
   if (!response.ok) throw new Error('PG_HTTP_ERROR');
   return response.json();
@@ -288,7 +288,7 @@ export async function inquireInicisCard(env, order, tid, fetcher = fetch, now = 
   const fields = {mid:env.INICIS_MID,type:'inquiry',timestamp,clientIp,data,
     hashData:await inicisHash(env.INICIS_API_KEY+env.INICIS_MID+'inquiry'+timestamp+JSON.stringify(data),'SHA-512')};
   const endpoint = env.INICIS_ENV === 'test' ? 'https://stginiapi.inicis.com/v2/pg/inquiry' : 'https://iniapi.inicis.com/v2/pg/inquiry';
-  const response = await fetcher(endpoint,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),
+  const response = await fetcher(endpoint,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),
     headers:{'content-type':'application/json'},body:JSON.stringify(fields)});
   if (!response.ok) throw new Error('PG_HTTP_ERROR');
   const raw = await response.text();
