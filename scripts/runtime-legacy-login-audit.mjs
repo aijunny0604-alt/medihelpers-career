@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
-import { pbkdf2Sync } from 'node:crypto';
+import { pbkdf2Sync,createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import worker from '../dist/server/index.js';
 const sqlite = new DatabaseSync(':memory:');
@@ -121,6 +121,53 @@ for(const n of [1,2]) {
  check(center.body.consultations.filter(r=>r.id.startsWith('hospital-application-')).map(r=>r.id),['hospital-application-'+n]);
  check((await call('/api/resumes',null,login.cookie)).status,403);
 }
+// Initial account-secret provisioning must not recompute imported ownership keys.
+// This is not permission to rotate a populated production account secret.
+const preservedOwnership=sqlite.prepare('SELECT id,user_key FROM accounts ORDER BY id').all();
+env.ACCOUNT_HASH_SECRET='initial-provisioning-new-synthetic-secret-20261003';
+for(const n of [1,2]) {
+ const login=await call('/api/auth/login',{email:'shared-hospital-'+n,password:'hospital'+n});
+ check(login.status,200);check(login.body.isAdmin,false);
+ const center=await call('/api/member-center',null,login.cookie);
+ check(center.status,200);
+ check(center.body.migratedAds.map(r=>r.id),['imported-ad-'+n]);
+ check(center.body.orders.map(r=>r.orderNumber),['LEGACY-ORDER-'+n]);
+ check((await call('/api/admin-console',null,login.cookie)).status,403);
+}
+check(sqlite.prepare('SELECT id,user_key FROM accounts ORDER BY id').all(),preservedOwnership);
+env.STAGING_READ_ONLY='true';
+check((await call('/api/auth/login',{email:emails.admin,password:'medihelpers1234'})).status,503);
+env.STAGING_ADMIN_AUTH_ENABLED='true';
+const adminLogin=await call('/api/auth/login',{email:emails.admin,password:'medihelpers1234'});
+check(adminLogin.status,200);check(adminLogin.body.isAdmin,true);
+check((await call('/api/admin-console',null,adminLogin.cookie)).status,200);
+for(const path of ['/api/auth/register','/api/auth/test-switch','/api/payment-orders','/api/admin-refund-review','/api/consultations'])
+ check((await call(path,{key:'admin'},adminLogin.cookie)).status,503);
+check((await call('/api/auth/login',{email:'shared-hospital-1',password:'hospital1'})).status,503);
+check((await call('/api/account-recovery',{requestType:'password',email:isolated[1].alias})).status,503);
+// Even a matching administrator contact address does not make an imported principal eligible.
+sqlite.prepare('UPDATE account_contact_identities SET email=? WHERE account_id=?').run(emails.admin,'legacy-hospital-1');
+const adminId=sqlite.prepare('SELECT account_id id FROM auth_credentials WHERE email_normalized=?').get(emails.admin).id;
+sqlite.prepare('DELETE FROM account_recovery_requests WHERE email_normalized=?').run(emails.admin);
+check((await call('/api/account-recovery',{requestType:'password',email:emails.admin})).status,202);
+check(sqlite.prepare('SELECT account_id id FROM account_password_resets ORDER BY rowid DESC LIMIT 1').get().id,adminId);
+const raw='ab'.repeat(32),tokenHash=createHash('sha256').update(raw).digest('hex');
+sqlite.prepare("UPDATE account_password_resets SET token_hash=?,expires_at=datetime('now','+30 minutes') WHERE account_id=? AND used_at IS NULL").run(tokenHash,adminId);
+check((await call('/api/account-recovery',{action:'reset_password',token:'cd'.repeat(32),password:'NewAdminPassword123'})).status,503);
+env.MIGRATION_MODE='frozen';
+check((await call('/api/auth/login',{email:emails.admin,password:'medihelpers1234'})).status,503);
+check((await call('/api/account-recovery',{action:'reset_password',token:raw,password:'NewAdminPassword123'})).status,503);
+env.MIGRATION_MODE='open';
+check((await call('/api/account-recovery',{action:'reset_password',token:raw,password:'NewAdminPassword123'})).status,200);
+check((await call('/api/account-recovery',{action:'reset_password',token:raw,password:'NewAdminPassword123'})).status,503);
+check((await call('/api/admin-console',null,adminLogin.cookie)).status,403);
+const freshAdmin=await call('/api/auth/login',{email:emails.admin,password:'NewAdminPassword123'});
+check(freshAdmin.status,200);check(freshAdmin.body.isAdmin,true);
+check((await call('/api/auth/logout',{},freshAdmin.cookie)).status,200);
+check((await call('/api/admin-console',null,freshAdmin.cookie)).status,403);
+const external=await worker.fetch(new Request('https://audit.local/api/auth/login',{method:'POST',headers:{origin:'https://other.invalid','content-type':'application/json'},body:JSON.stringify({email:emails.admin,password:'NewAdminPassword123'})}),env,{});
+check(external.status,503);
+env.STAGING_READ_ONLY='false';delete env.STAGING_ADMIN_AUTH_ENABLED;
 console.log(JSON.stringify({checks,failed:0,scope:'isolated generated-worker API tests; no real member data or real PG calls'}));
 if(process.argv.includes('--serve')) {
  for(const role of Object.keys(aliases)) {

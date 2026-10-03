@@ -731,6 +731,25 @@ async function adminIdentity(request, env) {
   const identity = await authenticatedUser(request, env);
   return identity && isAdminEmail(identityPrincipal(identity), env) ? identity : null;
 }
+// Explicit staging-only authentication exception. Never bypass a migration freeze
+// or permit content/payment mutations, even for a signed-in administrator.
+async function stagingAdminAuthentication(request, env) {
+  if (env?.STAGING_READ_ONLY !== 'true' || env.STAGING_ADMIN_AUTH_ENABLED !== 'true'
+      || migrationControl(env).mode !== 'open' || request.method !== 'POST' || !sameOrigin(request)) return false;
+  const path = new URL(request.url).pathname;
+  if (path === '/api/auth/logout') return Boolean(await adminIdentity(request, env));
+  if (!['/api/auth/login','/api/account-recovery'].includes(path)) return false;
+  let body; try { body = await readRequestObject(request.clone()); } catch { return false; }
+  if (path === '/api/auth/login' || (body.requestType === 'password' && !body.action)) {
+    const email = normalizeEmail(body.email);
+    if (!email || !isAdminEmail(email, env)) return false;
+    const row = await env.DB.prepare("SELECT c.email_normalized AS principal FROM auth_credentials c JOIN account_admin_profiles ap ON ap.account_id=c.account_id WHERE c.email_normalized=? AND ap.status='active' LIMIT 1").bind(email).first();
+    return Boolean(row && isAdminEmail(row.principal, env));
+  }
+  if (body.action !== 'reset_password' || !/^[a-f0-9]{64}$/i.test(String(body.token || ''))) return false;
+  const row = await env.DB.prepare("SELECT c.email_normalized AS principal FROM account_password_resets r JOIN auth_credentials c ON c.account_id=r.account_id JOIN account_admin_profiles ap ON ap.account_id=c.account_id WHERE r.token_hash=? AND r.used_at IS NULL AND r.expires_at>CURRENT_TIMESTAMP AND ap.status='active' LIMIT 1").bind(await authSha256Hex(body.token)).first();
+  return Boolean(row && isAdminEmail(row.principal, env));
+}
 function cleanConsultationPayload(payload) {
   const allowed = ['name','phone','professionalType','specialty','gender','birthYear','email','region','workType','startTiming','hospital','manager','address','salary','preferredAge','preferredGender','fellowship','experienceRequired','schedule','scale','contactTime','attachmentName','message','subject','submissionChannel','jobId','headhuntPostId','headhuntPostTitle','headhuntPostHospital','resumeId','resumeTitle'];
   return Object.fromEntries(allowed.filter(key => typeof payload[key] === 'string').map(key => [key, payload[key].trim().slice(0, key === 'message' ? 3000 : 300)]));
@@ -1381,7 +1400,9 @@ async function accountRecoveryApi(request, env, ctx) {
 
   let target = null;
   if (requestType === 'password') {
-    const candidates = email
+    const candidates = email && env.STAGING_ADMIN_AUTH_ENABLED === 'true' && isAdminEmail(email, env)
+      ? await env.DB.prepare('SELECT account_id AS accountId, email_normalized AS email FROM auth_credentials WHERE email_normalized=? LIMIT 1').bind(email).all()
+      : email
       ? await env.DB.prepare('SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email FROM auth_credentials c LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id WHERE COALESCE(ci.email,c.email_normalized)=? LIMIT 2').bind(email).all()
       : await env.DB.prepare("SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email FROM auth_login_aliases al JOIN auth_credentials c ON c.account_id=al.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id WHERE al.login_id=? AND al.source='rankup' LIMIT 2").bind(loginId).all();
     // A shared mailbox never chooses an arbitrary account. Its owner uses the exact legacy ID.
@@ -3491,7 +3512,8 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
 export default {
   async fetch(request, env, ctx) {
     try {
-      const maintenanceResponse = migrationGate(request, env);
+      const adminAuthentication = await stagingAdminAuthentication(request, env);
+      const maintenanceResponse = migrationGate(request, adminAuthentication ? {...env,STAGING_READ_ONLY:'false'} : env);
       if (maintenanceResponse) return maintenanceResponse;
       const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
       if (migrationControl(env).mode === 'open' && ctx && ctx.waitUntil && env && env.DB && env.BACKUPS && globalThis.__mhProtectionDate !== today) {
