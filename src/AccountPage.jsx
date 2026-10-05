@@ -644,7 +644,7 @@ function LoginCard({ testAccountsEnabled = false }) {
       </div>
       <a className="signup-login-join-button" href={withBase('/signup')}><UserRound /> 회원가입하기 <ArrowRight /></a>
     </div>
-    <a className="signup-recovery-link" href={withBase('/account/recovery')}>비밀번호를 잊으셨나요?</a>
+    <a className="signup-recovery-link" href={withBase('/account/recovery?mode=password')}>비밀번호를 잊으셨나요?</a>
     {DEMO_MODE && testAccountsEnabled && <div className="login-test-accounts">
       <small>테스트 계정으로 바로 로그인</small>
       <div className="login-test-buttons">
