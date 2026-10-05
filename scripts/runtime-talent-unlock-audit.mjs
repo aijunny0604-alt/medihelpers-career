@@ -126,9 +126,18 @@ record('doctor cannot see paid sample', (await call('/api/talent-detail/MH-D-204
 const pendingSample = await buy('talent-unlock-single', 'MH-D-1982');
 env.PAYMENT_LIVE = 'true';
 record('pending sample cannot approve after live switch', (await approve(pendingSample.data.order)).status, 503);
+const beforeLiveSampleOrders = count('payment_orders');
+const missingLiveTax = await buy('talent-unlock-single', 'MH-D-1982');
+record('live order without tax setup fails closed', missingLiveTax.status, 503);
+record('missing tax setup has explicit error', missingLiveTax.data.code, 'PG_TAX_NOT_CONFIGURED');
+env.INICIS_TAX_CONTRACT = 'exempt';
+env.PAYMENT_PRODUCT_TAX_JSON = JSON.stringify({'talent-unlock-single':'exempt'});
 record('live mode rejects sample order', (await buy('talent-unlock-single', 'MH-D-1982')).status, 400);
+record('rejected live samples create no orders', count('payment_orders'), beforeLiveSampleOrders);
 record('live mode disables sample detail', (await call('/api/talent-detail/MH-D-2048', 'hospital')).status, 404);
 delete env.PAYMENT_LIVE;
+delete env.INICIS_TAX_CONTRACT;
+delete env.PAYMENT_PRODUCT_TAX_JSON;
 const lifecycle = await createPost('5개월 비공개 검사');
 const previewUsage = usage();
 record('checkout preview shows private contact', (await call(detailPath(privatePost) + '?preview=1','hospital')).status,404);
