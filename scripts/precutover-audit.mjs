@@ -5,7 +5,7 @@ const cwd=fileURLToPath(new URL('../',import.meta.url));
 const suites=[
  ['unit',['--test','src/*.test.js','server/*.test.js'],'tap'],
  ...['readiness','admin-storage','member-flow','integration','hospital-document',
- 'transition-contact','talent-unlock','mobile-assets','legacy-login','inicis','adversarial']
+ 'transition-contact','talent-unlock','mobile-assets','legacy-login','legacy-links','inicis','adversarial']
  .map(name=>[name,['scripts/runtime-'+name+'-audit.mjs'],'json']),
 ];
 const results=[];

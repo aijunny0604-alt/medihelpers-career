@@ -3420,8 +3420,28 @@ async function refundReviewApi(request,env) {
   }catch(error){await env.DB.prepare("UPDATE payment_refunds SET status='requested' WHERE id=? AND status='processing'").bind(refund.id).run();return json({error:'환불을 완료하지 못했습니다. 결제 내역은 유지되며 다시 시도할 수 있습니다.'},503);}
   return json({saved:true,refunded:true,virtual:true});
 }
+async function legacyRecruitmentLink(request, env) {
+  const headers = { 'cache-control':'no-store', 'x-content-type-options':'nosniff' };
+  if (!['GET','HEAD'].includes(request.method)) return new Response('Method Not Allowed', {status:405,headers:{...headers,allow:'GET, HEAD'}});
+  const params = new URL(request.url).searchParams;
+  const values = params.getAll('no');
+  if (values.length !== 1 || !/^[1-9][0-9]{0,14}$/.test(values[0])) return new Response('Not Found',{status:404,headers});
+  if (!env.DB) return new Response('Service Unavailable',{status:503,headers});
+  const feature = await env.DB.prepare("SELECT enabled FROM feature_flags WHERE flag_key='doctorRecruitment'").first();
+  if (feature && !feature.enabled) return new Response('Not Found',{status:404,headers});
+  // Exact legacy source mapping only. Never infer ownership or publish a migration draft.
+  const sourceUrl = 'https://www.medihelpers.co.kr/work/employ_detail.html?no=' + values[0];
+  const found = await env.DB.prepare("SELECT id,payload_json AS payloadJson FROM admin_content_records WHERE content_type='doctor_job' AND status='published' AND visibility='public' AND json_valid(payload_json) AND json_extract(payload_json,'$.migration.sourceUrl')=? LIMIT 2").bind(sourceUrl).all();
+  const rows = found.results || [];
+  if (rows.length !== 1) return new Response('Not Found',{status:404,headers});
+  const payload = normalizeAdPayloadExposure(JSON.parse(rows[0].payloadJson));
+  if (isAdExposureExpired(payload)) return new Response('Not Found',{status:404,headers});
+  // Relative destination prevents external redirects; discard old query parameters.
+  return new Response(null,{status:301,headers:{...headers,location:'/jobs/admin-' + encodeURIComponent(rows[0].id)}});
+}
 async function responseFor(request, env, ctx) {
   const pathname = new URL(request.url).pathname;
+  if (pathname === '/work/employ_detail.html') return legacyRecruitmentLink(request,env);
   if (pathname === '/api/admin-payment-inquiry') return paymentInquiryApi(request,env);
   if (pathname === '/api/admin-refund-review') return refundReviewApi(request,env);
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
