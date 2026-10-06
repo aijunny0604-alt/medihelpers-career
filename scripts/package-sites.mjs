@@ -3476,6 +3476,9 @@ async function responseFor(request, env, ctx) {
   // 알려지지 않은 API 경로를 SPA로 넘기면 HTML 200이 반환되어 연동 실패를
   // 성공 응답으로 오인할 수 있다. API 네임스페이스는 항상 JSON 404로 끝낸다.
   if (pathname.startsWith('/api/')) return json({ error:'API 경로를 찾을 수 없습니다.' }, 404);
+  // Never acknowledge an unregistered callback/write URL with the SPA's HTML 200.
+  // All supported mutation APIs have already been dispatched above.
+  if (!['GET','HEAD'].includes(request.method)) return new Response('Method Not Allowed', {status:405,headers:{allow:'GET, HEAD','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if (pathname === '/robots.txt') return new Response(env.STAGING_NOINDEX==='true' ? 'User-agent: *\\nDisallow: /\\n' : robotsText(request), { status:200, headers:{ 'content-type':'text/plain; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/sitemap.xml') return new Response(sitemapXml(request), { status:200, headers:{ 'content-type':'application/xml; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/manifest.webmanifest') return new Response(webManifest, { status:200, headers:{ 'content-type':'application/manifest+json; charset=utf-8', 'cache-control':'public, max-age=86400', 'x-content-type-options':'nosniff' } });
