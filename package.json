@@ -9,7 +9,7 @@
     "preview": "vite preview --outDir client-build",
     "build:pages": "vite build --outDir client-build",
     "test": "node --test src/*.test.js server/*.test.js",
-    "audit:precutover": "npm run build && node scripts/precutover-audit.mjs",
+    "audit:precutover": "npm run build && npm run build:cf && node scripts/precutover-audit.mjs",
     "test:runtime": "npm run build && node scripts/runtime-readiness-audit.mjs",
     "test:adversarial": "npm run build && node scripts/runtime-adversarial-audit.mjs",
     "build:cf": "vite build --outDir client-build && node scripts/package-sites.mjs --target=cloudflare",

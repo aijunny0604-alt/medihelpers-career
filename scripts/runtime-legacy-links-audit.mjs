@@ -1,6 +1,6 @@
 // Generated Worker + in-memory SQLite only. No network, live accounts or PG traffic.
 import {DatabaseSync} from 'node:sqlite';
-import worker from '../dist/server/index.js';
+const {default:worker}=await import(process.argv.includes('--cloudflare')?'../dist-cf/server/index.js':'../dist/server/index.js');
 const db=new DatabaseSync(':memory:');
 db.exec(`CREATE TABLE feature_flags(flag_key TEXT PRIMARY KEY,enabled INTEGER);
 CREATE TABLE admin_content_records(id TEXT PRIMARY KEY,content_type TEXT,status TEXT,visibility TEXT,payload_json TEXT);`);

@@ -23,7 +23,6 @@ const post = (pathname, body) => worker.fetch(new Request('https://www.medihelpe
 assert.notEqual((await post('/api/auth/test-switch', {key:'admin'})).status, 200);
 assert.equal((await post('/api/payment-approve', {})).status, 503);
 checks.push('test admin disabled', 'missing PG keys fail closed');
-console.log(JSON.stringify({ checks, passed:checks.length, deployed:false, livePaymentVerified:false }, null, 2));
 const staging=JSON.parse((await readFile(new URL('../deploy/cloudflare.staging.jsonc',import.meta.url),'utf8')).replace(/^\s*\/\/.*$/gm,''));
 assert.equal(staging.r2_buckets,undefined);
 assert.equal(staging.routes,undefined);
@@ -35,11 +34,12 @@ const staged=await worker.fetch(new Request('https://staging.example.com/robots.
 assert.match(await staged.text(),/Disallow: \//);
 assert.match(staged.headers.get('x-robots-tag'),/noindex/);
 assert.equal((await worker.fetch(new Request('https://staging.example.com/api/payment-approve',{method:'POST'}),staging.vars,{})).status,503);
-console.log('Free-only staging configuration and noindex verified (9 assertions).');
+checks.push('no R2 subscription','no domain route','staging read only','checkout disabled','refund disabled','no plaintext sign key','robots disabled','noindex header','staging approval blocked');
 assert.equal(staging.vars.D1_RETENTION_ENABLED,'false');
 assert.deepEqual(staging.triggers.crons,['17 * * * *']);
 let waited;
 const retentionResult=await worker.scheduled({}, {...staging.vars,D1_UPLOADS_ENABLED:'true',D1_RETENTION_ENABLED:'true',DB:{prepare(){throw Error('Read-only scheduled task must not query DB');}}},{waitUntil(p){waited=p;}});
 assert.equal(retentionResult.skipped,'read-only-or-maintenance');
 assert.deepEqual(await waited,retentionResult);
-console.log('Scheduled retention packaging and read-only guard verified (4 assertions).');
+checks.push('retention disabled','cron schedule packaged','read-only retention skipped','scheduled promise awaited');
+console.log(JSON.stringify({ checks, passed:checks.length, deployed:false, livePaymentVerified:false }, null, 2));

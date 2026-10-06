@@ -1,5 +1,5 @@
 // Generated Worker only; no production network or DB.
-import worker from '../dist/server/index.js';
+const {default:worker}=await import(process.argv.includes('--cloudflare')?'../dist-cf/server/index.js':'../dist/server/index.js');
 const checks=[];
 const record=(name,actual,expected)=>checks.push({name,pass:actual===expected,actual,expected});
 const env={MIGRATION_MODE:'open',PAYMENT_LIVE:'true',CHECKOUT_ENABLED:'false'};
