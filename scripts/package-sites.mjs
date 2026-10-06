@@ -1221,7 +1221,15 @@ async function authApi(request, env, pathname, ctx) {
       }
       return json({ error:'이메일·아이디 또는 비밀번호가 올바르지 않습니다.' }, 401);
     }
-    if (credential.status !== 'active') return json({ error:credential.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
+    if (credential.status !== 'active') {
+      // Only explain migration holds after the password has been verified. Do not expose
+      // account existence or staff notes to unauthenticated credential guesses.
+      if (credential.status === 'suspended') {
+        const migrationHold = await env.DB.prepare("SELECT 1 AS held FROM account_admin_profiles p WHERE p.account_id=? AND instr(COALESCE(p.admin_note,''),'MIGRATION_HOLD')>0 AND EXISTS (SELECT 1 FROM auth_login_aliases l WHERE l.account_id=p.account_id AND l.source='rankup')").bind(credential.accountId).first();
+        if (migrationHold) return json({ error:'기존 회원정보의 이전 확인이 진행 중입니다. 확인이 완료되면 이용할 수 있습니다. 도움이 필요하면 메디헬퍼스에 문의해주세요.', code:'ACCOUNT_MIGRATION_PENDING' },403);
+      }
+      return json({ error:credential.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
+    }
     email = credential.email;
     await env.DB.prepare('UPDATE auth_credentials SET failed_attempts=0, locked_until=NULL, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
     await env.DB.prepare('UPDATE account_admin_profiles SET last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE account_id=?').bind(credential.accountId).run();
