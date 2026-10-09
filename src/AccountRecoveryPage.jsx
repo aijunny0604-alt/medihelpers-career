@@ -116,8 +116,9 @@ export default function AccountRecoveryPage() {
           <span className="recovery-icon"><LockKeyhole /></span>
           <h2>새 비밀번호 입력</h2>
           <p>이메일로 받은 일회용 링크를 확인했습니다. 계정에 사용할 새 비밀번호를 설정합니다.</p>
-          <label><span>새 비밀번호</span><input required minLength="8" name="password" type="password" autoComplete="new-password" placeholder="영문·숫자 포함 8자 이상" /></label>
-          <label><span>새 비밀번호 확인</span><input required minLength="8" name="passwordConfirm" type="password" autoComplete="new-password" placeholder="새 비밀번호를 한 번 더 입력" /></label>
+          <label><span>새 비밀번호</span><input required minLength="8" maxLength="128" pattern="(?=.*[a-zA-Z])(?=.*[0-9]).{8,128}" title="영문과 숫자를 모두 포함해 8~128자로 입력해주세요." name="password" type="password" autoComplete="new-password" placeholder="영문·숫자 포함 8~128자" aria-describedby="reset-password-help" /></label>
+          <p id="reset-password-help">영문과 숫자를 모두 포함해 8~128자로 입력해주세요. 아래 확인란에도 같은 비밀번호를 입력해주세요.</p>
+          <label><span>새 비밀번호 확인</span><input required minLength="8" maxLength="128" name="passwordConfirm" type="password" autoComplete="new-password" placeholder="새 비밀번호를 한 번 더 입력" /></label>
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button primary full" type="submit" disabled={submitting}>{submitting ? '변경 중' : '비밀번호 변경'} {!submitting && <ArrowRight />}</button>
         </form> : <form onSubmit={requestRecovery}>

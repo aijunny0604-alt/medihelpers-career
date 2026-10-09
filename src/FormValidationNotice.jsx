@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { fieldValidationLabel, fieldValidationMessage } from './formValidation.js';
 
 export default function FormValidationNotice() {
   const [notice, setNotice] = useState(null);
@@ -12,8 +13,7 @@ export default function FormValidationNotice() {
           .filter(el => !el.disabled && (el.getAttribute('aria-invalid') === 'true' || (el.willValidate && !el.validity.valid)));
         if (!fields.length) return setNotice(null);
         const first = fields.find(el => el.getBoundingClientRect().height > 1) || fields[0];
-        const label = first.labels?.[0]?.querySelector('span')?.textContent || first.getAttribute('aria-label') || first.labels?.[0]?.textContent || '필수 항목';
-        setNotice({ title: `${fields.length}개 항목을 확인해주세요`, message: `${label.trim().slice(0, 90)} — ${first.type === 'checkbox' ? '필수 동의를 확인해주세요.' : first.validity?.typeMismatch ? '입력 형식을 확인해주세요.' : '빨간색으로 표시된 항목을 입력하거나 확인해주세요.'}` });
+        setNotice({ title: `${fields.length}개 항목을 수정해주세요`, errors: fields.map(field => ({ label: fieldValidationLabel(field), message: fieldValidationMessage(field) })) });
         if (move) { first.scrollIntoView({ behavior:'instant', block:'center' }); first.focus({ preventScroll:true }); }
       });
     };
@@ -44,5 +44,5 @@ export default function FormValidationNotice() {
       document.removeEventListener('change', edit, true);
     };
   }, []);
-  return notice && <aside className="validation-notice" role="alert"><div><strong>등록 전 확인: {notice.title}</strong><p>{notice.message}</p></div><button type="button" aria-label="입력 안내 닫기" onClick={() => setNotice(null)}>×</button></aside>;
+  return notice && <aside className="validation-notice" role="alert"><div><strong>{notice.title}</strong><ul>{notice.errors.map((error, index) => <li key={index}><b>{error.label}</b> — {error.message}</li>)}</ul></div><button type="button" aria-label="입력 안내 닫기" onClick={() => setNotice(null)}>×</button></aside>;
 }
