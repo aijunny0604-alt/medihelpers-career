@@ -14,7 +14,7 @@
 
 ## 장애 안내 보완
 
-`server/serviceFailure.js`는 D1의 명시적 일일 read/write limit 오류만503으로 분류하고 Retry-After/no-store/다음UTC자정 시각을 제공한다. 사용자 문구는 오전9시 이후 재시도와 결제내역 선확인을 안내하며 내부 SQL/공급자 오류를 노출하지 않는다. 일반DB오류와 순환cause는 기존 처리로 남는다. 전체18묶음1,618개(단위444개), 생성 Worker의 실제 응답5개 검사, 일반/Cloudflare 빌드 및 diff 검사 통과. 이 문서 작성 시점에는 새 오류안내 후보 미배포이며 기존 Worker52e5f83c 유지.
+`server/serviceFailure.js`는 D1의 명시적 일일 read/write limit 오류만503으로 분류하고 Retry-After/no-store/다음UTC자정 시각을 제공한다. 사용자 문구는 오전9시 이후 재시도와 결제내역 선확인을 안내하며 내부 SQL/공급자 오류를 노출하지 않는다. 일반DB오류와 순환cause는 기존 처리로 남는다. 전체18묶음1,619개(단위445개), 생성 Worker의 실제 응답5개 검사, 일반/Cloudflare 빌드 및 diff 검사 통과. 서버 안내는7989037/Worker27fa2643-39cf-4ef7-806e-07e2d1afad51로 배포했고 실제API503·SERVICE_DAILY_LIMIT·Retry-After/no-store를 확인했다. 이어서 조회 실패를 공고0건으로 표시하던 목록 화면을 중단 안내로 바꾸고 실패 재조회를15초 억제했다. 이 후속 화면 후보는 아래 배포 기록에서 확인한다.
 
 ## 복구와 증거
 

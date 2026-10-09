@@ -17,12 +17,22 @@ let requestRevision = 0;
 // 짧은 TTL을 두고, 등록 성공 시에는 invalidateSiteOperations()로 즉시 캐시를 버린다.
 const OPERATIONS_TTL_MS = 15000;
 
+export function siteOperationsFailure(value) {
+  return value?.code === 'SERVICE_DAILY_LIMIT'
+    ? { error:true, errorCode:'SERVICE_DAILY_LIMIT', errorMessage:'현재 채용정보 조회가 일시 중단되었습니다. 한국시간 오전 9시 이후 다시 이용해 주세요. 등록된 공고가 삭제된 것은 아닙니다.' }
+    : { error:true, errorCode:'UNAVAILABLE', errorMessage:'정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.' };
+}
+
 function loadOperations(force = false) {
   const stale = force || !pending || (Date.now() - fetchedAt > OPERATIONS_TTL_MS);
   if (stale) {
     const revision = ++requestRevision;
     pending = fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin' })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('site operations unavailable')))
+      .then(async (response) => {
+        if (response.ok) return response.json();
+        const value = await response.json().catch(() => null);
+        throw siteOperationsFailure(value);
+      })
       .then((value) => {
         if (revision !== requestRevision) return pending;
         value = sanitizeDisplayData(value);
@@ -30,7 +40,12 @@ function loadOperations(force = false) {
         fetchedAt = Date.now();
         return cached;
       })
-      .catch(() => revision !== requestRevision ? pending : { ...cached, error:true });
+      .catch((error) => {
+        if (revision !== requestRevision) return pending;
+        // A failing service should not be retried on every route/focus event.
+        fetchedAt = Date.now();
+        return { ...cached, ...siteOperationsFailure({ code:error?.errorCode }) };
+      });
   }
   return pending;
 }

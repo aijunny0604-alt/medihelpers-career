@@ -3706,7 +3706,8 @@ export function App() {
   const auth = useAuthGate(qa);
   let page;
   const remoteDetailRoute = ['/jobs/', '/headhunting/posts/', '/medical-staff/talents/', '/medical-staff/jobs/'].some(prefix => path.startsWith(prefix));
-  if (remoteDetailRoute && (!operations.ready || operations.error)) page = <section className="not-found" role="status"><h1>{operations.error ? '정보를 불러오지 못했습니다' : '최신 정보를 불러오고 있습니다'}</h1><p>{operations.error ? '연결 상태를 확인한 뒤 다시 시도해주세요.' : '공고와 회원 권한을 확인하고 있습니다.'}</p>{operations.error && <button className="button primary" onClick={() => { invalidateSiteOperations(); window.dispatchEvent(new PopStateEvent('popstate')); }}>다시 불러오기</button>}</section>;
+  const remoteListRoute = ['/', '/jobs', '/medical-staff', '/headhunting'].includes(path);
+  if ((remoteDetailRoute && !operations.ready) || ((remoteDetailRoute || remoteListRoute) && operations.error)) page = <section className="not-found" role="status"><h1>{operations.error ? '정보를 불러오지 못했습니다' : '최신 정보를 불러오고 있습니다'}</h1><p>{operations.error ? operations.errorMessage : '공고와 회원 권한을 확인하고 있습니다.'}</p>{operations.error && operations.errorCode !== 'SERVICE_DAILY_LIMIT' && <button className="button primary" onClick={() => { invalidateSiteOperations(); window.dispatchEvent(new PopStateEvent('popstate')); }}>다시 불러오기</button>}</section>;
   else if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} />;
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {

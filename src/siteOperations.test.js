@@ -7,7 +7,16 @@ import {
   operationalDoctorJobs,
   operationalMedicalJobs,
   operationalTalent,
+  siteOperationsFailure,
 } from './siteOperations.js';
+
+test('조회 실패는 공고 0건과 구분하고 공급자 오류 원문을 표시하지 않는다', () => {
+  const limited = siteOperationsFailure({code:'SERVICE_DAILY_LIMIT',error:'private SQL'});
+  assert.equal(limited.errorCode, 'SERVICE_DAILY_LIMIT');
+  assert.match(limited.errorMessage, /오전 9시/);
+  assert.doesNotMatch(limited.errorMessage, /private SQL/);
+  assert.equal(siteOperationsFailure({code:'OTHER',error:'private SQL'}).errorCode, 'UNAVAILABLE');
+});
 
 test('공개 공고 만료는 방문자 시간대와 무관하게 한국 자정 및 원 계약을 따른다', () => {
   const exposure = { start:'2026-09-01', days:13, end:'2099-01-01' };
