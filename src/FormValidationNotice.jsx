@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { fieldValidationLabel, fieldValidationMessage } from './formValidation.js';
 
 export default function FormValidationNotice() {
@@ -44,5 +45,5 @@ export default function FormValidationNotice() {
       document.removeEventListener('change', edit, true);
     };
   }, []);
-  return notice && <aside className="validation-notice" role="alert"><div><strong>{notice.title}</strong><ul>{notice.errors.map((error, index) => <li key={index}><b>{error.label}</b> — {error.message}</li>)}</ul></div><button type="button" aria-label="입력 안내 닫기" onClick={() => setNotice(null)}>×</button></aside>;
+  return notice && <aside className="validation-notice" role="alert"><div><strong>{notice.title}</strong><ul>{notice.errors.map((error, index) => <li key={index}><b>{error.label}</b> — {error.message}</li>)}</ul></div><button type="button" aria-label="입력 안내 닫기" onClick={() => setNotice(null)}><X size={22} aria-hidden="true" /></button></aside>;
 }

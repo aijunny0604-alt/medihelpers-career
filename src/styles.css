@@ -6468,3 +6468,10 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .payment-exceptions th, .payment-exceptions td { padding: 12px; text-align: left; border-bottom: 1px solid #e5dfd3; min-width: 100px; }
 .payment-exceptions td:first-child { overflow-wrap: anywhere; min-width: 220px; }
 .payment-exceptions td small { display: block; margin-top: 6px; }
+
+/* Keep dismissal aligned to the notice edge, independent of message length. */
+.validation-notice > div{flex:1;min-width:0;max-height:calc(40vh - 40px);overflow:auto}
+.validation-notice button{margin-left:auto;display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;padding:0;line-height:1}
+.validation-notice button svg{display:block;flex:none}
+.validation-notice button:focus-visible{outline:3px solid #1263e8;outline-offset:2px}
+@media(max-width:620px){.validation-notice > div{max-height:calc(32vh - 32px)}}
