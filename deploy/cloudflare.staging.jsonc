@@ -36,6 +36,7 @@
     "INICIS_TAX_CONTRACT": "exempt",
     "PAYMENT_PRODUCT_TAX_JSON": "{\"basic\":\"exempt\",\"featured\":\"exempt\",\"talent-unlock-single\":\"exempt\",\"talent-unlock-pack\":\"exempt\",\"talent-unlock-pack30\":\"exempt\"}",
     "INICIS_REFUNDS_ENABLED": "false",
+    "INICIS_REFUND_MODE": "manual",
     "CHECKOUT_ENABLED": "false",
     "MIGRATION_MODE": "open",
     "LEGAL_DOCUMENT_STATUS": "draft"

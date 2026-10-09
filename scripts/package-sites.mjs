@@ -3657,6 +3657,8 @@ if (!inlineAssets) {
     '# 이전 준비 중 신규 환경은 점검 상태. 대사/승인 후에만 open으로 전환.',
     'MIGRATION_MODE = "drain"',
     'CHECKOUT_ENABLED = "false"',
+    'INICIS_REFUND_MODE = "manual"',
+    'INICIS_REFUNDS_ENABLED = "false"',
     'LEGAL_DOCUMENT_STATUS = "draft"',
     '# ADMIN_EMAILS는 검증된 실제 운영자만 secret으로 설정한다.',
     ''
