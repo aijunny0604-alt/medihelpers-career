@@ -3,6 +3,7 @@ import { postPublicUntil } from '../src/jobPostLifecycle.js';
 import { migrationControl, migrationGate } from '../src/migrationGate.js';
 import { normalizeContactPhone } from '../src/contactPhone.js';
 import { normalizeWebsiteUrl } from '../src/websiteUrl.js';
+import { serviceFailure } from '../server/serviceFailure.js';
 import { talent } from '../src/data.js';
 import { demoTalentDetail } from '../src/talentDetailAccess.js';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -114,6 +115,7 @@ ${migrationControl.toString()}
 ${migrationGate.toString()}
 ${normalizeContactPhone.toString()}
 ${normalizeWebsiteUrl.toString()}
+${serviceFailure.toString()}
 const html = ${JSON.stringify(html)};
 const builtAssets = ${JSON.stringify(builtAssets)};
 const logoSvg = ${JSON.stringify(logoSvg)};
@@ -3629,6 +3631,8 @@ export default {
       let isApi = false;
       try { isApi = new URL(request.url).pathname.startsWith('/api/'); } catch {}
       if (isApi && error instanceof URIError) return json({ error:'주소 형식이 올바르지 않습니다.' }, 400);
+      const unavailable = serviceFailure(error);
+      if (unavailable) return new Response(isApi ? JSON.stringify(unavailable.body) : unavailable.body.error, { status:unavailable.status, headers:{ ...unavailable.headers, 'content-type':isApi ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8' } });
       if (isApi) {
         return new Response(JSON.stringify({ error: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' }), { status: 500, headers: { 'content-type': 'application/json; charset=utf-8' } });
       }
