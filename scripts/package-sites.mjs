@@ -94,12 +94,15 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
 ].join('\n');
 const inicisServer = (await readFile('server/inicisStandard.js', 'utf8')).replace(/^export /gm, '');
 const manualRefundServer = (await readFile('server/manualInicisRefund.js', 'utf8')).replace(/^export /gm, '');
+const dbInitializationServer = (await readFile('server/dbInitialization.js', 'utf8')).replace(/^export /gm, '');
 const paymentExceptionsServer = (await readFile('server/paymentExceptions.js', 'utf8')).replace(/^export /gm, '');
 const paymentLedgerServer = (await readFile('server/paymentLedger.js', 'utf8')).replace(/^export /gm, '');
 const uploadsServer = (await readFile('server/d1Uploads.js', 'utf8')).replace(/^export /gm, '');
 const retentionServer = (await readFile('server/d1Retention.js', 'utf8')).replace(/^export /gm, '');
 const server = `${inicisServer}
 ${manualRefundServer}
+${dbInitializationServer}
+const initializeDbOnce = createDbInitializer();
 ${paymentLedgerServer}
 ${paymentExceptionsServer}
 ${uploadsServer}
@@ -436,11 +439,15 @@ async function ensureRecruitmentCrmSchema(env) {
 }
 async function ensureAdminConsoleSchema(env) {
   if (!env || !env.DB) throw new Error('ADMIN_CONSOLE_DB_UNAVAILABLE');
+  return initializeDbOnce(env.DB, 'admin-console-schema-v1', async () => {
   await env.DB.batch(adminConsoleSchemaStatements.map(statement => env.DB.prepare(statement)));
   // 마이그레이션: 이미 생성된 admin_content_records 테이블에 sort_order가 없으면 추가(상단 고정용).
   // CREATE TABLE IF NOT EXISTS는 기존 테이블을 안 바꾸므로, 배포 이전 생성분에는 컬럼이 없어 SELECT가 실패한다.
   // '중복 컬럼' 에러는 이미 있다는 뜻이므로 무시한다.
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
+  // Verify the required column before caching success; transient ALTER errors must retry.
+  await env.DB.prepare('SELECT sort_order FROM admin_content_records LIMIT 0').first();
+  });
 }
 async function ensureHospitalVerificationSchema(env) {
   await ensureSchemaGroup(env, 'hospital-verification', 'SELECT 1 FROM hospital_verification_requests LIMIT 0', hospitalVerificationSchemaStatements, 'HOSPITAL_VERIFICATION_DB_UNAVAILABLE');
@@ -2903,6 +2910,9 @@ function talentRevokeStatementsForOrder(env, orderId) {
   ];
 }
 async function seedAdminConsole(env) {
+  return initializeDbOnce(env.DB, 'admin-console-defaults-v1', () => seedAdminConsoleDefaults(env));
+}
+async function seedAdminConsoleDefaults(env) {
   const categories = [
     ['doctor_specialty','한의사','korean-medicine',5], ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','외과','general-surgery',20],
     ['doctor_specialty','정형외과','orthopedics',30], ['doctor_specialty','신경외과','neurosurgery',40],
