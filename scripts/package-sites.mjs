@@ -94,12 +94,14 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
 ].join('\n');
 const inicisServer = (await readFile('server/inicisStandard.js', 'utf8')).replace(/^export /gm, '');
 const manualRefundServer = (await readFile('server/manualInicisRefund.js', 'utf8')).replace(/^export /gm, '');
+const paymentExceptionsServer = (await readFile('server/paymentExceptions.js', 'utf8')).replace(/^export /gm, '');
 const paymentLedgerServer = (await readFile('server/paymentLedger.js', 'utf8')).replace(/^export /gm, '');
 const uploadsServer = (await readFile('server/d1Uploads.js', 'utf8')).replace(/^export /gm, '');
 const retentionServer = (await readFile('server/d1Retention.js', 'utf8')).replace(/^export /gm, '');
 const server = `${inicisServer}
 ${manualRefundServer}
 ${paymentLedgerServer}
+${paymentExceptionsServer}
 ${uploadsServer}
 ${retentionServer}
 function getUploadStorage(env) {
@@ -3159,6 +3161,7 @@ async function adminConsoleApi(request, env, ctx) {
       payments:(paymentResult.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure:normalizeExposureWindow(meta.exposure) }; }),
       transactions:transactionResult.results || [],
       refunds:(refundResult.results || []).map(({manualConfirmationJson,...row})=>({...row,manualConfirmation:manualConfirmationJson ? parseJsonObject(manualConfirmationJson) : null})),
+      paymentExceptions:await readPaymentExceptions(env.DB),
       inicisRefundMode:env.INICIS_REFUND_MODE === 'manual' ? 'manual' : 'automatic',
       audit:auditResult.results || [],
       consultations:(consultationResult.results || []).map(row => {

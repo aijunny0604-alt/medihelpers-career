@@ -6460,3 +6460,11 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .job-seeker-contact-fields small{display:block;margin-top:12px;color:#62758e;line-height:1.6}
 .job-seeker-contact-fields>.button{margin-top:16px}
 @media(max-width:720px){.job-detail .detail-hero-banner.has-banner-copy>div{left:18px;right:18px;bottom:18px}.job-seeker-contact-fields .form-grid{grid-template-columns:1fr}}
+
+.payment-exceptions { padding: 20px; border: 1px solid #ebc78d; border-radius: 16px; background: #fffbf2; margin: 20px 0; }
+.payment-exceptions p { line-height: 1.6; }
+.payment-exceptions-table { overflow-x: auto; }
+.payment-exceptions table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.payment-exceptions th, .payment-exceptions td { padding: 12px; text-align: left; border-bottom: 1px solid #e5dfd3; min-width: 100px; }
+.payment-exceptions td:first-child { overflow-wrap: anywhere; min-width: 220px; }
+.payment-exceptions td small { display: block; margin-top: 6px; }
