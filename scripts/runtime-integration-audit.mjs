@@ -77,6 +77,26 @@ record('ad order ownership enforced',(await call('/api/member-center','other',{a
 const oldExposure=one('SELECT payload_json p FROM admin_content_records WHERE id=?',ad.contentRecordId).p;
 record('owner banner edit',(await call('/api/member-center','hospital',{action:'owned_ad_update',contentRecordId:ad.contentRecordId,content:{title:'수정 연동 공고',hospital:'연동 검수 병원',department:'내과',address:'서울',banner:'/banners/templates/wellness-mint-v1.jpg',brandImageLayout:'template-overlay'}})).status,200);
 const edited=one('SELECT payload_json p FROM admin_content_records WHERE id=?',ad.contentRecordId).p;
+// Publishing migrated ads must not publish archived owner/contact provenance.
+const mediaFixture={...JSON.parse(edited),migration:{sourceUrl:'https://legacy.invalid/job',originalFields:{privateMarker:'ARCHIVE_ONLY_SENTINEL'},ownerMapping:{accountId:'private-owner'}},
+  facilityPhotos:['/legacy-media/gallery.png'],posterImages:['/legacy-media/body.png']};
+sqlite.prepare('UPDATE admin_content_records SET payload_json=? WHERE id=?').run(JSON.stringify(mediaFixture),ad.contentRecordId);
+for(const role of ['', 'doctor','hospital','admin']) {
+  const result=await call('/api/site-operations',role);
+  const payload=result.data.contents.find(item=>item.id===ad.contentRecordId)?.payload;
+  record('migration metadata absent for '+(role||'anonymous'),!!payload&&!Object.hasOwn(payload,'migration'),true);
+  record('archive sentinel absent for '+(role||'anonymous'),JSON.stringify(result.data).includes('ARCHIVE_ONLY_SENTINEL'),false);
+  record('gallery retained for '+(role||'anonymous'),payload?.facilityPhotos?.[0],'/legacy-media/gallery.png');
+  record('body image retained for '+(role||'anonymous'),payload?.posterImages?.[0],'/legacy-media/body.png');
+}
+record('public reads preserve private archive',JSON.parse(one('SELECT payload_json p FROM admin_content_records WHERE id=?',ad.contentRecordId).p).migration.originalFields.privateMarker,'ARCHIVE_ONLY_SENTINEL');
+const nonAdMigration={...mediaFixture,description:'PRIVATE_LEGACY_DETAIL_SENTINEL'};delete nonAdMigration.adTier;
+sqlite.prepare('UPDATE admin_content_records SET payload_json=? WHERE id=?').run(JSON.stringify(nonAdMigration),ad.contentRecordId);
+const anonymousLegacy=await call('/api/site-operations');
+record('unclassified legacy details absent for anonymous',JSON.stringify(anonymousLegacy.data).includes('PRIVATE_LEGACY_DETAIL_SENTINEL'),false);
+record('unclassified legacy poster refs absent for anonymous',anonymousLegacy.data.contents.find(item=>item.id===ad.contentRecordId)?.payload.posterImages,undefined);
+record('authorized legacy details retained',JSON.stringify((await call('/api/site-operations','doctor')).data).includes('PRIVATE_LEGACY_DETAIL_SENTINEL'),true);
+sqlite.prepare('UPDATE admin_content_records SET payload_json=? WHERE id=?').run(edited,ad.contentRecordId);
 record('edit preserves paid exposure',JSON.stringify(JSON.parse(edited).exposure),JSON.stringify(JSON.parse(oldExposure).exposure));
 record('edit syncs order banner',JSON.parse(one('SELECT metadata_json p FROM payment_orders WHERE order_number=?',ad.orderNumber).p).banner,'/banners/templates/wellness-mint-v1.jpg');
 const application={...consent,thirdPartyConsent:true,recipient:'메디헬퍼스 테스트병원',requestType:'doctor',payload:{name:'가상 의료인',phone:'01000000000',specialty:'내과',jobId:'admin-'+ad.contentRecordId,resumeId:resume.data.id}};

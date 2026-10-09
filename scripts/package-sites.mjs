@@ -2984,6 +2984,11 @@ async function publicSiteOperationsApi(request, env) {
   // 단 병원이 비용을 낸 광고 공고(adTier)는 널리 알리는 것이 목적이므로 급여를 공개한다.
   const sensitiveFields = ['pay','workHours','daysOff','fullAddress','businessNumber','representative','doctorCount','dailyVolume','staffCount','equipment','beds','website'];
   const stripSensitive = (contentType, payload) => {
+    // Migration provenance contains archived source fields and owner mappings.
+    // Keep it in the admin record, never in this public/member-facing response,
+    // including when an administrator opens the public site or the ad is paid.
+    const { migration, ...displayPayload } = payload;
+    payload = displayPayload;
     if (canViewSensitive) return payload;
     if (contentType !== 'doctor_job' && contentType !== 'medical_job') return payload;
     const isAd = Boolean(payload.adTier);
@@ -2991,6 +2996,9 @@ async function publicSiteOperationsApi(request, env) {
     if (isAd && !isPrivate) return payload; // 유료 광고 공고는 공개
     const filtered = { ...payload, locked: true };
     for (const field of sensitiveFields) if (field in filtered) delete filtered[field];
+    // Legacy scraped descriptions/posters can repeat salary and contact fields.
+    // Until classified as a public ad, do not return that raw copy to anonymous readers.
+    if (migration) { delete filtered.description; delete filtered.posterImages; }
     return filtered;
   };
   // 기간제 유료 공고: payload.exposureEnd(YYYY-MM-DD)가 지난 공고는 서버에서 제외해 노출을 중단한다.
