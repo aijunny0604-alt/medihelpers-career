@@ -1,4 +1,5 @@
 import RefundReview from './RefundReview.jsx';
+import PaymentLedgerDownload from './PaymentLedgerDownload.jsx';
 import { paymentAmounts } from './paymentAmounts.js';
 import { confirmAction } from './confirmAction.js';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -825,6 +826,7 @@ function Payments({ data }) {
   useEffect(() => { if (!selected && filtered[0]) setSelectedId(filtered[0].id); }, [selected, filtered]);
   return <section className="admin-panel admin-payment-manager">
     <header><div><small>PAYMENT LEDGER</small><h2>결제 · 거래 · 환불 통합 원장</h2><p>주문번호를 기준으로 결제 결과와 환불 기록을 조회합니다. 환불 요청은 아래 확인 절차를 거쳐 처리합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 결제 승인 기록 보호</span></header>
+    <PaymentLedgerDownload />
     <div className="admin-payment-metrics">
       <article><span>전체 주문</span><strong>{data.metrics.payments || 0}건</strong></article>
       <article><span>처리 대기</span><strong>{data.metrics.pendingPayments || 0}건</strong></article>

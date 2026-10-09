@@ -6433,6 +6433,11 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .payment-history>div>small,.refund-request-row details {overflow-wrap:anywhere;min-width:0}
 .payment-history>div>time {grid-column:1 / -1;color:#78899d}
 .refund-request-row>div {min-width:0;width:100%}
+.payment-ledger-download {padding:18px;margin:16px 0;border:1px solid #d6e3f3;border-radius:12px;background:#f6f9fe}
+.payment-ledger-download p {font-size:13px;color:#61748e;line-height:1.7}
+.payment-ledger-download>div {display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.payment-ledger-download label {display:grid;gap:6px;font-size:13px}
+.payment-ledger-download input {padding:10px;border:1px solid #cbdaf0;border-radius:8px;background:white;color:#10213f;min-width:0}
 .action-confirm-buttons .button {font-size:17px;min-height:52px}
 .signup-welcome-page .signup-confetti {display:none}
 .signup-welcome-card {box-shadow:0 20px 70px #10213f12;border:1px solid #dbe5f0}

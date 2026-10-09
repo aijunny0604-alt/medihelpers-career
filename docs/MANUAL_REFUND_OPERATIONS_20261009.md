@@ -35,3 +35,7 @@ GitHub 기준 브랜치와 Sites 소스 미러에 같은 소스를 반영한다.
 [이니시스 PC 웹결제](https://manual.inicis.com/pay/stdpay_pc.html)의 승인·예외 망취소 요청에는 INIAPI의 clientIp 필드가 없다. [방화벽 안내](https://www.inicis.com/blog/archives/121212)는 상점 IP 사전 등록이 필요하지 않다고 안내한다. 이 사실은 기존 MID의 새 사이트 실제 승인을 검증했다는 의미가 아니다. 일반 취소 API의 서버 IP 문제는 향후 자동 환불 도입 때 별도로 해결한다.
 
 검사 로그와 합성 화면: Git 밖 `C:/Users/ROSSA/medihelpers-audit-20260927/manual-refund-audit-20261009.log`, `manual-refund-ui-20261009.png`.
+
+## 날짜별 원장 대조 추가
+
+관리자 결제·환불 원장의 CSV 다운로드로 한국 날짜별 승인·취소를 대조할 수 있다. 홈페이지 기록 날짜와 PG 취소 날짜가 다를 수 있으므로 두 시각을 함께 확인한다. 이니시스에서만 처리한 취소는 자동 수집되지 않는다. [조회 범위와 검증](PAYMENT_LEDGER_EXPORT_20261009.md)을 따라 양쪽 원 TID·금액·상태를 확인한다. 추가 후 전체 검사 수는 1,589개다.

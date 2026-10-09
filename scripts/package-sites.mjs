@@ -94,10 +94,12 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
 ].join('\n');
 const inicisServer = (await readFile('server/inicisStandard.js', 'utf8')).replace(/^export /gm, '');
 const manualRefundServer = (await readFile('server/manualInicisRefund.js', 'utf8')).replace(/^export /gm, '');
+const paymentLedgerServer = (await readFile('server/paymentLedger.js', 'utf8')).replace(/^export /gm, '');
 const uploadsServer = (await readFile('server/d1Uploads.js', 'utf8')).replace(/^export /gm, '');
 const retentionServer = (await readFile('server/d1Retention.js', 'utf8')).replace(/^export /gm, '');
 const server = `${inicisServer}
 ${manualRefundServer}
+${paymentLedgerServer}
 ${uploadsServer}
 ${retentionServer}
 function getUploadStorage(env) {
@@ -3384,6 +3386,19 @@ async function paymentInquiryApi(request,env) {
     return json({error:config?'이니시스 거래 조회 설정 확인이 필요합니다.':'이니시스 거래 결과를 확인하지 못했습니다. 반복 결제·취소하지 말고 가맹점 관리자에서 확인해주세요.',reconciliationRequired:true},config?503:409);
   }
 }
+async function paymentLedgerApi(request,env) {
+  if (!await adminIdentity(request,env)) return json({error:'관리자 권한이 필요합니다.'},403);
+  if (request.method !== 'GET') return json({error:'지원하지 않는 요청입니다.'},405);
+  const params=new URL(request.url).searchParams,start=params.get('start'),end=params.get('end');
+  try {
+    const csv=await readPaymentLedger(env.DB,start,end);
+    return new Response(csv,{headers:{'content-type':'text/csv; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','content-disposition':'attachment; filename="medihelpers-ledger-'+start+'-'+end+'.csv"'}});
+  } catch(error) {
+    if(error.message==='INVALID_DATE_RANGE')return json({error:'조회 기간을 31일 이내의 올바른 날짜로 입력해주세요.'},400);
+    if(error.message==='LEDGER_RANGE_TOO_LARGE')return json({error:'거래가 10,000건을 초과했습니다. 누락 방지를 위해 기간을 줄여 다시 내려받아 주세요.'},400);
+    return json({error:'결제 원장을 내려받지 못했습니다. 잠시 후 다시 시도해주세요.'},503);
+  }
+}
 async function refundReviewApi(request,env) {
   if (!await adminIdentity(request,env)) return json({error:'관리자 권한이 필요합니다.'},403);
   if (request.method !== 'POST') return json({error:'지원하지 않는 요청입니다.'},405);
@@ -3472,6 +3487,7 @@ async function responseFor(request, env, ctx) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/work/employ_detail.html') return legacyRecruitmentLink(request,env);
   if (pathname === '/api/admin-payment-inquiry') return paymentInquiryApi(request,env);
+  if (pathname === '/api/admin-payment-ledger') return paymentLedgerApi(request,env);
   if (pathname === '/api/admin-refund-review') return refundReviewApi(request,env);
   if (pathname === '/api/categories') return publicCategoriesApi(request, env);
   if (pathname === '/api/site-operations') return publicSiteOperationsApi(request, env);
