@@ -1,3 +1,4 @@
+import { koreanInputToIso } from './koreanTime.js';
 import React, { useState } from 'react';
 import { confirmAction } from './confirmAction.js';
 import { withBase } from './basePath.js';
@@ -17,11 +18,12 @@ function ManualRefundRecord({refund}) {
  async function submit(event) {
   event.preventDefault();
   const canceledAt=new FormData(event.currentTarget).get('canceledAt');
-  if(!canceledAt || !Number.isFinite(Date.parse(canceledAt))){setMessage('취소 완료 시각을 입력해주세요.');return;}
+  let canceledAtIso;
+  try { canceledAtIso=koreanInputToIso(canceledAt); } catch {setMessage('올바른 한국 시각으로 취소 완료 시각을 입력해주세요.');return;}
   if(!await confirmAction('이니시스 관리자에서 이미 전액 취소된 거래를 홈페이지에 반영합니다. 이 주문의 광고 노출과 열람권이 회수됩니다. 여기서는 카드 취소를 요청하지 않습니다.',{title:'취소 완료 기록 반영',confirmLabel:'확인 후 반영'}))return;
   setBusy(true);setMessage('');
   try {
-   const response=await fetch(withBase('/api/admin-refund-review'),{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({refundId:refund.id,decision:'record_external',evidence:{...evidence,amount:Number(evidence.amount),canceledAt:new Date(canceledAt).toISOString()}})});
+   const response=await fetch(withBase('/api/admin-refund-review'),{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({refundId:refund.id,decision:'record_external',evidence:{...evidence,amount:Number(evidence.amount),canceledAt:canceledAtIso}})});
    const result=await response.json();if(!response.ok)throw Error(result.error);
    setSaved(true);setMessage('취소 완료 기록과 이용 권한 회수를 저장했습니다. 목록을 새로고침해 확인해주세요.');
   }catch(error){setMessage(error.message);}finally{setBusy(false);}
@@ -33,7 +35,7 @@ function ManualRefundRecord({refund}) {
   <fieldset disabled={busy||saved}>
    <label>원 거래번호(TID)<input required maxLength={100} value={evidence.tid} onChange={e=>field('tid',e.target.value.trim())} /></label>
    <label>전액 취소 금액(원)<input required type="number" min="1" step="1" value={evidence.amount} onChange={e=>field('amount',e.target.value)} /></label>
-   <label>취소 완료 시각(현재 기기 시간대)<input required type="datetime-local" step="1" name="canceledAt" /></label>
+   <label>취소 완료 시각(한국 시각 KST)<input required type="datetime-local" step="1" name="canceledAt" /></label>
    <label>확인 근거<input required minLength={5} maxLength={200} placeholder="예: 이니시스 거래내역의 전액 취소 완료 확인" value={evidence.reference} onChange={e=>field('reference',e.target.value)} /></label>
    <label className="manual-refund-confirm"><input required type="checkbox" checked={evidence.confirmed} onChange={e=>field('confirmed',e.target.checked)} />원 주문·거래번호·금액을 대조했고 이니시스에서 전액 취소 완료를 확인했습니다.</label>
    <button className="button danger" type="submit">취소 완료 기록 반영</button>
