@@ -192,3 +192,8 @@ test('초기화: clearDraftFields 는 PII 없는 깨끗한 draft와 false 동의
   assert.equal(cleared.ageConfirmed, false);
   assert.equal(allConsentsAccepted(cleared), false);
 });
+
+test('signup password rejects more than the server limit before submission', () => {
+  assert.equal(validateField('password', {password:'a1'+'x'.repeat(127)}), '비밀번호는 128자 이하로 입력해주세요.');
+  assert.equal(validateField('password', {password:'a1'+'x'.repeat(126)}), '');
+});

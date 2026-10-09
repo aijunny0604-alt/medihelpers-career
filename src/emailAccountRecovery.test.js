@@ -34,7 +34,7 @@ test('계정 찾기 응답은 계정 존재와 내부 접수번호를 공개하�
   assert.match(server, /return json\(\{ accepted:true, emailDeliveryAvailable \}, 202\)/);
   assert.doesNotMatch(server, /return json\(\{ accepted:true, requestId/);
   assert.doesNotMatch(page, /requestId/);
-  assert.match(page, /입력한 이메일과 일치하는 계정이 있으면/);
+  assert.match(page, /입력한 이메일 또는 기존 아이디와 일치하는 계정이 있으면/);
 });
 
 test('이메일 발송은 Resend 환경설정을 요구하고 30분 일회용 링크를 안내한다', () => {

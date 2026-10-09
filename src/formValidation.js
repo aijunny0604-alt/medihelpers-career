@@ -1,5 +1,10 @@
 export function fieldValidationMessage(field) {
   const v = field.validity || {};
+  if (field.getAttribute?.('aria-invalid') === 'true') {
+    const errorIds = field.getAttribute('aria-errormessage') || field.getAttribute('aria-describedby') || '';
+    const detail = errorIds.split(/\s+/).filter(id => id.endsWith('-error')).map(id => field.ownerDocument?.getElementById(id)?.textContent).filter(Boolean).join(' ');
+    if (detail) return detail;
+  }
   if (v.valueMissing) {
     if (field.type === 'checkbox') return '계속하려면 이 필수 동의에 체크해주세요.';
     if (field.type === 'radio' || field.tagName === 'SELECT') return '항목을 하나 선택해주세요.';

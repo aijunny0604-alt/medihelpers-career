@@ -4,7 +4,7 @@ import { withBase } from './basePath.js';
 
 const genericMessage = {
   id: '입력한 정보와 일치하는 계정이 있으면 가입 이메일로 아이디 안내를 발송합니다. 도착하지 않으면 잠시 후 다시 확인해주세요.',
-  password: '입력한 이메일과 일치하는 계정이 있으면 비밀번호 재설정 링크를 발송합니다. 도착하지 않으면 잠시 후 다시 확인해주세요.',
+  password: '입력한 이메일 또는 기존 아이디와 일치하는 계정이 있으면 등록된 이메일로 비밀번호 재설정 링크를 발송합니다.',
 };
 
 export default function AccountRecoveryPage() {
@@ -49,7 +49,7 @@ export default function AccountRecoveryPage() {
       if (!response.ok || !result.accepted) throw new Error(result.error || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.');
       setRequestResult({ emailDeliveryAvailable: result.emailDeliveryAvailable !== false });
     } catch (submitError) {
-      setError(submitError.message || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.');
+      setError(submitError instanceof TypeError ? '서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.' : submitError.message || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -79,7 +79,7 @@ export default function AccountRecoveryPage() {
       window.history.replaceState({}, '', withBase('/account/recovery?mode=password'));
       setResetComplete(true);
     } catch (submitError) {
-      setError(submitError.message || '비밀번호를 변경하지 못했습니다.');
+      setError(submitError instanceof TypeError ? '서버 응답을 확인하지 못했습니다. 로그인 화면에서 변경 여부를 확인한 뒤 다시 시도해주세요.' : submitError.message || '비밀번호를 변경하지 못했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -109,17 +109,18 @@ export default function AccountRecoveryPage() {
           <span><Check /></span>
           <h2>{doneTitle}</h2>
           <p>{doneText}</p>
+          {!resetComplete && <p>가입할 때 등록한 메일함과 스팸함을 확인해주세요. 메일이 오지 않으면 입력한 정보를 확인하고 다시 요청해주세요. 등록 이메일을 사용할 수 없다면 고객센터 051-342-5463으로 문의해주세요.</p>}
           {resetComplete
             ? <a className="button primary" href={withBase('/login')}>로그인하기 <ArrowRight /></a>
             : <button className="button primary" type="button" onClick={() => setRequestResult(null)}>다시 요청하기</button>}
         </div> : link.isReset ? <form onSubmit={resetPassword}>
           <span className="recovery-icon"><LockKeyhole /></span>
           <h2>새 비밀번호 입력</h2>
-          <p>이메일로 받은 일회용 링크를 확인했습니다. 계정에 사용할 새 비밀번호를 설정합니다.</p>
+          <p>새 비밀번호를 입력한 뒤 변경 버튼을 눌러주세요. 링크의 만료·사용 여부는 변경 요청 시 확인합니다.</p>
           <label><span>새 비밀번호</span><input required minLength="8" maxLength="128" pattern="(?=.*[a-zA-Z])(?=.*[0-9]).{8,128}" title="영문과 숫자를 모두 포함해 8~128자로 입력해주세요." name="password" type="password" autoComplete="new-password" placeholder="영문·숫자 포함 8~128자" aria-describedby="reset-password-help" /></label>
           <p id="reset-password-help">영문과 숫자를 모두 포함해 8~128자로 입력해주세요. 아래 확인란에도 같은 비밀번호를 입력해주세요.</p>
           <label><span>새 비밀번호 확인</span><input required minLength="8" maxLength="128" name="passwordConfirm" type="password" autoComplete="new-password" placeholder="새 비밀번호를 한 번 더 입력" /></label>
-          {error && <p className="form-error" role="alert">{error}</p>}
+          {error && <div className="form-error" role="alert"><p>{error}</p><a href={withBase('/account/recovery?mode=password')}>링크가 만료되었나요? 새 재설정 메일 요청하기</a></div>}
           <button className="button primary full" type="submit" disabled={submitting}>{submitting ? '변경 중' : '비밀번호 변경'} {!submitting && <ArrowRight />}</button>
         </form> : <form onSubmit={requestRecovery}>
           <span className="recovery-icon">{mode === 'id' ? <Mail /> : <LockKeyhole />}</span>

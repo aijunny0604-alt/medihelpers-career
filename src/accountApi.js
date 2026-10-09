@@ -8,7 +8,7 @@ export async function authRequest(action, body = {}) {
     credentials: 'same-origin',
     headers: formData ? { 'x-mh-session-fallback': 'session-storage' } : { 'content-type': 'application/json', 'x-mh-session-fallback': 'session-storage' },
     body: formData ? body : JSON.stringify(body)
-  });
+  }).catch(() => { throw new Error('서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.'); });
   const data = await response.json().catch(() => ({}));
   if (data.sessionToken) storeSessionToken(data.sessionToken);
   if (action === 'logout') clearSessionToken();

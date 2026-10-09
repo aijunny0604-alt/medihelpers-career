@@ -72,7 +72,7 @@ const FIELD_META = {
   name: { label: '담당자 성명', type: 'text', autoComplete: 'name', placeholder: '예: 홍길동' },
   phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, maxLength: 13, hint: '숫자만 입력해도 하이픈이 자동으로 표시됩니다. 상담·채용 연락에만 사용합니다.' },
   email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.', wide: true, compact: true },
-  password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8자 이상', hint: '영문과 숫자를 포함해 8자 이상으로 만들어주세요.' },
+  password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8~128자', hint: '영문과 숫자를 모두 포함해 8~128자로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
   professionType: {
     label: '의료 직군',
@@ -629,11 +629,11 @@ function LoginCard({ testAccountsEnabled = false }) {
     <span className="signup-card-icon"><LockKeyhole /></span>
     <small>MEDIHELPERS ACCOUNT</small>
     <h2>메디헬퍼스 로그인</h2>
-    <p>가입 이메일 또는 이전이 완료된 기존 아이디로 로그인합니다.</p>
+    <p>새로 가입한 회원은 가입 이메일을, 이전이 완료된 기존 회원은 기존 아이디를 입력해주세요. 메일함 로그인 비밀번호가 아닌 메디헬퍼스 비밀번호를 사용합니다.</p>
     <form onSubmit={submit}>
       <label><span>이메일 또는 기존 아이디</span><input type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="이메일 또는 기존 아이디" maxLength={254} required /></label>
       <label><span>비밀번호</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="비밀번호를 입력해주세요" maxLength={128} required /></label>
-      {error && <p className="signup-error" role="alert">{error}</p>}
+      {error && <div className="signup-error" role="alert"><p>{error}</p><p>아이디와 비밀번호의 오타, 한/영 입력 및 Caps Lock을 확인해주세요. 비밀번호가 기억나지 않으면 아래 재설정 메뉴를 이용해주세요.</p></div>}
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 로그인 중</> : <>로그인 <ArrowRight /></>}</button>
     </form>
     <div className="signup-login-join">
@@ -644,7 +644,8 @@ function LoginCard({ testAccountsEnabled = false }) {
       </div>
       <a className="signup-login-join-button" href={withBase('/signup')}><UserRound /> 회원가입하기 <ArrowRight /></a>
     </div>
-    <a className="signup-recovery-link" href={withBase('/account/recovery?mode=password')}>비밀번호를 잊으셨나요?</a>
+    <a className="signup-recovery-link" href={withBase('/account/recovery')}>아이디·가입 이메일 찾기</a>
+    <a className="signup-recovery-link" href={withBase('/account/recovery?mode=password')}>비밀번호 재설정</a>
     {DEMO_MODE && testAccountsEnabled && <div className="login-test-accounts">
       <small>테스트 계정으로 바로 로그인</small>
       <div className="login-test-buttons">
