@@ -357,10 +357,10 @@ async function ensureSchemaGroup(env, key, probeSql, statements, unavailableCode
 async function ensureAccountSchema(env) {
   // 새 계정 기능을 추가한 기존 D1에서도 전체 계정 스키마 문장을 한 번 실행하도록
   // 가장 최근 테이블을 probe한다. CREATE IF NOT EXISTS라 기존 회원 데이터는 유지된다.
-  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets, processing_consent_events, auth_login_aliases, account_contact_identities LIMIT 1', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets, processing_consent_events, auth_login_aliases, account_contact_identities LIMIT 0', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
 }
 async function ensureConsultationSchema(env) {
-  return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 1', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 0', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
 }
 const postPublicUntil = ${postPublicUntil.toString()}
 ${resumePublicationMissing.toString()};
@@ -374,7 +374,7 @@ async function expireJobPosts(env) {
 }
 async function ensureMemberCenterSchema(env) {
   // 기존 운영 DB에도 구직글 원장과 이력서 연결을 추가하도록 최신 테이블을 probe로 사용한다.
-  await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts, member_registration_profiles LIMIT 1', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
+  await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts, member_registration_profiles LIMIT 0', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
   if (!schemaReadyPromises.has('job-post-contacts-v1')) {
     schemaReadyPromises.set('job-post-contacts-v1', (async () => {
       const columns = await env.DB.prepare('PRAGMA table_info(job_seeker_posts)').all();
@@ -409,7 +409,7 @@ async function ensureMemberCenterSchema(env) {
   catch (error) { schemaReadyPromises.delete('member-unlock-date-v1'); throw error; }
 }
 async function ensureCommerceSchema(env) {
-  return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events, ad_renewal_reservations, payment_pg_attempts, payment_pg_refunds LIMIT 1', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'commerce', 'SELECT 1 FROM payment_webhook_events, ad_renewal_reservations, payment_pg_attempts, payment_pg_refunds LIMIT 0', commerceSchemaStatements, 'COMMERCE_DB_UNAVAILABLE');
 }
 // 열람권 '묶음(팩)' 크레딧 풀. 병원이 팩을 사면 크레딧 N개가 적립되고,
 // 새 인재를 열 때마다 크레딧 1개를 소모해 그 인재 열람권(talent_unlocks)을 발급한다.
@@ -443,7 +443,7 @@ async function ensureAdminConsoleSchema(env) {
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
 }
 async function ensureHospitalVerificationSchema(env) {
-  await ensureSchemaGroup(env, 'hospital-verification', 'SELECT 1 FROM hospital_verification_requests LIMIT 1', hospitalVerificationSchemaStatements, 'HOSPITAL_VERIFICATION_DB_UNAVAILABLE');
+  await ensureSchemaGroup(env, 'hospital-verification', 'SELECT 1 FROM hospital_verification_requests LIMIT 0', hospitalVerificationSchemaStatements, 'HOSPITAL_VERIFICATION_DB_UNAVAILABLE');
   // 병원 가입은 사업자등록증 제출 이력만 남기고 즉시 완료한다. 이전 배포에서
   // pending/rejected 상태로 로그인까지 막힌 계정도 계정 정지(status)와는 별개로 정상화한다.
   // 같은 Worker 인스턴스에서는 한 번만 실행되며, 조건부 UPDATE라 반복 실행해도 안전하다.
@@ -1712,7 +1712,7 @@ async function memberCenterApi(request, env) {
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
     if (account.role === 'hospital') {
-      await ensureSchemaGroup(env, 'hospital-member-dependencies', 'SELECT 1 FROM admin_content_records, candidate_submissions LIMIT 1', [...adminConsoleSchemaStatements, ...recruitmentCrmSchemaStatements], 'MEMBER_CENTER_DB_UNAVAILABLE');
+      await ensureSchemaGroup(env, 'hospital-member-dependencies', 'SELECT 1 FROM admin_content_records, candidate_submissions LIMIT 0', [...adminConsoleSchemaStatements, ...recruitmentCrmSchemaStatements], 'MEMBER_CENTER_DB_UNAVAILABLE');
       await publishLegacyPaidAdContentRecords(env);
     }
     const alertStatement = env.DB.prepare("SELECT id, kind, title, body, action_url AS actionUrl, read_at AS readAt, created_at AS createdAt FROM member_notifications WHERE account_id=? AND kind<>'inquiry_reply' ORDER BY created_at DESC LIMIT 100").bind(account.id);
