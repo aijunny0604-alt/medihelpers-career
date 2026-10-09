@@ -343,7 +343,7 @@ export default function AdminConsolePage({ qa = false }) {
           <button className="admin-console-logout" type="button" onClick={logout} disabled={loggingOut}>
             <LogOut /><span>{loggingOut ? '로그아웃 중…' : '로그아웃'}</span>
           </button>
-          <div className="admin-security-note"><ShieldCheck /><p><strong>최소 권한 운영 원칙</strong><br />공고·결제·회원 기록은 조회 전용입니다. 병원 확인용 서류는 확인 완료 후 원본을 삭제할 수 있습니다.</p></div>
+          <div className="admin-security-note"><ShieldCheck /><p><strong>최소 권한 운영 원칙</strong><br />공고·회원 기록을 조회하고, 환불 요청과 병원 확인용 서류는 정해진 절차에 따라 처리합니다.</p></div>
         </aside>
         <main className="admin-workspace">
           <header className="admin-page-head">
@@ -824,7 +824,7 @@ function Payments({ data }) {
   const selected = (data.payments || []).find((payment) => payment.id === selectedId) || filtered[0] || null;
   useEffect(() => { if (!selected && filtered[0]) setSelectedId(filtered[0].id); }, [selected, filtered]);
   return <section className="admin-panel admin-payment-manager">
-    <header><div><small>PAYMENT LEDGER</small><h2>결제 · 거래 · 환불 통합 원장</h2><p>주문번호를 기준으로 회원, 상품, 공급가·부가세, 결제 결과와 환불 기록을 읽기 전용으로 조회합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 처리·승인 불가</span></header>
+    <header><div><small>PAYMENT LEDGER</small><h2>결제 · 거래 · 환불 통합 원장</h2><p>주문번호를 기준으로 결제 결과와 환불 기록을 조회합니다. 환불 요청은 아래 확인 절차를 거쳐 처리합니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 결제 승인 기록 보호</span></header>
     <div className="admin-payment-metrics">
       <article><span>전체 주문</span><strong>{data.metrics.payments || 0}건</strong></article>
       <article><span>처리 대기</span><strong>{data.metrics.pendingPayments || 0}건</strong></article>
@@ -841,12 +841,12 @@ function Payments({ data }) {
         {filtered.map((payment) => <button className={payment.id === selected?.id ? 'active' : ''} onClick={() => setSelectedId(payment.id)} key={payment.id}><span className={`payment-status ${payment.status}`}>{paymentStatusLabel[payment.status] || payment.status}</span><div><strong>{payment.productName}</strong><small>{payment.orderNumber}</small><small>{payment.customerName} · {payment.customerEmail}</small>{payment.exposure && <small className="payment-exposure">노출 {payment.exposure.start} ~ {payment.exposure.end}</small>}</div><b>{Number(payment.totalAmount).toLocaleString()}원</b><time>{String(payment.createdAt || '').slice(0,16)}</time></button>)}
         {!filtered.length && <div className="admin-data-empty">조건에 맞는 결제 주문이 없습니다.</div>}
       </div>
-      {selected ? <PaymentDetail payment={selected} transactions={data.transactions || []} refunds={data.refunds || []} /> : <div className="admin-payment-detail admin-data-empty">확인할 주문을 선택해주세요.</div>}
+      {selected ? <PaymentDetail key={selected.id} payment={selected} transactions={data.transactions || []} refunds={data.refunds || []} refundMode={data.inicisRefundMode} /> : <div className="admin-payment-detail admin-data-empty">확인할 주문을 선택해주세요.</div>}
     </div>
   </section>;
 }
 
-function PaymentDetail({ payment, transactions, refunds }) {
+function PaymentDetail({ payment, transactions, refunds, refundMode }) {
   const [showReceipt, setShowReceipt] = useState(false);
   const orderTransactions = transactions.filter((item) => item.orderId === payment.id);
   const orderRefunds = refunds.filter((item) => item.orderId === payment.id);
@@ -863,7 +863,7 @@ function PaymentDetail({ payment, transactions, refunds }) {
       {payment.exposure && <div><dt>노출 기간</dt><dd>{payment.exposure.start} ~ {payment.exposure.end} <small>{payment.exposure.days ? `${payment.exposure.days}일 상품` : ''}{new Date(`${String(payment.exposure.end).slice(0,10)}T23:59:59`).getTime() < Date.now() ? ' · 노출 종료' : ' · 노출 중'}</small></dd></div>}
     </dl>
     <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{String(item.processedAt || '').slice(0,16)}</time></div>)}{!orderTransactions.length && <p>아직 저장된 거래 기록이 없습니다.</p>}</section>
-    <section className="payment-refund-requests"><h4><RotateCcw />환불 기록</h4>{orderRefunds.map((item) => <div key={item.id} className="refund-request-row"><div><strong>{Number(item.amount || 0).toLocaleString()}원 · {item.status}</strong><small>{item.reason || '사유 미입력'}</small><small>요청자 {item.requestedBy || '회원'} · {String(item.processedAt || item.createdAt || '').slice(0,16)}</small>{['requested','processing'].includes(item.status) && <RefundReview refund={item} virtual={!orderTransactions.some(row=>row.provider==='inicis' && row.transactionType==='capture')} />}</div></div>)}{!orderRefunds.length && <p>저장된 환불 기록이 없습니다.</p>}</section>
+    <section className="payment-refund-requests"><h4><RotateCcw />환불 기록</h4>{orderRefunds.map((item) => <div key={item.id} className="refund-request-row"><div><strong>{Number(item.amount || 0).toLocaleString()}원 · {item.status}</strong><small>{item.reason || '사유 미입력'}</small>{item.manualConfirmation && <details><summary>이니시스 관리자 취소 · 운영자 확인 기록</summary><p>확인자: {item.manualConfirmation.recordedBy}<br />취소 시각: {formatAdminTime(item.manualConfirmation.canceledAt)} KST<br />거래번호: {item.manualConfirmation.tid}<br />확인 근거: {item.manualConfirmation.reference}<br />홈페이지 기록: {formatAdminTime(item.manualConfirmation.recordedAt)} KST</p></details>}<small>요청자 {item.requestedBy || '회원'} · {String(item.processedAt || item.createdAt || '').slice(0,16)}</small>{['requested','processing'].includes(item.status) && <RefundReview refund={item} manual={refundMode === 'manual'} virtual={!orderTransactions.some(row=>row.provider==='inicis' && row.transactionType==='capture')} />}</div></div>)}{!orderRefunds.length && <p>저장된 환불 기록이 없습니다.</p>}</section>
   </div>;
 }
 

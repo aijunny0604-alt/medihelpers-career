@@ -6424,6 +6424,15 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .renew-ad-action {display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:16px}
 .renew-ad-action>a {font-size:14px;color:#41658d;text-decoration:underline}
 .refund-review-actions {display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.manual-refund-form {max-width:640px;margin-top:16px;display:grid;gap:12px}
+.manual-refund-form fieldset {border:0;padding:0;margin:0;display:grid;gap:12px;min-width:0}
+.manual-refund-form label {display:grid;gap:6px;font-size:14px}
+.manual-refund-form input:not([type="checkbox"]) {width:100%;min-width:0;padding:12px;border:1px solid #cbdaf0;border-radius:8px;background:white;color:#10213f}
+.manual-refund-form .manual-refund-confirm {display:flex;align-items:flex-start;gap:8px}
+.payment-history>div {grid-template-columns:70px 80px minmax(0,1fr)}
+.payment-history>div>small,.refund-request-row details {overflow-wrap:anywhere;min-width:0}
+.payment-history>div>time {grid-column:1 / -1;color:#78899d}
+.refund-request-row>div {min-width:0;width:100%}
 .action-confirm-buttons .button {font-size:17px;min-height:52px}
 .signup-welcome-page .signup-confetti {display:none}
 .signup-welcome-card {box-shadow:0 20px 70px #10213f12;border:1px solid #dbe5f0}

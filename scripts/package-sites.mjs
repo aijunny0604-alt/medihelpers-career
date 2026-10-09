@@ -93,9 +93,11 @@ const sitesOnlyExports = target === 'cloudflare' ? '' : [
   "export async function renderPage(request, url) { const pathname = new URL(url, request.url).pathname; if (pathname.includes('.')) return new Response('Not Found', { status: 404 }); return responseFor(new Request(new URL(pathname, request.url))); }",
 ].join('\n');
 const inicisServer = (await readFile('server/inicisStandard.js', 'utf8')).replace(/^export /gm, '');
+const manualRefundServer = (await readFile('server/manualInicisRefund.js', 'utf8')).replace(/^export /gm, '');
 const uploadsServer = (await readFile('server/d1Uploads.js', 'utf8')).replace(/^export /gm, '');
 const retentionServer = (await readFile('server/d1Retention.js', 'utf8')).replace(/^export /gm, '');
 const server = `${inicisServer}
+${manualRefundServer}
 ${uploadsServer}
 ${retentionServer}
 function getUploadStorage(env) {
@@ -3122,7 +3124,7 @@ async function adminConsoleApi(request, env, ctx) {
       env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, a.updated_at AS updatedAt, COALESCE(ap.email,'') email, COALESCE(ap.full_name,'') fullName, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus, ap.last_login_at AS lastLoginAt, COALESCE(mp.phone,'') phone, COALESCE(mp.organization,'') organization, COALESCE(mp.job_title,'') jobTitle, (SELECT json_extract(rp.profile_json,'$.hospitalDocument.status') FROM member_registration_profiles rp WHERE rp.account_id=a.id) hospitalDocumentStatus, (SELECT COUNT(*) FROM consent_records cr WHERE cr.account_id=a.id) consentCount, (SELECT COUNT(*) FROM payment_orders po WHERE po.account_id=a.id) orderCount, COALESCE((SELECT SUM(po.total_amount) FROM payment_orders po WHERE po.account_id=a.id AND po.status='paid'),0) lifetimeValue FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id LEFT JOIN member_profiles mp ON mp.account_id=a.id ORDER BY a.created_at DESC LIMIT 500").all(),
       env.DB.prepare("SELECT po.id, po.order_number AS orderNumber, po.account_id AS accountId, CASE WHEN po.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE po.product_type END AS productType, po.product_id AS productId, po.product_name AS productName, po.supply_amount AS supplyAmount, po.tax_amount AS taxAmount, po.total_amount AS totalAmount, po.status, po.payment_method AS paymentMethod, po.customer_name AS customerName, po.customer_email AS customerEmail, po.customer_phone AS customerPhone, po.metadata_json AS metadataJson, po.admin_note AS adminNote, po.paid_at AS paidAt, po.cancelled_at AS cancelledAt, po.created_at AS createdAt, po.updated_at AS updatedAt, a.role accountRole FROM payment_orders po JOIN accounts a ON a.id=po.account_id ORDER BY po.created_at DESC LIMIT 500").all(),
       env.DB.prepare("SELECT id, order_id AS orderId, transaction_type AS transactionType, provider, provider_transaction_id AS providerTransactionId, amount, status, failure_code AS failureCode, failure_message AS failureMessage, processed_at AS processedAt FROM payment_transactions ORDER BY created_at DESC LIMIT 1000").all(),
-      env.DB.prepare("SELECT id, order_id AS orderId, transaction_id AS transactionId, amount, reason, status, requested_by AS requestedBy, provider_refund_id AS providerRefundId, processed_at AS processedAt, created_at AS createdAt FROM payment_refunds ORDER BY created_at DESC LIMIT 500").all(),
+      env.DB.prepare("SELECT id, order_id AS orderId, transaction_id AS transactionId, amount, reason, status, requested_by AS requestedBy, provider_refund_id AS providerRefundId, processed_at AS processedAt, created_at AS createdAt, (SELECT json_set(e.detail_json,'$.recordedBy',e.actor_key,'$.recordedAt',e.created_at) FROM payment_events e WHERE e.id='inicis-manual-refund-event-'||payment_refunds.order_id) AS manualConfirmationJson FROM payment_refunds ORDER BY created_at DESC LIMIT 500").all(),
       env.DB.prepare('SELECT id, actor_email AS actor, action, subject, created_at AS createdAt FROM admin_audit_logs ORDER BY created_at DESC LIMIT 100').all(),
       env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, phone, email, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, email_notification_status AS emailNotificationStatus, sms_notification_status AS smsNotificationStatus, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE json_extract(payload_json,'$.jobId') IS NULL AND COALESCE(json_extract(payload_json,'$.submissionChannel'),'') <> 'paid_job_direct' ORDER BY created_at DESC LIMIT 300").all(),
       env.DB.prepare("SELECT c.id, c.consultation_id AS consultationId, c.hospital_name AS hospitalName, c.specialty, c.position_title AS positionTitle, c.stage, c.assigned_recruiter AS assignedRecruiter, c.success_fee_terms AS successFeeTerms, c.estimated_fee AS estimatedFee, c.next_action AS nextAction, c.billing_status AS billingStatus, c.hired_at AS hiredAt, c.created_at AS createdAt, c.updated_at AS updatedAt, COUNT(s.id) AS candidateCount FROM recruitment_cases c LEFT JOIN candidate_submissions s ON s.case_id = c.id GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 300").all(),
@@ -3154,7 +3156,8 @@ async function adminConsoleApi(request, env, ctx) {
       members:memberResult.results || [],
       payments:(paymentResult.results || []).map(row => { const { metadataJson, ...rest } = row; const meta = parseJsonObject(metadataJson) || {}; return { ...rest, exposure:normalizeExposureWindow(meta.exposure) }; }),
       transactions:transactionResult.results || [],
-      refunds:refundResult.results || [],
+      refunds:(refundResult.results || []).map(({manualConfirmationJson,...row})=>({...row,manualConfirmation:manualConfirmationJson ? parseJsonObject(manualConfirmationJson) : null})),
+      inicisRefundMode:env.INICIS_REFUND_MODE === 'manual' ? 'manual' : 'automatic',
       audit:auditResult.results || [],
       consultations:(consultationResult.results || []).map(row => {
         let payload = {};
@@ -3386,7 +3389,7 @@ async function refundReviewApi(request,env) {
   if (request.method !== 'POST') return json({error:'지원하지 않는 요청입니다.'},405);
   if (!sameOrigin(request)) return json({error:'허용되지 않은 요청입니다.'},403);
   let body;try{body=await readRequestObject(request);}catch{return json({error:'요청 내용을 확인해주세요.'},400);}
-  if (!['approve','reject'].includes(body.decision)) return json({error:'처리 방식을 확인해주세요.'},400);
+  if (!['approve','reject','record_external'].includes(body.decision)) return json({error:'처리 방식을 확인해주세요.'},400);
   await ensureCommerceSchema(env);await ensureTalentCreditSchema(env);
   const refund=await env.DB.prepare("SELECT r.id,r.order_id AS orderId,r.status,r.reason,o.status AS orderStatus,o.total_amount AS totalAmount,o.metadata_json AS metadataJson FROM payment_refunds r JOIN payment_orders o ON o.id=r.order_id WHERE r.id=?").bind(String(body.refundId || '')).first();
   if (!refund || !['requested','processing'].includes(refund.status)) return json({error:'처리 대기 중인 환불 요청이 아닙니다.'},409);
@@ -3396,7 +3399,17 @@ async function refundReviewApi(request,env) {
   }
   const transactions=await env.DB.prepare("SELECT provider,provider_transaction_id AS tid,amount FROM payment_transactions WHERE order_id=? AND transaction_type='capture' AND status='succeeded'").bind(refund.orderId).all();
   const captures=transactions.results||[];
+  if (body.decision === 'record_external') {
+    if (env.INICIS_REFUND_MODE !== 'manual' || env.INICIS_REFUNDS_ENABLED === 'true') return json({error:'관리자 확인 방식의 환불 기록이 활성화되지 않았습니다.'},503);
+    if (refund.status !== 'requested' || refund.orderStatus !== 'paid' || captures.length !== 1 || captures[0].provider !== 'inicis' || Number(captures[0].amount)!==Number(refund.totalAmount)) return json({error:'전액 취소 기록을 반영할 수 없는 주문입니다. 부분 취소·처리 중 거래는 별도 대사가 필요합니다.'},409);
+    let evidence;
+    try { evidence=manualRefundEvidence(body,refund,captures[0]); } catch { return json({error:'원 거래번호, 전액 취소 금액, 취소 시각과 확인 근거를 정확히 입력해주세요.'},400); }
+    try { await recordManualInicisRefund(env,refund,captures[0],evidence,(await authenticatedUser(request,env)).email,talentRevokeStatementsForOrder(env,refund.orderId)); }
+    catch { return json({error:'환불 기록을 반영하지 못했습니다. 이미 처리됐거나 저장에 실패했습니다. 목록을 새로고침해 확인해주세요.'},409); }
+    return json({saved:true,refunded:true,manual:true,verification:'operator_attestation'});
+  }
   if (captures.some(row=>row.provider==='inicis')) {
+    if (env.INICIS_REFUND_MODE === 'manual') return json({error:'이니시스 관리자에서 전액 취소한 뒤 취소 완료 기록을 반영해주세요.'},409);
     if (env.INICIS_REFUNDS_ENABLED !== 'true') return json({error:'이니시스 취소 연동은 아직 활성화되지 않았습니다. PG 설정과 검증을 먼저 완료해주세요.'},503);
     const prior=await env.DB.prepare("SELECT COUNT(*) AS count FROM payment_transactions WHERE order_id=? AND transaction_type='refund' AND status='succeeded'").bind(refund.orderId).first();
     if (refund.orderStatus !== 'paid' || captures.length !== 1 || Number(captures[0].amount)!==Number(refund.totalAmount) || prior.count) return json({error:'전액 카드 취소 가능한 결제 상태가 아닙니다.'},409);

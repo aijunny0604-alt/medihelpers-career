@@ -8,7 +8,7 @@ const suites=[
  ['cloudflare-http-methods',['scripts/runtime-http-methods-audit.mjs','--cloudflare'],'json'],
  ['cloudflare-legacy-links',['scripts/runtime-legacy-links-audit.mjs','--cloudflare'],'json'],
  ...['readiness','admin-storage','member-flow','integration','hospital-document',
- 'transition-contact','talent-unlock','mobile-assets','legacy-login','legacy-links','http-methods','inicis','adversarial']
+ 'transition-contact','talent-unlock','mobile-assets','legacy-login','legacy-links','http-methods','inicis','manual-refund','adversarial']
  .map(name=>[name,['scripts/runtime-'+name+'-audit.mjs'],'json']),
 ];
 const results=[];
