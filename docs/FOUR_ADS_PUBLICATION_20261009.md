@@ -28,3 +28,9 @@ Git 밖 `C:/Users/ROSSA/medihelpers-audit-20260927/`에 보관:
 - publication-precutover-tests.log
 
 역적용 SQL도 현재 값과 수정시각을 확인하므로 후속 편집을 덮어쓰지 않는다. 실행 전 새 백업과 충돌 여부 확인이 필요하다. 회원282명은 보호 보류, 운영자 포함283계정이며 기존 PG/랭크업 계약 및 서버는 변경하지 않았다.
+
+## 후속 배포 결과
+
+2026-10-09 후속 배포 완료: 앱127db0d / Worker71c13017-aa04-48da-9819-1c393a6e75ab. 실제 최신 자산·HTML no-store/noindex·한도API503/Retry-After·목록 중단 안내를 확인했다. D1 한도 재설정 예정은10월10일09:00 KST이며, 광고 실제 원격 조회 검수는 그 이후 필요하다. 추가 과금·정식 도메인 전환 없음.
+
+실제 `/jobs` 화면에서 공고0건 대신 복구시점 안내를 확인했다. 증거는 publication-ui-postdeploy-http.json, publication-ui-precutover-tests.log, staging-quota-notice-deployed.png. 이 상태는 결제·공고 조회 정상화 완료가 아니다. 실제 역할별 로그인은 한도 소진 중 재검사하지 않았고, 실카드 시험도 하지 않았다. 앱 소스127db0deeb12612f181cd1c7fe045c3af8ad674b는 GitHub/Sites 소스 미러 일치 후 Cloudflare에 배포했다. 후속 문서 커밋은 앱 동작을 바꾸지 않는다.
