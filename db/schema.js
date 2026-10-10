@@ -475,6 +475,9 @@ export const recruitmentCrmSchemaStatements = [
   `CREATE INDEX IF NOT EXISTS access_audit_logs_case_idx ON access_audit_logs(case_id, created_at DESC)`
 ];
 
+// Apply after the legacy sort_order column migration, including existing DBs.
+export const publicContentIndexStatement = 'CREATE INDEX IF NOT EXISTS admin_content_records_public_order_idx ON admin_content_records(status, sort_order DESC, published_at DESC, updated_at DESC)';
+
 export const adminConsoleSchemaStatements = [
   `CREATE TABLE IF NOT EXISTS admin_content_records (
     id TEXT PRIMARY KEY,

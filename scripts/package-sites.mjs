@@ -10,7 +10,7 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { backupUploadedAt } from '../src/adminStorage.js';
 import { PRIVACY_FORM_VERSION, PRIVACY_SCOPES, makeConsentSnapshot } from '../src/privacyConsent.js';
-import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, hospitalVerificationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements } from '../db/schema.js';
+import { accountSchemaStatements, adminConsoleSchemaStatements, commerceSchemaStatements, consultationSchemaStatements, hospitalVerificationSchemaStatements, memberCenterSchemaStatements, recruitmentCrmSchemaStatements, publicContentIndexStatement } from '../db/schema.js';
 import { addInclusiveExposureDays, buildExposureWindow, normalizeExposureWindow } from '../src/billingPeriods.js';
 
 // 빌드 타깃: 기본은 OpenAI Sites(정적 파일을 Worker에 base64 인라인).
@@ -449,6 +449,7 @@ async function ensureAdminConsoleSchema(env) {
   try { await env.DB.prepare('ALTER TABLE admin_content_records ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0').run(); } catch {}
   // Verify the required column before caching success; transient ALTER errors must retry.
   await env.DB.prepare('SELECT sort_order FROM admin_content_records LIMIT 0').first();
+  await env.DB.prepare(${JSON.stringify(publicContentIndexStatement)}).run();
   });
 }
 async function ensureHospitalVerificationSchema(env) {
