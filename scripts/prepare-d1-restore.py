@@ -5,7 +5,8 @@ parser.add_argument('source',type=pathlib.Path)
 parser.add_argument('output',type=pathlib.Path)
 args=parser.parse_args()
 if args.output.exists(): raise SystemExit('Output already exists; use a new path.')
-source=args.source.read_text(encoding='utf-8')
+# Text-mode newline conversion changes SQL string literals and schema text on Windows.
+source=args.source.read_bytes().decode('utf-8-sig')
 statements=[]; pending=''
 for line in source.splitlines(keepends=True):
  pending+=line
@@ -46,5 +47,5 @@ for name in names:
  quoted='"'+name.replace('"','""')+'"'
  assert sorted(a.execute('SELECT * FROM '+quoted).fetchall(),key=repr)==sorted(b.execute('SELECT * FROM '+quoted).fetchall(),key=repr)
 assert sorted(a.execute('SELECT type,name,sql FROM sqlite_master').fetchall(),key=repr)==sorted(b.execute('SELECT type,name,sql FROM sqlite_master').fetchall(),key=repr)
-with args.output.open('x',encoding='utf-8') as out: out.write(result)
+with args.output.open('xb') as out: out.write(result.encode('utf-8'))
 print(json.dumps({'tables':sum(bool(re.match(r'CREATE TABLE\b',s,re.I)) for s in tables),'dataStatements':len(data),'indexesAndTriggers':len(other),'exactDataAndSchema':True}))
