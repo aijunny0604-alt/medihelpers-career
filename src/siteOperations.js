@@ -105,10 +105,22 @@ export function isExposureExpired(payload = {}, epochMs = Date.now()) {
   return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(end || '')) && String(end) < todayKorea;
 }
 
+export function operationalJobRegion(payload = {}) {
+  if (payload.region) return payload.region;
+  const aliases = { 서울특별시:'서울', 부산광역시:'부산', 대구광역시:'대구', 인천광역시:'인천', 광주광역시:'광주', 대전광역시:'대전', 울산광역시:'울산', 세종특별자치시:'세종', 경기도:'경기', 강원도:'강원', 강원특별자치도:'강원', 충청북도:'충북', 충청남도:'충남', 전라북도:'전북', 전북특별자치도:'전북', 전라남도:'전남', 경상북도:'경북', 경상남도:'경남', 제주도:'제주', 제주특별자치도:'제주' };
+  const regions = new Set(['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주','전국']);
+  for (const value of [payload.primary, payload.location]) {
+    const token = String(value || '').trim().split(/[\s·]/)[0];
+    if (Object.hasOwn(aliases, token)) return aliases[token];
+    if (regions.has(token)) return token;
+  }
+  return String(payload.primary || '').trim().split(/[\s·]/)[0] || '전국';
+}
+
 export function operationalDoctorJobs(contents = [], { includeExpired = false } = {}) {
   return contents.filter((item) => item.contentType === 'doctor_job' && !isHeadhuntBoardContent(item) && (includeExpired || !isExposureExpired(item.payload))).map((item) => {
     const p = item.payload || {};
-    const region = p.region || String(p.primary || '').split(/[ ·]/)[0] || '전국';
+    const region = operationalJobRegion(p);
     return { website:p.website || '', specialties:p.specialties || '', established:p.established || '', doctorCount:p.doctorCount || '', staffCount:p.staffCount || '', equipment:p.equipment || '', beds:p.beds || '', representative:p.representative || '', businessNumber:p.businessNumber || '', postedDate:String(p.exposure?.start || item.publishedAt || item.createdAt || '').slice(0,10), id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title || '의사 초빙공고', location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.pay || p.salaryBasis || (!p.fromHospital && p.secondary) || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:p.fromHospital ? '병원 등록' : '관리자 등록', color:'#1769d4', summary:p.description || (p.fromHospital ? '병원에서 등록한 의사 초빙공고입니다.' : '메디헬퍼스 의사 초빙공고입니다.'), benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier === 'spotlight' ? 'featured' : (p.adTier || undefined), logo:p.logo || undefined, banner:p.banner || undefined, brandImageLayout:p.brandImageLayout || undefined, facility:p.facility || undefined, hospitalPhotos:Array.isArray(p.facilityPhotos) ? p.facilityPhotos : [], posterImages:Array.isArray(p.posterImages) ? p.posterImages : [], brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
   });
 }

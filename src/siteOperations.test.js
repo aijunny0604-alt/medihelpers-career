@@ -8,7 +8,25 @@ import {
   operationalMedicalJobs,
   operationalTalent,
   siteOperationsFailure,
+  operationalJobRegion,
 } from './siteOperations.js';
+
+test('주소만 있는 이전 공고도 실제 지역 필터에 포함된다', () => {
+  for (const [location, region] of [['인천 연수구','인천'],['경남 전지역','경남'],['경남 창원시','경남'],['강원 속초시','강원'],['강원특별자치도 속초시','강원'],['경상남도 창원시','경남']]) {
+    const payload = {location};
+    const [job] = operationalDoctorJobs([{id:'fixture',contentType:'doctor_job',payload}]);
+    assert.equal(job.region,region); assert.equal(job.location,location);
+    assert.deepEqual(payload,{location});
+  }
+});
+test('명시적 지역과 기존 primary는 보존하고 불명확한 주소를 추측하지 않는다', () => {
+  assert.equal(operationalJobRegion({region:'전국',location:'서울 강남구'}),'전국');
+  assert.equal(operationalJobRegion({primary:'부산 · 협의',location:'경남 창원시'}),'부산');
+  assert.equal(operationalJobRegion({location:'서울병원 본원'}),'전국');
+  assert.equal(operationalJobRegion({location:'constructor'}),'전국');
+  assert.equal(operationalJobRegion({primary:'해외',location:'상세 협의'}),'해외');
+  assert.equal(operationalJobRegion({}),'전국');
+});
 
 test('조회 실패는 공고 0건과 구분하고 공급자 오류 원문을 표시하지 않는다', () => {
   const limited = siteOperationsFailure({code:'SERVICE_DAILY_LIMIT',error:'private SQL'});
