@@ -979,13 +979,14 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
   };
   const isAd = Boolean(job.adTier);
   const adTierPresentation = getAdTierPresentation(job.adTier);
+  const serverRedacted = Boolean(job.detailsRedacted);
   // 병원이 비용을 낸 광고 공고는 널리 알리는 것이 목적이므로 급여·조건을 공개한다.
   // 비공개 헤드헌팅 포지션(badge === "비공개")만 상담 후 공개 대상으로 잠근다.
   const restricted = job.badge === "비공개";
   // 공개 공고는 비회원에게도 전체 조건을 제공한다. 비공개 포지션만 의료인·관리자에게 연다.
-  const memberUnlocked = qa?.active
+  const memberUnlocked = !serverRedacted && (qa?.active
     ? Boolean(!restricted || qa.info.capabilities.doctor || qa.info.capabilities.admin)
-    : Boolean(!restricted || (viewerAccess.signedIn && (viewerAccess.role === 'doctor' || viewerAccess.isAdmin)));
+    : Boolean(!restricted || (viewerAccess.signedIn && (viewerAccess.role === 'doctor' || viewerAccess.isAdmin))));
   const hospitalViewer = Boolean(!viewerAccess.loading && viewerAccess.signedIn && viewerAccess.role === 'hospital' && !viewerAccess.isAdmin);
   const qaUnlocked =
     restricted && memberUnlocked;
@@ -1156,7 +1157,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <div><small>VERIFIED DOCTOR DETAILS</small><h3>채용공고 상세조건</h3></div>
               </div>
               <span className="decision-sheet-status">
-                {!restricted ? <><BadgeCheck /> 누구나 전체 열람</> : viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : <><LockKeyhole /> 의료인 회원 전용</>}
+                {serverRedacted ? <><LockKeyhole /> 로그인 후 상세조건 확인</> : !restricted ? <><BadgeCheck /> 누구나 전체 열람</> : viewerAccess.loading ? <><LockKeyhole /> 회원 권한 확인 중</> : memberUnlocked ? <><BadgeCheck /> 상세정보 열람 중</> : <><LockKeyhole /> 의료인 회원 전용</>}
               </span>
             </div>
             <p className="decision-sheet-intro">
@@ -1170,7 +1171,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                     {rows.map(([label, value]) => (
                       <div key={label}>
                         <dt>{label}</dt>
-                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label="의료인 회원만 공개">의료인 회원 전용</span>}</dd>
+                        <dd>{memberUnlocked ? value : <span className="masked-detail" aria-label={serverRedacted ? '로그인 후 확인' : '의료인 회원만 공개'}>{serverRedacted ? '로그인 후 확인' : '의료인 회원 전용'}</span>}</dd>
                       </div>
                     ))}
                   </dl>
@@ -1179,7 +1180,12 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
               {!memberUnlocked && (
                 <div className="decision-sheet-lock-overlay">
                   <span><LockKeyhole /></span>
-                  {viewerAccess.loading ? <>
+                  {serverRedacted ? <>
+                    <small>MEMBER ACCESS</small>
+                    <strong>로그인 후 상세조건을 확인해 주세요</strong>
+                    <p>현재 상세정보가 제공되지 않아 조건을 표시하지 않았습니다.</p>
+                    <a className="button primary" href={withBase(`/login?next=${encodeURIComponent(`/jobs/${job.id}`)}`)}>로그인하고 확인하기</a>
+                  </> : viewerAccess.loading ? <>
                     <small>MEMBER ACCESS</small>
                     <strong>회원 권한 확인 중</strong>
                     <p>현재 로그인 정보를 확인하고 있습니다.</p>

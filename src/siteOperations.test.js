@@ -11,6 +11,17 @@ import {
   operationalJobRegion,
 } from './siteOperations.js';
 
+test('server-redacted job details retain the access state instead of inventing pay or summary', () => {
+  const [locked] = operationalDoctorJobs([{id:'private-fixture',contentType:'doctor_job',payload:{locked:true}}]);
+  assert.equal(locked.detailsRedacted,true);
+  assert.equal(locked.pay,'로그인 후 공개');
+  assert.match(locked.summary,/로그인 후/);
+  const [publicJob] = operationalDoctorJobs([{id:'public-fixture',contentType:'doctor_job',payload:{pay:'원문 급여',description:'원문 본문'}}]);
+  assert.equal(publicJob.detailsRedacted,false);
+  assert.equal(publicJob.pay,'원문 급여');
+  assert.equal(publicJob.summary,'원문 본문');
+});
+
 test('주소만 있는 이전 공고도 실제 지역 필터에 포함된다', () => {
   for (const [location, region] of [['인천 연수구','인천'],['경남 전지역','경남'],['경남 창원시','경남'],['강원 속초시','강원'],['강원특별자치도 속초시','강원'],['경상남도 창원시','경남']]) {
     const payload = {location};
