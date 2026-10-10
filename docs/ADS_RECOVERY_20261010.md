@@ -9,3 +9,9 @@
 원본 증거는 Git 밖 감사 폴더의 public-ads-http-20261010.json, public-ads-api-20261010-private.json, ad-assets-http-20261010.json, ads-recovered-desktop-20261010.png, ad-mobile-20261010.png, recovery-checks-20261010.log에 보관한다. 원격 쓰기·회원 활성화·결제·정식DNS 변경 없음. 무료한도 복구는 확인했지만 하루 실제 사용량 감소나 부하 한계까지 검증한 것은 아니다.
 
 로딩 수정 배포 결과는 후속 기록을 참조한다.
+
+## 배포 결과
+
+2026-10-10 검수 배포 완료: e0afe4e / Worker babfe610-ce7f-47f5-919b-6a4b96446cee. 최신 자산·HTML200/no-store/noindex·공개API200/광고4건·실제 목록 표시 확인. www DNS121.254.171.115 유지.
+
+GitHub 기준 브랜치와 Sites 소스 main 동일 SHA를 확인한 뒤 Cloudflare 검수에만 배포했다. 자료는 recovery-postdeploy-20261010.json, ads-final-deployed-20261010.png. 변경후 실제 목록4건 표시를 확인했다. 작업본·별도 보존 작업본 모두 기존 사용자 변경 없음. 후속 문서 커밋은 앱 변경이 없다.
