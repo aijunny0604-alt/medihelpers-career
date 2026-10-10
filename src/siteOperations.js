@@ -12,6 +12,7 @@ let cached = defaultSiteOperations;
 let pending;
 let fetchedAt = 0;
 let requestRevision = 0;
+let inFlight = false;
 // 공고를 등록·수정한 뒤 목록으로 이동해도 예전 캐시가 그대로 보이던 문제가 있었다.
 // (한 번 받아오면 다시 요청하지 않아, 브라우저를 새로고침해야만 새 공고가 보였다)
 // 짧은 TTL을 두고, 등록 성공 시에는 invalidateSiteOperations()로 즉시 캐시를 버린다.
@@ -23,16 +24,24 @@ export function siteOperationsFailure(value) {
     : { error:true, errorCode:'UNAVAILABLE', errorMessage:'정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.' };
 }
 
-function loadOperations(force = false) {
+export function loadOperations(force = false) {
+  if (!force && inFlight) return pending;
   const stale = force || !pending || (Date.now() - fetchedAt > OPERATIONS_TTL_MS);
   if (stale) {
     const revision = ++requestRevision;
-    pending = fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin' })
+    inFlight = true;
+    const controller = new AbortController();
+    let timeout;
+    const deadline = new Promise((_, reject) => {
+      timeout = setTimeout(() => { controller.abort(); reject(new Error('Operations request timed out')); }, 12000);
+    });
+    const request = Promise.resolve().then(() => fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin', signal:controller.signal }))
       .then(async (response) => {
         if (response.ok) return response.json();
         const value = await response.json().catch(() => null);
         throw siteOperationsFailure(value);
-      })
+      });
+    pending = Promise.race([request, deadline])
       .then((value) => {
         if (revision !== requestRevision) return pending;
         value = sanitizeDisplayData(value);
@@ -45,6 +54,9 @@ function loadOperations(force = false) {
         // A failing service should not be retried on every route/focus event.
         fetchedAt = Date.now();
         return { ...cached, ...siteOperationsFailure({ code:error?.errorCode }) };
+      }).finally(() => {
+        clearTimeout(timeout);
+        if (revision === requestRevision) inFlight = false;
       });
   }
   return pending;
