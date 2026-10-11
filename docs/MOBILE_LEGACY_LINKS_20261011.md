@@ -9,3 +9,7 @@ PC와 모바일 각각22개 검사, 두 빌드 대상에서 총88개 링크 검�
 결제 조사: 모바일 UA의 다이렉트 페이지는 PC 표준결제 returnUrl을 그대로 노출했다. 광고 등록/서비스 안내는 모바일 홈으로 이동했으며 모바일 P_NEXT_URL/P_NOTI_URL은 확보하지 못했다. 이것으로 모바일 결제가 없다고 단정하지 않는다. 주문 제출 및 결제 엔드포인트 호출은 하지 않았다.
 
 보호 증거: medihelpers-audit-20260927/mobile-path-0~3-20261011.html 및 mobile-legacy-audit-20261011.log. 정식 DNS와 기존 랭크업은 변경하지 않았다.
+
+## 실제 검수 배포
+
+앱 d4f688d678a27fae338fd6240a8bf56baf263299, Worker ae569968-828b-4667-9b73-5557521eff52. curl GET에서 PC/모바일324 모두301 `/jobs/admin-rankup-job-324`, 0/287은404, 홈/account200 확인. 모바일HEAD301/no-store도 확인. `/api/admin-content`는 존재하지 않는 API로404이며 권한 검사 증거로 사용하지 않는다. 최초 Python 클라이언트는 홈까지 일괄403으로 별도 로그 보존, curl과 구분한다. 새 실회원 역할 검수·실카드 검수는 수행하지 않았다.
