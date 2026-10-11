@@ -1,5 +1,13 @@
 # 기존 열람 권리 추가 대조
 
+## 후속 반입 완료
+
+2026-10-11 채용정보 열람권5건을 시험 D1 및 별도 운영 D1의 `legacy_migration_archive`에 `employ-reading-right` 종류로 보존했다. 모두 private/pending-review이며, 탈퇴 충돌1건을 명시했다. 보존 자료는1,210→1,215건이다. 회원 활성화·열람권 발급·결제 원장 생성은 하지 않았다.
+
+두 DB를 각각 새로 export하고 계정 별칭4건/탈퇴 충돌1건을 검증한 뒤 반입했다. 각 DB의 예상 변경본(원본+5개 INSERT)과 반입 후 재export를48테이블 전체 스키마·행으로 비교하여 모두 동일했다. 다른 회원·공고·결제·세션 데이터 변경 없음. 최초 시험 DB export는 인증 오류였으나 재시도 성공 후에만 쓰기를 진행했다.
+
+추가 증거는 Git 밖 `rights-stage-before.sql`, `rights-prod-before.sql`, `rights-archive-insert.sql`, `rights-stage-comparison.json`, `rights-prod-comparison.json`, `prepare-rights-archive.py`이다. 기존 전체 DB 백업·실거래·정식 도메인 검증을 완료한 의미는 아니다. 아래는 반입 이전 조사 기록이다.
+
 2026-10-11 로그인된 랭크업 관리자에서 이력서·채용정보 열람서비스 목록을 읽기 전용으로 확인했다.
 
 | 항목 | 결과 |
