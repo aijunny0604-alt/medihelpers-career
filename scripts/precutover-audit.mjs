@@ -3,6 +3,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 const cwd=fileURLToPath(new URL('../',import.meta.url));
 const suites=[
+ ['cutover-config',['--test','scripts/cutover-config-report.test.mjs'],'tap'],
  ['unit',['--test','src/*.test.js','server/*.test.js'],'tap'],
  ['cloudflare',['scripts/cloudflare-preflight.mjs'],'json'],
  ['cloudflare-http-methods',['scripts/runtime-http-methods-audit.mjs','--cloudflare'],'json'],

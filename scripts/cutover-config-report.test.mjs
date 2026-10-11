@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {inspectCutover} from './cutover-config-report.mjs';
+const base={workers_dev:false,routes:[{pattern:'www.medihelpers.co.kr',custom_domain:true},{pattern:'medihelpers.co.kr',custom_domain:true}],vars:{MIGRATION_MODE:'open',STAGING_READ_ONLY:'false',CHECKOUT_ENABLED:'false'}};
+test('prepared routes do not claim payment verification',()=>{const r=inspectCutover(base);assert.equal(r.configurationReady,true);assert.equal(r.checkoutEnabled,false);assert.equal(r.deploymentPerformed,false);});
+test('disabled workers.dev and absent routes is unreachable',()=>assert(inspectCutover({...base,routes:[]}).blockers.includes('no-public-entrypoint')));
+test('www only does not cover apex',()=>assert(inspectCutover({...base,routes:[base.routes[0]]}).blockers.includes('missing-route:medihelpers.co.kr')));
+test('lookalike host is rejected',()=>assert(inspectCutover({...base,routes:['www.medihelpers.co.kr.example.com/*']}).blockers.includes('missing-route:www.medihelpers.co.kr')));
+test('read only and drain block ordinary operation',()=>assert.deepEqual(inspectCutover({...base,vars:{MIGRATION_MODE:'drain',STAGING_READ_ONLY:'true'}}).blockers,['migration-not-open','read-only']));
+test('explicit host route patterns accepted',()=>assert.equal(inspectCutover({...base,routes:['www.medihelpers.co.kr/*','medihelpers.co.kr/*']}).configurationReady,true));
