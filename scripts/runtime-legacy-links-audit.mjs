@@ -8,7 +8,9 @@ const DB={prepare(sql){return {args:[],bind(...args){this.args=args;return this;
 const checks=[];
 const record=(name,actual,expected)=>checks.push({name,pass:actual===expected,actual,expected});
 const path='/work/employ_detail.html';
-const request=(query,method='GET',extra={})=>worker.fetch(new Request('https://audit.local'+path+query,{method}),{DB,...extra},{});
+for (const requestPath of [path, '/m/content/work_employ_detail.html']) {
+db.exec('DELETE FROM feature_flags; DELETE FROM admin_content_records');
+const request=(query,method='GET',extra={})=>worker.fetch(new Request('https://audit.local'+requestPath+query,{method}),{DB,...extra},{});
 const seed=(status='published',visibility='public',payload={},id='legacy-safe')=>{
  db.prepare('INSERT INTO admin_content_records VALUES(?,?,?,?,?)').run(id,'doctor_job',status,visibility,JSON.stringify({migration:{sourceUrl:'https://www.medihelpers.co.kr'+path+'?no=324'},...payload}));
 };
@@ -34,6 +36,7 @@ db.exec("INSERT INTO feature_flags VALUES('doctorRecruitment',0)");
 record('disabled recruitment hidden',(await request('?no=324')).status,404);
 record('missing DB fails closed',(await request('?no=324','GET',{DB:null})).status,503);
 record('read-only lookup does not mutate records',db.prepare('SELECT COUNT(*) AS n FROM admin_content_records').get().n,1);
+}
 console.log(JSON.stringify({checks,failed:checks.filter(c=>!c.pass)},null,2));
 db.close();
 if(checks.some(c=>!c.pass))process.exitCode=1;

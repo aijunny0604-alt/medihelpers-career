@@ -1,3 +1,5 @@
+2026-10-11 모바일 구 공고 링크 보완: 실제 구 모바일 홈의 /m/content/work_employ_detail.html?no= 링크를 기존 공개 공고 매핑에 연결. 비공개·만료·중복·잘못된 번호 차단을 PC/모바일 모두 검증, 두 빌드·19묶음1,778개 통과. 아직 이번 코드 배포 전. docs/MOBILE_LEGACY_LINKS_20261011.md.
+
 2026-10-11 후속 공개 결제폼 조사: PC 다이렉트 returnUrl `/rankup_module/rankup_payment/inistdpay/INIStdPayReturn.php` 및 close/popup 주소 확보. 일반 광고·모바일 notify 범위는 미확인. 익명 GET만 수행, 결제 제출/배포/DNS 변경 없음. docs/PG_METHOD_PARITY_20261011.md 참조.
 
 2026-10-11 기존 PG 수단 대조: PC 카드/계좌이체/무통장, 모바일 휴대폰 포함 선택 확인. 새 구현은 카드 우선·모바일차단으로 동일 범위 아님. 구 응답URL은 관리자화면에 없어 미확보, 추정 프록시 없음. 이니시스 합성86검사 재통과. docs/PG_METHOD_PARITY_20261011.md.

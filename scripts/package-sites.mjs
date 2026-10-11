@@ -3501,7 +3501,7 @@ async function legacyRecruitmentLink(request, env) {
 }
 async function responseFor(request, env, ctx) {
   const pathname = new URL(request.url).pathname;
-  if (pathname === '/work/employ_detail.html') return legacyRecruitmentLink(request,env);
+  if (pathname === '/work/employ_detail.html' || pathname === '/m/content/work_employ_detail.html') return legacyRecruitmentLink(request,env);
   if (pathname === '/api/admin-payment-inquiry') return paymentInquiryApi(request,env);
   if (pathname === '/api/admin-payment-ledger') return paymentLedgerApi(request,env);
   if (pathname === '/api/admin-refund-review') return refundReviewApi(request,env);
