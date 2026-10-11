@@ -88,7 +88,7 @@ export default function AccountRecoveryPage() {
   const done = resetComplete || requestResult;
   const doneTitle = resetComplete ? '비밀번호가 변경되었습니다' : '이메일 안내를 요청했습니다';
   const doneText = resetComplete
-    ? '기존 로그인은 안전을 위해 모두 종료되었습니다. 새 비밀번호로 다시 로그인해주세요.'
+    ? '비밀번호가 변경되어 기존 로그인은 모두 종료되었습니다. 새 비밀번호로 로그인해주세요. 다만 이전 확인 중이거나 이용이 제한된 계정은 비밀번호를 바꿔도 제한이 해제되지 않습니다. 같은 안내가 나오면 재설정을 반복하지 말고 고객센터(051-342-5463)로 문의해주세요.'
     : requestResult?.emailDeliveryAvailable
       ? genericMessage[mode]
       : '현재 이메일 발송 설정이 준비되지 않아 요청만 안전하게 접수되었습니다. 빠른 확인이 필요하면 고객센터로 문의해주세요.';
@@ -141,6 +141,8 @@ export default function AccountRecoveryPage() {
           <li>계정 존재 여부는 화면에 노출하지 않고 가입 이메일로만 안내합니다.</li>
           <li>비밀번호 재설정 링크는 30분 동안 한 번만 사용할 수 있습니다.</li>
           <li>비밀번호를 바꾸면 기존 로그인 세션은 모두 안전하게 종료됩니다.</li>
+          <li>기존 회원은 예전에 사용한 아이디로 재설정을 요청할 수 있습니다. 같은 이메일로 여러 계정을 사용했다면 이메일 대신 기존 아이디를 입력해주세요.</li>
+          <li>이전 확인 중인 계정의 이용 재개와 비밀번호 변경은 별도입니다. 비밀번호 변경만으로 이용 제한이 해제되지는 않습니다.</li>
           <li>의료인 회원과 병원 회원 모두 같은 방식으로 이용합니다.</li>
         </ul>
         <a href="tel:0513425463"><MessageCircle /> 051-342-5463</a>
