@@ -3532,6 +3532,11 @@ async function responseFor(request, env, ctx) {
   // Never acknowledge an unregistered callback/write URL with the SPA's HTML 200.
   // All supported mutation APIs have already been dispatched above.
   if (!['GET','HEAD'].includes(request.method)) return new Response('Method Not Allowed', {status:405,headers:{allow:'GET, HEAD','cache-control':'no-store','x-content-type-options':'nosniff'}});
+  // Retired server scripts must not fall through to the SPA with a misleading 200.
+  const retiredPath = decodeURIComponent(pathname).toLowerCase();
+  if (retiredPath.startsWith('/rankup_module/') || retiredPath.startsWith('/rad/') || retiredPath.split('/').some(segment => ['.php','.asp','.aspx','.jsp'].some(extension => segment.endsWith(extension)))) {
+    return new Response(request.method === 'HEAD' ? null : '이전 사이트의 처리 주소입니다. 이 화면은 결제 성공 또는 실패를 의미하지 않습니다. 결제하셨다면 재결제하지 말고 메디헬퍼스 고객센터(051-342-5463)에 확인해 주세요.', {status:410,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
+  }
   if (pathname === '/robots.txt') return new Response(env.STAGING_NOINDEX==='true' ? 'User-agent: *\\nDisallow: /\\n' : robotsText(request), { status:200, headers:{ 'content-type':'text/plain; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/sitemap.xml') return new Response(sitemapXml(request), { status:200, headers:{ 'content-type':'application/xml; charset=utf-8', 'cache-control':'public, max-age=3600', 'x-content-type-options':'nosniff' } });
   if (pathname === '/manifest.webmanifest') return new Response(webManifest, { status:200, headers:{ 'content-type':'application/manifest+json; charset=utf-8', 'cache-control':'public, max-age=86400', 'x-content-type-options':'nosniff' } });

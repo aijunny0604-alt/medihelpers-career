@@ -1,3 +1,5 @@
+2026-10-11 이전 처리주소 보완: PHP 등 구 서버 GET 경로의 SPA200 성공 오인을410/no-store·재결제 주의 안내로 변경. POST405와 명시적 공고매핑 유지. 두 빌드·1,734검사 통과. 상세 docs/RETIRED_CALLBACKS_20261011.md. 정식도메인 전환 없음.
+
 2026-10-11 도메인 연결/복구 후보 준비: cutover.json에 www/apex Custom Domain, rollback.json에 시험 DB와 명시적 routes[] 추가. 두 Wrangler dry-run·두 빌드·1,638검사 통과. 점검상태 유지, 실제 배포/DNS 변경 없음. 상세 docs/WORKER_PROMOTION_20261011.md.
 
 2026-10-11 전환 설정 검사 보완: 준비본 그대로 배포 시 도메인 연결 부재를 감지하는 읽기 전용 check:cutover-config 추가. 현재 준비본은 의도적으로 미준비 판정. 두 빌드·19묶음1,636검사 통과. 앱/도메인 배포 없음, 실회원/실카드 조건 유지. 상세 docs/WORKER_PROMOTION_20261011.md.

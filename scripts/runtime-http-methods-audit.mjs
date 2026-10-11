@@ -3,6 +3,16 @@ const {default:worker}=await import(process.argv.includes('--cloudflare')?'../di
 const checks=[];
 const record=(name,actual,expected)=>checks.push({name,pass:actual===expected,actual,expected});
 const env={MIGRATION_MODE:'open',PAYMENT_LIVE:'true',CHECKOUT_ENABLED:'false'};
+for(const path of ['/unknown.php','/RETURN.PHP','/old/return.php/extra','/old/return%2Ephp','/rankup_module/payment/return.html','/RAD/rankup_index/main.html']){
+ for(const method of ['GET','HEAD']){
+  const r=await worker.fetch(new Request('https://audit.local'+path+'?token=PRIVATE-CALLBACK',{method}),env,{});
+  const body=await r.text();
+  record('retired script '+method+' '+path,r.status,410);
+  record('retired script uncached '+method+' '+path,r.headers.get('cache-control'),'no-store');
+  record('no callback token echo '+method+' '+path,body.includes('PRIVATE-CALLBACK'),false);
+  record('retired response body '+method+' '+path,method==='HEAD'?body==='':body.includes('재결제하지 말고'),true);
+ }
+}
 for(const path of ['/payment/return','/','/jobs','/robots.txt','/unknown.php','/assets/missing.js']){
  for(const method of ['POST','PUT','PATCH','DELETE']){
   const r=await worker.fetch(new Request('https://audit.local'+path,{method,body:'resultCode=0000'}),env,{});
