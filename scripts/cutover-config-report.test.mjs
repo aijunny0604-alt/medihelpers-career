@@ -23,3 +23,20 @@ test('rollback explicitly clears domains and restores staging binding',()=>{
  assert.equal(c.d1_databases[0].database_id,'f29e16f1-c8b3-4151-96ce-be2239e4c3ce');
  assert.equal(c.vars.CHECKOUT_ENABLED,'false');
 });
+
+// Exercise the real request gate with the candidate, not just its field names.
+test('unapplied opening candidate serves pages while denying new purchases', async()=>{
+ const {migrationGate}=await import('../src/migrationGate.js');
+ const c=JSON.parse(readFileSync(new URL('../deploy/cloudflare.open-without-checkout.json',import.meta.url)));
+ assert.equal(inspectCutover(c).configurationReady,true);
+ assert.equal(c.vars.SIGNUP_ENABLED,'false');
+ assert.equal(c.vars.TEST_ACCOUNT_SWITCH_ENABLED,'false');
+ assert.equal(c.vars.INICIS_ENV,'test');
+ assert.equal(c.vars.INICIS_REFUNDS_ENABLED,'false');
+ assert.equal(c.vars.STAGING_NOINDEX,'true');
+ assert.equal(c.d1_databases[0].database_id,'ef6090da-544c-446f-bd31-32b631b2d2d6');
+ assert.equal(migrationGate(new Request('https://www.medihelpers.co.kr/jobs'),c.vars),null);
+ assert.equal(migrationGate(new Request('https://www.medihelpers.co.kr/api/auth/login',{method:'POST'}),c.vars),null);
+ const blocked=migrationGate(new Request('https://www.medihelpers.co.kr/api/payment-orders',{method:'POST'}),c.vars);
+ assert.equal(blocked.status,503);assert.equal((await blocked.json()).code,'CHECKOUT_PAUSED');
+});

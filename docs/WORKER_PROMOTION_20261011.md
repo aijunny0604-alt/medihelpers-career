@@ -41,3 +41,15 @@ ACCOUNT_HASH_SECRET은 이메일로 회원 식별자를 계산하는 데 사용�
 - 랭크업 원본 문제는 사용자 요청으로 보류한 상태이며 해결된 것이 아니다.
 
 검증: 두 빌드 및18묶음1,630개 통과. Worker명 유지·운영 DB 선택·secret과 일반 변수 충돌 방지·결제 차단 확인. 실제 설정/DB/도메인/키 변경 없음. 앱18ac426/Workerff470704 유지.
+
+## 홈페이지 개방·결제 차단 후보 (미적용)
+
+`deploy/cloudflare.open-without-checkout.json`은 cutover 점검본과 별개다. 동일 Worker/운영DB/두 Custom Domain/비밀값을 유지하고 MIGRATION_MODE=open, STAGING_READ_ONLY=false로 바꾼다. 이 후보는 로그인·게시 등 기존 인증된 쓰기를 허용하므로 단순 읽기 공개본이 아니다. 회원 보류는 DB에서 유지된다.
+
+신규 결제·가입·테스트 역할 전환·모바일 결제·자동환불·정리 작업은 차단 유지한다. PG test와 법률 문서 draft, 검색 noindex도 그대로이므로 완성된 정식 운영본으로 오인하지 않는다. 약관/회원/기존 주문 처리 문제를 해결한 뒤 적용 여부를 결정한다.
+
+실제 migrationGate에 이 후보 vars를 주입해 홈페이지/로그인 요청은 통과하고 새 주문 POST는503 CHECKOUT_PAUSED가 되는지 검증했다. 가입과 회원 권한의 최종 판정은 후속 각 API의 책임이다. 전체19묶음1,779검사·두 빌드·Wrangler dry-run 통과. 기존 rollback 설정 검사도 같은 묶음에서 통과했다. 실제 복귀 실행을 검증한 것은 아니다.
+
+실제 배포·DNS 변경·운영 DB 쓰기는 하지 않았다. 사용 전 최신 두 DB/DNS/Worker 백업을 받고 이전 콜백 처리와 회원 사용재개 범위를 확정한다. 돌아갈 때 기존 rollback 구성 및 원본 DNS 복원 후 새 변경분을 대사한다.
+
+보호 로그: open-candidate-audit-20261011.log / open-candidate-dryrun-20261011.log.
