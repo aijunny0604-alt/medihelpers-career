@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "medihelpers-production",
+  "account_id": "1e0ba31ca051e54621c65a126a874280",
+  "main": "../dist-cf/server/index.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../dist-cf/public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "medihelpers-production",
+      "database_id": "REPLACE_WITH_VERIFIED_PRODUCTION_DATABASE_ID",
+      "migrations_dir": "../drizzle"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "17 * * * *"
+    ]
+  },
+  "vars": {
+    "STAGING_NOINDEX": "true",
+    "STAGING_READ_ONLY": "true",
+    "D1_RETENTION_ENABLED": "false",
+    "SITE_ORIGIN": "https://www.medihelpers.co.kr",
+    "TEST_ACCOUNT_SWITCH_ENABLED": "false",
+    "SIGNUP_ENABLED": "false",
+    "PAYMENT_LIVE": "true",
+    "INICIS_ENV": "test",
+    "INICIS_MOBILE_ENABLED": "false",
+    "INICIS_TAX_CONTRACT": "exempt",
+    "PAYMENT_PRODUCT_TAX_JSON": "{\"basic\":\"exempt\",\"featured\":\"exempt\",\"talent-unlock-single\":\"exempt\",\"talent-unlock-pack\":\"exempt\",\"talent-unlock-pack30\":\"exempt\"}",
+    "INICIS_REFUNDS_ENABLED": "false",
+    "INICIS_REFUND_MODE": "manual",
+    "CHECKOUT_ENABLED": "false",
+    "MIGRATION_MODE": "drain",
+    "LEGAL_DOCUMENT_STATUS": "draft",
+    "D1_UPLOADS_ENABLED": "true"
+  }
+}

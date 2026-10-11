@@ -4,6 +4,10 @@ import { readFile } from 'node:fs/promises';
 import worker from '../dist-cf/server/index.js';
 const config = await readFile(new URL('../dist-cf/wrangler.toml', import.meta.url), 'utf8');
 const checks = [];
+assert.ok(!config.includes('[[r2_buckets]]'), 'free-only generated config must not require R2');
+assert.ok(config.includes('D1_UPLOADS_ENABLED = "true"'));
+assert.ok(config.includes('D1_RETENTION_ENABLED = "false"'));
+checks.push('generated config uses D1 uploads without R2; retention disabled');
 for (const value of ['run_worker_first = true', 'migrations_dir = "drizzle"', 'TEST_ACCOUNT_SWITCH_ENABLED = "false"', 'PAYMENT_LIVE = "true"', 'SIGNUP_ENABLED = "false"', 'MIGRATION_MODE = "drain"', 'CHECKOUT_ENABLED = "false"']) {
   assert.ok(config.includes(value), value); checks.push(value);
 }
@@ -26,6 +30,16 @@ checks.push('test admin disabled', 'missing PG keys fail closed');
 const staging=JSON.parse((await readFile(new URL('../deploy/cloudflare.staging.jsonc',import.meta.url),'utf8')).replace(/^\s*\/\/.*$/gm,''));
 assert.equal(staging.r2_buckets,undefined);
 assert.equal(staging.routes,undefined);
+const production = JSON.parse(await readFile(new URL('../deploy/cloudflare.production.example.json',import.meta.url),'utf8'));
+assert.notEqual(production.name, staging.name);
+assert.notEqual(production.d1_databases[0].database_id, staging.d1_databases[0].database_id);
+assert.equal(production.vars.SITE_ORIGIN, 'https://www.medihelpers.co.kr');
+assert.equal(production.vars.MIGRATION_MODE, 'drain');
+assert.equal(production.vars.CHECKOUT_ENABLED, 'false');
+assert.equal(production.workers_dev, false);
+assert.equal(production.routes, undefined);
+assert.equal(production.r2_buckets, undefined);
+checks.push('production template isolated from staging and closed until cutover');
 assert.equal(staging.vars.STAGING_READ_ONLY,'true');
 assert.equal(staging.vars.CHECKOUT_ENABLED,'false');
 assert.equal(staging.vars.INICIS_REFUNDS_ENABLED,'false');
