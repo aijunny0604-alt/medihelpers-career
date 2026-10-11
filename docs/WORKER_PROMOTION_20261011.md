@@ -1,5 +1,17 @@
 # 기존 비밀값을 보존하는 운영 전환 준비
 
+## 2026-10-11 도메인 연결 후보와 복구 구성
+
+- `deploy/cloudflare.cutover.json`: promotion 구성을 기반으로 www/apex 두 Custom Domain을 명시했다. 동일 Worker와 운영 DB, 비밀값 보존 방식을 유지한다. drain/read-only/가입·결제 차단은 유지한다. **점검 상태로 도메인 연결을 준비하는 후보이며 정상 서비스 개방본이 아니다.**
+- `deploy/cloudflare.rollback.json`: 동일 Worker를 시험 DB/workers.dev로 되돌리고 `routes: []`를 명시한다. 준비 시점의 구성이며 실행 직전 실제 설정과 다시 대조한다.
+- 두 구성 모두 `wrangler deploy --dry-run --config ...` 성공. 이 검사는 패키징/설정 검증일 뿐 원격 DNS 충돌·인증서 발급·권한·실제 도메인 연결 성공을 검증하지 않는다. 실제 배포 없음.
+- `node scripts/cutover-config-report.mjs deploy/cloudflare.cutover.json`은 도메인 누락 항목이 해소되지만 점검/읽기 전용으로 종료코드2를 유지한다.
+- 복구 때 `routes: []` 배포만으로 랭크업 DNS가 복원됐다고 판단하지 않는다. Cloudflare의 Custom Domain 연결이 제거됐는지 확인하고, 보존한 apex/www A `121.254.171.115` DNS-only를 복구한 뒤 실제 해석/HTTPS를 확인한다. MX/TXT와 랭크업 데이터는 보존한다. 두 DB는 자동 역동기화하지 않는다.
+
+Cloudflare Custom Domain은 Worker를 원본 서버로 사용하며 DNS와 인증서를 관리한다. 기존 호스트를 넘기는 작업이므로 dry-run 이후 실제 적용은 정식 전환 단계에만 수행한다. [공식 Custom Domains 문서](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+
+검증: 두 빌드·19묶음1,638개 통과, 두 Wrangler dry-run 통과. 증거는 Git 밖 `domain-candidate-audit.log`, `domain-cutover-dryrun.log`, `domain-rollback-dryrun.log`.
+
 2026-10-11 실제 `secret list`에서 인증 ACCOUNT_HASH_SECRET/ADMIN_EMAILS, RESEND_API_KEY/RESEND_FROM, 이니시스 MID/SignKey/MobileHashKey/API key·IV 이름을 확인했다. 값은 읽거나 출력하지 않았고 재발급하지 않았다. 존재 확인은 유효성·실결제 성공 검증이 아니다.
 
 ## 다음 전환에서 사용할 구성
