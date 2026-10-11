@@ -1,3 +1,5 @@
+2026-10-11 후속 검수 배포 완료: 앱fd17190 / Worker3ccb62d7-1bf8-46c4-a724-b48986a8e2be. 실제 구 PHP GET410/no-store·주의안내·쿼리 비반사, 홈200/no-store, 익명account200/admin403 확인. 1,734검사 통과. 신규 문서 URL 직접 조회는404(공개문서 경로 없음), 코드 검증과 구분. 정식 DNS/실결제 변경 없음.
+
 2026-10-11 이전 처리주소 보완: PHP 등 구 서버 GET 경로의 SPA200 성공 오인을410/no-store·재결제 주의 안내로 변경. POST405와 명시적 공고매핑 유지. 두 빌드·1,734검사 통과. 상세 docs/RETIRED_CALLBACKS_20261011.md. 정식도메인 전환 없음.
 
 2026-10-11 도메인 연결/복구 후보 준비: cutover.json에 www/apex Custom Domain, rollback.json에 시험 DB와 명시적 routes[] 추가. 두 Wrangler dry-run·두 빌드·1,638검사 통과. 점검상태 유지, 실제 배포/DNS 변경 없음. 상세 docs/WORKER_PROMOTION_20261011.md.
