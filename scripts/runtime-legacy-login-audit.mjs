@@ -150,6 +150,32 @@ for(const n of [1,2]) {
  check((await call('/api/admin-console',null,login.cookie)).status,403);
 }
 check(sqlite.prepare('SELECT id,user_key FROM accounts ORDER BY id').all(),preservedOwnership);
+// ID recovery must not pick the first account when names and phones collide.
+const previousFetch=globalThis.fetch;
+const recoveryMails=[];
+env.RESEND_API_KEY='synthetic-only';env.RESEND_FROM='fixture@example.invalid';
+globalThis.fetch=async(url,options)=>{
+ assert.equal(String(url),'https://api.resend.com/emails');
+ recoveryMails.push(JSON.parse(options.body));
+ return new Response('{}',{status:200});
+};
+try {
+ sqlite.prepare('UPDATE member_profiles SET display_name=?,phone=? WHERE account_id IN (?,?)').run('Duplicate Recovery','010-7777-8888',isolated[0].id,isolated[1].id);
+ const ambiguous=await call('/api/account-recovery',{requestType:'id',name:'Duplicate Recovery',phone:'01077778888'});
+ check(ambiguous.status,202);check(recoveryMails.length,0);
+ check(ambiguous.body,{accepted:true,emailDeliveryAvailable:true});
+ const absent=await call('/api/account-recovery',{requestType:'id',name:'Absent Recovery',phone:'01077778888'});
+ check(absent.body,ambiguous.body);check(recoveryMails.length,0);
+ sqlite.prepare('UPDATE member_profiles SET display_name=? WHERE account_id=?').run('Unique Recovery',isolated[1].id);
+ const unique=await call('/api/account-recovery',{requestType:'id',name:'Unique Recovery',phone:'01077778888'});
+ check(unique.body,ambiguous.body);check(recoveryMails.length,1);
+ check(recoveryMails[0].to,[sharedEmail]);
+ check(recoveryMails[0].html.includes(isolated[1].alias),true);
+ check(recoveryMails[0].html.includes(isolated[0].alias),false);
+} finally {
+ globalThis.fetch=previousFetch;delete env.RESEND_API_KEY;delete env.RESEND_FROM;
+}
+
 env.STAGING_READ_ONLY='true';
 check((await call('/api/auth/login',{email:emails.admin,password:'medihelpers1234'})).status,503);
 env.STAGING_ADMIN_AUTH_ENABLED='true';

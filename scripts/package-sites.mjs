@@ -1440,9 +1440,11 @@ async function accountRecoveryApi(request, env, ctx) {
     // A shared mailbox never chooses an arbitrary account. Its owner uses the exact legacy ID.
     target = candidates.results?.length === 1 ? candidates.results[0] : null;
   } else {
-    target = await env.DB.prepare(
-      "SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email FROM member_profiles p JOIN auth_credentials c ON c.account_id=p.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id WHERE trim(p.display_name)=? AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.phone,'-',''),' ',''),'(',''),')',''),'+','')=? LIMIT 1"
-    ).bind(requesterName, phone).first();
+    const candidates = await env.DB.prepare(
+      "SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email FROM member_profiles p JOIN auth_credentials c ON c.account_id=p.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id WHERE trim(p.display_name)=? AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.phone,'-',''),' ',''),'(',''),')',''),'+','')=? LIMIT 2"
+    ).bind(requesterName, phone).all();
+    // Names and shared contact numbers are not unique account identifiers.
+    target = candidates.results?.length === 1 ? candidates.results[0] : null;
   }
 
   let deliveryTask = null;
