@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
 import { pbkdf2Sync,createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { hospitalVerificationSchemaStatements, memberCenterSchemaStatements } from '../db/schema.js';
 import worker from '../dist/server/index.js';
 const sqlite = new DatabaseSync(':memory:');
 sqlite.exec('PRAGMA foreign_keys=ON');
@@ -24,18 +25,38 @@ async function call(url,body,cookie,method=body?'POST':'GET'){
 let checks=0;const check=(a,b)=>{assert.deepEqual(a,b);checks++;};
 const aliases={doctor:'old-doctor',hospital:'old-hospital',admin:'old-admin'};
 // Schema initialization must not erase migration holds or operator notes.
-for (const [id,note] of [['held-hospital','MIGRATION_HOLD: internal fixture'],['modern-hospital','operator note fixture']]) {
+for (const sql of [...memberCenterSchemaStatements,...hospitalVerificationSchemaStatements]) sqlite.exec(sql);
+const initializationFixtures=[['held-hospital','MIGRATION_HOLD: internal fixture'],['alias-only-hospital','operator legacy note'],['marker-only-hospital','MIGRATION_HOLD: no alias yet'],['modern-hospital','operator note fixture']];
+for (const [id,note] of initializationFixtures) {
  sqlite.prepare('INSERT INTO accounts(id,user_key,role) VALUES(?,?,?)').run(id,id,'hospital');
  sqlite.prepare("INSERT INTO account_admin_profiles(account_id,status,verification_status,admin_note) VALUES(?,'suspended','unverified',?)").run(id,note);
+ sqlite.prepare("INSERT INTO auth_credentials(account_id,email_normalized,password_hash,password_salt,password_iterations) VALUES(?,?,'unused','unused',100000)").run(id,id+'@example.invalid');
+ sqlite.prepare("INSERT INTO hospital_verification_requests(id,account_id,document_key,content_type,status,review_note,reviewed_by,reviewed_at,hospital_name,submitted_at,retention_until) VALUES(?,?,?,'application/pdf','rejected','original review fixture','fixture-operator','2026-10-01 00:00:00','document hospital','2026-10-01 00:00:00','2029-10-01 00:00:00')").run(id,id,'fixture/'+id);
+ sqlite.prepare("INSERT INTO member_registration_profiles(account_id,profile_json) VALUES(?,?)").run(id,JSON.stringify({hospitalName:'member supplied hospital',customField:'preserve'}));
 }
-sqlite.prepare("INSERT INTO auth_credentials(account_id,email_normalized,password_hash,password_salt,password_iterations) VALUES('held-hospital','held@example.invalid','unused','unused',100000)").run();
 sqlite.prepare("INSERT INTO auth_login_aliases(login_id,account_id,source) VALUES('held-hospital','held-hospital','rankup')").run();
+sqlite.prepare("INSERT INTO auth_login_aliases(login_id,account_id,source) VALUES('alias-only-hospital','alias-only-hospital','rankup')").run();
+const reviewSnapshot=id=>({...sqlite.prepare('SELECT status,review_note,reviewed_by,reviewed_at FROM hospital_verification_requests WHERE id=?').get(id)});
+const protectedReviews=initializationFixtures.slice(0,3).map(([id])=>[id,reviewSnapshot(id)]);
 check((await call('/api/auth/logout',{})).status,200);
 const heldProfile=sqlite.prepare("SELECT status,verification_status,admin_note FROM account_admin_profiles WHERE account_id='held-hospital'").get();
 check(heldProfile.status,'suspended');check(heldProfile.verification_status,'unverified');check(heldProfile.admin_note,'MIGRATION_HOLD: internal fixture');
 const modernProfile=sqlite.prepare("SELECT status,verification_status,admin_note FROM account_admin_profiles WHERE account_id='modern-hospital'").get();
 check(modernProfile.status,'suspended');check(modernProfile.verification_status,'verified');check(modernProfile.admin_note,'operator note fixture');
-sqlite.prepare("DELETE FROM accounts WHERE id IN ('held-hospital','modern-hospital')").run();
+for (const [id,before] of protectedReviews) {
+ check(reviewSnapshot(id),before);
+ check(sqlite.prepare('SELECT verification_status FROM account_admin_profiles WHERE account_id=?').get(id).verification_status,'unverified');
+}
+check(reviewSnapshot('modern-hospital').status,'approved');
+check(reviewSnapshot('modern-hospital').reviewed_by,'system-auto');
+for (const [id] of initializationFixtures) {
+ const profile=JSON.parse(sqlite.prepare('SELECT profile_json FROM member_registration_profiles WHERE account_id=?').get(id).profile_json);
+ check(profile.hospitalName,'member supplied hospital');check(profile.customField,'preserve');
+ check(sqlite.prepare('SELECT retention_until FROM hospital_verification_requests WHERE id=?').get(id).retention_until,'2026-10-31 00:00:00');
+}
+check((await call('/api/auth/logout',{})).status,200);
+for (const [id,before] of protectedReviews) check(reviewSnapshot(id),before);
+for (const [id] of initializationFixtures) sqlite.prepare('DELETE FROM accounts WHERE id=?').run(id);
 const emails={doctor:'doctor-test@medihelpers.co.kr',hospital:'hospital-test@medihelpers.co.kr',admin:'admin@medihelpers.co.kr'};
 for(const role of Object.keys(aliases)){
  check((await call('/api/auth/test-switch',{key:role})).status,200);
