@@ -95,6 +95,11 @@ for(const evidence of [{tid:'wrong'},{amount:1},{amount:String(f.order.totalAmou
  record('invalid evidence '+Object.keys(evidence)[0],(await submit(f,{body:{...f.body,evidence:{...f.body.evidence,...evidence}}})).status,400);
 }
 record('failed validation leaves payment paid',state(f).order,'paid');
+for (const canceledAt of ['2026-02-30T12:00:00Z','2026-10-01T12:00:00','2026-10-01T24:00:00Z']) {
+ const before = JSON.stringify(state(f));
+ record('invalid cancellation instant rejected '+canceledAt,(await submit(f,{body:{...f.body,evidence:{...f.body.evidence,canceledAt}}})).status,400);
+ record('invalid cancellation instant preserves order and rights '+canceledAt,JSON.stringify(state(f)),before);
+}
 record('failed validation leaves credits usable',state(f).credits,0);
 record('cancellation before approval rejected',(await submit(f,{body:{...f.body,evidence:{...f.body.evidence,canceledAt:'2001-01-01T00:00:00Z'}}})).status,409);
 const beforeConsole=await worker.fetch(new Request('https://audit.local/api/admin-console',{headers:{cookie:cookies.admin}}),manualEnv,{});

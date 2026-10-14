@@ -1,8 +1,19 @@
 // Operator attestation of a cancellation already completed in the merchant console.
 // This is deliberately NOT a PG response verification or a request to move money.
+function explicitInstant(value) {
+  if (typeof value !== 'string') return NaN;
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d{1,3})?(Z|[+-](\d{2}):(\d{2}))$/.exec(value);
+  if (!match) return NaN;
+  const calendar = Date.parse(match[1] + 'Z');
+  // Date.parse normalizes impossible dates (for example February 30).
+  if (!Number.isFinite(calendar) || new Date(calendar).toISOString().slice(0, 19) !== match[1]
+    || (match[2] !== 'Z' && (Number(match[3]) > 23 || Number(match[4]) > 59))) return NaN;
+  return Date.parse(value);
+}
+
 export function manualRefundEvidence(body, refund, capture, now = Date.now()) {
   const evidence = body.evidence || {};
-  const canceledAt = Date.parse(evidence.canceledAt);
+  const canceledAt = explicitInstant(evidence.canceledAt);
   if (evidence.confirmed !== true || typeof evidence.tid !== 'string' || evidence.tid !== capture.tid
     || !Number.isSafeInteger(evidence.amount) || evidence.amount <= 0 || evidence.amount !== Number(refund.totalAmount)
     || !Number.isFinite(canceledAt) || canceledAt > now || canceledAt < Date.parse('2000-01-01')
