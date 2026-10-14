@@ -18,6 +18,12 @@ export async function legacyPaymentBridge(request, env, originFetch = fetch) {
     // Manual redirect prevents forwarding a payment body to a different host.
     // A Route fetch goes to the configured origin; a Custom Domain does not.
     const response = await originFetch(new Request(request,{headers,redirect:'manual'}));
+    // manual prevents server-side following, but forwarding 307/308 would make
+    // the browser replay the approval body. Even a same-origin replay is unsafe.
+    if (request.method === 'POST' && [307,308].includes(response.status)) {
+      await response.body?.cancel();
+      throw new Error('Approval body replay blocked');
+    }
     const output = new Headers(response.headers);
     output.set('cache-control','no-store');output.set('referrer-policy','no-referrer');
     output.delete('set-cookie');
