@@ -1,5 +1,17 @@
 # 기존 결제 응답 보존 후보 — 미적용
 
+## 임시 호스트의 실제 Route 진입 검증
+
+Cloudflare 로그인 후 원래9개 DNS 레코드를 확인했다. www/apex/wildcard A는121.254.171.115 DNS-only이며 Daum MX와 Resend 레코드는 유지됐다. 임시 migration-probe-20261014.medihelpers.co.kr에만 proxied A와 별도 Worker Route를 만들었다. Worker는 비밀 토큰이 있는 GET /probe만 허용하며 고정된 기존 www의 close.php를 조회했다. 고객 쿠키·PG 본문은 전달하지 않고 결과의 상태/크기/표식만 반환했다.
+
+실제 임시 호스트 HTTPS 요청200, 원본 close.php200/135바이트/닫기표식, no-store 확인. 임시 Worker 버전c71fc6a9-54cf-4a54-b4a3-11f40ef19a15. 검증 후 임시 DNS를 삭제하고 Worker 삭제 성공을 확인했다. DNS 목록은 원래9개로 돌아왔고 www/apex/MX/TXT 값과 프록시 상태가 유지됐다. 정식 앱 Worker·DB·실제 결제는 변경하지 않았다.
+
+중요한 한계: 임시 호스트 이름으로 기존IP에 직접 HTTPS를 보내면 Windows TLS 검증에서 SEC_E_CERT_EXPIRED가 났다. 동일 조건의 www 호스트 close.php는200/TLS 검증 성공이었다. 따라서 임시 호스트를 그대로 원본으로 전달하는 시험 대신 고정 www URL을 사용했다. 이번 결과는 **임시 호스트 Route 진입 + 기존 www 조회** 증거이며, 정식 www의 동일호스트 Route fetch·PHP 로그인 세션·PG 승인 검증이 아니다. 인증서 검증을 끄거나 Cloudflare SSL 모드를 낮추지 않았다.
+
+추가 공개 폼 조사에서 일반 광고/열람권 결제 GET은HTTP200이지만 병원회원 전용 경고 스크립트만 반환했다. 성공적인 결제폼 조회로 집계하지 않는다. 모바일 User-Agent의 다이렉트 주소도 PC INIStdPay 폼을 반환하므로 모바일 P_NEXT_URL/P_NOTI_URL 확보로 간주하지 않는다. PC 세 응답 경로는 앞선 기록과 동일했다. 결제 준비 POST·승인 엔드포인트 호출은 하지 않았다.
+
+비공개 근거: route-probe-20261014/result.json, deploy-private.log, cleanup.log 및 legacy-more-payment-20261014.json. 실제 원격 시험만 진행했으며 앱 코드 수정/재배포나 전체 회귀 재실행은 없었다.
+
 ## POST 리다이렉트 재전송 방지 추가
 
 격리된 가짜 원본이307을 반환했을 때 기존 후보가307/Location을 그대로 반환하는 것을 재현했다. fetch의 redirect:manual은 서버가 따라가지 않게 할 뿐, 응답을 받은 브라우저의307/308 POST 본문 재전송까지 막지는 않는다. 실제 원본이나 이니시스에서 이런 응답이 발생했다고 확인한 것은 아니다.
