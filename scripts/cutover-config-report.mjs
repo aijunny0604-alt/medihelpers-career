@@ -4,9 +4,23 @@ import {pathToFileURL} from 'node:url';
 export function inspectCutover(config) {
   const blockers=[];
   const routes=(config.routes||[]).map(r=>typeof r==='string'?r:r.pattern).filter(Boolean);
-  const hasHost=host=>routes.some(r=>r===host||r===host+'/*');
+  const hasHost=host=>routes.some(r=>r===host||r===host+'/*'||r==='https://'+host+'/*');
   for(const host of ['www.medihelpers.co.kr','medihelpers.co.kr'])if(!hasHost(host))blockers.push('missing-route:'+host);
   if(config.workers_dev===false&&!routes.length)blockers.push('no-public-entrypoint');
+  if(config.vars?.LEGACY_PAYMENT_BRIDGE_ENABLED==='true') {
+    // A Custom Domain makes this Worker the origin. It cannot preserve PHP by
+    // fetching the incoming URL as a Route over the legacy DNS origin would.
+    if((config.routes||[]).some(r=>typeof r==='object'&&r.custom_domain===true))
+      blockers.push('legacy-bridge-custom-domain-conflict');
+    for(const host of ['www.medihelpers.co.kr','medihelpers.co.kr']) {
+      const originRoute=(config.routes||[]).some(r=>{
+        const pattern=typeof r==='string'?r:r.pattern;
+        return (typeof r==='string'||r.custom_domain!==true)
+          && [host+'/*','https://'+host+'/*'].includes(pattern);
+      });
+      if(!originRoute)blockers.push('legacy-bridge-missing-origin-route:'+host);
+    }
+  }
   if(config.vars?.MIGRATION_MODE!=='open')blockers.push('migration-not-open');
   if(config.vars?.STAGING_READ_ONLY!=='false')blockers.push('read-only');
   return {configurationReady:blockers.length===0,blockers,

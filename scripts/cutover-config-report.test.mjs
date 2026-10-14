@@ -40,3 +40,22 @@ test('unapplied opening candidate serves pages while denying new purchases', asy
  const blocked=migrationGate(new Request('https://www.medihelpers.co.kr/api/payment-orders',{method:'POST'}),c.vars);
  assert.equal(blocked.status,503);assert.equal((await blocked.json()).code,'CHECKOUT_PAUSED');
 });
+
+// Regression: a reachable new site is not necessarily a usable legacy origin bridge.
+test('legacy bridge cannot be combined with Custom Domain origins',()=>{
+ const r=inspectCutover({...base,vars:{...base.vars,LEGACY_PAYMENT_BRIDGE_ENABLED:'true'}});
+ assert.equal(r.configurationReady,false);
+ assert(r.blockers.includes('legacy-bridge-custom-domain-conflict'));
+ assert(r.blockers.includes('legacy-bridge-missing-origin-route:medihelpers.co.kr'));
+});
+test('bridge requires origin Route coverage for each exact host',()=>{
+ const vars={...base.vars,LEGACY_PAYMENT_BRIDGE_ENABLED:'true'};
+ assert.equal(inspectCutover({...base,vars,routes:['www.medihelpers.co.kr/*','https://medihelpers.co.kr/*']}).configurationReady,true);
+ const r=inspectCutover({...base,vars,routes:['www.medihelpers.co.kr/*','medihelpers.co.kr']});
+ assert(r.blockers.includes('legacy-bridge-missing-origin-route:medihelpers.co.kr'));
+});
+test('mixed origins and false-like bridge flag cannot hide a conflict',()=>{
+ const routes=[{pattern:'www.medihelpers.co.kr/*'},base.routes[1]];
+ assert.equal(inspectCutover({...base,routes,vars:{...base.vars,LEGACY_PAYMENT_BRIDGE_ENABLED:'true'}}).configurationReady,false);
+ assert.equal(inspectCutover({...base,vars:{...base.vars,LEGACY_PAYMENT_BRIDGE_ENABLED:'false'}}).configurationReady,true);
+});

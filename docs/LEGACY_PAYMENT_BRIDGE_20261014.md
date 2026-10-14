@@ -42,3 +42,11 @@ server/legacyPaymentBridge.js는 아직 생성 Worker에 import/삽입하지 않
 - 미완료: 같은 zone Route 원본 전달, 세션을 가진 실제 기존 주문 응답, 일반 광고/모바일/입금 통보 경로 전수 확인.
 - 전환안 선택 전: 기존 진행 결제를 모두 정리해 구 응답 보존이 불필요한지 확인하거나, 위 미완료 검증을 완료해야 한다. 임시 연결 후보를 검증 없이 운영에 켜지 않는다.
 - 복구 범위: DNS/Route 복구는 화면 연결 복구다. 신규 가입·게시글·결제·열람권 변경의 역대사는 별도이며 자동 복구로 표현하지 않는다.
+
+## 설정 충돌 및 익명 세션 추가 검수
+
+기존 check:cutover-config는 LEGACY_PAYMENT_BRIDGE_ENABLED=true와 Custom Domain 조합을 configurationReady:true로 잘못 판정했다. 이제 해당 조합을 legacy-bridge-custom-domain-conflict로 차단하고 www/apex 각각 원본 Route가 없으면 호스트별 누락을 보고한다. HTTPS 명시 Route 패턴도 지원한다. 활성화하지 않은 기존 후보의 판정은 유지한다. 이 정적 검사 통과는 DNS 원본 IP·프록시 상태·실제 연결을 확인한 의미가 아니다.
+
+회귀검사 3개를 추가했고, 전체19묶음1,797개와 두 빌드가 통과했다. 공개 결제폼을 익명 쿠키 저장소로 두 번 GET하여 PHPSESSID 유지와 200 응답을 확인했다. PHPSESSID 및 rbUser의 응답 쿠키에는 Secure/HttpOnly/SameSite가 지정되지 않았다. 쿠키 값은 기록하지 않았다. 반복 GET 성공은 로그인 세션이나 외부 PG POST 반환에서의 쿠키 전송을 증명하지 않는다. 원본 설정을 임의 변경하거나 불확실한 쿠키를 브리지 허용목록에 추가하지 않았다.
+
+비공개 증거: bridge-config-audit-20261014.log, legacy-cookie-attributes-20261014.json. 이번 변경은 로컬 전환 검사 도구와 문서이며 생성 앱과 실제 배포 버전은 유지된다. 실제 카드 검수는 사용자 보류 상태다.

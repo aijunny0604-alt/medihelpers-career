@@ -1,3 +1,5 @@
+2026-10-14 전환 설정 충돌 방지: 구 결제 브리지+Custom Domain 조합의 잘못된 준비완료 판정을 재현·차단. www/apex 원본 Route 누락도 감지. 전체19묶음1,797개·두 빌드 통과. 익명 결제폼 재방문 PHP세션 유지 확인, Secure/HttpOnly/SameSite 속성 미지정 관찰(실제 PG 반환 검증 아님). 앱/도메인 미배포.
+
 2026-10-14 Cloudflare→기존 원본 실통신 검증: 별도 remote preview에서 홈/공개 결제폼/close.php 익명 GET 모두200. close 전달 no-store 확인. 승인주소 호출·결제·DNS 변경 없음, preview 종료. 동일 zone Route/실거래/세션 검증은 미완료. 배포 버전 유지. docs/LEGACY_PAYMENT_BRIDGE_20261014.md.
 
 2026-10-14 구 결제 응답 보존 후보 작성: Workers Route+기존 원본 유지 방식 조사, 정확한3경로 전달·새 인증정보 제거·자동 재시도 금지 구현. 생성 Worker 미연결/미배포. 전체1,794개·두 빌드 통과. 실제 원본경유/세션 검증은 남음. docs/LEGACY_PAYMENT_BRIDGE_20261014.md.
