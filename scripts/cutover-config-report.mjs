@@ -4,7 +4,13 @@ import {pathToFileURL} from 'node:url';
 export function inspectCutover(config) {
   const blockers=[];
   const routes=(config.routes||[]).map(r=>typeof r==='string'?r:r.pattern).filter(Boolean);
-  const hasHost=host=>routes.some(r=>r===host||r===host+'/*'||r==='https://'+host+'/*');
+  // A bare hostname covers the site only as a Custom Domain. A Route must
+  // explicitly cover all paths; otherwise nested pages/APIs can miss the Worker.
+  const hasHost=host=>(config.routes||[]).some(r=>{
+    if(typeof r==='object'&&r.custom_domain===true)return r.pattern===host;
+    const pattern=typeof r==='string'?r:r.pattern;
+    return pattern===host+'/*'||pattern==='https://'+host+'/*';
+  });
   for(const host of ['www.medihelpers.co.kr','medihelpers.co.kr'])if(!hasHost(host))blockers.push('missing-route:'+host);
   if(config.workers_dev===false&&!routes.length)blockers.push('no-public-entrypoint');
   if(config.vars?.LEGACY_PAYMENT_BRIDGE_ENABLED==='true') {

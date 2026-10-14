@@ -9,6 +9,23 @@ test('www only does not cover apex',()=>assert(inspectCutover({...base,routes:[b
 test('lookalike host is rejected',()=>assert(inspectCutover({...base,routes:['www.medihelpers.co.kr.example.com/*']}).blockers.includes('missing-route:www.medihelpers.co.kr')));
 test('read only and drain block ordinary operation',()=>assert.deepEqual(inspectCutover({...base,vars:{MIGRATION_MODE:'drain',STAGING_READ_ONLY:'true'}}).blockers,['migration-not-open','read-only']));
 test('explicit host route patterns accepted',()=>assert.equal(inspectCutover({...base,routes:['www.medihelpers.co.kr/*','medihelpers.co.kr/*']}).configurationReady,true));
+test('bare Route names do not establish whole-site coverage',()=>{
+ for(const routes of [['www.medihelpers.co.kr','medihelpers.co.kr'],[{pattern:'www.medihelpers.co.kr'},{pattern:'medihelpers.co.kr'}]]) {
+  const r=inspectCutover({...base,routes});
+  assert.equal(r.configurationReady,false);
+  assert.deepEqual(r.blockers,['missing-route:www.medihelpers.co.kr','missing-route:medihelpers.co.kr']);
+ }
+});
+test('Custom Domains with Route wildcards are not valid host coverage',()=>{
+ const routes=base.routes.map(r=>({...r,pattern:r.pattern+'/*'}));
+ assert.equal(inspectCutover({...base,routes}).configurationReady,false);
+});
+test('HTTP-only and narrow path Routes do not cover the HTTPS application',()=>{
+ for(const prefix of ['http://','']) {
+  const routes=['www.medihelpers.co.kr','medihelpers.co.kr'].map(h=>prefix+h+(prefix?'/*':'/jobs/*'));
+  assert.equal(inspectCutover({...base,routes}).configurationReady,false);
+ }
+});
 test('actual cutover candidate connects both hosts but retains maintenance',()=>{
  const c=JSON.parse(readFileSync(new URL('../deploy/cloudflare.cutover.json',import.meta.url)));
  assert.deepEqual(inspectCutover(c).blockers,['migration-not-open','read-only']);

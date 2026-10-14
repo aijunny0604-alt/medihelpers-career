@@ -70,3 +70,9 @@ server/legacyPaymentBridge.js는 아직 생성 Worker에 import/삽입하지 않
 회귀검사 3개를 추가했고, 전체19묶음1,797개와 두 빌드가 통과했다. 공개 결제폼을 익명 쿠키 저장소로 두 번 GET하여 PHPSESSID 유지와 200 응답을 확인했다. PHPSESSID 및 rbUser의 응답 쿠키에는 Secure/HttpOnly/SameSite가 지정되지 않았다. 쿠키 값은 기록하지 않았다. 반복 GET 성공은 로그인 세션이나 외부 PG POST 반환에서의 쿠키 전송을 증명하지 않는다. 원본 설정을 임의 변경하거나 불확실한 쿠키를 브리지 허용목록에 추가하지 않았다.
 
 비공개 증거: bridge-config-audit-20261014.log, legacy-cookie-attributes-20261014.json. 이번 변경은 로컬 전환 검사 도구와 문서이며 생성 앱과 실제 배포 버전은 유지된다. 실제 카드 검수는 사용자 보류 상태다.
+
+## 전체 경로 판정 보완
+
+2026-10-14 도메인 경로 검사 수정: Custom Domain과 Route의 전체 경로 범위를 구분. bare Route/잘못된 wildcard Custom Domain/HTTP전용/부분경로의 준비완료 오판 차단. 전체19묶음1,860검사·두 빌드 통과. 검사도구만 변경, 앱 재배포 불필요(Worker09cd7c91 유지). www DNS121.254.171.115·공개HTTPS200·원본IP 지정 관리자GET200 확인. 실제 로그인/결제/역이전 증명 아님. 회원보류·DNS 유지.
+
+기존 검사는 custom_domain 표시 없이 호스트명만 입력해도 configurationReady=true였다. 이제 정확한 호스트의 Custom Domain 또는 HTTPS를 포함하는 host/* Route만 전체 서비스 범위로 인정한다. 구 결제 전달·회원 보류 문제는 별개로 남는다. 공식 Route 패턴 근거: https://developers.cloudflare.com/workers/configuration/routing/routes/ . 비공개 검사 로그 route-coverage-suite-20261014.log. 원격 설정 변경 없음.
