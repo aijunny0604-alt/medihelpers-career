@@ -26,6 +26,7 @@ function execute(statement, read=false) {
 Statement.prototype.all=async function(){return execute(this,true)};
 Statement.prototype.run=async function(){return execute(this)};
 let readBarrier=null;
+let beforeBatch=null;
 Statement.prototype.first=async function(column){
  const row=(await this.all()).results[0]||null;
  if(readBarrier?.pattern.test(this.sql)) {
@@ -34,7 +35,7 @@ Statement.prototype.first=async function(column){
  }
  return column?row?.[column]:row;
 };
-const DB={prepare:sql=>new Statement(sql),batch:async statements=>{sqlite.exec('BEGIN');try{const r=statements.map(s=>execute(s,/^\s*(SELECT|PRAGMA)/i.test(s.sql)));sqlite.exec('COMMIT');return r;}catch(e){sqlite.exec('ROLLBACK');throw e;}},exec:async sql=>sqlite.exec(sql)};
+const DB={prepare:sql=>new Statement(sql),batch:async statements=>{if(beforeBatch&&statements.some(s=>/INSERT INTO payment_pg_refunds/.test(s.sql))){const callback=beforeBatch;beforeBatch=null;callback();}sqlite.exec('BEGIN');try{const r=statements.map(s=>execute(s,/^\s*(SELECT|PRAGMA)/i.test(s.sql)));sqlite.exec('COMMIT');return r;}catch(e){sqlite.exec('ROLLBACK');throw e;}},exec:async sql=>sqlite.exec(sql)};
 const env={DB,ACCOUNT_HASH_SECRET:'audit-only-secret-never-used-outside-local-20260909',ADMIN_EMAILS:'admin@medihelpers.co.kr',SIGNUP_ENABLED:'true',LEGAL_DOCUMENT_STATUS:'approved',TEST_ACCOUNT_SWITCH_ENABLED:'true'};
 const output=[];
 async function call(path,role='',body,method=body?'POST':'GET') {
@@ -144,6 +145,16 @@ const rejected=await fixture();
 beforeStatement={pattern:/INSERT INTO payment_pg_refunds/,run:()=>sqlite.prepare("UPDATE payment_refunds SET status='rejected' WHERE id=?").run(rejected.id)};
 record('concurrent rejection blocks stale attestation',(await submit(rejected)).status,409);
 record('stale attestation cannot revoke credits',state(rejected).credits,0);
+const edited=await fixture();
+const changedMetadata=JSON.stringify({operatorNote:'newer committed edit',exposure:{end:'2099-12-31'}});
+beforeBatch=()=>sqlite.prepare('UPDATE payment_orders SET metadata_json=? WHERE id=?').run(changedMetadata,edited.order.id);
+record('changed order blocks stale refund snapshot',(await submit(edited)).status,409);
+record('newer order metadata is not overwritten',sqlite.prepare('SELECT metadata_json FROM payment_orders WHERE id=?').get(edited.order.id).metadata_json,changedMetadata);
+record('stale snapshot keeps paid order',state(edited).order,'paid');
+record('stale snapshot keeps usable credits',state(edited).credits,0);
+record('stale snapshot creates no refund transaction',state(edited).refunds,0);
+record('fresh retry can reconcile changed order',(await submit(edited)).status,200);
+record('fresh refund preserves newer non-exposure metadata',JSON.parse(sqlite.prepare('SELECT metadata_json FROM payment_orders WHERE id=?').get(edited.order.id).metadata_json).operatorNote,'newer committed edit');
 const sibling=await fixture(),other=await fixture();
 sqlite.prepare("INSERT INTO admin_content_records(id,content_type,title,status) VALUES ('manual-shared-ad','doctor_job','Synthetic shared ad','published')").run();
 for(const x of [sibling,other])sqlite.prepare('UPDATE payment_orders SET metadata_json=? WHERE id=?').run(JSON.stringify({contentRecordId:'manual-shared-ad',exposure:{end:'2099-12-31'}}),x.order.id);

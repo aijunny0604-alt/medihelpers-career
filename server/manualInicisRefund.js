@@ -17,18 +17,21 @@ export async function recordManualInicisRefund(env, refund, capture, evidence, a
   const meta = JSON.parse(refund.metadataJson || '{}'); delete meta.exposure;
   // The first INSERT is an atomic guard. NOT NULL failure or a competing per-order
   // PG claim rolls back the entire D1 batch, including rights and the audit event.
+  // Metadata must still match the snapshot used to compute ad hiding and exposure
+  // removal; otherwise a concurrent edit would be overwritten by stale JSON.
   await env.DB.batch([
     env.DB.prepare(`INSERT INTO payment_pg_refunds (order_id,refund_id,status)
       VALUES (?,?,CASE WHEN EXISTS (
         SELECT 1 FROM payment_orders o JOIN payment_refunds r ON r.order_id=o.id
         WHERE o.id=? AND r.id=? AND o.status='paid' AND r.status='requested'
+          AND o.metadata_json=?
           AND o.total_amount=? AND r.amount=o.total_amount
           AND o.payment_method='card' AND (o.paid_at IS NULL OR datetime(o.paid_at)<=datetime(?))
           AND (SELECT COUNT(*) FROM payment_transactions WHERE order_id=o.id AND transaction_type='capture' AND status='succeeded')=1
           AND EXISTS (SELECT 1 FROM payment_transactions WHERE order_id=o.id AND transaction_type='capture' AND status='succeeded' AND provider='inicis' AND provider_transaction_id=? AND amount=o.total_amount)
           AND NOT EXISTS (SELECT 1 FROM payment_transactions WHERE order_id=o.id AND transaction_type='refund' AND status='succeeded')
       ) THEN 'manual_completed' ELSE NULL END)`)
-      .bind(refund.orderId,refund.id,refund.orderId,refund.id,evidence.amount,evidence.canceledAt,capture.tid),
+      .bind(refund.orderId,refund.id,refund.orderId,refund.id,refund.metadataJson,evidence.amount,evidence.canceledAt,capture.tid),
     env.DB.prepare("UPDATE payment_orders SET status='refunded',metadata_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta),refund.orderId),
     env.DB.prepare("UPDATE payment_refunds SET status='succeeded',processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.id),
     env.DB.prepare("INSERT INTO payment_transactions (id,order_id,transaction_type,provider,provider_transaction_id,amount,status,processed_at) VALUES (?,?,'refund','inicis',?,?,'succeeded',CURRENT_TIMESTAMP)").bind('inicis-manual-refund-'+refund.orderId,refund.orderId,capture.tid,evidence.amount),
