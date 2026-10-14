@@ -23,6 +23,19 @@ async function call(url,body,cookie,method=body?'POST':'GET'){
 }
 let checks=0;const check=(a,b)=>{assert.deepEqual(a,b);checks++;};
 const aliases={doctor:'old-doctor',hospital:'old-hospital',admin:'old-admin'};
+// Schema initialization must not erase migration holds or operator notes.
+for (const [id,note] of [['held-hospital','MIGRATION_HOLD: internal fixture'],['modern-hospital','operator note fixture']]) {
+ sqlite.prepare('INSERT INTO accounts(id,user_key,role) VALUES(?,?,?)').run(id,id,'hospital');
+ sqlite.prepare("INSERT INTO account_admin_profiles(account_id,status,verification_status,admin_note) VALUES(?,'suspended','unverified',?)").run(id,note);
+}
+sqlite.prepare("INSERT INTO auth_credentials(account_id,email_normalized,password_hash,password_salt,password_iterations) VALUES('held-hospital','held@example.invalid','unused','unused',100000)").run();
+sqlite.prepare("INSERT INTO auth_login_aliases(login_id,account_id,source) VALUES('held-hospital','held-hospital','rankup')").run();
+check((await call('/api/auth/logout',{})).status,200);
+const heldProfile=sqlite.prepare("SELECT status,verification_status,admin_note FROM account_admin_profiles WHERE account_id='held-hospital'").get();
+check(heldProfile.status,'suspended');check(heldProfile.verification_status,'unverified');check(heldProfile.admin_note,'MIGRATION_HOLD: internal fixture');
+const modernProfile=sqlite.prepare("SELECT status,verification_status,admin_note FROM account_admin_profiles WHERE account_id='modern-hospital'").get();
+check(modernProfile.status,'suspended');check(modernProfile.verification_status,'verified');check(modernProfile.admin_note,'operator note fixture');
+sqlite.prepare("DELETE FROM accounts WHERE id IN ('held-hospital','modern-hospital')").run();
 const emails={doctor:'doctor-test@medihelpers.co.kr',hospital:'hospital-test@medihelpers.co.kr',admin:'admin@medihelpers.co.kr'};
 for(const role of Object.keys(aliases)){
  check((await call('/api/auth/test-switch',{key:role})).status,200);

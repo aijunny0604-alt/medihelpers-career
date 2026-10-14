@@ -459,8 +459,8 @@ async function ensureHospitalVerificationSchema(env) {
   // 같은 Worker 인스턴스에서는 한 번만 실행되며, 조건부 UPDATE라 반복 실행해도 안전하다.
   if (!schemaReadyPromises.has('hospital-immediate-signup-v1')) {
     schemaReadyPromises.set('hospital-immediate-signup-v1', env.DB.batch([
-      env.DB.prepare("UPDATE account_admin_profiles SET verification_status='verified', admin_note='', updated_by='system-auto', updated_at=CURRENT_TIMESTAMP WHERE account_id IN (SELECT id FROM accounts WHERE role='hospital') AND verification_status<>'verified'"),
-      env.DB.prepare("UPDATE hospital_verification_requests SET status='approved', review_note='가입 즉시 완료 정책 적용', reviewed_by='system-auto', reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP) WHERE status<>'approved'")
+      env.DB.prepare("UPDATE account_admin_profiles SET verification_status='verified', updated_by='system-auto', updated_at=CURRENT_TIMESTAMP WHERE account_id IN (SELECT id FROM accounts WHERE role='hospital') AND verification_status<>'verified' AND NOT EXISTS (SELECT 1 FROM auth_login_aliases l WHERE l.account_id=account_admin_profiles.account_id AND l.source='rankup') AND instr(COALESCE(admin_note,''),'MIGRATION_HOLD')=0"),
+      env.DB.prepare("UPDATE hospital_verification_requests SET status='approved', review_note='가입 즉시 완료 정책 적용', reviewed_by='system-auto', reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP) WHERE status<>'approved' AND NOT EXISTS (SELECT 1 FROM auth_login_aliases l WHERE l.account_id=hospital_verification_requests.account_id AND l.source='rankup') AND NOT EXISTS (SELECT 1 FROM account_admin_profiles p WHERE p.account_id=hospital_verification_requests.account_id AND instr(COALESCE(p.admin_note,''),'MIGRATION_HOLD')>0)")
     ]));
   }
   try { await schemaReadyPromises.get('hospital-immediate-signup-v1'); }
