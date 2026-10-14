@@ -76,3 +76,16 @@ server/legacyPaymentBridge.js는 아직 생성 Worker에 import/삽입하지 않
 2026-10-14 도메인 경로 검사 수정: Custom Domain과 Route의 전체 경로 범위를 구분. bare Route/잘못된 wildcard Custom Domain/HTTP전용/부분경로의 준비완료 오판 차단. 전체19묶음1,860검사·두 빌드 통과. 검사도구만 변경, 앱 재배포 불필요(Worker09cd7c91 유지). www DNS121.254.171.115·공개HTTPS200·원본IP 지정 관리자GET200 확인. 실제 로그인/결제/역이전 증명 아님. 회원보류·DNS 유지.
 
 기존 검사는 custom_domain 표시 없이 호스트명만 입력해도 configurationReady=true였다. 이제 정확한 호스트의 Custom Domain 또는 HTTPS를 포함하는 host/* Route만 전체 서비스 범위로 인정한다. 구 결제 전달·회원 보류 문제는 별개로 남는다. 공식 Route 패턴 근거: https://developers.cloudflare.com/workers/configuration/routing/routes/ . 비공개 검사 로그 route-coverage-suite-20261014.log. 원격 설정 변경 없음.
+
+## 관리자 기술 매뉴얼 조사 — 2026-10-14
+
+로그인된 랭크업 관리자에서 기술메뉴얼 → file/로 이동해 실제 표시 목록을 읽었다. 최상위에는 pay, rankup_module, m 폴더가 표시되지만 pay 및 rankup_module 내부에는 상위 이동 항목만 표시됐다. 이는 실제 파일이 없다는 증거가 아니라 이 매뉴얼이 내부 파일 정보를 제공하지 않는다는 관찰이다. m/content 목록에는 게시판·공고·이력서·설정·proc.ajax.php가 보였으며 결제 전용 파일은 표시되지 않았다. 미확보 주소를 추정하거나 proc.ajax.php를 결제 응답 주소로 등록하지 않았다.
+
+| 항목 | 확인 상태 | 전환 처리 |
+| --- | --- | --- |
+| PC 다이렉트 return/close/popup 3경로 | 앞선 실제 입력폼에서 확인 | 브리지 후보만 존재; 승인 콜백 시험 미완료 |
+| 일반 광고·열람권 결제 | 병원 로그인 제한, 관리자 파일목록 미제공 | 반환 주소 확인 전 전환 준비완료로 판정하지 않음 |
+| 모바일 반환·입금 통보 | 이번 매뉴얼에서도 확보하지 못함 | 추정 경로 전달 금지 |
+| 기존 진행 거래 종료 | 이니시스와 기존 주문의 대사 필요 | 파일목록·로컬 테스트로 대체 불가 |
+
+이번 작업은 조회만 했다. 원본 파일 수정·결제 제출·회원 변경·DNS 변경·앱 배포 없음. 최신 앱은 e407104, Worker09cd7c91 유지. 전체1,860검사는 직전 결과이며 이번 조회 작업에서 재실행한 것이 아니다. 문의는 사용자 요청대로 보내지 않았다.
