@@ -886,6 +886,6 @@ export default function AccountPage({ memberType = '', loginOnly = false, auth }
   else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={() => window.location.replace(withBase('/signup/welcome'))} />;
   return <div className="signup-page">
     <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의료인 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
-    <div className="signup-shell signup-shell-centered">{error && <p className="signup-environment-note" role="alert">{error}</p>}{content}</div>
+    <div className="signup-shell signup-shell-centered">{error && <p className="signup-environment-note" role="alert">{error}</p>}{!DEMO_MODE && !state.loading && !state.account && !loginOnly && state.signupEnabled === false && <p className="signup-environment-note" role="status"><strong>현재 새 회원가입은 중단되어 있습니다.</strong><br />입력해도 가입이 완료되지 않으므로 개인정보를 작성하지 마세요. 기존 계정은 로그인 화면을 이용해주세요. 이전 보류 계정은 비밀번호를 변경해도 이용이 재개되지 않습니다.</p>}{content}</div>
   </div>;
 }
