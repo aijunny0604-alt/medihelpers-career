@@ -419,7 +419,7 @@ const consultationStatus = { new:'신규 접수', contacted:'연락 완료', in_
 const recoveryStatus = { new:'신규 접수', contacted:'본인 확인 중', resolved:'처리 완료', closed:'종료' };
 const caseStatus = { new_request:'신규 의뢰', condition_review:'조건 확인', candidate_search:'후보 탐색', candidate_consent:'후보 동의', hospital_submitted:'병원 제안', interview:'면접 예정', negotiation:'조건 협상', hired:'입사 확정', closed:'종료' };
 const contentStatus = { draft:'임시저장', published:'공개 중', hidden:'숨김', closed:'마감' };
-const paymentStatus = { pending_review:'결제 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패', cancelled:'취소', partially_refunded:'부분 환불', refunded:'환불 완료' };
+const paymentStatus = { pending_review:'확인 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패', cancelled:'취소', partially_refunded:'부분 환불', refunded:'환불 완료' };
 
 function OperationsMonitor({ data }) {
   const [kind, setKind] = useState('all');
@@ -805,13 +805,13 @@ function MemberRow({ member }) {
     <div><span className={`member-role ${member.role}`}>{member.role === 'doctor' ? '의사' : '병원'}</span><strong>{member.organization || member.jobTitle || '-'}</strong><small>{member.jobTitle || '직함 미등록'}</small></div>
     <div><strong>{member.role === 'hospital' ? (member.hospitalDocumentStatus === 'checked' ? '기관 확인 완료' : '가입 완료') : '의료인 회원'}</strong><small>{member.role === 'hospital' && member.hospitalDocumentStatus === 'expired' ? '미확인 · 서류 보관 종료' : `계정 ${statusLabel}`}</small></div>
     <div><strong>동의 {member.consentCount || 0}건</strong><small>주문 {member.orderCount || 0}건</small><b>{Number(member.lifetimeValue || 0).toLocaleString()}원</b></div>
-    <div><small>가입 {String(member.createdAt || '-').slice(0,16)}</small><small>최근 {String(member.lastLoginAt || '-').slice(0,16)}</small></div>
+    <div><small>가입 {formatAdminTime(member.createdAt)}</small><small>최근 {formatAdminTime(member.lastLoginAt)}</small><small>한국 시각(KST)</small></div>
     <div><span className={`payment-status ${status}`}>{statusLabel}</span><small>자동 기록</small></div>
   </div>;
 }
 
 const paymentStatusLabel = {
-  pending_review:'결제 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패',
+  pending_review:'확인 대기', awaiting_payment:'결제 대기', paid:'결제 완료', failed:'결제 실패',
   cancelled:'취소', partially_refunded:'부분 환불', refunded:'전액 환불'
 };
 
@@ -937,14 +937,14 @@ function DataProtection({ active, qa }) {
     {state.error && <div className="admin-message">{state.error}</div>}
     <div className="admin-protection-summary">
       <article><ShieldCheck /><span><small>백업 저장소</small><strong>{state.loading ? '확인 중…' : state.error ? '조회 실패' : data.configured ? '정상 연결' : '설정 필요'}</strong><p>운영 DB와 분리된 비공개 R2</p></span></article>
-      <article><Archive /><span><small>마지막 백업</small><strong>{lastBackup ? formatAdminTime(lastBackup.completedAt || lastBackup.startedAt) : state.loading ? '확인 중…' : '기록 없음'}</strong><p>한국 날짜 기준 첫 요청 시 자동 생성</p></span></article>
+      <article><Archive /><span><small>마지막 백업</small><strong>{lastBackup ? formatAdminTime(lastBackup.completedAt || lastBackup.startedAt) : state.loading ? '확인 중…' : state.error ? '확인 불가' : '기록 없음'}</strong><p>백업 저장소와 자동 백업 설정이 필요합니다.</p></span></article>
       <article><RotateCcw /><span><small>마지막 보존 정리</small><strong>{lastRetention ? formatAdminTime(lastRetention.completedAt || lastRetention.startedAt) : state.loading ? '확인 중…' : '기록 없음'}</strong><p>탈퇴 30일 · 상담 3년 · 거래 5년</p></span></article>
       <article><Database /><span><small>백업 보관기간</small><strong>{data.backupRetentionDays || 35}일</strong><p>만료 스냅샷 자동 삭제</p></span></article>
     </div>
     <div className="admin-protection-files">
       <div className="head"><span>백업 파일</span><span>생성 시각</span><span>크기</span><span>무결성</span><span>다운로드</span></div>
       {(data.objects || []).map((object) => <div key={object.key}><code>{object.key.split('/').pop()}</code><time>{formatAdminTime(object.uploaded)}</time><span>{formatSize(Number(object.size || 0))}</span><em>{object.checksum ? '체크섬 기록 있음' : '체크섬 기록 없음'}</em><button onClick={() => download(object.key)}><Download />검증 후 받기</button></div>)}
-      {!state.loading && !(data.objects || []).length && <p>아직 생성된 백업이 없습니다. 첫 요청 후 일일 백업이 자동 생성됩니다.</p>}
+      {!state.loading && !(data.objects || []).length && <p>{state.error ? '백업 목록을 확인하지 못했습니다. 저장소 연결과 설정을 확인한 뒤 새로고침해주세요. 이 화면으로 백업 완료 여부를 판단할 수 없습니다.' : !data.configured ? '백업 저장소 설정이 필요합니다. 연결 전에는 이 화면에서 자동 백업을 제공하지 않습니다.' : '저장소에 표시할 백업이 없습니다. 자동 백업 설정과 실행 결과를 확인해주세요.'}</p>}
     </div>
     {data.nextCursor && <button type="button" disabled={state.loading} onClick={() => load(data.nextCursor)}>이전 백업 더 보기</button>}
     <p className="admin-protection-note"><ShieldAlert /> 내려받기 전 SHA-256을 검증합니다. DB 백업에는 개인정보가 포함되며, 업로드 파일 자체와 로그인 세션은 포함되지 않습니다. 회사의 암호화 저장소에만 보관하세요.</p>
@@ -952,7 +952,7 @@ function DataProtection({ active, qa }) {
 }
 
 function Audit({ audit = [] }) {
-  return <section className="admin-panel"><header><div><small>AUDIT LOG</small><h2>시스템 기록</h2><p>자동 기록된 시스템 작업과 과거 관리자 변경 이력을 읽기 전용으로 확인합니다.</p></div></header><div className="admin-audit-list">{audit.map((item) => <article key={item.id}><span><Activity /></span><div><strong>{item.subject}</strong><p>{item.action}</p></div><small>{item.actor}</small><time>{item.createdAt}</time></article>)}</div></section>;
+  return <section className="admin-panel"><header><div><small>AUDIT LOG</small><h2>시스템 기록</h2><p>자동 기록된 시스템 작업과 과거 관리자 변경 이력을 읽기 전용으로 확인합니다.</p></div></header><div className="admin-audit-list">{audit.map((item) => <article key={item.id}><span><Activity /></span><div><strong>{item.subject}</strong><p>{item.action}</p></div><small>{item.actor}</small><time>{formatAdminTime(item.createdAt)}</time></article>)}</div>{!audit.length && <div className="admin-data-empty">저장된 시스템 기록이 없습니다.</div>}</section>;
 }
 
 // 인재 이력서 열람 감사: 병원별 열람량과 이상 열람(한도 초과·단시간 폭주) 경고를 보여준다.
