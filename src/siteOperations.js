@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { sanitizeDisplayData } from './textIntegrity.js';
 import { normalizeExposureWindow } from './billingPeriods.js';
 
@@ -13,6 +13,19 @@ let pending;
 let fetchedAt = 0;
 let requestRevision = 0;
 let inFlight = false;
+let activeRequest;
+let snapshot = { operations:cached, ready:false, loading:false };
+const subscribers = new Set();
+let browserWatchers = 0;
+export const getSiteOperationsSnapshot = () => snapshot;
+export function subscribeSiteOperations(listener) {
+  subscribers.add(listener);
+  return () => subscribers.delete(listener);
+}
+function publishState(next) {
+  snapshot = next;
+  for (const listener of subscribers) listener();
+}
 // 공고를 등록·수정한 뒤 목록으로 이동해도 예전 캐시가 그대로 보이던 문제가 있었다.
 // (한 번 받아오면 다시 요청하지 않아, 브라우저를 새로고침해야만 새 공고가 보였다)
 // 짧은 TTL을 두고, 등록 성공 시에는 invalidateSiteOperations()로 즉시 캐시를 버린다.
@@ -32,11 +45,14 @@ export function loadOperations(force = false) {
   const stale = force || !pending || (Date.now() - fetchedAt > OPERATIONS_TTL_MS);
   if (stale) {
     const revision = ++requestRevision;
+    // Mutation/auth invalidation must cancel the superseded request, including a stuck body.
+    activeRequest?.cancel();
     inFlight = true;
     const controller = new AbortController();
     let timeout;
     const deadline = new Promise((_, reject) => {
       timeout = setTimeout(() => { controller.abort(); reject({code:'REQUEST_TIMEOUT'}); }, 12000);
+      activeRequest = { cancel:() => { clearTimeout(timeout); controller.abort(); reject({code:'SUPERSEDED'}); } };
     });
     const request = Promise.resolve().then(() => fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin', cache:'no-store', signal:controller.signal }))
       .catch(() => { throw {code:controller.signal.aborted ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR'}; })
@@ -52,57 +68,70 @@ export function loadOperations(force = false) {
         value = sanitizeDisplayData(value);
         cached = { ...defaultSiteOperations, ...value, settings:{ ...defaultSiteOperations.settings, ...(value.settings || {}) }, features:{ ...defaultSiteOperations.features, ...(value.features || {}) } };
         fetchedAt = Date.now();
+        inFlight = false;
+        activeRequest = undefined;
+        publishState({ operations:cached, ready:true, loading:false });
         return cached;
       })
       .catch((error) => {
         if (revision !== requestRevision) return pending;
         // A failing service should not be retried on every route/focus event.
         fetchedAt = Date.now();
-        return { ...cached, ...siteOperationsFailure({ code:error?.errorCode || error?.code }) };
+        const failure = { ...cached, ...siteOperationsFailure({ code:error?.errorCode || error?.code }) };
+        inFlight = false;
+        activeRequest = undefined;
+        publishState({ operations:failure, ready:true, loading:false });
+        return failure;
       }).finally(() => {
         clearTimeout(timeout);
         if (revision === requestRevision) inFlight = false;
       });
+    // Notify mounted screens immediately; retry used to leave the old error on screen.
+    publishState({ operations:cached, ready:snapshot.ready && !snapshot.operations.error, loading:true, retrying:Boolean(snapshot.operations.error || snapshot.retrying) });
   }
   return pending;
 }
 
 // 공고·이력서 등록처럼 공개 목록이 바뀌는 작업 직후 호출해 다음 조회가 서버를 다시 보게 한다.
 export function invalidateSiteOperations() {
-  pending = undefined;
   fetchedAt = 0;
   // 다음 화면이 곧바로 최신 목록을 쓰도록 미리 새로 받아둔다(등록 → 목록 이동 사이의 공백 제거).
-  try { loadOperations(true); } catch {}
+  return loadOperations(true);
 }
 
+export function retrySiteOperations() {
+  // Repeated clicks share one retry rather than creating competing requests.
+  return loadOperations(!inFlight);
+}
+
+export function resetSiteOperationsForAuth() {
+  cached = defaultSiteOperations;
+  publishState({ operations:cached, ready:false, loading:false });
+  return invalidateSiteOperations();
+}
+
+const syncOperations = () => { loadOperations(); };
+const onOperationsVisible = () => { if (document.visibilityState === 'visible') syncOperations(); };
+
 export function useSiteOperations() {
-  const [state, setState] = useState({ operations: cached, ready: false });
+  const state = useSyncExternalStore(subscribeSiteOperations, getSiteOperationsSnapshot, getSiteOperationsSnapshot);
   useEffect(() => {
-    let active = true;
-    let syncRevision = 0;
-    const sync = () => { const revision = ++syncRevision; loadOperations().then((value) => active && revision === syncRevision && setState({ operations:value, ready:true })); };
-    const onAuthChanged = () => {
-      cached = defaultSiteOperations;
-      setState({ operations:cached, ready:false });
-      invalidateSiteOperations();
-      sync();
-    };
-    sync();
-    // SPA는 페이지를 오가도 이 훅이 다시 마운트되지 않는다(의존성이 비어 있어 1회만 실행).
-    // 그래서 공고를 등록하고 목록으로 이동해도 예전 캐시가 계속 보였다.
-    // 경로 변경·탭 복귀 시 다시 확인해서 TTL이 지났거나 무효화됐으면 서버를 새로 조회한다.
-    window.addEventListener('popstate', sync);
-    window.addEventListener('medihelpers:auth-changed', onAuthChanged);
-    const onVisible = () => { if (document.visibilityState === 'visible') sync(); };
-    document.addEventListener('visibilitychange', onVisible);
+    // One browser listener set even when multiple screens consume the shared resource.
+    if (++browserWatchers === 1) {
+      window.addEventListener('popstate', syncOperations);
+      window.addEventListener('medihelpers:auth-changed', resetSiteOperationsForAuth);
+      document.addEventListener('visibilitychange', onOperationsVisible);
+    }
+    syncOperations();
     return () => {
-      active = false;
-      window.removeEventListener('popstate', sync);
-      window.removeEventListener('medihelpers:auth-changed', onAuthChanged);
-      document.removeEventListener('visibilitychange', onVisible);
+      if (--browserWatchers === 0) {
+        window.removeEventListener('popstate', syncOperations);
+        window.removeEventListener('medihelpers:auth-changed', resetSiteOperationsForAuth);
+        document.removeEventListener('visibilitychange', onOperationsVisible);
+      }
     };
   }, []);
-  return { ...state.operations, ready:state.ready };
+  return { ...state.operations, ready:state.ready, loading:state.loading, retrying:Boolean(state.retrying) };
 }
 
 // Keep the dedicated headhunting board separate from paid hospital ads while

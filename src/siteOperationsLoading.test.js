@@ -76,3 +76,85 @@ test('invalidation prevents an older response from overwriting the new result', 
   assert.equal(current.contents[0].title, 'new');
   assert.equal(calls, 2);
 });
+
+test('retry immediately clears the displayed error and publishes its progress to every screen', async (t) => {
+  const next=deferred();let calls=0;
+  t.mock.method(globalThis,'fetch',()=>++calls===1?Promise.reject(new Error('offline')):next.promise);
+  const api=await fresh();
+  const seen=[];const stop=api.subscribeSiteOperations(()=>seen.push(api.getSiteOperationsSnapshot()));
+  await api.loadOperations();
+  assert.equal(seen.at(-1).operations.errorCode,'NETWORK_ERROR');
+  const retry=api.retrySiteOperations();
+  assert.equal(seen.at(-1).loading,true);
+  assert.equal(seen.at(-1).retrying,true);
+  assert.equal(seen.at(-1).ready,false);
+  assert.equal(seen.at(-1).operations.error,undefined);
+  assert.equal(api.retrySiteOperations(),retry);
+  next.resolve(reply('recovered'));
+  await retry;
+  assert.equal(calls,2);
+  assert.equal(seen.at(-1).loading,false);
+  assert.equal(seen.at(-1).operations.contents[0].title,'recovered');
+  stop();const length=seen.length;await api.loadOperations(true);assert.equal(seen.length,length);
+});
+
+test('invalidation aborts a hung request and all waiters finish with the replacement', async (t) => {
+  let calls=0;let oldSignal;
+  t.mock.method(globalThis,'fetch',(_url,{signal})=>{
+    if(++calls===1){oldSignal=signal;return new Promise(()=>{});}
+    return reply('replacement');
+  });
+  const api=await fresh();
+  const first=api.loadOperations();await Promise.resolve();
+  await api.invalidateSiteOperations();
+  assert.equal(oldSignal.aborted,true);
+  assert.equal((await first).contents[0].title,'replacement');
+  assert.equal(api.getSiteOperationsSnapshot().loading,false);
+});
+
+test('auth change erases privileged cached data synchronously even if the next request fails', async (t) => {
+  let calls=0;const next=deferred();
+  t.mock.method(globalThis,'fetch',()=>++calls===1?reply('private previous account'):next.promise);
+  const api=await fresh();await api.loadOperations();
+  const reset=api.resetSiteOperationsForAuth();
+  assert.deepEqual(api.getSiteOperationsSnapshot().operations.contents,[]);
+  assert.equal(api.getSiteOperationsSnapshot().ready,false);
+  next.resolve({ok:false,json:async()=>({code:'UNAVAILABLE'})});await reset;
+  assert.deepEqual(api.getSiteOperationsSnapshot().operations.contents,[]);
+  assert.equal(api.getSiteOperationsSnapshot().operations.error,true);
+});
+
+test('all consumers observe a mutation refresh without requiring route or focus events', async (t) => {
+  let calls=0;
+  t.mock.method(globalThis,'fetch',()=>reply('revision '+ ++calls));
+  const api=await fresh();await api.loadOperations();
+  const seen=[];const stop=api.subscribeSiteOperations(()=>seen.push(api.getSiteOperationsSnapshot()));
+  await api.invalidateSiteOperations();
+  assert.equal(seen[0].loading,true);
+  assert.equal(seen.at(-1).operations.contents[0].title,'revision 2');
+  assert.equal(seen.at(-1).ready,true);stop();
+});
+
+test('a delayed previous-account response cannot reappear after auth reset', async (t) => {
+  const old=deferred();let calls=0;
+  t.mock.method(globalThis,'fetch',()=>++calls===1?old.promise:reply('current account'));
+  const api=await fresh();const previous=api.loadOperations();await Promise.resolve();
+  await api.resetSiteOperationsForAuth();old.resolve(reply('previous private data'));
+  await previous;
+  assert.equal(api.getSiteOperationsSnapshot().operations.contents[0].title,'current account');
+});
+
+test('a second timed out attempt exits the busy state and permits a later successful retry', async (t) => {
+  let deadline;let calls=0;
+  t.mock.method(globalThis,'setTimeout',callback=>{deadline=callback;return 1;});
+  t.mock.method(globalThis,'clearTimeout',()=>{});
+  t.mock.method(globalThis,'fetch',()=>++calls<3?new Promise(()=>{}):reply('eventually recovered'));
+  const api=await fresh();
+  for(let i=0;i<2;i++){
+    const request=api.retrySiteOperations();await Promise.resolve();deadline();await request;
+    const state=api.getSiteOperationsSnapshot();
+    assert.equal(state.loading,false);assert.equal(state.operations.errorCode,'REQUEST_TIMEOUT');
+  }
+  assert.equal((await api.retrySiteOperations()).contents[0].title,'eventually recovered');
+  assert.equal(calls,3);
+});

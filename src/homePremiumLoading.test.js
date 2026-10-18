@@ -8,7 +8,7 @@ const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('메인 채용광고는 DB 목록이 확정되기 전에 예시 공고를 노출하지 않는다', () => {
   assert.match(operations, /ready:\s*false/);
-  assert.match(operations, /setState\(\{ operations:value, ready:true \}\)/);
+  assert.match(operations, /publishState\(\{ operations:cached, ready:true, loading:false \}\)/);
   assert.match(main, /<HomePage liveJobs=\{liveJobs\} jobsReady=\{operations\.ready\}/);
   assert.match(main, /jobsReady\s*\?\s*<PremiumAdCarousel/);
   assert.match(main, /:\s*<HomePremiumLoading/);

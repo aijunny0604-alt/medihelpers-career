@@ -36,6 +36,15 @@ footer{background:#f8fafc;border-top:1px solid #e5ebf2;padding:34px max(24px,cal
    ⚠️ 헤더에 backdrop-filter가 걸려 있어 헤더 '안'에 두면 fixed 기준이 헤더로 갇혀 높이가 0이 된다.
       반드시 헤더 바깥 형제 요소로 유지할 것. */
 .nav-scrim{display:none}
+.operations-status{padding:40px 24px;gap:18px}
+.operations-status>small{font-size:14px;font-weight:800;color:var(--blue)}
+.operations-status>div[aria-live]{max-width:760px}
+.operations-status p{line-height:1.8;margin:12px 0 0}
+.operations-status-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px}
+.operations-status-actions .button{min-height:48px}
+.operations-status-actions button:disabled{cursor:wait;opacity:.65}
+.operations-status .operations-status-help{font-size:14px;margin:0}
+@media(max-width:600px){.operations-status-actions{width:100%;max-width:340px;flex-direction:column}.operations-status h1{font-size:24px}}
 /* html이 실제 스크롤 컨테이너이므로 배경 잠금은 html에 건다(body만으로는 안 막힘). */
 html.nav-locked,html.nav-locked body{overflow:hidden}
 @keyframes nav-drop{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}

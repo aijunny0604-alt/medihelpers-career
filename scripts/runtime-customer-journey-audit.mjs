@@ -158,9 +158,12 @@ if(process.argv.includes('--serve')&&!process.exitCode){
  const {createServer}=await import('node:http');
  const localOrigin='http://127.0.0.1:5197';env.SITE_ORIGIN=localOrigin;origin=localOrigin;
  globalThis.fetch=async()=>{throw Error('External network disabled in local visual audit');};
+ let operationsFault=process.argv.includes('--stall-operations-once');
  createServer(async(req,res)=>{
   try{
    console.log('UI request: '+req.method+' '+req.url);
+   if(req.url==='/api/site-operations'&&operationsFault){operationsFault=false;console.log('UI fault: intentionally stalled operations response');return;}
+   if(req.url==='/api/site-operations'&&process.argv.includes('--slow-operations-retry'))await new Promise(resolve=>setTimeout(resolve,2500));
    const role=req.url.match(/^\/__login\/(doctor|hospital|admin)$/)?.[1];
    if(role){const login=await call('/api/auth/login','',{email:'journey-'+role+'@example.invalid',password});res.writeHead(302,{'set-cookie':login.cookie+'; Path=/; HttpOnly; SameSite=Lax',location:'/mypage?tab=payments'});res.end();return;}
    const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);

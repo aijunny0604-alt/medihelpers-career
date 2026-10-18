@@ -34,7 +34,7 @@ const PrivacyPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ def
 const RefundPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.RefundPolicyPage })));
 const TermsPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.TermsPage })));
 const WithdrawalPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.WithdrawalPolicyPage })));
-import { invalidateSiteOperations, isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
+import { invalidateSiteOperations, retrySiteOperations, isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import JobLocationMap from './JobLocationMap.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
@@ -3660,6 +3660,23 @@ function Toaster() {
   </div>;
 }
 
+function OperationsStatus({ operations, path, route, auth }) {
+  const label = path === '/' ? '홈 채용정보' : path.startsWith('/jobs') ? '병원 채용란' : path.startsWith('/medical-staff') ? '의료인 구인구직' : '맞춤 헤드헌팅';
+  return <section className="not-found operations-status">
+    <small>{label}</small>
+    <div role={operations.error ? 'alert' : 'status'} aria-live="polite" aria-busy={operations.loading}>
+      <h1>{operations.error ? '정보를 불러오지 못했습니다' : '최신 정보를 불러오고 있습니다'}</h1>
+      <p>{operations.error ? operations.errorMessage : '잠시만 기다려주세요. 조회 중에도 다른 메뉴로 이동할 수 있습니다.'}</p>
+    </div>
+    <div className="operations-status-actions">
+      {operations.errorCode !== 'SERVICE_DAILY_LIMIT' && <button type="button" className="button primary" disabled={operations.loading} onClick={retrySiteOperations}>{operations.loading ? '불러오는 중…' : '다시 불러오기'}</button>}
+      <a className="button outline" href={withBase(route)} data-full-reload>페이지 새로고침</a>
+      <Link className="button outline" to={auth.status === 'member' ? '/mypage' : '/login'}>{auth.status === 'member' ? '내 활동·결제로 이동' : '로그인 화면으로 이동'}</Link>
+    </div>
+    {operations.error && <p className="operations-status-help">공고 조회에 문제가 있어도 상단 메뉴와 다른 기능으로 이동할 수 있습니다.</p>}
+  </section>;
+}
+
 export function App() {
   useEffect(() => {
     const routeFor = (anchor) => anchor && internalScreenRoute(anchor.getAttribute('href'), window.location.href, appBase);
@@ -3749,7 +3766,7 @@ export function App() {
   const remoteDetailRoute = ['/jobs/', '/headhunting/posts/', '/medical-staff/talents/', '/medical-staff/jobs/'].some(prefix => path.startsWith(prefix));
   const remoteListRoute = ['/', '/jobs', '/medical-staff', '/headhunting'].includes(path);
   if (!isValidRoutePath(path)) page = <NotFoundPage />;
-  else if (((remoteDetailRoute || path === '/jobs') && !operations.ready) || ((remoteDetailRoute || remoteListRoute) && operations.error)) page = <section className="not-found" role="status"><h1>{operations.error ? '정보를 불러오지 못했습니다' : '최신 정보를 불러오고 있습니다'}</h1><p>{operations.error ? operations.errorMessage : '공고와 회원 권한을 확인하고 있습니다.'}</p>{operations.error && operations.errorCode !== 'SERVICE_DAILY_LIMIT' && <button className="button primary" onClick={() => { invalidateSiteOperations(); window.dispatchEvent(new PopStateEvent('popstate')); }}>다시 불러오기</button>}</section>;
+  else if (((remoteDetailRoute || path === '/jobs' || (remoteListRoute && operations.retrying)) && !operations.ready) || ((remoteDetailRoute || remoteListRoute) && operations.error)) page = <OperationsStatus operations={operations} path={path} route={route} auth={auth} />;
   else if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} auth={auth} />;
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
