@@ -16,6 +16,7 @@ import { ReceiptModal } from './MemberCenterPage.jsx';
 import { withBase } from './basePath.js';
 import { authRequest } from './AccountPage.jsx';
 import { readStoredArray, writeStoredValue } from './browserStorage.js';
+import { loadConsole } from './adminConsoleApi.js';
 
 const catalogContents = [
   ...jobs.map((job) => ({
@@ -174,12 +175,6 @@ const go = (path) => {
   window.dispatchEvent(new PopStateEvent('popstate'));
 };
 
-async function loadConsole() {
-  const response = await fetch('/api/admin-console', { credentials: 'same-origin' });
-  if (!response.ok) throw new Error(response.status === 403 ? '관리자 권한이 필요합니다.' : '관리자 데이터를 불러오지 못했습니다.');
-  return response.json();
-}
-
 async function updateConsole(action, payload) {
   const response = await fetch('/api/admin-console', {
     method: 'PATCH',
@@ -221,7 +216,7 @@ export default function AdminConsolePage({ qa = false }) {
         return;
       } catch (error) {
         // 마지막 시도까지 실패하면 안내 화면을 띄운다.
-        if (attempt === 3) { setLoadError(error.message || '관리자 데이터를 불러오지 못했습니다.'); }
+        if (attempt === 3 || ![401,403].includes(error.status)) { setLoadError(error.message || '관리자 데이터를 불러오지 못했습니다.'); break; }
         else await new Promise((r) => setTimeout(r, 500));
       }
     }
@@ -299,7 +294,7 @@ export default function AdminConsolePage({ qa = false }) {
         <h1>{isAuth ? '관리자 권한이 필요합니다' : '관리자 데이터를 불러오지 못했습니다'}</h1>
         <p>{isAuth
           ? '관리자 계정으로 로그인했는지 확인해 주세요. 세션이 만료됐다면 다시 로그인하면 됩니다.'
-          : '일시적인 오류일 수 있습니다. 다시 시도해 주세요.'}</p>
+          : loadError}</p>
         <div>
           <button className="button primary" type="button" onClick={() => refresh()}>다시 시도</button>
           <a className="button outline" href={withBase('/login?next=/admin/console')}>관리자 로그인</a>

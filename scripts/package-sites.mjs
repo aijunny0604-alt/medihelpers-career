@@ -969,18 +969,29 @@ async function consultationApi(request, env, pathname) {
         return json({ error:'선택한 이력서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
       }
     }
+    if (requestType === 'doctor' && payload.submissionChannel === 'headhunt_board') {
+      await ensureAdminConsoleSchema(env);
+      const headhunt = await env.DB.prepare("SELECT id, title, subtitle, payload_json AS payloadJson FROM admin_content_records WHERE id=? AND content_type IN ('doctor_job','medical_job') AND status='published' AND visibility IN ('public','doctor') LIMIT 1").bind(payload.headhuntPostId).first();
+      const headhuntPayload = parseJsonObject(headhunt?.payloadJson);
+      if (!headhunt || headhuntPayload.publicationChannel !== 'headhunt_board' || isAdExposureExpired(headhuntPayload)) {
+        return json({ error:'현재 문의할 수 없는 헤드헌팅 공고입니다. 목록에서 모집 중인 공고를 다시 선택해 주세요.' }, 409);
+      }
+      // URL/query text is presentation only. The saved request references the actual current post.
+      payload.headhuntPostTitle = String(headhunt.title || '').slice(0,300);
+      payload.headhuntPostHospital = String(headhunt.subtitle || '').slice(0,300);
+    }
     let directJobRow = null;
     if (requestType === 'doctor' && payload.submissionChannel === 'paid_job_direct') {
       try {
         const realJobId = String(payload.jobId).replace(/^admin-/, '');
         directJobRow = await env.DB.prepare(
-          "SELECT c.title, c.subtitle, c.status, c.payload_json AS payloadJson, c.created_by AS createdBy, a.id AS ownerAccountId, a.role AS ownerRole " +
+          "SELECT c.title, c.subtitle, c.status, c.payload_json AS payloadJson, c.created_by AS createdBy, a.id AS ownerAccountId, a.role AS ownerRole, COALESCE(ap.status,'active') AS ownerStatus " +
           "FROM admin_content_records c LEFT JOIN auth_credentials ac ON lower(ac.email_normalized)=lower(c.created_by) " +
-          "LEFT JOIN accounts a ON a.id=ac.account_id WHERE c.id=? AND c.content_type='doctor_job' AND c.status='published' LIMIT 1"
+          "LEFT JOIN accounts a ON a.id=ac.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE c.id=? AND c.content_type IN ('doctor_job','medical_job') AND c.status='published' AND c.visibility IN ('public','doctor') LIMIT 1"
         ).bind(realJobId).first();
       } catch { directJobRow = null; }
       // 성공 문구만 표시되고 실제 수신 병원이 없는 유실 접수를 허용하지 않는다.
-      if (!directJobRow || directJobRow.ownerRole !== 'hospital' || !directJobRow.ownerAccountId) {
+      if (!directJobRow || directJobRow.ownerRole !== 'hospital' || !directJobRow.ownerAccountId || directJobRow.ownerStatus !== 'active' || parseJsonObject(directJobRow.payloadJson).publicationChannel === 'headhunt_board') {
         return json({ error:'이 공고의 등록 병원 계정을 확인할 수 없어 지원서를 전달하지 못했습니다. 다른 공고를 선택하거나 병원에 직접 문의해 주세요.' }, 409);
       }
       if (isAdExposureExpired(parseJsonObject(directJobRow.payloadJson))) return json({ error:'노출 기간이 종료된 공고입니다. 현재 모집 중인 공고를 선택해주세요.' }, 409);
@@ -993,6 +1004,15 @@ async function consultationApi(request, env, pathname) {
     const consultationInsert = env.DB.prepare('INSERT INTO consultation_requests (id, request_type, requester_name, phone, email, specialty, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, requestType, requesterName, payload.phone, identity.email, payload.specialty, JSON.stringify(payload));
     if (!account?.id) return json({ error:'회원정보를 확인할 수 없습니다.' }, 403);
     const consentInserts = [consentEvent(env, account.id, directJobRow ? 'application' : 'consultation', id), ...(directJobRow ? [consentEvent(env, account.id, 'direct', id, payload.jobHospital)] : [])];
+    // A hospital request and its CRM case form one operation. Never report success with a missing case.
+    const relatedInserts = [];
+    if (requestType === 'hospital') {
+      try {
+        await ensureRecruitmentCrmSchema(env);
+        const caseId = 'CASE-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
+        relatedInserts.push(env.DB.prepare('INSERT INTO recruitment_cases (id, consultation_id, hospital_name, specialty, position_title, next_action) VALUES (?, ?, ?, ?, ?, ?)').bind(caseId, id, payload.hospital, payload.specialty, payload.specialty + ' 의사 초빙', '병원 채용조건 확인'));
+      } catch { return json({ error:'채용 상담 저장소를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503); }
+    }
     if (payload.submissionChannel === 'paid_job_direct') {
       try {
         await ensureMemberCenterSchema(env);
@@ -1014,6 +1034,7 @@ async function consultationApi(request, env, pathname) {
         await env.DB.batch([
           consultationInsert,
           ...consentInserts,
+          ...relatedInserts,
           env.DB.prepare('INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), account.id, kind, title, String(payload.subject || payload.specialty).slice(0,300)),
           env.DB.prepare("INSERT INTO member_notifications (id, account_id, kind, title, body, action_url) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), account.id, kind, title, '메디헬퍼스 헤드헌터가 내용을 확인한 뒤 연락드립니다.', '/mypage/inquiries/' + encodeURIComponent(id))
         ]);
@@ -1021,14 +1042,8 @@ async function consultationApi(request, env, pathname) {
         return json({ error:'헤드헌터 상담함에 문의를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503);
       }
     } else {
-      await env.DB.batch([consultationInsert, ...consentInserts]);
-    }
-    if (requestType === 'hospital') {
-      try {
-        await ensureRecruitmentCrmSchema(env);
-        const caseId = 'CASE-' + Date.now().toString(36).toUpperCase() + crypto.randomUUID().slice(0,4).toUpperCase();
-        await env.DB.prepare('INSERT INTO recruitment_cases (id, consultation_id, hospital_name, specialty, position_title, next_action) VALUES (?, ?, ?, ?, ?, ?)').bind(caseId, id, payload.hospital, payload.specialty, payload.specialty + ' 의사 초빙', '병원 채용조건 확인').run();
-      } catch {}
+      try { await env.DB.batch([consultationInsert, ...consentInserts, ...relatedInserts]); }
+      catch { return json({ error:'상담 내용을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, 503); }
     }
     const record = { id, requestType, requesterName, phone:payload.phone, payload };
     let emailStatus = payload.submissionChannel === 'paid_job_direct' ? 'not_applicable' : 'failed';
