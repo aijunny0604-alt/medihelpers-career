@@ -41,6 +41,12 @@
 
 ## 배포 기록
 
-모바일 복귀 옵션 보완의 배포 후보 검수 완료. 직전 Worker `36b0b74f-9c5c-4f76-b114-f880d3e1be9b`와 바인딩30개를 보존해 두었다. 배포 완료 및 정식 URL 검사는 아래 후속 기록으로 확정한다.
+모바일 복귀 옵션 보완을 https://www.medihelpers.co.kr 에 배포했다. 앱 `3277c848314ea398a593b3d9f2ae3d170b2296ac`, Worker `bb435114-5381-46fb-a117-384ad4728121`. GitHub 기준 브랜치와 Sites 소스 main의 동일 앱 SHA를 확인한 뒤 Cloudflare에 `--keep-vars`로 반영했다. Sites 런타임 배포는 하지 않았다.
 
-비공개 근거: `payment-simulation-build-20261018.log`, `payment-sim-*-20261018.json`, `payment-simulation-final-audit-20261018.log`, `payment-simulation-prior-version-20261018.json`.
+- 배포 후 정식 URL **67검사** 통과: 최신 JS 자산/보안 헤더/반환 주소, 운영자 새 로그인·권한·세션 종료, 잘못된 요청 차단 등. 의료인·병원의 결제 검수는 격리 계정 세션이며 실제 고객 계정으로 시험했다는 뜻은 아니다.
+- 결제 설치 상태 **23검사** 통과: 공식 운영 SDK/닫기 SDK HTTP200, PC/모바일 키의 서버 Secret 등록, live/checkout/mobile 설정, 수동 환불 및 테스트 역할 전환 차단 확인. 2026-10-18 20:07 KST 조회 시 운영 주문/승인/환불 모두0건이었다.
+- 바인딩30개가 직전 Worker `36b0b74f-9c5c-4f76-b114-f880d3e1be9b`와 동일하며 두 Route·production DB·키를 유지했다. 원격 DB 마이그레이션이나 운영 데이터 생성은 없다. 이번 테스트는 임시 원격 DB/서버를 만들지 않아 별도 자원 삭제가 필요하지 않다.
+- 앱카드 복귀 옵션은 모의 DOM의 폼 제출 값으로 검증했다. 실제 iPhone/카드 앱의 화면 이동, 카드 승인·부분 취소·정산은 미실시다. 자동 환불은 계속 비활성이다.
+- 기존 랭크업 원본, 회원282 보류, 이전 복구 실행서는 유지했다. 저장소와 문서를 동기화했으며 문서 후속 커밋은 앱 재배포 대상이 아니다.
+
+비공개 근거: `payment-simulation-build-20261018.log`, `payment-sim-*-20261018.json`, `payment-simulation-final-audit-20261018.log`, `payment-simulation-prior-version-20261018.json`, `payment-simulation-deploy-20261018.log`, `payment-simulation-live-check-20261018.log`, `payment-simulation-health-results-20261018.json`, `payment-simulation-binding-check-20261018.json`.
