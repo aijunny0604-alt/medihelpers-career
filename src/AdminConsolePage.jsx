@@ -1,5 +1,6 @@
 import PaymentExceptions from './PaymentExceptions.jsx';
 import RefundReview from './RefundReview.jsx';
+import { refundStatusLabel } from './RefundHistory.jsx';
 import PaymentLedgerDownload from './PaymentLedgerDownload.jsx';
 import { paymentAmounts } from './paymentAmounts.js';
 import { confirmAction } from './confirmAction.js';
@@ -232,6 +233,9 @@ export default function AdminConsolePage({ qa = false }) {
 
   const adminNotifications = useMemo(() => {
     const items = [];
+    for (const item of data.refunds || []) {
+      if (['requested','processing'].includes(item.status)) items.push({id:`refund-${item.id}`,title:'환불 요청 확인 필요',copy:item.reason||'회원 요청을 확인해주세요.',target:'payments'});
+    }
     for (const item of data.consultations || []) {
       if (item.status === 'new') items.push({ id:`consultation-${item.id}`, title:'새 상담 문의', copy:`${item.requesterName || '신청자'} · ${item.specialty || '분야 확인 필요'}`, target:'monitoring' });
       if (item.emailNotificationStatus === 'failed' || item.smsNotificationStatus === 'failed') items.push({ id:`delivery-${item.id}`, title:'상담 알림 발송 확인 필요', copy:item.requesterName || item.id, target:'monitoring' });
@@ -240,7 +244,7 @@ export default function AdminConsolePage({ qa = false }) {
       if (item.status === 'pending_review' || item.status === 'awaiting_payment') items.push({ id:`payment-${item.id}`, title:'결제 상태 확인 필요', copy:`${item.productName || '상품'} · ${item.orderNumber || ''}`, target:'payments' });
     }
     return items.slice(0, 12);
-  }, [data.consultations, data.payments]);
+  }, [data.consultations, data.payments, data.refunds]);
 
   // Reading an alert is separate from resolving the consultation or payment.
   // Remember only IDs, per administrator in this browser; never store alert copy.
@@ -370,7 +374,7 @@ function Dashboard({ data, select }) {
   const cards = [
     ['전체 회원', data.metrics.accounts, UserRoundCog, `의사 ${data.metrics.doctors} · 병원 ${data.metrics.hospitals}`, 'members'],
     ['결제 기록', data.metrics.payments || 0, CreditCard, `기록 상태 대기 ${data.metrics.pendingPayments || 0}건`, 'payments'],
-    ['누적 결제', `${(data.metrics.paidRevenue || 0).toLocaleString()}원`, ReceiptText, `환불 주문 ${data.metrics.refundedPayments || 0}건`, 'payments'],
+    ['환불 제외 결제액', `${(data.metrics.paidRevenue || 0).toLocaleString()}원`, ReceiptText, `환불 주문 ${data.metrics.refundedPayments || 0}건`, 'payments'],
     ['상담 기록', data.metrics.consultations, UsersRound, '자동 저장된 상담 내역', 'monitoring'],
     ['채용 기록', data.metrics.activeCases, BriefcaseBusiness, `입사 기록 ${data.metrics.hiredCases}건`, 'monitoring'],
     ['콘텐츠 기록', data.metrics.contents || 0, Eye, '공고·인재·게시글', 'contents'],
@@ -813,12 +817,13 @@ const paymentStatusLabel = {
 function Payments({ data }) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const refundWaiting=new Set((data.refunds||[]).filter(r=>['requested','processing'].includes(r.status)).map(r=>r.orderId));
   const filtered = (data.payments || []).filter((payment) => {
     const text = [payment.orderNumber, payment.productName, payment.customerName, payment.customerEmail, payment.customerPhone].join(' ').toLowerCase();
-    return (statusFilter === 'all' || payment.status === statusFilter) && text.includes(query.trim().toLowerCase());
+    return (statusFilter === 'all' || (statusFilter==='refund_requested'?refundWaiting.has(payment.id):payment.status === statusFilter)) && text.includes(query.trim().toLowerCase());
   });
   const [selectedId, setSelectedId] = useState(filtered[0]?.id || data.payments?.[0]?.id || '');
-  const selected = (data.payments || []).find((payment) => payment.id === selectedId) || filtered[0] || null;
+  const selected = filtered.find((payment) => payment.id === selectedId) || filtered[0] || null;
   useEffect(() => { if (!selected && filtered[0]) setSelectedId(filtered[0].id); }, [selected, filtered]);
   return <section className="admin-panel admin-payment-manager">
     <header><div><small>PAYMENT LEDGER</small><h2>결제 · 거래 · 환불 통합 원장</h2><p>주문번호를 기준으로 결제 결과와 환불 기록을 조회합니다. 환불 요청은 아래 확인 절차를 거쳐 처리합니다. 모든 시각은 한국 시각(KST)입니다.</p></div><span className="catalog-readonly"><ShieldCheck /> 결제 승인 기록 보호</span></header>
@@ -827,12 +832,12 @@ function Payments({ data }) {
     <div className="admin-payment-metrics">
       <article><span>전체 주문</span><strong>{data.metrics.payments || 0}건</strong></article>
       <article><span>처리 대기</span><strong>{data.metrics.pendingPayments || 0}건</strong></article>
-      <article><span>결제 완료액</span><strong>{Number(data.metrics.paidRevenue || 0).toLocaleString()}원</strong></article>
+      <article><span>환불 제외 결제액</span><strong>{Number(data.metrics.paidRevenue || 0).toLocaleString()}원</strong></article>
       <article><span>환불 주문</span><strong>{data.metrics.refundedPayments || 0}건</strong></article>
     </div>
     <div className="admin-data-toolbar">
       <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="주문번호·회원·상품 검색" /></label>
-      <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">전체 상태</option>{Object.entries(paymentStatusLabel).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select>
+      <select aria-label="결제 상태 필터" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">전체 상태</option><option value="refund_requested">환불 요청 대기 ({refundWaiting.size}건)</option>{Object.entries(paymentStatusLabel).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select>
       <span>검색 결과 <b>{filtered.length}</b>건</span>
     </div>
     <div className="admin-payment-layout">
@@ -862,7 +867,7 @@ function PaymentDetail({ payment, transactions, refunds, refundMode }) {
       {payment.exposure && <div><dt>노출 기간</dt><dd>{payment.exposure.start} ~ {payment.exposure.end} <small>{payment.exposure.days ? `${payment.exposure.days}일 상품` : ''}{new Date(`${String(payment.exposure.end).slice(0,10)}T23:59:59`).getTime() < Date.now() ? ' · 노출 종료' : ' · 노출 중'}</small></dd></div>}
     </dl>
     <section className="payment-history"><h4><ReceiptText />거래 이력</h4>{orderTransactions.map((item) => <div key={item.id}><span>{item.transactionType}</span><strong>{Number(item.amount).toLocaleString()}원</strong><small>{item.providerTransactionId || item.provider}</small><time>{formatAdminTime(item.processedAt)}</time></div>)}{!orderTransactions.length && <p>아직 저장된 거래 기록이 없습니다.</p>}</section>
-    <section className="payment-refund-requests"><h4><RotateCcw />환불 기록</h4>{orderRefunds.map((item) => <div key={item.id} className="refund-request-row"><div><strong>{Number(item.amount || 0).toLocaleString()}원 · {item.status}</strong><small>{item.reason || '사유 미입력'}</small>{item.manualConfirmation && <details><summary>이니시스 관리자 취소 · 운영자 확인 기록</summary><p>확인자: {item.manualConfirmation.recordedBy}<br />취소 시각: {formatAdminTime(item.manualConfirmation.canceledAt)} KST<br />거래번호: {item.manualConfirmation.tid}<br />확인 근거: {item.manualConfirmation.reference}<br />홈페이지 기록: {formatAdminTime(item.manualConfirmation.recordedAt)} KST</p></details>}<small>요청자 {item.requestedBy || '회원'} · {formatAdminTime(item.processedAt || item.createdAt)}</small>{['requested','processing'].includes(item.status) && <RefundReview refund={item} manual={refundMode === 'manual'} virtual={!orderTransactions.some(row=>row.provider==='inicis' && row.transactionType==='capture')} />}</div></div>)}{!orderRefunds.length && <p>저장된 환불 기록이 없습니다.</p>}</section>
+    <section className="payment-refund-requests"><h4><RotateCcw />환불 기록</h4>{orderRefunds.map((item) => <div key={item.id} className="refund-request-row"><div><strong>{['requested','processing'].includes(item.status)?'금액 검토 중':item.status==='rejected'?'환불 미승인':`${Number(item.amount || 0).toLocaleString()}원`} · {refundStatusLabel[item.status]||item.status}</strong><small>{item.reason || '사유 미입력'}</small>{item.rejectionReason&&<p className="refund-customer-result"><b>회원 안내 · 반려 사유:</b> {item.rejectionReason}</p>}{item.manualConfirmation?.customerMessage&&<p className="refund-customer-result"><b>회원 안내:</b> {item.manualConfirmation.customerMessage}</p>}{item.manualConfirmation && <details><summary>이니시스 관리자 취소 · 운영자 확인 기록</summary><p>확인자: {item.manualConfirmation.recordedBy}<br />취소 시각: {formatAdminTime(item.manualConfirmation.canceledAt)} KST<br />원 거래번호: {item.manualConfirmation.tid}<br />취소 거래번호: {item.manualConfirmation.cancellationTid||item.providerRefundId||'-'}<br />취소 후 잔액: {Number(item.manualConfirmation.remainingAmount||0).toLocaleString()}원<br />확인 근거: {item.manualConfirmation.reference}<br />홈페이지 기록: {formatAdminTime(item.manualConfirmation.recordedAt)} KST</p></details>}<small>요청자 {item.requestedBy || '회원'} · {formatAdminTime(item.processedAt || item.createdAt)}</small>{['requested','processing'].includes(item.status) && <RefundReview refund={item} payment={payment} capture={orderTransactions.find(t=>t.transactionType==='capture'&&t.provider==='inicis'&&t.status==='succeeded')} manual={refundMode === 'manual'} virtual={!orderTransactions.some(row=>row.provider==='inicis' && row.transactionType==='capture')} />}</div></div>)}{!orderRefunds.length && <p>저장된 환불 기록이 없습니다.</p>}</section>
   </div>;
 }
 

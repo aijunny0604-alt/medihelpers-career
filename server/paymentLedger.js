@@ -23,10 +23,10 @@ export function paymentLedgerCsv(rows) {
     if(/^[\s\u0000-\u001f]*[=+@-]/.test(s))s="'"+s;
     return '"'+s.replaceAll('"','""')+'"';
   };
-  const table=[['주문번호','원 거래번호(TID)','거래구분','금액(원)','홈페이지 기록시각(KST)','PG 취소시각(KST)','현재 주문상태','확인방식']];
+  const table=[['주문번호','원 거래번호(TID)','취소 거래번호(TID)','거래구분','금액(원)','홈페이지 기록시각(KST)','PG 취소시각(KST)','현재 주문상태','확인방식']];
   for(const row of rows) {
     if(!Number.isSafeInteger(row.amount)||row.amount<0)throw Error('INVALID_LEDGER_AMOUNT');
-    table.push([row.orderNumber,row.tid,row.kind==='capture'?'승인':'취소',row.amount,ledgerKst(row.recordedAt),ledgerKst(row.canceledAt),row.orderStatus,
+    table.push([row.orderNumber,row.tid,row.kind==='refund'?(row.transactionTid||row.tid):'',row.kind==='capture'?'승인':'취소',row.amount,ledgerKst(row.recordedAt),ledgerKst(row.canceledAt),row.orderStatus,
       row.kind==='capture'?'홈페이지 승인원장':row.manual?'운영자 확인':'자동 취소원장']);
   }
   return '\uFEFF'+table.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
@@ -34,12 +34,12 @@ export function paymentLedgerCsv(rows) {
 
 export async function readPaymentLedger(db, start, end) {
   const range=ledgerDateRange(start,end);
-  const result=await db.prepare(`SELECT o.order_number AS orderNumber,t.provider_transaction_id AS tid,
+  const result=await db.prepare(`SELECT o.order_number AS orderNumber,CASE WHEN t.transaction_type='refund' THEN COALESCE(json_extract(e.detail_json,'$.tid'),t.provider_transaction_id) ELSE t.provider_transaction_id END AS tid,t.provider_transaction_id AS transactionTid,
     t.transaction_type AS kind,t.amount,t.processed_at AS recordedAt,o.status AS orderStatus,
     CASE WHEN t.transaction_type='refund' AND e.id IS NOT NULL THEN 1 ELSE 0 END AS manual,
     CASE WHEN t.transaction_type='refund' THEN json_extract(e.detail_json,'$.canceledAt') ELSE NULL END AS canceledAt
     FROM payment_transactions t JOIN payment_orders o ON o.id=t.order_id
-    LEFT JOIN payment_events e ON e.id='inicis-manual-refund-event-'||o.id
+    LEFT JOIN payment_events e ON e.id=COALESCE((SELECT id FROM payment_events WHERE id=replace(t.id,'inicis-manual-refund-','inicis-manual-refund-event-')), 'inicis-manual-refund-event-'||o.id)
     WHERE t.provider='inicis' AND t.status='succeeded' AND t.transaction_type IN ('capture','refund')
       AND datetime(t.processed_at)>=datetime(?) AND datetime(t.processed_at)<datetime(?)
     ORDER BY datetime(t.processed_at),t.id LIMIT 10001`).bind(range.from,range.until).all();

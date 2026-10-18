@@ -147,7 +147,7 @@ sqlite.prepare('UPDATE payment_refunds SET amount=1 WHERE id=?').run(partial.id)
 record('partial requested amount blocked atomically',(await submit(partial)).status,409);
 record('partial mismatch retains order',state(partial).order,'paid');
 const rejected=await fixture();
-beforeStatement={pattern:/INSERT INTO payment_pg_refunds/,run:()=>sqlite.prepare("UPDATE payment_refunds SET status='rejected' WHERE id=?").run(rejected.id)};
+beforeStatement={pattern:/INSERT INTO payment_pg_refunds/,run:()=>sqlite.prepare("UPDATE payment_refunds SET status='cancelled' WHERE id=?").run(rejected.id)};
 record('concurrent rejection blocks stale attestation',(await submit(rejected)).status,409);
 record('stale attestation cannot revoke credits',state(rejected).credits,0);
 const edited=await fixture();
@@ -183,6 +183,120 @@ const exceptionData=await exceptionResponse.json();
 record('unresolved refund appears in admin queue',exceptionData.paymentExceptions.items.some(x=>x.orderNumber===blocked.order.orderNumber && x.status==='review'),true);
 record('completed manual refund absent from exception queue',exceptionData.paymentExceptions.items.some(x=>x.orderNumber===f.order.orderNumber),false);
 record('exception queue does not call PG',pgCalls,0);
+// Partial refunds, public result history and notification integrity (synthetic only).
+async function requestedFixture() {
+ const x=await fixture();sqlite.prepare('DELETE FROM payment_refunds WHERE id=?').run(x.id);
+ const r=await call('/api/member-center','hospital',{action:'refund_request',orderNumber:x.order.orderNumber,reason:'합성 미사용분 환불 요청'});
+ record('member request accepted',r.status,200);x.id=r.data.refundId;x.body.refundId=x.id;return x;
+}
+function partialBody(x,amount,remaining,tag='one') {
+ return {...x.body,evidence:{...x.body.evidence,amount,remainingAmount:remaining,cancellationTid:'PARTIAL-'+x.id+'-'+tag,customerMessage:'사용분을 제외한 미사용분 환불 완료. 남은 서비스는 종료됩니다.'}};
+}
+const part=await requestedFixture(),partAmount=Math.floor(part.order.totalAmount/2);
+const partPool=sqlite.prepare('SELECT id,hospital_account_id FROM talent_credit_pools WHERE order_id=?').get(part.order.id);
+sqlite.prepare('UPDATE talent_credit_pools SET used_credits=2 WHERE id=?').run(partPool.id);
+sqlite.prepare("INSERT INTO talent_unlocks(id,hospital_account_id,talent_id,order_id) VALUES ('partial-kept-access',?,'partial-used-person',?)").run(partPool.hospital_account_id,part.order.id);
+const pbody=partialBody(part,partAmount,part.order.totalAmount-partAmount);
+for(const diff of [{cancellationTid:''},{cancellationTid:part.body.evidence.tid},{remainingAmount:1},{customerMessage:''},{amount:0},{amount:1.2},{amount:'1'},{amount:part.order.totalAmount+1}]) {
+ record('partial rejects invalid '+JSON.stringify(diff),(await submit(part,{body:{...pbody,evidence:{...pbody.evidence,...diff}}})).status,400);
+}
+const pendingCenter=(await call('/api/member-center','hospital')).data;
+record('pending visible to requester',pendingCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).refundPending,1);
+record('request history records reason',pendingCenter.refunds.find(r=>r.id===part.id).reason,'합성 미사용분 환불 요청');
+record('duplicate customer request blocked',(await call('/api/member-center','hospital',{action:'refund_request',orderNumber:part.order.orderNumber,reason:'duplicate'})).status,409);
+record('partial recorded',(await submit(part,{body:pbody})).status,200);
+record('partial status',state(part).order,'partially_refunded');
+record('actual used count preserved',state(part).credits,2);
+record('unused credits stopped',sqlite.prepare("SELECT json_extract(metadata_json,'$.refundServiceEnded') ended FROM payment_orders WHERE id=?").get(part.order.id).ended,1);
+record('paid used access preserved',sqlite.prepare("SELECT COUNT(*) n FROM talent_unlocks WHERE id='partial-kept-access'").get().n,1);
+record('partial amount matches ledger',sqlite.prepare("SELECT SUM(amount) n FROM payment_transactions WHERE order_id=? AND transaction_type='refund'").get(part.order.id).n,partAmount);
+const partCenter=(await call('/api/member-center','hospital')).data;
+record('member cumulative refund',partCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).refundedAmount,partAmount);
+record('member result amount',partCenter.refunds.find(r=>r.id===part.id).amount,partAmount);
+record('member gets public explanation',partCenter.refunds.find(r=>r.id===part.id).customerMessage,pbody.evidence.customerMessage);
+record('internal evidence not exposed',JSON.stringify(partCenter.refunds).includes('synthetic merchant-console'),false);
+record('PG cancellation ID not exposed',JSON.stringify(partCenter.refunds).includes(pbody.evidence.cancellationTid),false);
+record('member notified once',partCenter.alerts.filter(a=>a.id==='refund-result-'+part.id).length,1);
+record('notification links to payment history',partCenter.alerts.find(a=>a.id==='refund-result-'+part.id).actionUrl,'/mypage?tab=payments&order='+encodeURIComponent(part.order.orderNumber));
+record('other member cannot read refund',(await call('/api/member-center','doctor')).data.refunds.some(r=>r.id===part.id),false);
+const repeatResult=await submit(part,{body:pbody});record('partial replay rejected',repeatResult.status,409);
+record('notification not duplicated',(await call('/api/member-center','hospital')).data.alerts.filter(a=>a.id==='refund-result-'+part.id).length,1);
+const req2=await call('/api/member-center','hospital',{action:'refund_request',orderNumber:part.order.orderNumber,reason:'남은 금액 추가 검토 요청'});
+record('additional request after partial',req2.status,200);
+const part2={...part,id:req2.data.refundId,body:{...part.body,refundId:req2.data.refundId}};
+const remainder=part.order.totalAmount-partAmount;
+const body2=partialBody(part2,remainder,0,'final');
+record('over remaining amount rejected',(await submit(part2,{body:{...body2,evidence:{...body2.evidence,amount:remainder+1}}})).status,400);
+record('prior cancel transaction replay rejected',(await submit(part2,{body:{...body2,evidence:{...body2.evidence,cancellationTid:pbody.evidence.cancellationTid}}})).status,409);
+record('failed replay preserves first refund',sqlite.prepare("SELECT COUNT(*) n FROM payment_transactions WHERE order_id=? AND transaction_type='refund'").get(part.order.id).n,1);
+record('remaining balance refunded',(await submit(part2,{body:body2})).status,200);
+record('cumulative full refund terminal',state(part2).order,'refunded');
+record('cumulative amount exactly original',sqlite.prepare("SELECT SUM(amount) n FROM payment_transactions WHERE order_id=? AND transaction_type='refund'").get(part.order.id).n,part.order.totalAmount);
+record('two independent cancellations recorded',state(part2).refunds,2);
+record('full cumulative refund removes previous access',sqlite.prepare("SELECT COUNT(*) n FROM talent_unlocks WHERE id='partial-kept-access'").get().n,0);
+record('full refunded request blocked',(await call('/api/member-center','hospital',{action:'refund_request',orderNumber:part.order.orderNumber,reason:'duplicate'})).status,400);
+const consoleAfter=await worker.fetch(new Request('https://audit.local/api/admin-console',{headers:{cookie:cookies.admin}}),manualEnv,{});
+const afterData=await consoleAfter.json();
+record('first confirmation not overwritten',afterData.refunds.find(r=>r.id===part.id).manualConfirmation.cancellationTid,pbody.evidence.cancellationTid);
+record('second confirmation independent',afterData.refunds.find(r=>r.id===part2.id).manualConfirmation.cancellationTid,body2.evidence.cancellationTid);
+record('admin cumulative refund',afterData.payments.find(r=>r.id===part.order.id).refundedAmount,part.order.totalAmount);
+const kstDay=new Date(Date.now()+9*3600000).toISOString().slice(0,10);
+const csv=await (await ledgerRequest('admin','start='+kstDay+'&end='+kstDay)).text();
+record('CSV contains first cancellation',csv.includes(pbody.evidence.cancellationTid),true);
+record('CSV contains second cancellation',csv.includes(body2.evidence.cancellationTid),true);
+record('CSV one line for each refund',csv.split('\r\n').filter(line=>line.includes(part.order.orderNumber)&&line.includes('"취소"')).length,2);
+const deny=await requestedFixture();
+for(const reason of [undefined,'','  ','abc','x'.repeat(1001)]) record('reject reason mandatory '+String(reason?.length),(await submit(deny,{body:{refundId:deny.id,decision:'reject',reason}})).status,400);
+injectedFailure=/INSERT INTO member_notifications/;
+record('reject notification failure rolls back',(await submit(deny,{body:{refundId:deny.id,decision:'reject',reason:'합성 이용 내역상 환불 대상 아님'}})).status,409);
+record('failed rejection remains requested',state(deny).refund,'requested');
+record('failed rejection has no event',sqlite.prepare("SELECT COUNT(*) n FROM payment_events WHERE id=?").get('refund-rejected-'+deny.id).n,0);
+const rejectBody={refundId:deny.id,decision:'reject',reason:'이미 사용한 열람 건입니다. 미사용 내역이 있다면 고객센터로 문의해주세요.'};
+const rejectRace=await Promise.all([submit(deny,{body:rejectBody}),submit(deny,{body:rejectBody})]);
+record('concurrent rejection once',rejectRace.filter(r=>r.status===200).length,1);
+record('rejection leaves paid order',state(deny).order,'paid');
+record('rejection leaves credits',state(deny).credits,0);
+record('rejection never creates cancellation',state(deny).refunds,0);
+const deniedCenter=(await call('/api/member-center','hospital')).data;
+record('member sees rejection reason',deniedCenter.refunds.find(r=>r.id===deny.id).customerMessage,rejectBody.reason);
+record('member sees rejection status',deniedCenter.refunds.find(r=>r.id===deny.id).status,'rejected');
+record('rejection notification once',deniedCenter.alerts.filter(r=>r.id==='refund-result-'+deny.id).length,1);
+record('rejected order allows new request',(await call('/api/member-center','hospital',{action:'refund_request',orderNumber:deny.order.orderNumber,reason:'새 증빙으로 재검토 요청'})).status,200);
+const failedNotice=await requestedFixture();
+injectedFailure=/INSERT INTO member_notifications/;
+record('refund notification failure blocks partial',(await submit(failedNotice,{body:partialBody(failedNotice,1,failedNotice.order.totalAmount-1)})).status,409);
+record('notification failure paid preserved',state(failedNotice).order,'paid');
+record('notification failure ledger empty',state(failedNotice).refunds,0);
+record('notification failure no expired pool',sqlite.prepare('SELECT expires_at FROM talent_credit_pools WHERE order_id=?').get(failedNotice.order.id).expires_at,null);
+record('notification retry safely succeeds',(await submit(failedNotice,{body:partialBody(failedNotice,1,failedNotice.order.totalAmount-1)})).status,200);
+const memberRace=await fixture();sqlite.prepare('DELETE FROM payment_refunds WHERE id=?').run(memberRace.id);
+const reqRace=await Promise.all([1,2,3].map(()=>call('/api/member-center','hospital',{action:'refund_request',orderNumber:memberRace.order.orderNumber,reason:'동시 접수 시험'})));
+record('concurrent member requests one success',reqRace.filter(r=>r.status===200).length,1);
+record('concurrent member requests one row',sqlite.prepare('SELECT COUNT(*) n FROM payment_refunds WHERE order_id=?').get(memberRace.order.id).n,1);
+record('all new tests never call PG',pgCalls,0);
+
 globalThis.fetch=originalFetch;
 console.log(JSON.stringify({passed:output.filter(r=>r.pass).length,total:output.length,failures:output.filter(r=>!r.pass)},null,2));
 if(output.some(r=>!r.pass))process.exitCode=1;
+
+// Optional visual QA uses only this in-memory DB and synthetic captures.
+if(process.argv.includes('--serve') && !process.exitCode) {
+ const examples=[];
+ for(const label of ['부분 환불 예시','반려 안내 예시','처리 대기 예시']) {
+  const example=await requestedFixture();
+  sqlite.prepare("UPDATE payment_orders SET product_name=?,created_at=datetime('now','+1 minute') WHERE id=?").run('화면 검수 · '+label+' (실제 결제 아님)',example.order.id);
+  examples.push(example);
+ }
+ assert.equal((await submit(examples[0],{body:partialBody(examples[0],23200,examples[0].order.totalAmount-23200,'screen')})).status,200);
+ await submit(examples[1],{body:{refundId:examples[1].id,decision:'reject',reason:'이용 내역 확인 결과 이미 사용된 서비스입니다. 추가 증빙이 있다면 고객센터에 재검토를 요청해주세요.'}});
+ const {createServer}=await import('node:http');
+ createServer(async(req,res)=>{
+  try {
+   const role=req.url==='/__login/admin'?'admin':req.url==='/__login/hospital'?'hospital':null;
+   if(role){res.writeHead(302,{'Set-Cookie':cookies[role]+'; Path=/; HttpOnly; SameSite=Lax',Location:role==='admin'?'/admin/console':'/mypage?tab=payments'});res.end();return;}
+   const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);
+   const response=await worker.fetch(new Request('http://127.0.0.1:5195'+req.url,{method:req.method,headers:req.headers,...(body.length?{body}:{})}),manualEnv,{});
+   res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
+  }catch{res.writeHead(500);res.end('Local refund fixture error');}
+ }).listen(5195,'127.0.0.1',()=>console.log('Refund UI fixture ready: http://127.0.0.1:5195/__login/hospital'));
+}
