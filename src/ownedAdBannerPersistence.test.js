@@ -5,7 +5,7 @@ import { SAMPLE_BANNER_TEMPLATES } from './bannerTemplates.js';
 
 const source = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
 const branch = source.slice(source.indexOf("if (body.action === 'owned_ad_update')"), source.indexOf("if (body.action === 'refund_request')"));
-const execute = new (Object.getPrototypeOf(async function() {}).constructor)('body', 'account', 'env', 'identity', 'parseJsonObject', 'json', branch);
+const execute = new (Object.getPrototypeOf(async function() {}).constructor)('body', 'account', 'env', 'identity', 'parseJsonObject', 'json', 'isAdmin = false', branch);
 
 test('owner banner changes persist template, upload and removal while preserving the ad contract', async () => {
   let payload = { adTier:'featured', exposureEnd:'2026-12-31', banner:'/old.jpg', brandImageLayout:'full-banner' };

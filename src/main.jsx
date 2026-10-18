@@ -71,14 +71,13 @@ const recruitmentTypes = ['전체 초빙', ...RECRUITMENT_TYPES];
 const doctorConditions = ['전체 조건', '주 4일', '당직 협의', '숙소 지원', '검진 중심'];
 const TALENT_PAGE_SIZE = 12;
 
-// 공고 신청 권한은 역할 문자열만으로 추측하지 않는다. 공용 인증 조회가 실제 회원
-// 세션과 병원 계정을 함께 확인한 경우에만 등록 화면과 제출 동작을 연다.
+// 공용 인증 API가 확인한 관리자에게도 회원 기능을 연다. 실제 주문 권한은
+// 서버에서 다시 확인하며, 관리자 본인의 주문으로만 기록한다.
 function isActiveHospitalMember(auth) {
   return Boolean(
     auth?.status === 'member' &&
-    auth?.account?.role === 'hospital' &&
-    auth?.role === 'hospital' &&
-    !auth?.isAdmin
+    auth?.account &&
+    (auth?.isAdmin === true || (auth?.account?.role === 'hospital' && auth?.role === 'hospital'))
   );
 }
 
@@ -594,6 +593,7 @@ function Header({ path, qa, operations, auth }) {
         {authLoading
           ? <span className="mobile-account-link auth-action-pending" aria-hidden="true" />
           : <Link to={accountTarget} onClick={() => setOpen(false)} className={`mobile-account-link ${path === '/mypage' || path === '/admin/console' || path.startsWith('/signup') ? 'active' : ''}`}>{isAdminUser ? '관리자 콘솔' : isSignedIn ? '마이페이지' : '로그인·회원가입'}</Link>}
+        {isAdminUser && <Link to="/mypage" onClick={() => setOpen(false)} className="mobile-account-link">내 활동·결제</Link>}
         {!authLoading && isSignedIn && <button type="button" className="mobile-logout-button" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '로그아웃 중…' : '로그아웃'}</button>}
         {testSwitcher(true)}
       </nav>
@@ -608,6 +608,7 @@ function Header({ path, qa, operations, auth }) {
             {isSignedIn && !isAdminUser && <Link className="header-notifications" to="/mypage?tab=notifications" aria-label={`알림함${unreadCount > 0 ? `, 읽지 않은 알림 ${unreadCount}개` : ''}`}><Bell />{unreadCount > 0 && <b>{unreadCount > 99 ? '99+' : unreadCount}</b>}</Link>}
             {isAdminUser && <Link className="header-notifications" to="/admin/console?open=notifications" aria-label="관리자 알림 열기"><Bell /></Link>}
             {!isSignedIn && path === '/' && <Link className="header-signup" to="/signup"><UserRound size={16} /> 회원가입</Link>}
+            {isAdminUser && <Link className="header-logout" to="/mypage">내 활동·결제</Link>}
             <Link className="header-account" to={accountTarget}><UserRound size={16} /> {accountLabel}</Link>
             {isSignedIn && <button type="button" className="header-logout" onClick={signOut} disabled={signingOut}><LogOut /> {signingOut ? '처리 중' : '로그아웃'}</button>}
           </>}
@@ -2563,8 +2564,8 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
   // 구직글 작성 권한은 앱에서 이미 확인한 공용 로그인 상태를 사용한다.
   // 페이지 안에서 /api/account를 다시 조회하면 처음 비회원 버튼이 나타났다 사라지는 경쟁 상태가 생긴다.
   const authLoading = auth.status === 'loading';
-  const isHospitalMember = auth.role === 'hospital';
-  const canWriteJobSeeker = auth.role === 'doctor';
+  const isHospitalMember = isActiveHospitalMember(auth);
+  const canWriteJobSeeker = auth.status === 'member' && (auth.role === 'doctor' || auth.isAdmin);
   // 진료과·지역 옵션은 실제 데이터에서 동적으로 뽑는다.
   const deptOptions = useMemo(() => ['전체', ...Array.from(new Set([...all.map((p) => p.dept).filter(x => x && x !== '한의사'), '한의사']))], [all]);
   const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(all.map((p) => p.region).filter(Boolean)))], [all]);
@@ -2577,7 +2578,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
 
   useEffect(() => {
     let active = true;
-    if (qa?.active || auth.status !== 'member' || auth.role !== 'hospital') {
+    if (qa?.active || !isActiveHospitalMember(auth)) {
       setUnlockedTalentIds(new Set());
       return () => { active = false; };
     }
@@ -3092,7 +3093,7 @@ function Checkout({ plan, auth }) {
             <div className="checkout-form">
               {(accountProfile.hospitalName || accountProfile.name || accountProfile.phone) && <div className="account-prefill-notice" role="status">
                 <CircleCheck />
-                <span><strong>회원가입 정보를 불러왔습니다</strong><small>병원명·담당자·연락처·주소가 자동으로 입력되며, 이번 공고에 맞게 수정할 수 있습니다.</small></span>
+                <span><strong>회원가입 정보를 불러왔습니다</strong><small>{auth.isAdmin ? '공고에 표시할 병원·기관명을 입력해주세요. 결제자 이름과 연락처는 관리자 본인 회원정보를 사용합니다.' : '병원명·담당자·연락처는 가입정보를 사용합니다. 주소와 채용 조건은 이번 공고에 맞게 입력해주세요.'}</small></span>
               </div>}
               {isMainAdPlan && <section className="ad-form-section">
                 <div className="ad-form-section-head">
@@ -3223,7 +3224,7 @@ function Checkout({ plan, auth }) {
                   <span>병원명 <b className="required-label">필수</b></span>
                   <input
                     required
-                    readOnly name="hospital"
+                    readOnly={!auth.isAdmin} name="hospital"
                     placeholder="병원명을 입력해주세요"
                     defaultValue={accountProfile.hospitalName}
                   />
@@ -3483,7 +3484,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
   const [recoveryOrder, setRecoveryOrder, rememberOrder] = usePaymentRecovery(auth, plan.id + ':' + talentId);
   const accountProfile = useAccountProfile(auth);
   const lockedCustomer = {
-    name: accountProfile.hospitalName || accountProfile.organization || '',
+    name: (auth.isAdmin ? accountProfile.name : accountProfile.hospitalName || accountProfile.organization) || '',
     phone: accountProfile.phone || '',
     email: accountProfile.email || '',
   };
@@ -3544,7 +3545,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     const openHref = talentId ? `/medical-staff/talents/${encodeURIComponent(talentId)}` : '/medical-staff';
     return <section className="section"><div className="checkout-success talent-unlock-success"><span><CircleCheck /></span><h2>{paidInfo?.approved ? '열람권이 활성화되었습니다' : '열람권 결제 요청이 접수되었습니다'}</h2><p>{paidInfo?.approved ? <>{plan.name} · {plan.price.toLocaleString()}원 결제가 처리되었습니다.<br />{paidInfo?.testMode ? '테스트(가상) 결제 모드입니다. 실제 금액은 청구되지 않았습니다.' : '마이페이지에서 지급된 열람권과 사용 내역을 확인하세요.'}</> : '자격 확인 후 열람 권한을 활성화해 드립니다.'}</p><div className="talent-unlock-success-actions">{paidInfo?.approved && talentId ? <Link className="button primary" to={openHref}>이 의료인 이력서 바로 보기 <ArrowRight /></Link> : <Link className="button primary" to="/medical-staff">의료인 채용으로 <ArrowRight /></Link>}<Link className="button outline" to="/medical-staff">의료인 목록</Link></div></div></section>;
   }
-  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><div className="talent-unlock-product"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>결제 승인 후 열람권이 지급됩니다</strong><span>결제창의 금액을 확인해주세요. 승인 전에는 이용권이 지급되지 않으며, 처리 결과가 불명확하면 같은 주문으로 확인해주세요.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}{accountProfile.loaded && (!lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email) && <div className="talent-unlock-account-note" role="alert"><span><strong>결제에 필요한 병원 회원정보가 비어 있습니다</strong><small>마이페이지에서 병원명과 연락처를 저장한 뒤 다시 이용해주세요.</small><Link to="/mypage?tab=profile">회원정보 수정 <ArrowRight size={14} /></Link></span></div>}</div><form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><div className="talent-unlock-account-note"><LockKeyhole /><span><strong>병원 회원가입 정보</strong><small>결제자 정보는 가입된 병원 계정과 자동으로 연결됩니다.</small></span></div><PrivacyNotice scope="checkout" />{talentId && <div className="checkout-contact-notice" role="status">{contactPreview.loading ? <strong>연락처 공개 설정 확인 중…</strong> : contactPreview.error ? <><strong>{contactPreview.error}</strong><button type="button" className="button outline" onClick={() => setPreviewRetry(v => v+1)}>다시 확인</button></> : contactPreview.contactVisibility === 'private' ? <><strong><LockKeyhole /> 연락처 비공개 이력서입니다</strong><p>{'결제해도 전화번호와 이메일은 공개되지 않습니다. 경력·희망 조건·자기소개만 열람할 수 있습니다.'}</p><label className="consent"><input required type="checkbox" name="contactScope" value="agreed" /><span>연락처가 제공되지 않는 점을 확인했습니다.</span></label></> : <><strong><Eye /> 열람권 구매 병원에 연락처 공개</strong><p>{contactPreview.isDemo ? '결제 후 가상 전화번호·이메일 표시를 확인할 수 있습니다. 실제 연락은 연결되지 않습니다.' : '작성자가 공개를 유지하는 동안 연락처를 확인할 수 있습니다.'}</p></>}</div>}<label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자의 공개 범위 내에서만 이용하며, 상품·환불 조건에 동의하고 개인정보 처리 안내를 확인했습니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting || contactPreview.loading || Boolean(contactPreview.error) || !accountProfile.loaded || !lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email}>{submitting ? '결제 진행 중…' : `${plan.price.toLocaleString()}원 결제하기`} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 이력서 상세를 처음 열 때 1건만 차감됩니다. 같은 이력서는 다른 구직글이나 주소에서도 추가 차감 없이 다시 볼 수 있습니다. 단건 지정 구매는 해당 이력서 1건을 바로 사용합니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
+  return <section className="section talent-unlock-checkout-section"><div className="talent-unlock-checkout"><div className="talent-unlock-product"><small>TALENT RESUME UNLOCK</small><h2>{plan.name}</h2><p>{plan.description}</p><div className="talent-unlock-test-notice"><ShieldCheck /><div><strong>결제 승인 후 열람권이 지급됩니다</strong><span>결제창의 금액을 확인해주세요. 승인 전에는 이용권이 지급되지 않으며, 처리 결과가 불명확하면 같은 주문으로 확인해주세요.</span></div></div><ul className="talent-unlock-features">{plan.features.map((f) => <li key={f}><Check /> {f}</li>)}</ul><div className="talent-unlock-price"><strong>{plan.price.toLocaleString()}원</strong><span>/ {plan.unlockCount}명 열람</span></div>{talentId && <p className="talent-unlock-target">열람 대상 인재 코드: <strong>{talentId}</strong></p>}{accountProfile.loaded && (!lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email) && <div className="talent-unlock-account-note" role="alert"><span><strong>결제에 필요한 회원정보가 비어 있습니다</strong><small>{auth.isAdmin ? '마이페이지에서 이름과 연락처를 저장한 뒤 다시 이용해주세요.' : '마이페이지에서 병원명과 연락처를 저장한 뒤 다시 이용해주세요.'}</small><Link to="/mypage?tab=profile">회원정보 수정 <ArrowRight size={14} /></Link></span></div>}</div><form onSubmit={submit} key={accountProfile.loaded ? 'ready' : 'loading'}><div className="talent-unlock-account-note"><LockKeyhole /><span><strong>{auth.isAdmin ? '관리자 본인 결제' : '병원 회원가입 정보'}</strong><small>{auth.isAdmin ? '관리자 계정의 이름·연락처로 결제합니다. 인재 상세는 관리자 권한으로 구매 없이 열람할 수 있습니다.' : '결제자 정보는 가입된 병원 계정과 자동으로 연결됩니다.'}</small></span></div><PrivacyNotice scope="checkout" />{talentId && <div className="checkout-contact-notice" role="status">{contactPreview.loading ? <strong>연락처 공개 설정 확인 중…</strong> : contactPreview.error ? <><strong>{contactPreview.error}</strong><button type="button" className="button outline" onClick={() => setPreviewRetry(v => v+1)}>다시 확인</button></> : contactPreview.contactVisibility === 'private' ? <><strong><LockKeyhole /> 연락처 비공개 이력서입니다</strong><p>{'결제해도 전화번호와 이메일은 공개되지 않습니다. 경력·희망 조건·자기소개만 열람할 수 있습니다.'}</p><label className="consent"><input required type="checkbox" name="contactScope" value="agreed" /><span>연락처가 제공되지 않는 점을 확인했습니다.</span></label></> : <><strong><Eye /> 열람권 구매 병원에 연락처 공개</strong><p>{contactPreview.isDemo ? '결제 후 가상 전화번호·이메일 표시를 확인할 수 있습니다. 실제 연락은 연결되지 않습니다.' : '작성자가 공개를 유지하는 동안 연락처를 확인할 수 있습니다.'}</p></>}</div>}<label className="consent"><input required type="checkbox" name="terms" value="agreed" /><span>후보자의 공개 범위 내에서만 이용하며, 상품·환불 조건에 동의하고 개인정보 처리 안내를 확인했습니다.</span></label>{submitError && <p className="form-error" role="alert">{submitError}</p>}<button className="button primary full" type="submit" disabled={submitting || contactPreview.loading || Boolean(contactPreview.error) || !accountProfile.loaded || !lockedCustomer.name || !lockedCustomer.phone || !lockedCustomer.email}>{submitting ? '결제 진행 중…' : `${plan.price.toLocaleString()}원 결제하기`} <ArrowRight /></button></form><p className="secure-note"><ShieldCheck /> 새 이력서 상세를 처음 열 때 1건만 차감됩니다. 같은 이력서는 다른 구직글이나 주소에서도 추가 차감 없이 다시 볼 수 있습니다. 단건 지정 구매는 해당 이력서 1건을 바로 사용합니다.</p><p className="secure-note"><ShieldCheck /> 연락처는 작성자가 공개를 선택한 경우에만 표시됩니다.</p></div></section>;
 }
 
 function TalentUnlockPage({ route, qa, auth }) {
@@ -3720,7 +3721,7 @@ export function App() {
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
     const job = liveJobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
-    page = !operations.ready || auth.status === 'loading' ? <section className="section" role="status">공고를 불러오고 있습니다.</section> : job ? <JobDetailRoute job={job} qa={qa} auth={auth} /> : auth.role === 'hospital' && path.startsWith('/jobs/admin-') ? <OwnedAdDetail key={`${path}:${auth.email}`} contentId={decodeURIComponent(path.slice('/jobs/admin-'.length))} auth={auth} qa={qa} /> : <NotFoundPage />;
+    page = !operations.ready || auth.status === 'loading' ? <section className="section" role="status">공고를 불러오고 있습니다.</section> : job ? <JobDetailRoute job={job} qa={qa} auth={auth} /> : isActiveHospitalMember(auth) && path.startsWith('/jobs/admin-') ? <OwnedAdDetail key={`${path}:${auth.email}`} contentId={decodeURIComponent(path.slice('/jobs/admin-'.length))} auth={auth} qa={qa} /> : <NotFoundPage />;
   }
   // /professions·/talent 별칭은 상단 ROUTE_ALIASES에서 동기 정규화되므로 여기 분기는 불필요(도달 불가).
   else if (path === '/headhunting') page = <AuthGate auth={auth} title="맞춤 헤드헌팅은 회원 전용입니다" description="메디헬퍼스 회원만 비공개 초빙정보와 상담 내용을 확인할 수 있습니다."><HeadhuntingPage route={route} operations={operations} liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} /></AuthGate>;
@@ -3741,7 +3742,7 @@ export function App() {
     const canViewIdentity = qa?.active
       ? canRevealTalentIdentity(qa.info.capabilities, true)
       : canRevealTalentIdentity({ hospital: auth.role === 'hospital', admin: Boolean(auth.isAdmin), signedIn: auth.status === 'member' }, auth.status === 'member');
-    page = operations.features.medicalStaffHub !== false && !person && talentId.startsWith('seeker-') && auth.role === 'doctor'
+    page = operations.features.medicalStaffHub !== false && !person && talentId.startsWith('seeker-') && (auth.role === 'doctor' || auth.isAdmin)
       ? <OwnedTalentDetail talentId={talentId} auth={auth} />
       : operations.features.medicalStaffHub === false || !person
       ? <NotFoundPage />

@@ -22,7 +22,7 @@ test('구직글은 이력서와 분리된 원장에 연결하고 삭제 이력�
 
 test('구직글 CRUD는 의료인 역할과 본인 소유 이력서·게시글을 서버에서 재검증한다', () => {
   const api = server.slice(server.indexOf('async function jobSeekerPostApi'), server.indexOf('async function savedJobsApi'));
-  assert.match(api, /adminIdentity\(request, env\)/);
+  assert.match(api, /!isAdminEmail\(identityPrincipal\(identity\), env\)/);
   assert.match(api, /account\.role !== 'doctor'/);
   assert.match(api, /FROM resumes WHERE id=\? AND account_id=\?/);
   assert.match(api, /WHERE id=\? AND account_id=\? AND status<>'deleted'/);

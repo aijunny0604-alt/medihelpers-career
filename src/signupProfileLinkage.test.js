@@ -27,7 +27,7 @@ test('병원 공고 등록은 가입·제출 정보를 폼과 서버 양쪽에�
   assert.match(checkout, /accountProfile\.facilityType/);
   assert.match(server, /institutionType:String\(body\.institutionType/);
   assert.match(server, /metadata\.accountProfileLinked = true/);
-  assert.match(server, /metadata\.hospital = hospital\.hospitalName/);
+  assert.match(server, /metadata\.hospital = isAdmin \? cleanOrderValue\(metadata\.hospital \|\| member\.organization\) : hospital\.hospitalName/);
 });
 
 test('의료인 이력서는 가입 직군을 유지하고 이력서 내용을 불러온다', () => {

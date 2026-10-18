@@ -927,7 +927,7 @@ async function consultationApi(request, env, pathname) {
       await ensureAccountSchema(env);
       const key = identityKey(identity);
       account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
-      if (account && account.role !== requestType) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
+      if (account && account.role !== requestType && !isAdminEmail(identityPrincipal(identity), env)) return json({ error:'회원 유형과 상담 신청 유형이 일치하지 않습니다.' }, 403);
       if (payload.submissionChannel === 'mypage_headhunter' && !account?.id) return json({ error:'마이페이지 회원정보를 확인할 수 없습니다.' }, 403);
       if (requestType === 'doctor' && account?.id) {
         await ensureMemberCenterSchema(env);
@@ -1714,7 +1714,7 @@ async function uploadApi(request, env, pathname) {
     // 병원 광고 이미지는 병원·관리자, 이력서 증명사진은 의료인 본인만 업로드한다.
     const isAdmin = Boolean(await adminIdentity(request, env));
     if (isResumeProfile) {
-      if (!account || account.role !== 'doctor') return json({ error:'이력서 사진은 의료인 회원 본인만 업로드할 수 있습니다.' }, 403);
+      if (!account || (account.role !== 'doctor' && !isAdmin)) return json({ error:'이력서 사진은 의료인 회원 본인만 업로드할 수 있습니다.' }, 403);
     } else if (!isAdmin && (!account || account.role !== 'hospital')) return json({ error:'병원 회원 또는 관리자만 이미지를 업로드할 수 있습니다.' }, 403);
     const ownerId = account ? account.id : 'admin';
     const contentType = String(request.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
@@ -1752,7 +1752,7 @@ async function memberCenterApi(request, env) {
   if (!account) return json({ signedIn:true, account:null, identity:publicIdentity(identity), isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
-    if (account.role === 'hospital') {
+    if ((account.role === 'hospital' || isAdmin)) {
       await ensureSchemaGroup(env, 'hospital-member-dependencies', 'SELECT 1 FROM admin_content_records, candidate_submissions LIMIT 0', [...adminConsoleSchemaStatements, ...recruitmentCrmSchemaStatements], 'MEMBER_CENTER_DB_UNAVAILABLE');
       await publishLegacyPaidAdContentRecords(env);
     }
@@ -1774,14 +1774,14 @@ async function memberCenterApi(request, env) {
     addQuery('consultations', env.DB.prepare("SELECT id, request_type AS requestType, requester_name AS requesterName, specialty, payload_json AS payloadJson, status, admin_note AS adminNote, created_at AS createdAt, updated_at AS updatedAt FROM consultation_requests WHERE json_extract(payload_json,'$.ownerAccountId')=? OR (json_extract(payload_json,'$.ownerAccountId') IS NULL AND lower(email)=?) ORDER BY created_at DESC LIMIT 100").bind(account.id,identityPrincipal(identity)));
     addQuery('orders', env.DB.prepare("SELECT o.order_number AS orderNumber, o.product_id AS productId, CASE WHEN o.product_id LIKE 'talent-unlock-%' THEN 'talent_search' ELSE o.product_type END AS productType, o.product_name AS productName, o.supply_amount AS supplyAmount, o.tax_amount AS taxAmount, o.total_amount AS totalAmount, o.status, o.payment_method AS paymentMethod, o.customer_name AS customerName, o.metadata_json AS metadataJson, o.paid_at AS paidAt, o.created_at AS createdAt, (SELECT COALESCE(SUM(amount),0) FROM payment_refunds WHERE order_id=o.id AND status='succeeded') AS refundedAmount, (SELECT COUNT(*) FROM payment_refunds pr WHERE pr.order_id = o.id AND pr.status IN ('requested','processing')) AS refundPending FROM payment_orders o WHERE o.account_id = ? ORDER BY o.created_at DESC, o.rowid DESC LIMIT 100").bind(account.id));
     addQuery('refunds', env.DB.prepare("SELECT r.id,o.order_number AS orderNumber,r.amount,r.reason,CASE WHEN r.status='cancelled' AND EXISTS(SELECT 1 FROM payment_events WHERE id='refund-rejected-'||r.id) THEN 'rejected' ELSE r.status END AS status,r.created_at AS createdAt,r.processed_at AS processedAt, (SELECT json_extract(e.detail_json,'$.customerMessage') FROM payment_events e WHERE e.order_id=r.order_id AND json_extract(e.detail_json,'$.refundId')=r.id AND e.event_type IN ('refund_rejected','inicis_manual_refund_recorded','virtual_refund_completed','inicis_refund_completed') ORDER BY e.created_at DESC,e.rowid DESC LIMIT 1) AS customerMessage FROM payment_refunds r JOIN payment_orders o ON o.id=r.order_id WHERE o.account_id=? ORDER BY r.created_at DESC,r.rowid DESC LIMIT 500").bind(account.id));
-    if (account.role === 'doctor') {
+    if ((account.role === 'doctor' || isAdmin)) {
       addQuery('resume', env.DB.prepare('SELECT id, title, completion, visibility, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 1').bind(account.id));
       addQuery('jobSeekerPosts', env.DB.prepare(
         "SELECT p.id, p.resume_id AS resumeId, p.title, p.summary, p.specialty, p.desired_region AS desiredRegion, p.available_from AS availableFrom, p.employment_type AS employmentType, p.contact_visibility AS contactVisibility, p.contact_phone AS contactPhone, p.additional_contact_phone AS additionalContactPhone, p.public_until AS publicUntil, p.hidden_reason AS hiddenReason, p.status, p.created_at AS createdAt, p.updated_at AS updatedAt, r.title AS resumeTitle " +
         "FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.account_id=? AND p.status<>'deleted' ORDER BY p.created_at DESC, p.id DESC LIMIT 50"
       ).bind(account.id));
     }
-    if (account.role === 'hospital') {
+    if ((account.role === 'hospital' || isAdmin)) {
       addQuery('talentUsage', env.DB.prepare("SELECT o.order_number AS orderNumber,c.total_credits AS total,c.used_credits AS used,(SELECT COUNT(*) FROM talent_unlocks tu WHERE tu.hospital_account_id=o.account_id AND (tu.order_id=o.id OR tu.order_id=c.id)) AS grants FROM payment_orders o LEFT JOIN talent_credit_pools c ON c.order_id=o.id AND c.hospital_account_id=o.account_id WHERE o.account_id=? AND o.product_id LIKE 'talent-unlock-%' ORDER BY o.created_at DESC,o.rowid DESC LIMIT 100").bind(account.id));
       addQuery('talentCredits', env.DB.prepare("SELECT COALESCE(SUM(total_credits),0) AS total, COALESCE(SUM(used_credits),0) AS used, COALESCE(SUM(total_credits-used_credits),0) AS remaining FROM talent_credit_pools WHERE hospital_account_id=? AND NOT EXISTS(SELECT 1 FROM payment_orders WHERE id=talent_credit_pools.order_id AND json_extract(metadata_json,'$.refundServiceEnded')=1) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE order_id=talent_credit_pools.order_id AND status IN ('requested','processing'))").bind(account.id));
       addQuery('unlockedTalents', env.DB.prepare(
@@ -1806,7 +1806,7 @@ async function memberCenterApi(request, env) {
     }
     // Legacy ownership is independent of a newly fabricated payment order.
     // Both immutable account ID and credential principal must match server-imported metadata.
-    if (account.role === 'hospital') addQuery('migratedAds', env.DB.prepare("SELECT c.id,c.title,c.subtitle,c.status,c.payload_json AS payloadJson FROM admin_content_records c WHERE c.content_type IN ('doctor_job','medical_job') AND lower(c.created_by)=? AND json_extract(c.payload_json,'$.migration.ownerMapping.accountId')=? AND json_extract(c.payload_json,'$.migration.ownerMapping.bindingStatus')='protected-account-linked' AND NOT EXISTS (SELECT 1 FROM payment_orders o WHERE o.account_id=? AND COALESCE(NULLIF(json_extract(o.metadata_json,'$.contentRecordId'),''),'ad-order-' || o.id)=c.id AND o.status IN ('paid','awaiting_payment')) ORDER BY c.created_at DESC LIMIT 200").bind(identityPrincipal(identity),account.id,account.id));
+    if ((account.role === 'hospital' || isAdmin)) addQuery('migratedAds', env.DB.prepare("SELECT c.id,c.title,c.subtitle,c.status,c.payload_json AS payloadJson FROM admin_content_records c WHERE c.content_type IN ('doctor_job','medical_job') AND lower(c.created_by)=? AND json_extract(c.payload_json,'$.migration.ownerMapping.accountId')=? AND json_extract(c.payload_json,'$.migration.ownerMapping.bindingStatus')='protected-account-linked' AND NOT EXISTS (SELECT 1 FROM payment_orders o WHERE o.account_id=? AND COALESCE(NULLIF(json_extract(o.metadata_json,'$.contentRecordId'),''),'ad-order-' || o.id)=c.id AND o.status IN ('paid','awaiting_payment')) ORDER BY c.created_at DESC LIMIT 200").bind(identityPrincipal(identity),account.id,account.id));
     const queryResults = await env.DB.batch(queryStatements);
     const resultsByName = new Map(queryNames.map((name, index) => [name, queryResults[index] || { results:[] }]));
     const rows = name => resultsByName.get(name)?.results || [];
@@ -1827,7 +1827,7 @@ async function memberCenterApi(request, env) {
     let consultationRows = consultations.results || [];
     // 병원 마이페이지에는 해당 병원이 결제·등록한 공고로 들어온 직접 지원만 추가한다.
     // 이 지원서는 헤드헌터 상담함과 분리되지만 병원은 문의·후보 화면에서 확인할 수 있다.
-    if (account.role === 'hospital') {
+    if ((account.role === 'hospital' || isAdmin)) {
       try {
         consultationRows = [...(receivedResult.results || []), ...consultationRows];
       } catch {}
@@ -1837,7 +1837,7 @@ async function memberCenterApi(request, env) {
     const resume = resumeResult || null;
     // 병원 회원의 추천 후보: 내 이메일의 상담 → CRM 케이스 → 후보. 실명·연락처는 제외(익명 표시).
     let recommendedCandidates = [];
-    if (account.role === 'hospital') {
+    if ((account.role === 'hospital' || isAdmin)) {
       try {
         // [보안] 후보 동의(consent_status='granted')가 확인된 건만 병원에 노출한다.
         recommendedCandidates = recommendedResult.results || [];
@@ -1846,7 +1846,7 @@ async function memberCenterApi(request, env) {
     // 병원 마이페이지는 결제 상태와 실제 공고 공개 상태를 함께 내려준다.
     // 광고 결제 성공 시 공고는 서버에서 즉시 published로 전환된다.
     let ownedAdContents = [];
-    if (account.role === 'hospital') {
+    if ((account.role === 'hospital' || isAdmin)) {
       try {
         ownedAdContents = (ownedAdsResult.results || []).map(row => {
           const { payloadJson, ...record } = row;
@@ -1900,7 +1900,7 @@ async function memberCenterApi(request, env) {
       return json({ error:'결제·노출 이력 보호를 위해 병원 채용공고는 직접 삭제할 수 없습니다. 내용 수정 또는 담당자 문의를 이용해주세요.', code:'PAID_AD_DELETE_FORBIDDEN' }, 403);
     }
     if (body.action === 'owned_ad_update') {
-      if (account.role !== 'hospital') return json({ error:'병원 회원만 본인이 등록한 채용공고를 수정할 수 있습니다.' }, 403);
+      if (account.role !== 'hospital' && !isAdmin) return json({ error:'병원 회원만 본인이 등록한 채용공고를 수정할 수 있습니다.' }, 403);
       const contentRecordId = String(body.contentRecordId || '').trim().slice(0,180);
       if (!contentRecordId) return json({ error:'수정할 공고를 확인해주세요.' }, 400);
       // 작성자 이메일만 비교하지 않고 결제 주문의 account_id까지 함께 확인한다. 같은 이메일 표기나
@@ -1915,7 +1915,7 @@ async function memberCenterApi(request, env) {
       const s = (value, max = 200) => String(value == null ? '' : value).trim().slice(0,max);
       const title = s(source.title, 180);
       const registered = await env.DB.prepare('SELECT organization FROM member_profiles WHERE account_id=?').bind(account.id).first();
-      const hospital = s(registered?.organization || source.hospital, 180);
+      const hospital = s(isAdmin ? source.hospital || registered?.organization : registered?.organization || source.hospital, 180);
       if (!title || !hospital) return json({ error:'공고 제목과 병원명은 필수입니다.' }, 400);
       const current = parseJsonObject(owned.payloadJson) || {};
       const address = s(source.address, 300);
@@ -2000,8 +2000,9 @@ async function memberCenterApi(request, env) {
     const previousProfile = await env.DB.prepare('SELECT display_name AS displayName, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id=?').bind(account.id).first();
     const previousPreferences = await env.DB.prepare('SELECT email_notifications AS email, sms_notifications AS sms, service_notifications AS service, marketing_notifications AS marketing FROM member_preferences WHERE account_id=?').bind(account.id).first();
     const proposed = body.profile && typeof body.profile === 'object' ? body.profile : {};
-    if (Object.keys(proposed).some(key => ['displayName','phone','organization','jobTitle'].includes(key) && String(proposed[key] || '') !== String(previousProfile?.[key] || ''))) return json({ error:'가입한 회원정보는 직접 변경할 수 없습니다. 정보 정정은 고객센터에 문의해주세요.' },403);
-    const profile = cleanMemberProfile(previousProfile || {});
+    if (!isAdmin && Object.keys(proposed).some(key => ['displayName','phone','organization','jobTitle'].includes(key) && String(proposed[key] || '') !== String(previousProfile?.[key] || ''))) return json({ error:'가입한 회원정보는 직접 변경할 수 없습니다. 정보 정정은 고객센터에 문의해주세요.' },403);
+    // 본인 프로필의 허용 필드만 정정한다. 이메일·회원 유형·관리자 지정은 바꾸지 않는다.
+    const profile = cleanMemberProfile(isAdmin ? { ...previousProfile, ...proposed } : previousProfile || {});
     const preferences = Object.fromEntries(['email','sms','service','marketing'].map(key => [key, Object.hasOwn(preferenceInput,key) ? preferenceInput[key] : previousPreferences ? Boolean(previousPreferences[key]) : key !== 'marketing']));
     if (preferences.marketing === true && body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'선택 이메일 수신 안내를 확인해주세요.' }, 400);
     const marketingEvents = Boolean(previousPreferences?.marketing) !== (preferences.marketing === true) ? [consentEvent(env, account.id, 'marketing', account.id, '', preferences.marketing === true)] : [];
@@ -2024,7 +2025,7 @@ async function resumeApi(request, env) {
   const key = identityKey(identity);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key = ?').bind(key).first();
   if (!account) return json({ signedIn:true, resumes:[], resume:null });
-  if (account.role !== 'doctor') return json({ error:'이력서는 일반(의사·의료인) 회원만 등록할 수 있습니다.' }, 403);
+  if (account.role !== 'doctor' && !isAdminEmail(identityPrincipal(identity), env)) return json({ error:'이력서는 일반(의사·의료인) 회원만 등록할 수 있습니다.' }, 403);
   if (request.method === 'GET') {
     const result = await env.DB.prepare('SELECT id, title, profession, specialty, name, phone, email, desired_regions AS desiredRegions, completion, visibility, status, detail_json AS detailJson, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 20').bind(account.id).all();
     const resumes = (result.results || []).map(row => { const { detailJson, ...rest } = row; return { ...rest, detail:parseJsonObject(detailJson) }; });
@@ -2105,8 +2106,7 @@ async function jobSeekerPostApi(request, env, pathname) {
   const key = identityKey(identity);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key=? LIMIT 1').bind(key).first();
   if (!account) return json({ error:'회원 계정을 확인할 수 없습니다.' }, 401);
-  if (await adminIdentity(request, env)) return json({ error:'관리자 계정은 구직글을 작성하거나 수정할 수 없습니다.' }, 403);
-  if (account.role !== 'doctor') return json({ error:'구직글은 의사·의료인 회원만 등록할 수 있습니다.' }, 403);
+  if (account.role !== 'doctor' && !isAdminEmail(identityPrincipal(identity), env)) return json({ error:'구직글은 의사·의료인 회원만 등록할 수 있습니다.' }, 403);
   const suffix = pathname === '/api/job-seeker-posts' ? '' : decodeURIComponent(pathname.slice('/api/job-seeker-posts/'.length));
   if (request.method === 'GET') {
     if (suffix) {
@@ -2229,7 +2229,7 @@ async function talentUnlockHistoryApi(request, env) {
   try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureTalentCreditSchema(env); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = identityKey(identity);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key=? LIMIT 1').bind(key).first();
-  if (!account || account.role !== 'hospital') return json({ unlocks:[] });
+  if (!account || (account.role !== 'hospital' && !isAdminEmail(identityPrincipal(identity), env))) return json({ unlocks:[] });
   const result = await env.DB.prepare("SELECT talent_id AS talentId, " + talentKeyExpression('talent_id') + " AS canonicalId, unlocked_at AS unlockedAt FROM talent_unlocks WHERE hospital_account_id=? ORDER BY unlocked_at DESC LIMIT 200").bind(account.id).all();
   return json({ unlocks:result.results || [] });
 }
@@ -2549,6 +2549,7 @@ async function paymentOrderApi(request, env) {
   if (!identity) return json({ error:'로그인한 회원만 결제를 신청할 수 있습니다.' }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
   try { await ensureAccountSchema(env); await ensureCommerceSchema(env); await ensureMemberCenterSchema(env); await ensureHospitalVerificationSchema(env); } catch { return json({ error:'결제 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  const isAdmin = isAdminEmail(identityPrincipal(identity), env);
   const key = identityKey(identity);
   const account = await env.DB.prepare("SELECT a.id, a.role, COALESCE(ap.status,'active') status, COALESCE(ap.verification_status,'unverified') verificationStatus FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   if (!account) return json({ error:'회원가입을 완료한 뒤 이용해주세요.' }, 403);
@@ -2567,7 +2568,7 @@ async function paymentOrderApi(request, env) {
     const saved = await env.DB.prepare('SELECT id, order_number AS orderNumber, product_id AS productId, product_name AS productName, total_amount AS totalAmount, status, metadata_json AS metadataJson, customer_name AS buyerName, customer_email AS buyerEmail, customer_phone AS buyerTel FROM payment_orders WHERE order_number=? AND account_id=?').bind(String(body.resumeOrderNumber).slice(0,80),account.id).first();
     if (!saved) return json({error:'본인의 주문을 찾을 수 없습니다.'},404);
     if (saved.status === 'paid') return json({order:{orderNumber:saved.orderNumber,status:'paid'},alreadyPaid:true});
-    if (account.role !== 'hospital' || !['pending_review','awaiting_payment'].includes(saved.status)) return json({error:'다시 결제할 수 없는 주문입니다. 결제 내역을 확인해주세요.'},409);
+    if ((account.role !== 'hospital' && !isAdmin) || !['pending_review','awaiting_payment'].includes(saved.status)) return json({error:'다시 결제할 수 없는 주문입니다. 결제 내역을 확인해주세요.'},409);
     const attempt = await env.DB.prepare('SELECT status FROM payment_pg_attempts WHERE order_id=?').bind(saved.id).first();
     if (attempt) return json({error:'승인 요청 이력이 있어 결제창을 다시 열지 않습니다. 중복 결제하지 말고 관리자에게 주문번호를 알려주세요.',code:'PAYMENT_RECONCILIATION_REQUIRED'},409);
     const meta = parseJsonObject(saved.metadataJson) || {};
@@ -2605,9 +2606,9 @@ async function paymentOrderApi(request, env) {
   const product = Object.hasOwn(paymentProductCatalog, productId) ? paymentProductCatalog[productId] : null;
   if (!product || typeof product.amount !== 'number') return json({ error:'신청 상품을 확인해주세요.' }, 400);
   if (product.legacy) return json({ error:'현재 판매하지 않는 상품입니다. 메인 광고를 선택해주세요.' }, 400);
-  if (product.type === 'doctor_ad' && account.role !== 'hospital') return json({ error:'병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
-  // [정책] 인재 열람권은 병원 회원만 구매한다(의사가 결제해도 열람 권한은 병원에만 부여되므로 애초에 막는다).
-  if (product.type === 'talent_search' && account.role !== 'hospital') return json({ error:'인재 열람권은 병원 회원만 구매할 수 있습니다.' }, 403);
+  if (product.type === 'doctor_ad' && account.role !== 'hospital' && !isAdmin) return json({ error:'병원 회원만 공고 상품을 신청할 수 있습니다.' }, 403);
+  // 관리자는 본인 명의로 구매할 수 있다. 일반 의료인의 구매와 고객 주문 소유권 우회는 허용하지 않는다.
+  if (product.type === 'talent_search' && account.role !== 'hospital' && !isAdmin) return json({ error:'인재 열람권은 병원 회원만 구매할 수 있습니다.' }, 403);
   const totalAmount = product.amount;
   let taxSnapshot;
   try { taxSnapshot = paymentTax(env, productId, totalAmount); }
@@ -2657,13 +2658,14 @@ async function paymentOrderApi(request, env) {
       ]);
       const member = linked[0]?.results?.[0] || {};
       const hospital = linked[1]?.results?.[0] || {};
-      customerName = cleanOrderValue(hospital.hospitalName || member.organization);
+      customerName = cleanOrderValue(isAdmin ? member.managerName : hospital.hospitalName || member.organization);
       customerEmail = cleanOrderValue(identity.email);
       customerPhone = cleanOrderValue(member.phone);
       metadata.accountProfileLinked = true;
-      metadata.hospital = customerName;
+      metadata.hospital = isAdmin ? '' : customerName;
+      metadata.adminPurchase = isAdmin;
       metadata.manager = cleanOrderValue(member.managerName);
-      if (!customerName || !customerEmail || !customerPhone) return json({ error:'병원 회원가입 정보를 확인할 수 없습니다. 마이페이지 회원정보를 확인해주세요.' }, 400);
+      if (!customerName || !customerEmail || !customerPhone) return json({ error:'결제자 이름·연락처를 확인할 수 없습니다. 마이페이지 회원정보를 저장해주세요.' }, 400);
     } catch {
       return json({ error:'병원 회원가입 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503);
     }
@@ -2678,7 +2680,7 @@ async function paymentOrderApi(request, env) {
       ]);
       const member = linked[0]?.results?.[0] || {};
       const hospital = linked[1]?.results?.[0] || {};
-      metadata.hospital = hospital.hospitalName || member.organization || '';
+      metadata.hospital = isAdmin ? cleanOrderValue(metadata.hospital || member.organization) : hospital.hospitalName || member.organization || '';
       metadata.manager = member.name || '';
       metadata.phone = member.phone || '';
       metadata.email = identity.email || '';
@@ -2690,6 +2692,7 @@ async function paymentOrderApi(request, env) {
       customerEmail = metadata.email;
       customerPhone = metadata.phone;
     } catch {}
+    if (isAdmin && !metadata.hospital) return json({ error:'공고에 표시할 병원·기관명을 입력해주세요.' },400);
     try { await ensureAdminConsoleSchema(env); } catch { return json({ error:'공고 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     adContentRecord = adOrderContentRecord({ id, orderNumber, productId, productName:product.name, metadata, ownerEmail:identityPrincipal(identity) });
     if (renewalContent) adContentRecord.id = renewalContent.id;

@@ -30,7 +30,7 @@ const cookies={};
 function record(name,actual,expected){output.push({name,pass:actual===expected,actual,expected});}
 for(const role of ['doctor','hospital','admin']){const r=await call('/api/auth/test-switch','',{key:role});cookies[role]=r.cookie;record('local login '+role,r.status,200);}
 const protectedPaths=['/api/account','/api/resumes','/api/member-center','/api/admin-console','/api/recruitment-crm','/api/payment-orders','/api/job-seeker-posts'];
-const expectedRoleStatuses={ '':[200,401,401,403,401,401,401], doctor:[200,200,200,403,401,200,200], hospital:[200,403,200,403,401,200,403], admin:[200,200,200,200,200,200,403] };
+const expectedRoleStatuses={ '':[200,401,401,403,401,401,401], doctor:[200,200,200,403,401,200,200], hospital:[200,403,200,403,401,200,403], admin:[200,200,200,200,200,200,200] };
 for(const role of ['', 'doctor','hospital','admin']) for(const [index,path] of protectedPaths.entries()) {const r=await call(path,role);record('role matrix '+(role||'anonymous')+' '+path,r.status,expectedRoleStatuses[role][index]); if(role==='hospital' && path==='/api/member-center') record('cold hospital member center',r.status,200);}
 const resume=await call('/api/resumes','doctor',{title:'검수 이력서',name:'검수의사',phone:'010-0000-0000',profession:'의사',specialty:'내과',desiredRegions:'서울',detail:{introduction:'합성 시험용 경력입니다. 내과 외래 진료 경력과 희망 근무 조건을 검증합니다.',contactVisibility:'ticket'},createNew:true});record('save resume',resume.status,201);
 const post=await call('/api/job-seeker-posts','doctor',{resumeId:resume.data.id,title:'검수 구직글',contactVisibility:'private'});record('create post',post.status,201);

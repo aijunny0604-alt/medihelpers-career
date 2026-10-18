@@ -27,7 +27,7 @@ test('열람권 결제 정보는 병원 회원가입 원본으로 고정한다',
   assert.match(checkout, /customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone/);
   assert.doesNotMatch(checkout, /name="(?:name|phone|email)"/);
   assert.match(paymentApi, /product\.type === 'talent_search'/);
-  assert.match(paymentApi, /customerName = cleanOrderValue\(hospital\.hospitalName \|\| member\.organization\)/);
+  assert.match(paymentApi, /customerName = cleanOrderValue\(isAdmin \? member\.managerName : hospital\.hospitalName \|\| member\.organization\)/);
   assert.match(paymentApi, /customerEmail = cleanOrderValue\(identity\.email\)/);
   assert.match(paymentApi, /customerPhone = cleanOrderValue\(member\.phone\)/);
   assert.match(serverSource, /organization:'메디헬퍼스 테스트병원', phone:'010-0000-0000'/);

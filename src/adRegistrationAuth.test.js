@@ -6,7 +6,7 @@ const mainSource = readFileSync(new URL('./main.jsx', import.meta.url), 'utf8');
 const serverSource = readFileSync(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
 const devMockSource = readFileSync(new URL('./devApiMock.js', import.meta.url), 'utf8');
 
-test('공고 등록 화면은 실제 로그인된 병원 회원에게만 열린다', () => {
+test('공고 등록 화면은 인증된 병원 회원과 관리자에게 열린다', () => {
   const helper = mainSource.slice(
     mainSource.indexOf('function isActiveHospitalMember'),
     mainSource.indexOf('function useSiteCategories'),
@@ -19,7 +19,14 @@ test('공고 등록 화면은 실제 로그인된 병원 회원에게만 열린�
   assert.match(helper, /auth\?\.status === 'member'/);
   assert.match(helper, /auth\?\.account\?\.role === 'hospital'/);
   assert.match(helper, /auth\?\.role === 'hospital'/);
-  assert.match(helper, /!auth\?\.isAdmin/);
+  assert.match(helper, /auth\?\.isAdmin === true/);
+  const canRegister = new Function(`${helper}; return isActiveHospitalMember;`)();
+  for (const status of ['guest', 'loading']) assert.equal(canRegister({status, isAdmin:true, account:{role:'doctor'}}), false);
+  assert.equal(canRegister({status:'member',isAdmin:true}), false);
+  assert.equal(canRegister({status:'member',isAdmin:false,role:'doctor',account:{role:'doctor'}}), false);
+  assert.equal(canRegister({status:'member',isAdmin:false,role:'hospital',account:{role:'doctor'}}), false);
+  assert.equal(canRegister({status:'member',isAdmin:false,role:'hospital',account:{role:'hospital'}}), true);
+  assert.equal(canRegister({status:'member',isAdmin:true,role:'doctor',account:{role:'doctor'}}), true);
   assert.match(applyPage, /isActiveHospitalMember\(adAuth\)/);
   assert.match(applyPage, /<Checkout plan=\{plan\} auth=\{adAuth\} \/>/);
 });
