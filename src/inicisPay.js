@@ -12,6 +12,20 @@ export function inicisPaymentChannel(nav = globalThis.navigator) {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(nav?.userAgent || '') || (/Mac/i.test(nav?.platform || '') && nav?.maxTouchPoints > 1) ? 'mobile' : 'pc';
 }
 
+// INIpay Mobile requires the originating iOS app's scheme after app-card
+// authentication. Select only documented browser schemes, never a URL supplied
+// by a caller. Safari and Android keep the provider's normal return behavior.
+export function inicisMobileBrowserScheme(nav = globalThis.navigator) {
+  const ua = nav?.userAgent || '';
+  if (!/iPhone|iPad|iPod/i.test(ua) && !(/Mac/i.test(nav?.platform || '') && nav?.maxTouchPoints > 1)) return '';
+  if (/KAKAOTALK/i.test(ua)) return 'kakaotalk://';
+  if (/NAVER\(/i.test(ua)) return 'naversearchapp://';
+  if (/FBAN\/|FBAV\/|FBIOS/i.test(ua)) return 'fb://';
+  if (/DaumApps\/|Daum\/|DaumDevice\//i.test(ua)) return 'daumapps://open';
+  if (/CriOS\//i.test(ua)) return 'googlechromes://';
+  return '';
+}
+
 // 이니시스 표준결제 스크립트를 1회만 로드한다(중복 로드 시 결제창이 중복 호출됨).
 export function loadInicisScript(live = true) {
   if (scriptPromise) return scriptPromise;
@@ -95,10 +109,18 @@ export async function openInicisPayment(inicis, order = {}, {onClose} = {}) {
   if (!inicis.returnUrl) throw new Error('결제 결과 수신 주소가 설정되지 않았습니다.');
   if (inicis.mobile) {
     if (inicis.action !== 'https://mobile.inicis.com/smart/payment/' || !inicis.fields?.P_CHKFAKE) throw new Error('모바일 결제 설정을 확인해주세요.');
+    const fields = {...inicis.fields};
+    const scheme = inicisMobileBrowserScheme();
+    if (scheme) {
+      const options = new URLSearchParams(fields.P_RESERVED || '');
+      options.set('app_scheme', scheme);
+      // INIpay expects an ampersand-delimited option string, including literal ://.
+      fields.P_RESERVED = Array.from(options, ([key,value]) => key + '=' + value).join('&');
+    }
     const form = document.createElement('form');
     form.method = 'POST'; form.action = inicis.action; form.target = '_self';
     form.acceptCharset = 'euc-kr'; form.style.display = 'none';
-    for (const [name,value] of Object.entries(inicis.fields)) {
+    for (const [name,value] of Object.entries(fields)) {
       if (!/^P_[A-Z0-9_]+$/.test(name) || typeof value !== 'string') throw new Error('모바일 결제 정보가 올바르지 않습니다.');
       const input = document.createElement('input'); input.type='hidden'; input.name=name; input.value=value; form.appendChild(input);
     }

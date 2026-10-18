@@ -1,6 +1,38 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {inicisPaymentChannel,openInicisPayment} from './inicisPay.js';
+import {inicisPaymentChannel,inicisMobileBrowserScheme,openInicisPayment} from './inicisPay.js';
+
+test('iOS app-card return schemes are restricted to documented browser identities',()=>{
+  for (const [ua,scheme] of [
+    ['iPhone CriOS/143.0','googlechromes://'],
+    ['iPhone NAVER(inapp; search; 1300)','naversearchapp://'],
+    ['iPhone KAKAOTALK/26.0','kakaotalk://'],
+    ['iPhone [FBAN/FBIOS;FBAV/500]','fb://'],
+    ['iPhone DaumApps/6.0','daumapps://open'],
+    ['iPhone Safari/604.1',''], ['Android NAVER(inapp)',''],
+    ['Windows CriOS/143.0',''], ['iPhone EvilBrowser://host',''],
+  ]) assert.equal(inicisMobileBrowserScheme({userAgent:ua}),scheme);
+  assert.equal(inicisMobileBrowserScheme({userAgent:'Macintosh NAVER(inapp)',platform:'MacIntel',maxTouchPoints:5}),'naversearchapp://');
+});
+
+test('mobile app return preserves signed fields and server security options',async()=>{
+  const previousDocument=globalThis.document, navDescriptor=Object.getOwnPropertyDescriptor(globalThis,'navigator');
+  let posted;
+  globalThis.document={createElement:()=>({children:[],style:{},appendChild(e){this.children.push(e);},submit(){posted=this;}}),body:{appendChild(){}}};
+  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{userAgent:'iPhone CriOS/143.0'}});
+  try {
+    const fields={P_CHKFAKE:'synthetic',P_NOTI:'signed-state',P_AMT:'29000',P_RESERVED:'centerCd=Y&amt_hash=Y'};
+    const before=JSON.stringify(fields);
+    await openInicisPayment({configured:true,mobile:true,returnUrl:'https://audit.local/api/payment-approve',action:'https://mobile.inicis.com/smart/payment/',fields});
+    const sent=Object.fromEntries(posted.children.map(e=>[e.name,e.value]));
+    assert.equal(sent.P_RESERVED,'centerCd=Y&amt_hash=Y&app_scheme=googlechromes://');
+    for(const name of ['P_CHKFAKE','P_NOTI','P_AMT'])assert.equal(sent[name],fields[name]);
+    assert.equal(JSON.stringify(fields),before);
+  } finally {
+    globalThis.document=previousDocument;
+    if(navDescriptor)Object.defineProperty(globalThis,'navigator',navDescriptor);else delete globalThis.navigator;
+  }
+});
 test('failed PC script load or missing SDK can be retried without retaining a rejected promise',async()=>{
  const originalDocument=globalThis.document,originalWindow=globalThis.window;
  const scripts=[];globalThis.window={};
