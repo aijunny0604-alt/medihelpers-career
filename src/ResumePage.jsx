@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import {
   ArrowRight, Camera, Check, ChevronLeft, ChevronRight, CircleCheck, FileText,
   ImagePlus, LockKeyhole, ShieldCheck, Trash2, UserRound
 } from 'lucide-react';
-import { appendStoredRecord } from './browserStorage.js';
+import { loadResumes, requireResumeSave } from './resumeApi.js';
 import { withBase } from './basePath.js';
 import { uploadResumePhoto, validateResumePhoto } from './resumePhotoUpload.js';
 import { dropImageFiles, pasteImageFiles } from './imageInput.js';
@@ -33,6 +33,9 @@ export default function ResumePage({ auth }) {
   const [submitting, setSubmitting] = useState(false);
   const [loadingResume, setLoadingResume] = useState(!createNew);
   const [submitError, setSubmitError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const submitLock = useRef(false);
   // 401/403(로그인 만료·권한)일 때만 로그인 버튼을 함께 띄운다.
   const [needsLogin, setNeedsLogin] = useState(false);
   const [savedResumeId, setSavedResumeId] = useState('');
@@ -49,8 +52,8 @@ export default function ResumePage({ auth }) {
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
-  // 회원가입 정보는 빈 칸에만 채운다. 계정 조회가 늦게 끝나도 사용자가 이미 입력한
-  // 내용을 덮어쓰지 않으며, 저장된 이력서가 있으면 아래 조회 결과가 최종 원본이 된다.
+  // 이름·연락처·직군은 회원정보를 사용한다. 전문분야·지역 등 수정 가능한
+  // 항목은 작성 중인 값을 보존하고 비어 있을 때만 회원정보를 채운다.
   useEffect(() => {
     if (!accountProfile.loaded) return;
     setForm((current) => ({
@@ -72,17 +75,10 @@ export default function ResumePage({ auth }) {
       return undefined;
     }
     let active = true;
-    fetch(withBase('/api/resumes'), {
-      credentials: 'same-origin',
-      headers: { accept: 'application/json' }
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const result = await response.json().catch(() => ({}));
-          throw new Error(result?.error || '저장된 이력서를 불러오지 못했습니다.');
-        }
-        return response.json();
-      })
+    const controller = new AbortController();
+    setLoadingResume(true);
+    setLoadError('');
+    loadResumes({ id:requestedResumeId, endpoint:withBase('/api/resumes'), signal:controller.signal })
       .then((result) => {
         if (!active) return;
         const resume = requestedResumeId ? result?.resumes?.find(item => item.id === requestedResumeId) : result?.resume || result?.resumes?.[0];
@@ -109,11 +105,11 @@ export default function ResumePage({ auth }) {
         }));
       })
       .catch((error) => {
-        if (active) setSubmitError(error?.message || '저장된 이력서를 불러오지 못했습니다.');
+        if (active) setLoadError(error?.message || '저장된 이력서를 불러오지 못했습니다.');
       })
       .finally(() => { if (active) setLoadingResume(false); });
-    return () => { active = false; };
-  }, [createNew]);
+    return () => { active = false; controller.abort(); };
+  }, [createNew, requestedResumeId, loadAttempt, auth?.email]);
 
   useEffect(() => () => { if (photoPreview && photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
 
@@ -140,6 +136,7 @@ export default function ResumePage({ auth }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (submitLock.current || loadingResume || loadError) return;
     // 동의를 안 하면 예전에는 조용히 return 해서 "등록 버튼이 안 먹는다"로 보였다.
     // 이유를 알려주고 동의 항목으로 이동시킨다.
     if (!form.consent) {
@@ -153,15 +150,7 @@ export default function ResumePage({ auth }) {
       });
       return;
     }
-    const snapshot = {
-      id: `RES-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      status: 'draft-review',
-      ...form
-    };
-    // 서버(D1)에 저장해 아빠(관리자)가 열람할 수 있게 한다.
-    // 예전에는 서버가 401·403·413을 돌려줘도 catch에서 조용히 삼키고 무조건 완료 화면을 띄웠다.
-    // 의사 입장에서는 이력서가 등록된 줄 알지만 실제로는 저장되지 않아 제안을 못 받는다.
+    submitLock.current = true;
     setSubmitting(true);
     setSubmitError(''); setNeedsLogin(false);
     try {
@@ -182,7 +171,7 @@ export default function ResumePage({ auth }) {
           completion,
           visibility: 'private',
           contactVisibility: 'private',
-          ...(savedResumeId ? { resumeId:savedResumeId } : createNew ? { createNew:true } : {}),
+          ...(savedResumeId ? { resumeId:savedResumeId } : { createNew:true }),
           detail: { region:form.region, salary:form.salary, introduction:form.introduction, photoUrl, contactVisibility:'private' }
         })
       });
@@ -198,23 +187,22 @@ export default function ResumePage({ auth }) {
         } else {
           setSubmitError(message || '이력서를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
         }
-        setSubmitting(false);
         window.requestAnimationFrame(() => {
           document.querySelector('.form-error')?.scrollIntoView({ behavior: 'auto', block: 'center' });
         });
         return;
       }
-      const result = await response.json().catch(() => ({}));
-      if (result.id) setSavedResumeId(result.id);
+      const result = requireResumeSave(await response.json().catch(() => null));
+      setSavedResumeId(result.id);
       if (photoUrl) update('photoUrl', photoUrl);
+      setPhotoFile(null);
     } catch (error) {
-      // 실제 네트워크 단절일 때만 임시 보관한다. 사진 형식·권한 오류를 저장 성공처럼 처리하지 않는다.
-      if (error instanceof TypeError) appendStoredRecord('medihelpers_resumes', snapshot);
       setSubmitError(error?.message || '이력서와 프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-      setSubmitting(false);
       return;
+    } finally {
+      submitLock.current = false;
+      setSubmitting(false);
     }
-    setSubmitting(false);
     invalidateSiteOperations();
     setCompleted(true);
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -223,6 +211,8 @@ export default function ResumePage({ auth }) {
   if (completed) return <main className="resume-page"><section className="resume-complete"><span><CircleCheck /></span><small>MEDICAL RESUME SAVED</small><h1>이력서가 저장되었습니다</h1><p>이력서만 저장되며 구직 게시판에는 자동으로 올라가지 않습니다.<br />구직글을 작성할 때 저장된 이력서를 선택해 연동할 수 있습니다.</p><div>{nextPath ? <a className="button primary" href={withBase(nextPath)}>구직글 작성 계속하기 <ArrowRight /></a> : <a className="button primary" href={withBase('/job-seeker-posts/new')}>구직글 작성하기 <ArrowRight /></a>}<button className="button outline" onClick={() => setCompleted(false)}>이력서 수정</button></div></section></main>;
 
   if (loadingResume) return <main className="resume-page"><section className="resume-complete"><span><FileText /></span><small>MY RESUME</small><h1>저장된 이력서를 불러오는 중입니다</h1><p>다른 기기에서 등록한 최신 이력서를 안전하게 확인하고 있습니다.</p></section></main>;
+
+  if (loadError) return <main className="resume-page"><section className="resume-complete" role="alert"><span><FileText /></span><small>MY RESUME</small><h1>이력서를 불러오지 못했습니다</h1><p>{loadError}<br />저장된 내용을 확인한 뒤 수정할 수 있습니다. 기존 이력서는 변경되지 않았습니다.</p><div><button type="button" className="button primary" onClick={() => { setLoadingResume(true); setLoadError(''); setLoadAttempt(value => value + 1); }}>다시 불러오기</button><a className="button outline" href={withBase('/mypage?tab=resume')}>내 이력서 목록</a></div></section></main>;
 
   const activeStep = steps[step].id;
   return <main className="resume-page">

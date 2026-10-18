@@ -6531,3 +6531,5 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
   .job-card.premium-ad.has-logo-identity .ad-brand-stage.hospital-identity-stage { padding:18px 12px!important; min-height:168px!important; gap:12px; }
   .hospital-identity-name { font-size:23px; }
 }
+
+.admin-resume-photo{display:block;width:120px;height:160px;max-width:100%;object-fit:contain;margin:0 0 20px;border:1px solid #dbe5f4;border-radius:12px;background:#f6f9fd;}

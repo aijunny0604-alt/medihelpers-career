@@ -73,8 +73,31 @@ try{
  const downloaded=await call(documentPath,'admin');check('admin document read',downloaded.status,200);
  check('stored document bytes intact',Buffer.from(await downloaded.response.arrayBuffer()).equals(png),true);
  check('business number normalized',(await call('/api/account','hospital')).data.hospitalProfile.businessNumber,'1234567890');
- const resume=await call('/api/resumes','doctor',{...consent,createNew:true,title:'신규 가입 연동 이력서',specialty:'내과',desiredRegions:'서울',detail:{introduction:'신규 가입부터 지원 및 유료 열람, 공개 철회와 환불까지 검증하는 격리 자료입니다.'}});
+ const photoUpload=await worker.fetch(new Request(origin+'/api/uploads',{method:'POST',headers:{origin,cookie:cookies.doctor,'content-type':'image/png','x-upload-purpose':'resume-profile'},body:png}),env,{});
+ check('doctor profile photo upload',photoUpload.status,201);
+ const photoUrl=(await photoUpload.json()).url;
+ check('anonymous cannot read profile photo',(await call(photoUrl)).status,401);
+ check('owner photo bytes intact',Buffer.from(await (await call(photoUrl,'doctor')).response.arrayBuffer()).equals(png),true);
+ check('admin can read private profile photo',(await call(photoUrl,'admin')).status,200);
+ check('unpaid hospital cannot read profile photo',(await call(photoUrl,'hospital')).status,403);
+ const resume=await call('/api/resumes','doctor',{...consent,createNew:true,title:'신규 가입 연동 이력서',specialty:'내과',desiredRegions:'서울',detail:{photoUrl,introduction:'신규 가입부터 지원 및 유료 열람, 공개 철회와 환불까지 검증하는 격리 자료입니다.'}});
  check('fresh member saves resume',resume.status,201);
+ check('draft stays private',(await call('/api/resumes?id='+resume.data.id,'doctor')).data.resume.visibility,'private');
+ check('private resume direct URL denied hospital',(await call('/api/talent-detail/resume-'+resume.data.id,'hospital')).status,404);
+ check('exact resume lookup returns requested ID',(await call('/api/resumes?id='+resume.data.id,'doctor')).data.resume.id,resume.data.id);
+ check('missing resume fails closed',(await call('/api/resumes?id=missing','doctor')).status,404);
+ check('hospital cannot enumerate resume owner data',(await call('/api/resumes?id='+resume.data.id,'hospital')).status,403);
+ check('admin personal editor cannot load another owner resume',(await call('/api/resumes?id='+resume.data.id,'admin')).status,404);
+ check('admin console sees doctor resume',(await call('/api/admin-console','admin')).data.resumes.some(r=>r.id===resume.data.id&&r.detail.photoUrl===photoUrl),true);
+ check('cross owner save rejected',(await call('/api/resumes','admin',{...consent,resumeId:resume.data.id,title:'forbidden'})).status,404);
+ check('cross owner save preserves title',(await call('/api/resumes?id='+resume.data.id,'doctor')).data.resume.title,'신규 가입 연동 이력서');
+ // The list is bounded, but selecting an older owned résumé must still load it exactly.
+ db.prepare("UPDATE resumes SET updated_at='2000-01-01 00:00:00' WHERE id=?").run(resume.data.id);
+ for(let i=0;i<21;i++)db.prepare("INSERT INTO resumes(id,account_id,title,updated_at) SELECT ?,account_id,?,CURRENT_TIMESTAMP FROM resumes WHERE id=?").run('OLDER-LIST-FIXTURE-'+i,'격리 목록 이력서 '+i,resume.data.id);
+ check('resume listing remains bounded',(await call('/api/resumes','doctor')).data.resumes.length,20);
+ check('old resume outside first page loads exactly',(await call('/api/resumes?id='+resume.data.id,'doctor')).data.resume.id,resume.data.id);
+ db.prepare("DELETE FROM resumes WHERE id LIKE 'OLDER-LIST-FIXTURE-%'").run();
+
  const postInput={...consent,publicationAcknowledged:true,contactConsent:true,resumeId:resume.data.id,title:'격리 신규 구직글',contactVisibility:'ticket'};
  const post=await call('/api/job-seeker-posts','doctor',postInput);check('publishes seeker post',post.status,201);
  const detailPath='/api/talent-detail/seeker-'+post.data.post.id;
@@ -83,10 +106,6 @@ try{
  const ad=await buy('basic');
  const adId=ad.order.contentRecordId;
  check('approval publishes ad',(await call('/api/site-operations')).data.contents.some(c=>c.id===adId),true);
- const applicant={...consent,requestType:'doctor',thirdPartyConsent:true,recipient:'격리 신규 병원',payload:{jobId:'admin-'+adId,resumeId:resume.data.id,name:'변조',phone:'01000000000',specialty:'내과'}};
- const apply=await call('/api/consultations','doctor',applicant);check('new doctor applies to new hospital',apply.status,201);
- check('hospital sees own applicant',(await call('/api/member-center','hospital')).data.consultations.some(c=>c.id===apply.data.id),true);
- check('direct applicant not in headhunter queue',(await call('/api/consultations','admin')).data.requests.some(c=>c.id===apply.data.id),false);
  check('favorite save',(await call('/api/saved-jobs','doctor',{jobId:'admin-'+adId})).data.saved,true);
  check('favorite survives reload',(await call('/api/saved-jobs','doctor')).data.saved.includes('admin-'+adId),true);
  check('favorite isolated',(await call('/api/saved-jobs','hospital')).data.saved.includes('admin-'+adId),false);
@@ -108,8 +127,41 @@ try{
  check('pack initial balance',(await call('/api/member-center','hospital')).data.talentCredits.remaining,10);
  check('hospital now sees contact',(await call(detailPath,'hospital')).data.detail.phone,'010-0000-0000');
  await call(detailPath,'hospital');check('revisit charges once',(await call('/api/member-center','hospital')).data.talentCredits.remaining,9);
+ check('paid hospital photo access',(await call(photoUrl,'hospital')).status,200);
+ check('profile photo response is private no-store',(await call(photoUrl,'hospital')).response.headers.get('cache-control'),'private, no-store');
+ const alias=await call('/api/job-seeker-posts','doctor',{...postInput,title:'동일 이력서의 다른 공개 구직글'});
+ check('second publication of same resume',alias.status,201);
+ await call('/api/job-seeker-posts/'+post.data.post.id,'doctor',{action:'set_visibility',status:'closed'},'PATCH');
+ check('other active publication keeps detail accessible',(await call('/api/talent-detail/seeker-'+alias.data.post.id,'hospital')).data.unlocked,true);
+ check('other active publication keeps photo accessible',(await call(photoUrl,'hospital')).status,200);
+ check('other publication does not debit twice',(await call('/api/member-center','hospital')).data.talentCredits.remaining,9);
+ await call('/api/job-seeker-posts/'+alias.data.post.id,'doctor',{action:'set_visibility',status:'closed'},'PATCH');
+ check('all hidden publications deny hospital photo',(await call(photoUrl,'hospital')).status,403);
+ check('all hidden publications deny hospital detail',(await call('/api/talent-detail/seeker-'+alias.data.post.id,'hospital')).status,404);
+ await call('/api/job-seeker-posts/'+post.data.post.id,'doctor',{...consent,publicationAcknowledged:true,action:'set_visibility',status:'active'},'PATCH');
+ check('reopened publication reuses original grant',(await call(detailPath,'hospital')).data.unlocked,true);
+ check('reopened photo available',(await call(photoUrl,'hospital')).status,200);
+ db.prepare("UPDATE job_seeker_posts SET public_until='2000-01-01' WHERE id=?").run(post.data.post.id);
+ check('expired publication cannot leak photo before board refresh',(await call(photoUrl,'hospital')).status,403);
+ db.prepare("UPDATE job_seeker_posts SET status='active',public_until='2099-01-01' WHERE id=?").run(post.data.post.id);
+ const applicant={...consent,requestType:'doctor',thirdPartyConsent:true,recipient:'격리 신규 병원',payload:{jobId:'admin-'+adId,resumeId:resume.data.id,name:'변조',phone:'01000000000',specialty:'내과'}};
+ const apply=await call('/api/consultations','doctor',applicant);check('new doctor applies to new hospital',apply.status,201);
+ check('hospital sees own applicant',(await call('/api/member-center','hospital')).data.consultations.some(c=>c.id===apply.data.id),true);
+ check('direct applicant not in headhunter queue',(await call('/api/consultations','admin')).data.requests.some(c=>c.id===apply.data.id),false);
+
+ const beforeEdit=(await call('/api/resumes?id='+resume.data.id,'doctor')).data.resume;
+ const edit=await call('/api/resumes','doctor',{...consent,resumeId:resume.data.id,title:'수정된 의료인 이력서',specialty:'내과',desiredRegions:'부산',detail:{introduction:'수정된 최신 경력과 소개입니다. 내과 전문 진료 경력과 희망 근무 조건을 안내합니다.'}});
+ check('selected resume edit persists',edit.status,200);
+ check('live post uses current resume',(await call(detailPath,'hospital')).data.detail?.detail?.introduction,'수정된 최신 경력과 소개입니다. 내과 전문 진료 경력과 희망 근무 조건을 안내합니다.');
+ const received=(await call('/api/member-center','hospital')).data.consultations.find(c=>c.id===apply.data.id);
+ check('submitted snapshot remains original',received.payload.resumeSnapshot.title,beforeEdit.title);
+ check('submitted snapshot preserves old photo',received.payload.resumeSnapshot.detail.photoUrl,photoUrl);
+ check('receiving hospital retains submitted snapshot photo',(await call(photoUrl,'hospital')).status,200);
+ check('member center reflects updated resume',(await call('/api/member-center','doctor')).data.resume.title,'수정된 의료인 이력서');
+ check('console reflects updated resume',(await call('/api/admin-console','admin')).data.resumes.find(r=>r.id===resume.data.id).title,'수정된 의료인 이력서');
+
  check('contact withdrawal',(await call('/api/job-seeker-posts/'+post.data.post.id,'doctor',{...postInput,contactConsent:false,contactVisibility:'private'},'PATCH')).status,200);
- check('withdrawal hides already bought contact',(await call(detailPath,'hospital')).data.detail.phone,'');
+ check('withdrawal hides already bought contact',(await call(detailPath,'hospital')).data.detail?.phone,'');
  const refund=await call('/api/member-center','hospital',{action:'refund_request',orderNumber:pack.order.orderNumber,reason:'격리 미사용분 환불 검수'});
  check('customer refund request',refund.status,200);
  check('pending refund holds unused credits',(await call('/api/member-center','hospital')).data.talentCredits.remaining,0);
@@ -158,10 +210,12 @@ if(process.argv.includes('--serve')&&!process.exitCode){
  const {createServer}=await import('node:http');
  const localOrigin='http://127.0.0.1:5197';env.SITE_ORIGIN=localOrigin;origin=localOrigin;
  globalThis.fetch=async()=>{throw Error('External network disabled in local visual audit');};
+ let resumeFault=process.argv.includes('--fail-resumes-once');
  let operationsFault=process.argv.includes('--stall-operations-once');
  createServer(async(req,res)=>{
   try{
    console.log('UI request: '+req.method+' '+req.url);
+   if(req.url.startsWith('/api/resumes')&&req.method==='GET'&&req.headers.referer?.includes('/resume')&&resumeFault){resumeFault=false;res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:'격리 검수: 이력서 조회 실패'}));return;}
    if(req.url==='/api/site-operations'&&operationsFault){operationsFault=false;console.log('UI fault: intentionally stalled operations response');return;}
    if(req.url==='/api/site-operations'&&process.argv.includes('--slow-operations-retry'))await new Promise(resolve=>setTimeout(resolve,2500));
    const role=req.url.match(/^\/__login\/(doctor|hospital|admin)$/)?.[1];

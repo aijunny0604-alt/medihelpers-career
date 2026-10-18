@@ -30,7 +30,7 @@ test('의료인 이력서 관리 동선은 저장된 서버 이력서를 불러�
 
   assert.match(memberCenter, /resume\?id=\$\{encodeURIComponent\(item\.id\)\}/);
   assert.match(memberCenter, /저장된 이력서 수정/);
-  assert.match(resumePage, /fetch\(withBase\('\/api\/resumes'\)/);
+  assert.match(resumePage, /loadResumes\(\{ id:requestedResumeId/);
   assert.match(resumePage, /requestedResumeId \? result\?\.resumes\?\.find/);
   assert.match(resumePage, /setSavedResumeId\(resume\.id \|\| ''\)/);
   assert.match(resumePage, /photoUrl: detail\.photoUrl \|\| ''/);

@@ -6,7 +6,8 @@ import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, BriefcaseBusiness, Check, CircleCheck, Eye, EyeOff, FileText, Link2, Trash2, TriangleAlert, X } from 'lucide-react';
-import { withBase } from './basePath.js';
+import { withBase, appBase } from './basePath.js';
+import { loadJobSeekerEditor } from './jobSeekerEditorApi.js';
 import { invalidateSiteOperations } from './siteOperations.js';
 
 function go(path) {
@@ -26,6 +27,8 @@ export default function JobSeekerPostPage({ postId = '' }) {
   const [existingPosts, setExistingPosts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [failed, setFailed] = useState(false);
@@ -33,21 +36,12 @@ export default function JobSeekerPostPage({ postId = '' }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetch(withBase('/api/resumes'), { credentials:'same-origin', headers:{ accept:'application/json' } }),
-      editing ? fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(postId)}`), { credentials:'same-origin', headers:{ accept:'application/json' } }) : Promise.resolve(null),
-      !editing ? fetch(withBase('/api/job-seeker-posts'), { credentials:'same-origin', headers:{ accept:'application/json' } }) : Promise.resolve(null),
-    ]).then(async ([resumeResponse, postResponse, existingResponse]) => {
-      const resumeData = await resumeResponse.json().catch(() => ({}));
-      if (!resumeResponse.ok) throw new Error(resumeData.error || '이력서를 불러오지 못했습니다.');
-      const postData = postResponse ? await postResponse.json().catch(() => ({})) : null;
-      if (postResponse && !postResponse.ok) throw new Error(postData?.error || '구직글을 불러오지 못했습니다.');
-      const existingData = existingResponse ? await existingResponse.json().catch(() => ({})) : null;
+    const controller=new AbortController();
+    setLoading(true); setLoadError('');
+    loadJobSeekerEditor({postId,base:appBase,signal:controller.signal}).then(({resumes:nextResumes,post,posts})=>{
       if (!active) return;
-      if (existingResponse && existingResponse.ok) setExistingPosts(existingData?.posts || []);
-      const nextResumes = resumeData.resumes || [];
+      setExistingPosts(posts);
       setResumes(nextResumes);
-      const post = postData?.post;
       if (post) setForm({ ...emptyForm, ...post, contactPhone:post.contactPhone || nextResumes.find(r => r.id === post.resumeId)?.phone || '' });
       else if (nextResumes[0]) {
         const resume = nextResumes[0];
@@ -63,9 +57,9 @@ export default function JobSeekerPostPage({ postId = '' }) {
           summary: resume.detail?.introduction || '',
         }));
       }
-    }).catch((error) => { if (active) { setFailed(true); setMessage(error.message); } }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [editing, postId]);
+    }).catch((error)=>{if(active)setLoadError(error instanceof TypeError ? '구직글 서버에 연결하지 못했습니다. 다시 불러오기를 눌러주세요.' : error.message || '구직글을 불러오지 못했습니다.');}).finally(()=>{if(active)setLoading(false);});
+    return () => { active=false;controller.abort(); };
+  }, [editing, postId, loadAttempt]);
 
   const selectedResume = useMemo(() => resumes.find((resume) => resume.id === form.resumeId), [resumes, form.resumeId]);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
@@ -89,6 +83,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
 
   const save = async (event) => {
     event.preventDefault();
+    if (loading || loadError || busy) return;
     if (!form.resumeId || !form.title.trim()) { setFailed(true); setMessage('연동할 이력서와 구직글 제목을 확인해주세요.'); return; }
     if (normalizeContactPhone(form.contactPhone) === null || normalizeContactPhone(form.additionalContactPhone) === null || (form.contactVisibility === 'ticket' && !form.contactPhone.trim())) { setFailed(true); setMessage('연락받을 기본 번호와 추가 연락처를 정확히 입력해주세요.'); return; }
     const missing = resumePublicationMissing(selectedResume || {});
@@ -132,6 +127,7 @@ export default function JobSeekerPostPage({ postId = '' }) {
   };
 
   if (loading) return <main className="job-seeker-editor"><section className="job-seeker-editor-state">구직글 정보를 불러오는 중입니다.</section></main>;
+  if (loadError) return <main className="job-seeker-editor"><section className="job-seeker-editor-state" role="alert"><h1>구직글을 불러오지 못했습니다</h1><p>{loadError}</p><p>저장된 구직글과 연결 이력서를 확인한 뒤 수정할 수 있습니다.</p><div><button type="button" className="button primary" onClick={()=>{setLoading(true);setLoadAttempt(value=>value+1);}}>다시 불러오기</button><a className="button outline" href={withBase('/mypage?tab=resume')}>내 구직활동</a></div></section></main>;
   if (!resumes.length && !failed) return <main className="job-seeker-editor"><section className="job-seeker-editor-state"><FileText /><h1>먼저 이력서를 작성해주세요</h1><p>구직글에는 저장된 이력서를 하나 연결합니다. 이력서를 저장해도 자동 게시되지 않으며, 작성 후 이 화면으로 돌아와 직접 등록합니다.</p><div><button className="button primary" onClick={() => go(`/resume?new=1&next=${encodeURIComponent('/job-seeker-posts/new')}`)}>이력서 작성 <ArrowRight /></button><button className="button outline" onClick={() => go('/medical-staff')}><ArrowLeft /> 목록으로</button></div></section></main>;
 
   return <main className="job-seeker-editor">

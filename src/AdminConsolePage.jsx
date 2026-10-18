@@ -18,6 +18,7 @@ import { withBase } from './basePath.js';
 import { authRequest } from './AccountPage.jsx';
 import { readStoredArray, writeStoredValue } from './browserStorage.js';
 import { loadConsole } from './adminConsoleApi.js';
+import { submittedResumePhoto } from './submittedResume.js';
 
 const catalogContents = [
   ...jobs.map((job) => ({
@@ -993,12 +994,13 @@ function TalentAccessAudit({ active }) {
 const resumeVisibilityLabel = { public: '이전 공개 기록', proposal: '이전 제안 기록', private: '개인 이력서' };
 function Resumes({ data }) {
   const resumes = data.resumes || [];
-  const [selected, setSelected] = useState(null);
+  const [selectedId, setSelected] = useState(null);
+  const selected = resumes.find(item => item.id === selectedId);
   return <section className="admin-panel"><header><div><small>MEMBER RESUMES</small><h2>등록된 이력서</h2><p>회원이 등록한 의료인 이력서입니다. 행을 누르면 경력·소개와 연락처를 포함한 전체 내용을 확인할 수 있습니다.</p></div><span className="admin-count">{resumes.length}건</span></header>
     {resumes.length === 0
       ? <div className="admin-empty"><FileText /><p>아직 등록된 이력서가 없습니다.</p></div>
       : <div className="admin-table-panel"><div className="admin-table-head admin-resume-head"><span>이력서</span><span>연락처</span><span>희망 지역</span><span>완성도</span><span>저장 상태</span><span>상세</span></div>
-        {resumes.map((item) => <article key={item.id} className="admin-resume-row admin-resume-clickable" role="button" tabIndex="0" onClick={() => setSelected(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item); } }}>
+        {resumes.map((item) => <article key={item.id} className="admin-resume-row admin-resume-clickable" role="button" tabIndex="0" onClick={() => setSelected(item.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(item.id); } }}>
           <div><strong>{item.title || '제목 미입력'}</strong><small>{item.name || '이름 미입력'} · {item.profession || '직군 미정'}{item.specialty ? ` · ${item.specialty}` : ''}</small></div>
           <span>{item.phone || '-'}</span>
           <span>{item.desiredRegions || '-'}</span>
@@ -1022,6 +1024,7 @@ function ResumeDetailFields({ item }) {
 }
 
 function AdminResumeDetail({ item, onClose }) {
+  const photo = submittedResumePhoto(item);
   useEffect(() => {
     const previous = document.body.style.overflow;
     const handleKey = (event) => { if (event.key === 'Escape') onClose(); };
@@ -1033,7 +1036,7 @@ function AdminResumeDetail({ item, onClose }) {
     <section className="admin-content-detail admin-resume-detail" role="dialog" aria-modal="true" aria-labelledby="admin-resume-detail-title">
       <header><div><small>MEDICAL RESUME DETAIL</small><span className="content-kind talent_profile">의료인 이력서</span><h2 id="admin-resume-detail-title">{item.title || '제목 미입력'}</h2><p>{[item.name, item.profession, item.specialty].filter(Boolean).join(' · ')}</p></div><button className="icon-button" onClick={onClose} aria-label="이력서 상세 닫기"><X /></button></header>
       <div className="admin-content-detail-meta"><div><FileText /><span><small>이력서 ID</small><strong>{item.id}</strong></span></div><div><Activity /><span><small>완성도</small><strong>{Number(item.completion) || 0}%</strong></span></div><div><ShieldCheck /><span><small>저장 상태</small><strong>{resumeVisibilityLabel[item.visibility] || '개인 이력서'}</strong></span></div><div><PencilLine /><span><small>최근 수정</small><strong>{String(item.updatedAt || item.createdAt || '-').slice(0,16).replace('T',' ')}</strong></span></div></div>
-      <div className="admin-content-detail-body"><section><h3>이력서 전체 내용</h3><ResumeDetailFields item={item} /></section></div>
+      <div className="admin-content-detail-body"><section><h3>이력서 전체 내용</h3>{photo && <img className="admin-resume-photo" src={withBase(photo)} alt="등록된 이력서 프로필 사진" />}<ResumeDetailFields item={item} /></section></div>
       <footer><button className="button outline" onClick={onClose}>닫기</button><span className="catalog-readonly"><ShieldCheck /> 관리자 읽기 전용 DB 기록입니다.</span></footer>
     </section>
   </div>;

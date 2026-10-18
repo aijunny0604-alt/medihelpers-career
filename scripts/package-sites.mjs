@@ -1682,7 +1682,7 @@ async function uploadApi(request, env, pathname) {
         let allowed = Boolean(viewer && viewer.id === ownerId) || Boolean(await adminIdentity(request, env));
         if (!allowed && viewer?.role === 'hospital') {
           const photoUrl = '/api/uploads/' + key;
-          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON (tu.talent_id = 'resume-' || r.id AND r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE tu.talent_id='seeker-' || p.id AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active') WHERE tu.hospital_account_id = ? AND r.account_id = ? AND json_extract(r.detail_json,'$.photoUrl')=? LIMIT 1").bind(viewer.id, ownerId, photoUrl).first();
+          const grant = await env.DB.prepare("SELECT tu.id FROM talent_unlocks tu JOIN resumes r ON " + talentKeyExpression('tu.talent_id') + "='resume-' || r.id WHERE ((r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active' AND (p.public_until IS NULL OR p.public_until>CURRENT_TIMESTAMP))) AND tu.hospital_account_id = ? AND r.account_id = ? AND json_extract(r.detail_json,'$.photoUrl')=? LIMIT 1").bind(viewer.id, ownerId, photoUrl).first();
           // A submitted snapshot is independently shared with its receiving hospital.
           const application = grant ? null : await env.DB.prepare("SELECT cr.id FROM consultation_requests cr JOIN admin_content_records c ON c.id=replace(json_extract(cr.payload_json,'$.jobId'),'admin-','') WHERE lower(c.created_by)=? AND json_extract(cr.payload_json,'$.submissionChannel')='paid_job_direct' AND json_extract(cr.payload_json,'$.resumeSnapshot.detail.photoUrl')=? LIMIT 1").bind(identityPrincipal(identity), photoUrl).first();
           allowed = Boolean(grant || application);
@@ -2034,6 +2034,14 @@ async function resumeApi(request, env) {
   if (!account) return json({ signedIn:true, resumes:[], resume:null });
   if (account.role !== 'doctor' && !isAdminEmail(identityPrincipal(identity), env)) return json({ error:'이력서는 일반(의사·의료인) 회원만 등록할 수 있습니다.' }, 403);
   if (request.method === 'GET') {
+    const requestedId = new URL(request.url).searchParams.get('id') || '';
+    if (requestedId) {
+      const row = await env.DB.prepare('SELECT id, title, profession, specialty, name, phone, email, desired_regions AS desiredRegions, completion, visibility, status, detail_json AS detailJson, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE id = ? AND account_id = ? LIMIT 1').bind(requestedId, account.id).first();
+      if (!row) return json({error:'선택한 이력서를 찾을 수 없습니다. 내 이력서 목록을 확인해주세요.'},404);
+      const {detailJson, ...rest} = row;
+      const resume = {...rest,detail:parseJsonObject(detailJson)};
+      return json({signedIn:true,resumes:[resume],resume});
+    }
     const result = await env.DB.prepare('SELECT id, title, profession, specialty, name, phone, email, desired_regions AS desiredRegions, completion, visibility, status, detail_json AS detailJson, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE account_id = ? ORDER BY updated_at DESC LIMIT 20').bind(account.id).all();
     const resumes = (result.results || []).map(row => { const { detailJson, ...rest } = row; return { ...rest, detail:parseJsonObject(detailJson) }; });
     return json({ signedIn:true, resumes, resume:resumes[0] || null });

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Check, FilePlus2, FileText, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { withBase } from './basePath.js';
+import { loadResumes } from './resumeApi.js';
 
 export default function ResumeSubmitPicker({ selectedId, onSelect, onLoaded, optional = true }) {
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [managerOpen, setManagerOpen] = useState(false);
 
   useEffect(() => {
@@ -22,11 +24,9 @@ export default function ResumeSubmitPicker({ selectedId, onSelect, onLoaded, opt
 
   useEffect(() => {
     let active = true;
-    fetch(withBase('/api/resumes'), { credentials:'same-origin', headers:{ accept:'application/json' } })
-      .then(async (response) => {
-        if (!response.ok) throw new Error((await response.json().catch(() => ({})))?.error || '이력서를 불러오지 못했습니다.');
-        return response.json();
-      })
+    const controller = new AbortController();
+    setLoading(true); setError('');
+    loadResumes({ endpoint:withBase('/api/resumes'), signal:controller.signal })
       .then((result) => {
         if (!active) return;
         const list = Array.isArray(result?.resumes) ? result.resumes : result?.resume ? [result.resume] : [];
@@ -36,8 +36,8 @@ export default function ResumeSubmitPicker({ selectedId, onSelect, onLoaded, opt
       })
       .catch((reason) => { if (active) setError(reason.message || '이력서를 불러오지 못했습니다.'); })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
+    return () => { active = false; controller.abort(); };
+  }, [loadAttempt]);
 
   return <section className="resume-submit-picker" aria-labelledby="resume-submit-picker-title">
     <header>
@@ -45,13 +45,13 @@ export default function ResumeSubmitPicker({ selectedId, onSelect, onLoaded, opt
       <div><small>MY RESUME</small><h3 id="resume-submit-picker-title">등록 이력서 선택</h3><p>홈페이지에 저장한 이력서 중 이번 상담·지원에 제출할 이력서를 고르세요.</p></div>
       <div className="resume-picker-actions">
         <a className="primary" href={withBase('/resume?new=1')}><FilePlus2 /> 새 이력서 작성</a>
-        <button type="button" onClick={() => setManagerOpen(true)}><FileText /> 이력서 선택·관리</button>
+        <button type="button" disabled={loading || Boolean(error)} onClick={() => setManagerOpen(true)}><FileText /> 이력서 선택·관리</button>
       </div>
     </header>
     {loading && <div className="resume-picker-state"><RefreshCw className="spin" /> 등록 이력서를 불러오는 중입니다…</div>}
-    {!loading && error && <div className="resume-picker-state error">{error}</div>}
+    {!loading && error && <div className="resume-picker-state error" role="alert">{error} <button type="button" className="button outline" onClick={() => setLoadAttempt(value => value + 1)}>다시 불러오기</button></div>}
     {!loading && !error && resumes.length === 0 && <div className="resume-picker-empty"><FilePlus2 /><div><strong>아직 등록한 이력서가 없습니다</strong><p>한 번 작성해두면 다음 상담과 지원부터 선택만 하면 됩니다.</p></div><a href={withBase('/resume?new=1')}>이력서 작성하기</a></div>}
-    {!loading && resumes.length > 0 && <div className="resume-picker-list" role="radiogroup" aria-label="제출할 이력서">
+    {!loading && !error && resumes.length > 0 && <div className="resume-picker-list" role="radiogroup" aria-label="제출할 이력서">
       {optional && <button type="button" className={!selectedId ? 'selected' : ''} onClick={() => onSelect('')} role="radio" aria-checked={!selectedId}><span className="resume-radio">{!selectedId && <Check />}</span><div><strong>이번에는 첨부하지 않기</strong><small>상담 내용만 먼저 접수합니다.</small></div></button>}
       {resumes.map((resume) => <button type="button" key={resume.id} className={selectedId === resume.id ? 'selected' : ''} onClick={() => onSelect(resume.id)} role="radio" aria-checked={selectedId === resume.id}>
         <span className="resume-radio">{selectedId === resume.id && <Check />}</span>

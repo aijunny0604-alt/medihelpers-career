@@ -41,7 +41,7 @@ test('의료인 이력서는 가입 직군을 유지하고 이력서 내용을 �
 
 test('구직글은 전용 페이지에서 본인 이력서를 선택해 연결한다', () => {
   assert.match(medicalStaff, /\/job-seeker-posts\/new/);
-  assert.match(jobSeekerPost, /\/api\/resumes/);
+  assert.match(jobSeekerPost, /loadJobSeekerEditor/);
   assert.match(jobSeekerPost, /resumeId/);
   assert.match(server, /job_seeker_posts p JOIN resumes r/);
   assert.match(server, /linkedResumeId: r\.id/);
