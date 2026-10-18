@@ -2199,7 +2199,7 @@ async function savedJobsApi(request, env) {
   const identity = await authenticatedUser(request, env);
   if (!identity) return json({ signedIn:false, saved:[] }, 200);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ signedIn:false, saved:[] });
-  try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ signedIn:false, saved:[] }); }
+  try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); } catch { return json({ error:'관심 목록 저장소를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.' },503); }
   const key = identityKey(identity);
   const account = await env.DB.prepare('SELECT id FROM accounts WHERE user_key = ?').bind(key).first();
   if (!account) return json({ signedIn:true, saved:[] });
@@ -2214,6 +2214,13 @@ async function savedJobsApi(request, env) {
     const jobId = String(body.jobId || '').slice(0, 120);
     const k = body.kind === 'talent' ? 'talent' : 'job';
     if (!jobId) return json({ error:'대상이 없습니다.' }, 400);
+    if ('saved' in body && typeof body.saved !== 'boolean') return json({ error:'저장 상태는 참 또는 거짓이어야 합니다.' },400);
+    // An explicit desired state makes retries idempotent and concurrent inserts safe.
+    if (typeof body.saved === 'boolean') {
+      if (body.saved) await env.DB.prepare('INSERT INTO saved_jobs (account_id, job_id, kind) VALUES (?, ?, ?) ON CONFLICT(account_id, job_id, kind) DO NOTHING').bind(account.id, jobId, k).run();
+      else await env.DB.prepare('DELETE FROM saved_jobs WHERE account_id = ? AND job_id = ? AND kind = ?').bind(account.id, jobId, k).run();
+      return json({ saved:body.saved, jobId });
+    }
     const existing = await env.DB.prepare('SELECT job_id FROM saved_jobs WHERE account_id = ? AND job_id = ? AND kind = ?').bind(account.id, jobId, k).first();
     if (existing) { await env.DB.prepare('DELETE FROM saved_jobs WHERE account_id = ? AND job_id = ? AND kind = ?').bind(account.id, jobId, k).run(); return json({ saved:false, jobId }); }
     await env.DB.prepare('INSERT INTO saved_jobs (account_id, job_id, kind) VALUES (?, ?, ?)').bind(account.id, jobId, k).run();
@@ -3595,6 +3602,9 @@ async function responseFor(request, env, ctx) {
   const canonical = paymentCanonicalRedirect(request, env);
   if (canonical) return canonical;
   const pathname = new URL(request.url).pathname;
+  try { decodeURIComponent(pathname); } catch {
+    return new Response(request.method === 'HEAD' ? null : '주소 형식이 올바르지 않습니다. 메디헬퍼스 홈에서 다시 찾아주세요.', { status:400, headers:{ 'content-type':'text/plain; charset=utf-8', 'cache-control':'no-store', 'x-content-type-options':'nosniff' } });
+  }
   if (pathname === '/api/payment-close') return inicisCloseResponse(request, env);
   if (pathname === '/work/employ_detail.html' || pathname === '/m/content/work_employ_detail.html') return legacyRecruitmentLink(request,env);
   if (pathname === '/api/admin-payment-inquiry') return paymentInquiryApi(request,env);

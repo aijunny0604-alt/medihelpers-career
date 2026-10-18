@@ -58,6 +58,9 @@ import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
 import { imageFilesFromTransfer, pasteImageFiles } from './imageInput.js';
 import { getAdTierPresentation } from './adTierPresentation.js';
 import { formatKoreanPhone } from './signupFields.js';
+import { createSavedItemsController } from './savedItemsController.js';
+import { decodeRouteId, isValidRoutePath } from './routeInput.js';
+import { notify } from './browserStorage.js';
 
 const AccountPage = lazy(() => import('./AccountPage.jsx'));
 const SignupWelcomePage = lazy(() => import('./AccountPage.jsx').then(m => ({ default: m.SignupWelcomePage })));
@@ -673,42 +676,31 @@ function AdTierBadge({ tier }) {
   );
 }
 
-function useServerSyncedSavedItems(kind = 'job') {
-  const storageKey = kind === 'talent' ? 'medihelpers_saved_talent' : 'medihelpers_saved_jobs';
-  const [saved, setSaved] = useState(() => readStoredArray(storageKey).map(String));
-  const interacted = useRef(false);
-
+function useServerSyncedSavedItems(kind = 'job', auth) {
+  const scope = auth?.status === 'member' ? `member:${auth.account?.id || auth.email}` : auth?.status === 'guest' ? 'guest' : 'loading';
+  const storageKey = `medihelpers_guest_saved_${kind}`;
+  const [state, setState] = useState({ scope:'', saved:[] });
+  const controller = useRef(null);
   useEffect(() => {
-    let active = true;
-    loadSavedFromServer(kind).then((result) => {
-      if (!active || interacted.current || !result.ok || !result.signedIn) return;
-      writeStoredValue(storageKey, result.saved);
-      setSaved(result.saved);
+    if (scope === 'loading') return;
+    const initial = scope === 'guest' ? readStoredArray(storageKey).map(String) : [];
+    setState({ scope, saved:initial });
+    const current = createSavedItemsController({
+      member:scope !== 'guest', initial,
+      load:() => loadSavedFromServer(kind),
+      save:(id, selected) => syncSavedToServer(id, kind, selected),
+      changed:saved => setState({ scope, saved }),
+      persist:saved => writeStoredValue(storageKey, saved),
+      failed:message => notify(message),
     });
-    return () => { active = false; };
-  }, [kind, storageKey]);
-
-  const toggleSaved = useCallback((id) => {
-    const itemId = String(id);
-    interacted.current = true;
-    setSaved((current) => {
-      const next = current.includes(itemId) ? current.filter((item) => item !== itemId) : [...current, itemId];
-      writeStoredValue(storageKey, next);
-      return next;
-    });
-    syncSavedToServer(itemId, kind).then((result) => {
-      if (!result.ok || result.localOnly || typeof result.saved !== 'boolean') return;
-      setSaved((current) => {
-        const next = result.saved
-          ? [...new Set([...current, itemId])]
-          : current.filter((item) => item !== itemId);
-        writeStoredValue(storageKey, next);
-        return next;
-      });
-    });
-  }, [kind, storageKey]);
-
-  return [saved, toggleSaved];
+    controller.current = { scope, current };
+    current.start();
+    return () => { current.dispose(); if (controller.current?.current === current) controller.current = null; };
+  }, [scope, kind, storageKey]);
+  const toggleSaved = useCallback(id => {
+    if (controller.current?.scope === scope) controller.current.current.toggle(id);
+  }, [scope]);
+  return [state.scope === scope ? state.saved : [], toggleSaved];
 }
 
 const advertisementPreviewJob = {
@@ -810,7 +802,8 @@ function JobCard({
               event.stopPropagation();
               onSave();
             }}
-            aria-label="관심 공고 저장"
+            aria-label={saved ? '관심 공고 저장 해제' : '관심 공고 저장'}
+            aria-pressed={saved}
           >
             <Heart size={20} fill={saved ? "currentColor" : "none"} />
           </button>
@@ -1412,7 +1405,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
 }
 
 function JobDetailRoute({ job, qa, auth }) {
-  const [savedItems, toggleSavedItem] = useServerSyncedSavedItems('job');
+  const [savedItems, toggleSavedItem] = useServerSyncedSavedItems('job', auth);
   const saved = savedItems.includes(String(job.id));
   const toggleSaved = () => toggleSavedItem(job.id);
   return <JobDetail job={job} qa={qa} auth={auth} page saved={saved} onSave={toggleSaved} onClose={() => navigate('/jobs')} />;
@@ -1546,12 +1539,12 @@ function HomePremiumLoading() {
   </div>;
 }
 
-function HomePage({ liveJobs = jobs, jobsReady = true }) {
+function HomePage({ liveJobs = jobs, jobsReady = true, auth }) {
   const siteCategories = useSiteCategories();
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
-  const [saved, toggleSaved] = useServerSyncedSavedItems('job');
+  const [saved, toggleSaved] = useServerSyncedSavedItems('job', auth);
   const promotedJobs = useMemo(() => prioritizeJobs(liveJobs.filter((job) => getAdTierPresentation(job.adTier)?.key === 'main')), [liveJobs]);
   const latestStandardJobs = useMemo(() => {
     const standardJobs = liveJobs.filter((job) => getAdTierPresentation(job.adTier)?.key !== 'main');
@@ -1747,7 +1740,7 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   const [region, setRegion] = useState(params.get('region') || '전국');
   const [condition, setCondition] = useState(params.get('condition') || '전체 조건');
   const [keyword, setKeyword] = useState(params.get('keyword') || '');
-  const [saved, toggleSaved] = useServerSyncedSavedItems('job');
+  const [saved, toggleSaved] = useServerSyncedSavedItems('job', auth);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
   const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
@@ -1846,9 +1839,7 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
     qa?.active &&
       canRevealTalentIdentity(qa.info.capabilities, true),
   );
-  const [saved, setSaved] = useState(() =>
-    readStoredArray("medihelpers_saved_talent"),
-  );
+  const [saved, toggleSaved] = useServerSyncedSavedItems('talent', auth);
   const talentRegions = siteCategories.regions.length > 1 ? siteCategories.regions : ["전국", ...new Set(sourceTalent.flatMap((person) => person.region.split("·")))].filter(Boolean);
   const availableOptions = [
     "전체 시점",
@@ -1895,15 +1886,6 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
   const canViewIdentity = qa?.active
     ? qaIdentityAccess
     : canRevealTalentIdentity({ admin: Boolean(auth?.isAdmin), hospital: auth?.role === 'hospital', signedIn: auth?.status === 'member' }, auth?.status === 'member');
-  const toggleSaved = (code) =>
-    setSaved((current) => {
-      const next = current.includes(code)
-        ? current.filter((item) => item !== code)
-        : [...current, code];
-      writeStoredValue("medihelpers_saved_talent", next);
-      syncSavedToServer(code, 'talent');
-      return next;
-    });
   return (
     <>
       {!embedded && (
@@ -2043,7 +2025,8 @@ export function TalentPage({ qa, auth, route = '', liveTalent = talent, medicalT
                 <button
                   className={`talent-save ${saved.includes(person.code) ? "saved" : ""}`}
                   onClick={() => toggleSaved(person.code)}
-                  aria-label={`${talentDisplayName(person, canViewIdentity)} 의사 후보 찜하기`}
+                  aria-label={`${talentDisplayName(person, canViewIdentity)} 의사 후보 ${saved.includes(person.code) ? '찜 해제' : '찜하기'}`}
+                  aria-pressed={saved.includes(person.code)}
                 >
                   <Heart
                     fill={saved.includes(person.code) ? "currentColor" : "none"}
@@ -3718,28 +3701,29 @@ export function App() {
   let page;
   const remoteDetailRoute = ['/jobs/', '/headhunting/posts/', '/medical-staff/talents/', '/medical-staff/jobs/'].some(prefix => path.startsWith(prefix));
   const remoteListRoute = ['/', '/jobs', '/medical-staff', '/headhunting'].includes(path);
-  if (((remoteDetailRoute || path === '/jobs') && !operations.ready) || ((remoteDetailRoute || remoteListRoute) && operations.error)) page = <section className="not-found" role="status"><h1>{operations.error ? '정보를 불러오지 못했습니다' : '최신 정보를 불러오고 있습니다'}</h1><p>{operations.error ? operations.errorMessage : '공고와 회원 권한을 확인하고 있습니다.'}</p>{operations.error && operations.errorCode !== 'SERVICE_DAILY_LIMIT' && <button className="button primary" onClick={() => { invalidateSiteOperations(); window.dispatchEvent(new PopStateEvent('popstate')); }}>다시 불러오기</button>}</section>;
-  else if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} />;
+  if (!isValidRoutePath(path)) page = <NotFoundPage />;
+  else if (((remoteDetailRoute || path === '/jobs') && !operations.ready) || ((remoteDetailRoute || remoteListRoute) && operations.error)) page = <section className="not-found" role="status"><h1>{operations.error ? '정보를 불러오지 못했습니다' : '최신 정보를 불러오고 있습니다'}</h1><p>{operations.error ? operations.errorMessage : '공고와 회원 권한을 확인하고 있습니다.'}</p>{operations.error && operations.errorCode !== 'SERVICE_DAILY_LIMIT' && <button className="button primary" onClick={() => { invalidateSiteOperations(); window.dispatchEvent(new PopStateEvent('popstate')); }}>다시 불러오기</button>}</section>;
+  else if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} auth={auth} />;
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
-    const job = liveJobs.find((item) => item.id === decodeURIComponent(path.slice('/jobs/'.length)));
-    page = !operations.ready || auth.status === 'loading' ? <section className="section" role="status">공고를 불러오고 있습니다.</section> : job ? <JobDetailRoute job={job} qa={qa} auth={auth} /> : isActiveHospitalMember(auth) && path.startsWith('/jobs/admin-') ? <OwnedAdDetail key={`${path}:${auth.email}`} contentId={decodeURIComponent(path.slice('/jobs/admin-'.length))} auth={auth} qa={qa} /> : <NotFoundPage />;
+    const job = liveJobs.find((item) => item.id === decodeRouteId(path.slice('/jobs/'.length)));
+    page = !operations.ready || auth.status === 'loading' ? <section className="section" role="status">공고를 불러오고 있습니다.</section> : job ? <JobDetailRoute job={job} qa={qa} auth={auth} /> : isActiveHospitalMember(auth) && path.startsWith('/jobs/admin-') ? <OwnedAdDetail key={`${path}:${auth.email}`} contentId={decodeRouteId(path.slice('/jobs/admin-'.length))} auth={auth} qa={qa} /> : <NotFoundPage />;
   }
   // /professions·/talent 별칭은 상단 ROUTE_ALIASES에서 동기 정규화되므로 여기 분기는 불필요(도달 불가).
   else if (path === '/headhunting') page = <AuthGate auth={auth} title="맞춤 헤드헌팅은 회원 전용입니다" description="메디헬퍼스 회원만 비공개 초빙정보와 상담 내용을 확인할 수 있습니다."><HeadhuntingPage route={route} operations={operations} liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} /></AuthGate>;
   else if (path.startsWith('/headhunting/posts/')) {
-    const post = headhuntPosts.find((item) => item.id === decodeURIComponent(path.slice('/headhunting/posts/'.length)));
+    const post = headhuntPosts.find((item) => item.id === decodeRouteId(path.slice('/headhunting/posts/'.length)));
     page = post ? <AuthGate auth={auth} title="맞춤 헤드헌팅 상세는 회원 전용입니다" description="로그인한 메디헬퍼스 회원에게만 초빙 조건과 상세 내용을 공개합니다."><HeadhuntPostDetailPage post={post} /></AuthGate> : <NotFoundPage />;
   }
   // 의료인 채용 = 채용공고 + 구직 의료인 인재(열람권). 로그인 회원 전용(비회원·경쟁사 정보 수집 차단).
   else if (path === '/medical-staff') page = operations.features.medicalStaffHub === false ? <NotFoundPage /> : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="간호·의료기사·약무 등 의료인 채용정보는 회원 권한에서만 이용할 수 있습니다."><MedicalStaffPage operations={operations} medicalTalent={medicalTalent} auth={auth} talentSection={<JobSeekerBoard liveTalent={liveTalent} medicalTalent={medicalTalent} qa={qa} auth={auth} route={route} />} /></AuthGate>;
   else if (path === '/job-seeker-posts/new') page = <AuthGate auth={auth} need="doctor" title="구직글 등록은 의사·의료인 회원 전용입니다" description="의료인 회원은 저장된 이력서를 선택해 구직글을 등록할 수 있습니다."><JobSeekerPostPage /></AuthGate>;
   else if (path.startsWith('/job-seeker-posts/') && path.endsWith('/edit')) {
-    const postId = decodeURIComponent(path.slice('/job-seeker-posts/'.length, -'/edit'.length));
+    const postId = decodeRouteId(path.slice('/job-seeker-posts/'.length, -'/edit'.length));
     page = <AuthGate auth={auth} need="doctor" title="구직글 수정은 작성자 전용입니다" description="로그인한 본인이 작성한 구직글만 수정할 수 있습니다."><JobSeekerPostPage postId={postId} /></AuthGate>;
   }
   else if (path.startsWith('/medical-staff/talents/')) {
-    const talentId = decodeURIComponent(path.slice('/medical-staff/talents/'.length));
+    const talentId = decodeRouteId(path.slice('/medical-staff/talents/'.length));
     const person = allTalent.find((item) => (item.detailId || item.code) === talentId || item.code === talentId);
     const canViewIdentity = qa?.active
       ? canRevealTalentIdentity(qa.info.capabilities, true)
@@ -3752,7 +3736,7 @@ export function App() {
   }
   else if (path.startsWith('/medical-staff/jobs/')) page = operations.features.medicalStaffHub === false
     ? <NotFoundPage />
-    : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="의료인 채용 상세정보는 회원 권한에서만 확인할 수 있습니다."><MedicalStaffDetailPage operations={operations} jobId={decodeURIComponent(path.slice('/medical-staff/jobs/'.length))} qa={qa} auth={auth} /></AuthGate>;
+    : <AuthGate auth={auth} title="의료인 채용은 회원 전용입니다" description="의료인 채용 상세정보는 회원 권한에서만 확인할 수 있습니다."><MedicalStaffDetailPage operations={operations} jobId={decodeRouteId(path.slice('/medical-staff/jobs/'.length))} qa={qa} auth={auth} /></AuthGate>;
   else if (path === '/advertise/apply') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertiseApplyPage route={route} qa={qa} auth={auth} />;
   // /advertise/post(무료 직접게시)는 폐지 — 상단 ROUTE_ALIASES에서 /advertise로 정규화됨(도달 불가).
   else if (path === '/advertise') page = operations.features.adRegistration === false ? <NotFoundPage /> : <AdvertisePage qa={qa} auth={auth} />;

@@ -290,21 +290,30 @@ async function handle(method, path, bodyText, query = '') {
     return jsonRes({ requested: true, orderNumber: target.orderNumber });
   }
 
-  // 관심공고(찜) 서버 저장 흉내 — POST는 토글, GET은 목록 반환(기기 간 동기화 검증용).
-  if (path === '/api/saved-jobs' && method === 'POST') {
+  // Match the production API's account/kind separation and idempotent writes.
+  if (path === '/api/saved-jobs') {
+    const session = read(LS.authSession, null);
+    if (!session?.email) return jsonRes({ signedIn:false, saved:[] });
+    const storageKey = LS.savedServer + ':' + session.email;
+    const list = read(storageKey, []);
+    if (method === 'GET') {
+      const kind = new URLSearchParams(query).get('kind') === 'talent' ? 'talent' : 'job';
+      return jsonRes({ signedIn:true, saved:list.filter(x => x.kind === kind).map(x => x.jobId) });
+    }
+    if (method !== 'POST') return jsonRes({ error:'지원하지 않는 요청입니다.' },405);
     const jobId = String(body.jobId || '');
     const kind = body.kind === 'talent' ? 'talent' : 'job';
     if (!jobId) return jsonRes({ error: 'jobId 필요' }, 400);
-    const list = read(LS.savedServer, []);
     const idx = list.findIndex((x) => x.jobId === jobId && x.kind === kind);
-    if (idx >= 0) list.splice(idx, 1); else list.push({ jobId, kind });
-    write(LS.savedServer, list);
-    return jsonRes({ ok: true, saved: list });
+    const saved = typeof body.saved === 'boolean' ? body.saved : idx < 0;
+    if (!saved && idx >= 0) list.splice(idx, 1);
+    if (saved && idx < 0) list.push({ jobId, kind });
+    write(storageKey, list);
+    return jsonRes({ saved, jobId });
   }
 
   // 그 외 GET은 빈 기본값으로 응답해 콘솔 404를 줄인다.
   if (method === 'GET') {
-    if (path === '/api/saved-jobs') return jsonRes({ saved: read(LS.savedServer, []) });
     if (path === '/api/member-center') {
       // 저장된 주문을 서버(member-center)와 같은 형태로 내려 결제 이력에 열람권이 뜨게 한다.
       const orders = Object.values(read(LS.orders, {})).map((o) => {

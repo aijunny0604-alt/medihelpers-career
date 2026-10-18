@@ -1,3 +1,4 @@
+import { decodeRouteId, memberTab } from './routeInput.js';
 import TalentCreditUsage from './TalentCreditUsage.jsx';
 import RefundHistory from './RefundHistory.jsx';
 import { koreanDate } from './koreanTime.js';
@@ -174,17 +175,17 @@ export default function MemberCenterPage({ route, qa, auth }) {
   const routePath = route.split('?')[0].replace(/\/$/, '');
   const requestedTab = params.get('tab');
   const requestedInquiryId = routePath.startsWith('/mypage/inquiries/')
-    ? decodeURIComponent(routePath.slice('/mypage/inquiries/'.length))
+    ? decodeRouteId(routePath.slice('/mypage/inquiries/'.length))
     : params.get('inquiry') || '';
   const requestedAdEditId = routePath.startsWith('/mypage/ads/') && routePath.endsWith('/edit')
-    ? decodeURIComponent(routePath.slice('/mypage/ads/'.length, -'/edit'.length))
+    ? decodeRouteId(routePath.slice('/mypage/ads/'.length, -'/edit'.length))
     : '';
   // 이니시스 결제창에서 돌아온 결과(서버가 /mypage?payment=paid|failed 로 리다이렉트)를 안내한다.
   const paymentResult = params.get('payment') || '';
   const paymentOrder = params.get('order') || '';
   const paymentMessage = params.get('message') || '';
   const [paymentNoticeClosed, setPaymentNoticeClosed] = useState(false);
-  const [tab, setTab] = useState(requestedAdEditId ? 'ads' : requestedTab || 'overview');
+  const [tab, setTab] = useState(requestedAdEditId ? 'ads' : memberTab(requestedTab));
   const [accountState, setAccountState] = useState({ loading: !qa.active, signedIn: qa.active && qa.info.capabilities.signedIn, role: qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor || qa.info.capabilities.membership ? 'doctor' : qa.info.capabilities.admin ? 'admin' : '', identity: {} });
   const [profile, setProfile] = useState(null);
   const [serverData, setServerData] = useState({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], refunds: [], migratedAds: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [], unlockedTalents: [], talentCredits: { total:0, used:0, remaining:0 } });

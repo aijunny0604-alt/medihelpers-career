@@ -86,17 +86,15 @@ export function notify(message, tone = 'error') {
   }
 }
 
-// 관심공고 토글을 서버에 반영(로그인 시).
-// 화면은 localStorage로 먼저 동작하지만, 서버 반영이 실패하면 다른 기기에서 관심공고가 사라진다.
-// 예전에는 .catch(() => {})로 완전히 삼켜서 사용자가 이 사실을 알 방법이 없었다.
-// → 결과를 돌려주어 호출부가 필요하면 안내할 수 있게 한다(비로그인 401은 정상 상황이라 조용히 넘어간다).
-export async function syncSavedToServer(jobId, kind = 'job') {
+// New clients send the desired state; omitted saved retains legacy toggle support.
+// The controller reconciles a lost response against the server and reports failures.
+export async function syncSavedToServer(jobId, kind = 'job', saved) {
   try {
     const response = await fetch('/api/saved-jobs', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jobId, kind }),
+      body: JSON.stringify({ jobId, kind, ...(typeof saved === 'boolean' ? { saved } : {}) }),
     });
     if (response.ok) {
       const payload = await response.json().catch(() => ({}));
@@ -108,12 +106,12 @@ export async function syncSavedToServer(jobId, kind = 'job') {
     }
     // 로그인하지 않은 사용자는 서버 저장 대상이 아니다(로컬 저장만으로 정상 동작).
     if (response.status === 401) return { ok: true, localOnly: true };
-    const message = '관심공고를 서버에 저장하지 못했습니다. 다른 기기에서는 보이지 않을 수 있습니다.';
-    notify(message);
+    const message = '관심 목록을 저장하지 못했습니다. 새로고침해 저장 상태를 확인해 주세요.';
+    if (typeof saved !== 'boolean') notify(message);
     return { ok: false, message };
   } catch {
-    const message = '네트워크 연결이 불안정해 이 기기에만 저장했습니다.';
-    notify(message);
+    const message = '네트워크 응답을 확인하지 못했습니다. 새로고침해 관심 목록의 저장 상태를 확인해 주세요.';
+    if (typeof saved !== 'boolean') notify(message);
     return { ok: false, message };
   }
 }
