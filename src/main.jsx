@@ -7,6 +7,8 @@ import { usePaymentRecovery } from './usePaymentRecovery.js';
 import PaymentRecoveryPanel from './PaymentRecoveryPanel.jsx';
 import CheckoutAvailabilityNotice from './CheckoutAvailabilityNotice.jsx';
 import { SAMPLE_BANNER_TEMPLATES } from './bannerTemplates.js';
+import HospitalBrandMark from './HospitalBrandMark.jsx';
+import { bannerResolutionNotice } from './hospitalBrandImage.js';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, lazy } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -761,6 +763,7 @@ function JobCard({
     : job.brandFit || (job.logo ? "mark" : "mark");
   const isFullBrandBanner = job.brandImageLayout === "full-banner";
   const hasBrandAsset = Boolean(brandSource || job.brandAsset);
+  const usesLogoIdentity = isMainAd && brandFit === 'mark' && Boolean(brandSource) && !job.brandAsset;
   const mood = getHospitalMood(job);
   // 공개 채용공고는 광고 등급과 관계없이 누구나 조건을 확인한다.
   // 헤드헌터가 별도로 관리하는 비공개 포지션만 잠금 대상으로 남긴다.
@@ -770,6 +773,7 @@ function JobCard({
   const moveCardLight = (event) => {
     if (
       !isAd ||
+      usesLogoIdentity ||
       event.pointerType === "touch" ||
       document.documentElement.classList.contains("performance-lite")
     )
@@ -788,7 +792,7 @@ function JobCard({
   };
   return (
     <article
-      className={`job-card ${variant ? `job-card-${variant}` : ""} ${preview ? "advertisement-preview-card" : ""} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? "has-brand-logo" : "has-brand-wordmark"} ${brandFit === "banner" ? "has-brand-banner" : ""} ${isFullBrandBanner ? "brand-full-banner" : ""}` : ""}`}
+      className={`job-card ${usesLogoIdentity ? 'has-logo-identity' : ''} ${variant ? `job-card-${variant}` : ""} ${preview ? "advertisement-preview-card" : ""} ${isAd ? `premium-ad ad-${job.adTier} ${hasBrandAsset ? "has-brand-logo" : "has-brand-wordmark"} ${brandFit === "banner" ? "has-brand-banner" : ""} ${isFullBrandBanner ? "brand-full-banner" : ""}` : ""}`}
       style={isAd ? hospitalMoodStyle(job) : { "--job-color": job.color }}
       data-brand-mood={isAd ? mood.id : undefined}
       data-ad-tier={adTierPresentation?.key}
@@ -831,7 +835,12 @@ function JobCard({
           </button>
         )}
       </div>
-      {isAd && isMainAd ? (
+      {usesLogoIdentity ? (
+        <div className="ad-brand-stage hospital-identity-stage">
+          <HospitalBrandMark key={brandUrl} src={brandUrl} hospital={job.hospital} />
+          <strong className="hospital-identity-name">{job.hospital}</strong>
+        </div>
+      ) : isAd && isMainAd ? (
         <div
           className={`ad-brand-stage ${hasBrandAsset ? `logo-stage media-${brandFit}` : "wordmark-stage"}`}
           style={
@@ -2780,6 +2789,7 @@ function Checkout({ plan, auth }) {
   const [brandFile, setBrandFile] = useState(null);
   const [brandTemplate, setBrandTemplate] = useState("");
   const [brandError, setBrandError] = useState("");
+  const [brandDimensions, setBrandDimensions] = useState(null);
   const [facilityPhotos, setFacilityPhotos] = useState([]);
   const [photoError, setPhotoError] = useState("");
   const [posterImages, setPosterImages] = useState([]);
@@ -2796,10 +2806,13 @@ function Checkout({ plan, auth }) {
   const chooseBrand = (file, input) => {
     setBrandError("");
     if (!file) return;
+    setBrandDimensions(null);
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       if (input) input.value = "";
       setBrandName("");
       setBrandFile(null);
+      setBrandPreview("");
+      setBrandTemplate("");
       setBrandError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
       return;
     }
@@ -2807,6 +2820,8 @@ function Checkout({ plan, auth }) {
       if (input) input.value = "";
       setBrandName("");
       setBrandFile(null);
+      setBrandPreview("");
+      setBrandTemplate("");
       setBrandError("5MB 이하 파일을 선택해주세요.");
       return;
     }
@@ -2817,6 +2832,7 @@ function Checkout({ plan, auth }) {
     setBrandPreview(URL.createObjectURL(file));
   };
   const chooseBrandTemplate = (template) => {
+    setBrandDimensions(null);
     if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
     setBrandError("");
     setBrandName("");
@@ -3112,8 +3128,10 @@ function Checkout({ plan, auth }) {
                   <div className="banner-preview">
                   {brandPreview ? (
                     <img
+                      key={brandPreview}
                       src={brandPreview}
                       alt="선택한 병원 배너 이미지 미리보기"
+                      onLoad={(event) => setBrandDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
                     />
                   ) : (
                     <div>
@@ -3141,6 +3159,8 @@ function Checkout({ plan, auth }) {
                     </div>
                   </div>
                   {brandError && <em>{brandError}</em>}
+                  {brandFile && brandDimensions && bannerResolutionNotice(brandDimensions.width, brandDimensions.height) &&
+                    <small className="banner-resolution-notice" role="status">{bannerResolutionNotice(brandDimensions.width, brandDimensions.height)}</small>}
                 </label>
                 <div className="sample-banner-picker">
                   <div className="sample-banner-picker-head">
