@@ -50,3 +50,7 @@
 - 비공개 증거는 `C:/Users/ROSSA/medihelpers-audit-20260927/`의 `refund-final-suite-20261018.log`, `refund-flow-remote-results-20261018.json`, `refund-remote-balance-20261018.json`, `refund-live-results-20261018.json`, `refund-binding-check-20261018.json`, `pre-refund-backup-verification-20261018.json`에 보관했다. 비밀키/고객 원본은 Git에 넣지 않았다.
 
 실제 이니시스 카드 승인·부분 취소·카드사 반영은 이번 검수에서 실행하지 않았다. 자동 취소/자동 대사 완료로 안내하지 않는다. 운영자 확인 기록과 실제 PG 거래가 다르면 PG 내역을 우선 대조하고 중복 취소를 금지한다.
+
+## 복귀 시 환불 기록 보호
+
+실제 부분 환불이 생긴 뒤에는 `refundServiceEnded`를 이해하지 못하는 이전 앱 버전으로 단순 롤백하지 않는다. 이전 코드가 남은 크레딧을 다시 사용 가능하게 표시할 수 있으므로, 복귀 시 결제·새 열람을 보류하고 이 기능을 포함한 호환 버전과 원장을 먼저 확인한다. 랭크업으로 접속을 되돌려도 새 홈페이지의 환불·알림 기록이 랭크업에 자동 이관되지는 않는다. 새 DB 백업과 이니시스 거래 대사를 보존한 뒤 복귀 실행서에 따라 처리한다. 현재 실제 신규 주문/환불은 0건이다.
