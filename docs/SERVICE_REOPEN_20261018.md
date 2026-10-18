@@ -13,11 +13,11 @@
 - 개인정보처리방침 v1.3에 현재 Cloudflare·Resend·KG이니시스 처리와 메일 보관기간을 반영했다. D1 조회 메타데이터의 APAC/SIN 배치를 확인했다. 글로벌 처리의 국가별 고정·전체 계약 적법성에 대한 법률 확인서를 의미하지 않는다.
 - `LEGAL_DOCUMENT_STATUS=published`는 공개된 문서와 운영자의 기능 개방 결정을 나타낸다. 종전 approved 값도 호환하며 법률 전문가의 승인으로 표시하지 않는다.
 
-## 운영 후보
+## 운영 배포
 
 `deploy/cloudflare.live-with-legacy-replies.json` 사용. 기존 공개 보류 설정은 `cloudflare.open-with-legacy-replies.json`에 보존한다.
 
-| 설정 | 후보 |
+| 설정 | 적용값 |
 |---|---|
 | Worker / DB | medihelpers-staging / production D1 ef6090da-544c-446f-bd31-32b631b2d2d6 유지 |
 | 신규 가입 / 새 주문 | true / true |
@@ -52,4 +52,14 @@
 - [Resend 처리계약](https://resend.com/legal/dpa), [보관기간·보안](https://resend.com/security)
 - [개인정보 보호법 제28조의8](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1034292881)
 
-배포 SHA·Worker 버전·배포 후 검사는 실행 후 아래에 추가한다.
+## 배포 결과
+
+- 앱 소스: `338ebfd40306e4a52ced10c72c624d95e14d17f5`. GitHub 기준 브랜치와 Sites main에 동일 SHA 반영을 확인한 뒤 배포했다. Sites 런타임은 배포하지 않았다.
+- 운영 Worker 버전: `a68b4111-51da-4c00-b5bf-1f4d228bb5f1`. 기존 production D1 바인딩·두 도메인 Route·PG 키를 유지했다.
+- 정식 도메인 배포 후 39검사 통과: 배포 JS 해시 일치, HTML no-store, 가입 true, checkout true, 익명 관리자403, 테스트 역할 전환404, 잘못된 가입400, 익명 구매401, 기존 close.php200, 새 결제 닫기 문서, www 정규화, 운영자 인증/관리자 원장 등.
+- 운영 DB에 합성 회원이나 결제 주문을 만들지 않았다. 검사 시 새 주문0·승인0이었다. 가입 성공·PC/모바일 서명 테스트는 위 별도 Cloudflare DB에서 수행했으며 시험 서버와 DB를 종료/삭제했다.
+- 배포 후 실제 브라우저 관리자 대시보드와 결제·환불 원장을 확인했다. 원장은 새 홈페이지의 주문을 표시하며, 과거 랭크업의 모든 결제를 이곳에서 검증 완료했다는 뜻은 아니다.
+- 비회원 브라우저에서 의료인·병원 가입 폼과 활성 제출 버튼을 확인했다. 의료인 빈 폼 제출 시 각 입력 항목의 오류 문구와 요약 알림의 우측 상단 닫기 버튼을 확인했다. 실제 개인정보 입력·가입 제출은 하지 않았다.
+- 증거는 저장소 밖 비공개 감사 폴더의 `reopen-live-results-20261018.json`, `reopen-deploy-20261018.log`, `reopen-admin-20261018.png`에 보관한다. 비밀번호·세션은 Git에 넣지 않는다.
+
+남은 실제 거래 검증은 카드 승인·취소·사용권 반영/회수·모바일 카드사 복귀이다. 기존 이전회원282는 계속 보류하며, 기존 거래의 미확정 대사·FTP 전체 파일 백업은 완료로 변경하지 않는다. 운영 설정을 켠 사실과 PG 실거래 검증은 구분한다.

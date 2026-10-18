@@ -6,9 +6,9 @@ AI 개발 도구가 메디헬퍼스의 사업 방향과 안전 기준을 유지�
 
 ## Current State
 
-2026-10-18 후속 사용자 지시: 신규 가입·카드 결제 개방 작업을 승인했다. 후보/검증/배포 결과는 `docs/SERVICE_REOPEN_20261018.md`를 우선한다. 기존 랭크업 이전회원282의 일괄 해제와 실카드 승인은 수행하지 않는다.
+2026-10-18 후속 배포 완료: 신규 가입·PC/모바일 카드 요청을 개방했다. 앱338ebfd / Worker a68b4111-51da-4c00-b5bf-1f4d228bb5f1. 실제 운영자 새 비밀번호 로그인·관리자 접근 및 배포 후39검사 통과. 자세한 검증 범위는 `docs/SERVICE_REOPEN_20261018.md`를 우선한다. 기존 랭크업 이전회원282의 일괄 해제와 실카드 승인은 수행하지 않는다.
 
-2026-10-18 www/apex 정식 도메인의 공개 화면을 Cloudflare 새 홈페이지로 전환했습니다. 이전회원282명·신규 가입·새 결제는 보류 상태이고, 기존 랭크업 호스팅과 원본은 복귀용으로 보존합니다. Worker 이름 medihelpers-staging은 현재 production D1에 연결되어 있으므로 stage로 오인해 DB를 덮어쓰지 않습니다. 실제 버전·연결·검수 범위는 `docs/DOMAIN_SWITCH_20261018.md`, 복귀는 `docs/ROLLBACK_RUNBOOK.md`를 우선합니다. 실제 카드 승인·환불 및 새 도메인 역할별 로그인 시험은 완료하지 않았습니다.
+2026-10-18 www/apex 정식 도메인은 Cloudflare 새 홈페이지에 연결됐습니다. 기존 랭크업 호스팅과 원본은 복귀용으로 보존합니다. Worker 이름 medihelpers-staging은 현재 production D1에 연결되어 있으므로 stage로 오인해 DB를 덮어쓰지 않습니다. 도메인 연결은 `docs/DOMAIN_SWITCH_20261018.md`, 복귀는 `docs/ROLLBACK_RUNBOOK.md`를 우선합니다. 신규 가입·카드 요청 개방과 별개로 실제 카드 승인·환불은 미검증입니다. 의료인·병원 새 로그인은 격리 Cloudflare DB에서, 운영자 로그인은 실제 운영 DB에서 검증했습니다.
 
 ## Current Rules
 
