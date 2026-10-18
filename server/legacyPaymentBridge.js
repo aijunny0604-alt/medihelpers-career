@@ -1,4 +1,4 @@
-// Transition candidate only: not imported by the deployed Worker.
+// Transition support: bundled for Cloudflare but disabled unless explicitly enabled.
 // Requires a Workers Route over proxied DNS pointing to the legacy origin.
 export async function legacyPaymentBridge(request, env, originFetch = fetch) {
   if (env.LEGACY_PAYMENT_BRIDGE_ENABLED !== 'true') return null;

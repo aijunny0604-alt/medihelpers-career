@@ -4,6 +4,7 @@ import { migrationControl, migrationGate } from '../src/migrationGate.js';
 import { normalizeContactPhone } from '../src/contactPhone.js';
 import { normalizeWebsiteUrl } from '../src/websiteUrl.js';
 import { serviceFailure } from '../server/serviceFailure.js';
+import { legacyPaymentBridge } from '../server/legacyPaymentBridge.js';
 import { talent } from '../src/data.js';
 import { demoTalentDetail } from '../src/talentDetailAccess.js';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -116,6 +117,7 @@ ${migrationGate.toString()}
 ${normalizeContactPhone.toString()}
 ${normalizeWebsiteUrl.toString()}
 ${serviceFailure.toString()}
+${target === 'cloudflare' ? legacyPaymentBridge.toString() : ''}
 const html = ${JSON.stringify(html)};
 const builtAssets = ${JSON.stringify(builtAssets)};
 const logoSvg = ${JSON.stringify(logoSvg)};
@@ -3617,6 +3619,9 @@ export default {
   },
   async fetch(request, env, ctx) {
     try {
+      ${target === 'cloudflare' ? `// Explicit transition flag only; keep old replies ahead of new-site maintenance.
+      const legacyResponse = await legacyPaymentBridge(request, env);
+      if (legacyResponse) return legacyResponse;` : ''}
       const adminAuthentication = await stagingAdminAuthentication(request, env);
       const maintenanceResponse = migrationGate(request, adminAuthentication ? {...env,STAGING_READ_ONLY:'false'} : env);
       if (maintenanceResponse) return maintenanceResponse;
