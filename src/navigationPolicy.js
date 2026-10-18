@@ -9,8 +9,8 @@ export function internalScreenRoute(href, currentUrl, base = '') {
     if (base && !url.pathname.startsWith(base + '/')) return null;
     const path = (base ? url.pathname.slice(base.length) : url.pathname).replace(/\/$/, '') || '/';
     const exact = ['/', '/jobs', '/medical-staff', '/headhunting', '/advertise', '/advertise/apply', '/talent-unlock', '/resume', '/job-seeker-posts/new', '/request/job-seeker', '/request/hiring', '/login', '/signup', '/signup/doctor', '/signup/hospital', '/signup/welcome', '/account', '/account/recovery', '/mypage', '/member-center', '/admin', '/admin/console', '/admin/consultations', '/admin/recruitment-crm', '/admin/post', '/terms', '/privacy', '/refund', '/withdrawal', '/about', '/talent', '/professions'];
-    const detail = /^\/(?:jobs|headhunting\/posts|medical-staff\/(?:jobs|talents)|mypage\/(?:inquiries|ads))\/[^/]+$/.test(path)
-      || /^\/job-seeker-posts\/[^/]+\/edit$/.test(path);
+    const detail = /^\/(?:jobs|headhunting\/posts|medical-staff\/(?:jobs|talents)|mypage\/inquiries)\/[^/]+$/.test(path)
+      || /^\/(?:job-seeker-posts|mypage\/ads)\/[^/]+\/edit$/.test(path);
     return exact.includes(path) || detail ? path + url.search : null;
   } catch { return null; }
 }
