@@ -20,7 +20,7 @@ function LegalLayout({ eyebrow, title, description, children, privacyRevision = 
       <span><ShieldCheck /> {eyebrow}</span>
       <h1>{title}</h1>
       <p>{description}</p>
-      <div className="legal-effective"><b>시행일</b> {privacyRevision ? '2026년 9월 13일' : '2026년 7월 18일'} <i>{privacyRevision ? 'v1.2' : 'v1.0'}</i></div>
+      <div className="legal-effective"><b>시행일</b> {privacyRevision ? '2026년 10월 18일' : '2026년 7월 18일'} <i>{privacyRevision ? 'v1.3' : 'v1.0'}</i></div>
     </header>
     <div className="legal-layout">
       <article className="legal-document">{children}</article>
@@ -191,10 +191,18 @@ export function PrivacyPolicyPage() {
     <Section number="04" title="개인정보 처리 위탁">
       <p>개인정보 처리 위탁 업무와 수탁자를 안내합니다. 변경 사항은 이 방침을 통해 공개합니다.</p>
       <div className="legal-table compact">
-        <div><b>OpenAI</b><span>회원 서비스 제공을 위한 정보 처리</span><span>계약 또는 서비스 이용 종료 시까지</span></div>
-        <div><b>Cloudflare</b><span>개인정보 보관 및 보안</span><span>계약 또는 서비스 이용 종료 시까지</span></div>
+        <div><b>Cloudflare, Inc.</b><span>웹사이트 호스팅, 회원·서비스 데이터 및 비공개 첨부파일 보관, 접속 보안</span><span>위 항목별 보유기간에 따라 삭제</span></div>
+        <div><b>Resend (Plus Five Five, Inc.)</b><span>가입 안내, 아이디 찾기·비밀번호 재설정 및 서비스 안내 메일 발송</span><span>발송 메일과 로그 30일. 계약 종료 후 잔여 고객 데이터는 최대 90일 이내 삭제</span></div>
+        <div><b>㈜케이지이니시스</b><span>카드 결제 승인·취소, 거래 확인과 영수증 제공</span><span>전자금융거래 등 관련 법령에 따른 기간</span></div>
       </div>
-      <p></p>
+      <p>카드번호·유효기간·카드 인증정보는 이니시스 결제창에서 직접 입력하며 메디헬퍼스 서버에 저장하지 않습니다. 메디헬퍼스에는 주문번호, 금액, 거래 식별번호와 승인·취소 결과를 보관합니다.</p>
+      <h3>국외 처리위탁·보관 안내</h3>
+      <p>온라인 회원 서비스와 계정 안내 메일의 제공을 위해 국외 사업자의 서비스를 이용합니다. 개인정보 보호법 제28조의8 제1항 제3호에 따른 계약 체결·이행에 필요한 처리위탁·보관 내용을 아래와 같이 공개합니다.</p>
+      <ul>
+        <li><b>Cloudflare, Inc. / dpo@cloudflare.com</b>: 계정·프로필·신청·거래 기록과 업로드 파일, IP·접속정보를 서비스 이용 시 암호화 통신으로 처리합니다. 운영 DB는 현재 싱가포르에서 처리되며, 웹 전송·보안·지원 과정에서는 미국 등 <a href="https://www.cloudflare.com/network/" target="_blank" rel="noreferrer">Cloudflare 글로벌 네트워크 운영 국가</a>에서 처리될 수 있습니다. 특정 국가에만 저장하도록 고정된 구성은 아니며 배치가 바뀌면 이 안내를 갱신합니다. 보유기간은 이 방침의 항목별 기간을 따릅니다.</li>
+        <li><b>Resend (Plus Five Five, Inc.) / privacy@resend.com / 미국</b>: 메일 발송 시 수신 이메일, 이름, 안내 내용과 계정 복구 링크를 암호화 통신으로 전송합니다. 비밀번호 원문, 이력서 원본과 사업자등록증은 메일에 첨부하지 않습니다. 발송 메일과 로그는 30일 보관하며 계약 종료 후 잔여 고객 데이터는 최대 90일 이내 삭제됩니다.</li>
+      </ul>
+      <p>이전 중지·처리정지는 개인정보 보호책임자에게 요청할 수 있습니다. 다만 필수 호스팅·계정 복구 처리를 중지하면 회원 서비스 또는 메일 복구 기능 이용이 제한될 수 있습니다. 수탁자의 처리 조건은 <a href="https://www.cloudflare.com/cloudflare-customer-dpa/" target="_blank" rel="noreferrer">Cloudflare 처리계약</a>과 <a href="https://resend.com/legal/dpa" target="_blank" rel="noreferrer">Resend 처리계약</a>에서 확인할 수 있습니다.</p>
     </Section>
     <Section number="05" title="파기 절차와 방법">
       <p>운영 DB에서 삭제된 정보가 기존 DB 백업에 남아 있을 수 있으며 백업은 최대 35일 순환 보관합니다. 백업 복원 시에는 삭제·철회 상태를 확인해야 합니다. 보유기간이 끝난 전자정보는 복구하기 어려운 방법으로 삭제하고, 출력물은 분쇄 또는 소각합니다. 법령에 따라 별도 보관하는 정보는 접근권한을 최소화하고 일반 서비스 데이터와 논리적으로 분리합니다.</p>

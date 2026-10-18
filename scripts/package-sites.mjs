@@ -162,7 +162,7 @@ const makeConsentSnapshot = ${makeConsentSnapshot.toString()};
 function consentEvent(env, accountId, scope, resourceId, recipient = '', granted = true) {
   return env.DB.prepare('INSERT INTO processing_consent_events (id, account_id, scope, resource_id, document_version, notice_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), accountId, scope, resourceId, PRIVACY_FORM_VERSION, JSON.stringify({ ...makeConsentSnapshot(scope, recipient), granted }));
 }
-const privacyNoticeVersion = 'privacy-v1.2-2026-09-13';
+const privacyNoticeVersion = 'privacy-v1.3-2026-10-18';
 const defaultPublicOrigin = 'https://medihelpers-career.junnyai.chatgpt.site';
 const publicSitemapRoutes = ['/', '/jobs', '/medical-staff', '/headhunting', '/advertise', '/terms', '/privacy', '/refund', '/withdrawal'];
 function publicOrigin(request) {
@@ -244,7 +244,8 @@ function json(data, status = 200, headers = {}) {
 function signupEnabled(env) {
   const approvedCopyEmbedded = !termsVersion.includes('draft') && !privacyNoticeVersion.includes('draft');
   const accountSecretReady = env && typeof env.ACCOUNT_HASH_SECRET === 'string' && env.ACCOUNT_HASH_SECRET.length >= 32;
-  return approvedCopyEmbedded && accountSecretReady && env.SIGNUP_ENABLED === 'true' && env.LEGAL_DOCUMENT_STATUS === 'approved';
+  // 'published' records the operator's release decision, not a legal certification.
+  return approvedCopyEmbedded && accountSecretReady && env.SIGNUP_ENABLED === 'true' && ['published', 'approved'].includes(env.LEGAL_DOCUMENT_STATUS);
 }
 function testAccountSwitchEnabled(env) {
   return !env || env.TEST_ACCOUNT_SWITCH_ENABLED !== 'false';
@@ -1305,7 +1306,10 @@ async function authApi(request, env, pathname, ctx) {
     }
     const salt = randomHex(16);
     let hash;
-    try { hash = await passwordHash(password, salt); } catch { return json({ error:'가입 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503); }
+    try { hash = await passwordHash(password, salt); } catch {
+      if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
+      return json({ error:'가입 보안 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.' }, 503);
+    }
     const displayName = String(body.displayName || body.name || '').trim().slice(0, 80);
     const phone = phoneDigits.length === 11
       ? phoneDigits.slice(0, 3) + '-' + phoneDigits.slice(3, 7) + '-' + phoneDigits.slice(7)
@@ -1483,8 +1487,8 @@ async function accountApi(request, env, ctx) {
   const welcomeEmailAvailable = recoveryEmailConfigured(env);
   const adminSignupEmailAvailable = welcomeEmailAvailable && signupAdminRecipients(env).length > 0;
   if (request.method === 'GET') {
-    if (!enabled) return json({ signupEnabled: false, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: Boolean(identity), account: null, identity: publicIdentity(identity), isAdmin, welcomeEmailAvailable, adminSignupEmailAvailable });
-    if (!identity) return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: false, account: null, identity: {}, isAdmin: false, welcomeEmailAvailable, adminSignupEmailAvailable });
+    // Stopping new registration must not hide an existing member's account/profile.
+    if (!identity) return json({ signupEnabled: enabled, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: false, account: null, identity: {}, isAdmin: false, welcomeEmailAvailable, adminSignupEmailAvailable });
     try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     const key = identityKey(identity);
     const row = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
@@ -1510,7 +1514,7 @@ async function accountApi(request, env, ctx) {
         if (hospitalProfile) hospitalProfile.verificationStatus = registrationProfile?.hospitalDocument?.status || 'submitted';
       } catch { hospitalProfile = null; }
     }
-    return json({ signupEnabled: true, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity:publicIdentity(identity), isAdmin, profile:profile || null, registrationProfile:registrationProfile || null, hospitalProfile:hospitalProfile || null, email: identity.email, welcomeEmailAvailable, adminSignupEmailAvailable });
+    return json({ signupEnabled: enabled, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: true, account: row || null, identity:publicIdentity(identity), isAdmin, profile:profile || null, registrationProfile:registrationProfile || null, hospitalProfile:hospitalProfile || null, email: identity.email, welcomeEmailAvailable, adminSignupEmailAvailable });
   }
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
   if (!enabled) return json({ error: '회원가입은 법무 검토 완료 후 열립니다.' }, 503);
@@ -3504,7 +3508,10 @@ async function legacyRecruitmentLink(request, env) {
   return new Response(null,{status:301,headers:{...headers,location:'/jobs/admin-' + encodeURIComponent(rows[0].id)}});
 }
 async function responseFor(request, env, ctx) {
+  const canonical = paymentCanonicalRedirect(request, env);
+  if (canonical) return canonical;
   const pathname = new URL(request.url).pathname;
+  if (pathname === '/api/payment-close') return inicisCloseResponse(request, env);
   if (pathname === '/work/employ_detail.html' || pathname === '/m/content/work_employ_detail.html') return legacyRecruitmentLink(request,env);
   if (pathname === '/api/admin-payment-inquiry') return paymentInquiryApi(request,env);
   if (pathname === '/api/admin-payment-ledger') return paymentLedgerApi(request,env);
@@ -3587,10 +3594,10 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
     'content-security-policy': [
       "default-src 'self'",
       // 이니시스 결제창 + 다음(카카오) 우편번호 검색 스크립트를 허용한다.
-      "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com https://t1.daumcdn.net https://ssl.daumcdn.net https://dapi.kakao.com",
+      "script-src 'self' 'unsafe-inline' https://stdpay.inicis.com https://stgstdpay.inicis.com https://stdux.inicis.com https://t1.daumcdn.net https://ssl.daumcdn.net https://dapi.kakao.com",
       // 구글 폰트(Manrope·Noto Sans KR)를 허용해야 한다. 빼면 CSP가 스타일시트를 막아
       // 사이트 전체가 대체 글꼴로 렌더된다(배포본에서 실제로 발생했던 회귀).
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://stdpay.inicis.com https://stgstdpay.inicis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",

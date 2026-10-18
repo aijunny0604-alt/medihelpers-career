@@ -30,6 +30,26 @@ export function inicisOrigin(env) {
   return url.origin;
 }
 
+// The official close script calls parent.INIStdPay.viewOff(); a full SPA with
+// frame-ancestors 'none' cannot be used as the payment iframe's close document.
+export function inicisCloseResponse(request, env) {
+  const headers = {'content-type':'text/html; charset=utf-8','cache-control':'no-store',
+    'x-content-type-options':'nosniff','referrer-policy':'no-referrer',
+    'content-security-policy':"default-src 'none'; script-src https://stdpay.inicis.com https://stgstdpay.inicis.com; frame-ancestors 'self'; base-uri 'none'"};
+  if (!['GET','HEAD','POST'].includes(request.method)) return new Response(null,{status:405,headers:{...headers,allow:'GET, HEAD, POST'}});
+  const host = env.INICIS_ENV === 'test' ? 'stgstdpay.inicis.com' : 'stdpay.inicis.com';
+  const html = '<!doctype html><html lang="ko"><meta charset="utf-8"><title>결제창 닫기</title><script src="https://'+host+'/stdjs/INIStdPay_close.js" charset="UTF-8"></script><body>결제창을 닫았습니다.</body></html>';
+  return new Response(request.method === 'HEAD' ? null : html,{headers});
+}
+
+export function paymentCanonicalRedirect(request, env) {
+  const url = new URL(request.url);
+  // Only the public alias is redirected. Never redirect/replay PG POST callbacks.
+  if (env.SITE_ORIGIN !== 'https://www.medihelpers.co.kr' || url.hostname !== 'medihelpers.co.kr'
+    || !['GET','HEAD'].includes(request.method) || url.pathname.startsWith('/api/')) return null;
+  return new Response(null,{status:308,headers:{location:env.SITE_ORIGIN+url.pathname+url.search,'cache-control':'no-store'}});
+}
+
 export async function inicisState(env, order, expires = Date.now() + 3600000) {
   const payload = [inicisOrigin(env), env.INICIS_MID, order.orderNumber, String(order.amount), String(expires)].join('|');
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.INICIS_SIGN_KEY), {name:'HMAC', hash:'SHA-256'}, false, ['sign']);
@@ -60,7 +80,7 @@ export async function inicisRequestParams(env, order) {
     verification:await inicisHash('oid=' + oid + '&price=' + price + '&signKey=' + env.INICIS_SIGN_KEY + '&timestamp=' + timestamp),
     mKey:await inicisHash(env.INICIS_SIGN_KEY), merchantData:await inicisState(env, order),
     goodname:order.productName, buyername:order.buyerName, buyeremail:order.buyerEmail || '', buyertel:order.buyerTel || '',
-    returnUrl:origin + '/api/payment-approve', closeUrl:origin + '/mypage?payment=closed',
+    returnUrl:origin + '/api/payment-approve', closeUrl:origin + '/api/payment-close',
     gopaymethod:'Card', currency:'WON', acceptmethod:'centerCd(Y)', mobile:false,
     ...(tax.contract === 'merchant' ? {tax:String(tax.taxAmount), taxfree:String(tax.taxFreeAmount)} : {})
   };

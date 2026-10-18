@@ -6,6 +6,8 @@ AI 개발 도구가 메디헬퍼스의 사업 방향과 안전 기준을 유지�
 
 ## Current State
 
+2026-10-18 후속 사용자 지시: 신규 가입·카드 결제 개방 작업을 승인했다. 후보/검증/배포 결과는 `docs/SERVICE_REOPEN_20261018.md`를 우선한다. 기존 랭크업 이전회원282의 일괄 해제와 실카드 승인은 수행하지 않는다.
+
 2026-10-18 www/apex 정식 도메인의 공개 화면을 Cloudflare 새 홈페이지로 전환했습니다. 이전회원282명·신규 가입·새 결제는 보류 상태이고, 기존 랭크업 호스팅과 원본은 복귀용으로 보존합니다. Worker 이름 medihelpers-staging은 현재 production D1에 연결되어 있으므로 stage로 오인해 DB를 덮어쓰지 않습니다. 실제 버전·연결·검수 범위는 `docs/DOMAIN_SWITCH_20261018.md`, 복귀는 `docs/ROLLBACK_RUNBOOK.md`를 우선합니다. 실제 카드 승인·환불 및 새 도메인 역할별 로그인 시험은 완료하지 않았습니다.
 
 ## Current Rules

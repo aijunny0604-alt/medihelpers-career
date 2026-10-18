@@ -1,6 +1,20 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {inicisPaymentChannel,openInicisPayment} from './inicisPay.js';
+test('failed PC script load or missing SDK can be retried without retaining a rejected promise',async()=>{
+ const originalDocument=globalThis.document,originalWindow=globalThis.window;
+ const scripts=[];globalThis.window={};
+ globalThis.document={createElement:()=>({remove(){this.removed=true;}}),head:{appendChild(s){scripts.push(s);}}};
+ try {
+  const {loadInicisScript}=await import('./inicisPay.js?retry-test');
+  const first=loadInicisScript();scripts[0].onload();
+  await assert.rejects(first,/불러오지/);assert.equal(scripts[0].removed,true);
+  const second=loadInicisScript();assert.equal(scripts.length,2);scripts[1].onerror();
+  await assert.rejects(second,/불러오지/);assert.equal(scripts[1].removed,true);
+  const third=loadInicisScript();assert.equal(scripts.length,3);const sdk={pay(){}};globalThis.window.INIStdPay=sdk;scripts[2].onload();
+  assert.equal(await third,sdk);assert.equal(await loadInicisScript(),sdk);assert.equal(scripts.length,3);
+ } finally {globalThis.document=originalDocument;globalThis.window=originalWindow;}
+});
 test('payment device detection supports mobile and desktop-mode iPad',()=>{
  for(const nav of [{userAgent:'iPhone'},{userAgent:'Android Mobile'},{userAgent:'Macintosh Safari',platform:'MacIntel',maxTouchPoints:5}])assert.equal(inicisPaymentChannel(nav),'mobile');
  for(const nav of [{userAgent:'Windows Chrome'},{userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:0},undefined])assert.equal(inicisPaymentChannel(nav),'pc');

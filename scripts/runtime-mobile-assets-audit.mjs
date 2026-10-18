@@ -9,6 +9,9 @@ const result = [];
 function check(name, actual, expected) { assert.deepEqual(actual, expected, name); result.push(name); }
 const call = path => worker.fetch(new Request('https://mobile-audit.local' + path), {}, {});
 const html = await (await call('/')).text();
+const pageCsp=(await call('/')).headers.get('content-security-policy');
+check('official Inicis SDK dependency allowed',pageCsp.split(';').find(p=>p.trim().startsWith('script-src')).includes('https://stdux.inicis.com'),true);
+check('official Inicis overlay stylesheet allowed',pageCsp.split(';').find(p=>p.trim().startsWith('style-src')).includes('https://stdpay.inicis.com'),true);
 const assetLinks = html => [...html.matchAll(/(?:src|href)="(\/assets\/[^"\s]+)"/g)].map(m => m[1]);
 const assetFiles = (await readdir(new URL('../client-build/assets/', import.meta.url))).filter(n => /\.(js|css)$/.test(n));
 for (const name of assetFiles) {
