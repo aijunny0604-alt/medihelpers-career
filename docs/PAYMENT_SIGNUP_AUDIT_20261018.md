@@ -1,5 +1,7 @@
 # 결제·광고·회원가입 운영 검수 — 2026-10-18
 
+**배포 완료:** 앱 `852c40fcc17a27bbe1c26417b7057d253d4c17b9` / Worker `30e370ab-8696-433f-a08b-8900a3d44504`. GitHub 기준/Sites main 동일 앱 SHA 확인 후 정식 www/apex 두 Route에 반영했다. 운영 HTTP·보안·자산 일치 56검사 및 실제 운영자 새 로그인200·관리자200·로그아웃된 세션403 추가3검사 통과. 실제 관리자 화면에서도 회원283·콘텐츠127·새 주문0 확인. 두 역할의 실제 신규 고객 가입을 운영 DB에 만들어 검증한 것은 아니며, 아래 격리 원격 시험과 구분한다.
+
 ## 범위와 실제 거래 구분
 
 www.medihelpers.co.kr 정식 서비스의 가입, 광고 결제, 환불 반영과 접근 제한을 점검했다. 실운영 DB에는 가짜 회원·광고·주문을 만들지 않았다. 기존 이전회원 282명은 보류 상태를 유지하며 랭크업 호스팅·원본·기존 응답 전달 경로는 보존한다.
@@ -44,6 +46,10 @@ www.medihelpers.co.kr 정식 서비스의 가입, 광고 결제, 환불 반영�
 변경 직전 production D1 export `pre-payment-signup-fix-prod-20261018.sql`: SHA-256 `c1f9d2feeee44462d58e07e7d75eedee7bf4aa4dce65d7417932f50b90bab8be`, SQLite 무결성 ok·FK 오류 0, 회원 283·새 주문 0. 원본 백업은 개인정보 때문에 Git에 포함하지 않는다.
 
 배포 시 `deploy/cloudflare.live-with-legacy-replies.json`과 `--keep-vars`로 기존 production DB·두 Route·메일/PG 비밀키·D1 업로드 설정을 유지한다. 신규 스키마 변경 없음. GitHub 기준 브랜치와 Sites 소스 미러의 동일 앱 SHA를 확인한다. 배포 버전과 정식 도메인 최종 검사 결과는 배포 후 아래에 기록한다.
+
+운영 `/api/account` 가입true·테스트전환false, `/api/service-status` 결제true, 수동환불 모드 확인. 소스·환경파일 노출404, 익명 관리자/서류403, 잘못된 PG 응답400/413, 사업자번호 오류400(계정 생성 전) 확인. 이전 결제 close.php200 유지. 최신 JS의 원격·로컬 SHA-256 일치. 배포 metadata에서 production D1 ID 유지 및 `D1_UPLOADS_ENABLED` 기존 secret binding 보존 확인(값은 출력하지 않음).
+
+비공개 `payment-signup-live-results-20261018.json`, `payment-signup-deploy-20261018.log`, `payment-signup-version-20261018.json`, `payment-signup-live-admin-20261018.png`에 최종 근거를 보관한다. 격리 검수 DB `16864099-0ab3-465b-bddf-375fa8d4b8cd`는 검수 후 삭제했고 임시 로컬 서버도 종료했다. production DB 및 랭크업은 이 정리 대상에 포함하지 않았다.
 
 ## 운영자가 확인할 최종 실거래
 
