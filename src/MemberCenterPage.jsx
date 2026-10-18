@@ -358,7 +358,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
       subject: directApplication ? `${payload.jobTitle || item.specialty || '채용공고'} 지원` : headhuntInquiry ? `${payload.headhuntPostTitle || item.specialty || '맞춤 공고'} 헤드헌터 문의` : payload.subject || `${item.specialty || payload.professionalType || '채용'} 상담 신청`,
       source: item.id,
       relatedLabel: payload.jobTitle || payload.headhuntPostTitle || (directApplication ? '병원 채용공고' : headhuntInquiry ? '맞춤 헤드헌팅' : '상담 접수'),
-      time: String(item.createdAt || '').slice(0, 10),
+      time: koreanDate(item.createdAt),
       status: ({ new:'답변 대기', contacted:'연락 완료', in_progress:'상담 연결', closed:'종료' })[item.status] || item.status,
       message: payload.message || payload.note || (directApplication ? '지원 내용이 공고를 등록한 병원에 전달되었습니다.' : '접수한 상담 내용을 담당 헤드헌터가 확인하고 있습니다.'),
       details: {
@@ -373,8 +373,8 @@ export default function MemberCenterPage({ route, qa, auth }) {
       resumeSnapshot: payload.resumeSnapshot || {},
       applicationContact: directApplication ? { name:payload.name, phone:payload.phone, email:payload.email } : {},
       history: [
-        [String(item.createdAt || '').slice(0, 16), directApplication ? '병원 직접 지원' : '상담 접수'],
-        ...(item.updatedAt && item.updatedAt !== item.createdAt ? [[String(item.updatedAt).slice(0, 16), '처리 상태 변경']] : [])
+        [formatAdminTime(item.createdAt), directApplication ? '병원 직접 지원' : '상담 접수'],
+        ...(item.updatedAt && item.updatedAt !== item.createdAt ? [[formatAdminTime(item.updatedAt), '처리 상태 변경']] : [])
       ]
     };
   });
@@ -494,6 +494,9 @@ export default function MemberCenterPage({ route, qa, auth }) {
       return;
     }
     setTab(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', id);
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
   };
 
   const markAlertRead = async (alert, all = false) => {
@@ -524,12 +527,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
             : /이력서 완성도/.test(label) ? { tab:'resume' }
               : { tab:'inquiries' };
     if (!target) return;
-    setTab(target.tab);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', target.tab);
-      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-    } catch {}
+    selectMemberTab(target.tab);
     if (target.anchor) window.setTimeout(() => document.getElementById(target.anchor)?.scrollIntoView({ behavior:'auto', block:'start' }), 60);
     else window.setTimeout(() => document.querySelector('.member-workspace')?.scrollIntoView({ behavior:'auto', block:'start' }), 30);
   };
@@ -610,9 +608,9 @@ export default function MemberCenterPage({ route, qa, auth }) {
         {tab === 'overview' && <>
           <div className="member-page-head"><div><small>{role === 'hospital' ? 'HOSPITAL DASHBOARD' : 'DOCTOR DASHBOARD'}</small><h2>내 활동 요약</h2><p>확인이 필요한 항목을 먼저 모았습니다.</p></div><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : serverData.resume ? '/resume' : `/resume?new=1&next=${encodeURIComponent('/mypage?tab=resume')}`)}>{role === 'hospital' ? '새 공고 등록' : serverData.resume ? '이력서 관리' : '이력서 만들기'} <ArrowRight /></a></div>
           <div className="member-metrics">{metrics.map(([label, value, note]) => { const Icon = /결제/.test(label) ? CreditCard : /저장|관심|후보/.test(label) ? Heart : /문의|상담|제안/.test(label) ? MessageCircle : BriefcaseBusiness; return <button type="button" className="member-metric-card" key={label} onClick={() => openMetricDetail(label)} aria-label={`${label} ${value} 상세보기`}><span><Icon /></span><small>{label}</small><strong>{value}</strong><em>{note}</em><ChevronRight className="member-metric-arrow" /></button>; })}</div>
-          {serverData.unreadCount > 0 && <button type="button" className="member-unread-banner" onClick={() => setTab('notifications')}><span><Bell /></span><div><strong>새 알림 {serverData.unreadCount}건이 도착했습니다</strong><p>병원 지원서, 헤드헌터 업데이트와 상대방 메시지를 확인해 주세요.</p></div><em>알림 확인 <ArrowRight /></em></button>}
-          <section className="member-panel"><div className="member-panel-head"><div><h3>지금 확인할 항목</h3><p>새로운 문의와 진행 상태를 놓치지 마세요.</p></div><button onClick={() => setTab('inquiries')}>전체 보기 <ArrowRight /></button></div>{inquiries.length ? <div className="member-inquiry-list">{inquiries.slice(0, 3).map((item) => <button type="button" className="member-inquiry-item" key={item.id || item.subject} onClick={() => openInquiry(item)}><span><MessageCircle /></span><div><small>{item.name} · {item.time}</small><strong>{item.subject}</strong><p>{memberFacingInquiryLabel(item)}</p></div><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></button>)}</div> : <div className="member-empty"><MessageCircle /><strong>아직 접수된 문의가 없습니다</strong><p>새 문의가 들어오면 이곳에 바로 표시됩니다.</p></div>}</section>
-          <section className="member-panel"><div className="member-panel-head"><div><h3>최근 활동</h3><p>계정에서 발생한 주요 사용 기록입니다.</p></div><button onClick={() => setTab(role === 'hospital' ? 'ads' : 'resume')}>관리하기 <ArrowRight /></button></div>{activities.length ? <div className="member-timeline">{activities.slice(0, 3).map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>아직 사용 기록이 없습니다</strong><p>회원정보 수정, 상담, 결제 등의 활동이 기록됩니다.</p></div>}</section>
+          {serverData.unreadCount > 0 && <button type="button" className="member-unread-banner" onClick={() => selectMemberTab('notifications')}><span><Bell /></span><div><strong>새 알림 {serverData.unreadCount}건이 도착했습니다</strong><p>병원 지원서, 헤드헌터 업데이트와 상대방 메시지를 확인해 주세요.</p></div><em>알림 확인 <ArrowRight /></em></button>}
+          <section className="member-panel"><div className="member-panel-head"><div><h3>지금 확인할 항목</h3><p>새로운 문의와 진행 상태를 놓치지 마세요.</p></div><button onClick={() => selectMemberTab('inquiries')}>전체 보기 <ArrowRight /></button></div>{inquiries.length ? <div className="member-inquiry-list">{inquiries.slice(0, 3).map((item) => <button type="button" className="member-inquiry-item" key={item.id || item.subject} onClick={() => openInquiry(item)}><span><MessageCircle /></span><div><small>{item.name} · {item.time}</small><strong>{item.subject}</strong><p>{memberFacingInquiryLabel(item)}</p></div><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></button>)}</div> : <div className="member-empty"><MessageCircle /><strong>아직 접수된 문의가 없습니다</strong><p>새 문의가 들어오면 이곳에 바로 표시됩니다.</p></div>}</section>
+          <section className="member-panel"><div className="member-panel-head"><div><h3>최근 활동</h3><p>계정에서 발생한 주요 사용 기록입니다.</p></div><button onClick={() => selectMemberTab(role === 'hospital' ? 'ads' : 'resume')}>관리하기 <ArrowRight /></button></div>{activities.length ? <div className="member-timeline">{activities.slice(0, 3).map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>아직 사용 기록이 없습니다</strong><p>회원정보 수정, 상담, 결제 등의 활동이 기록됩니다.</p></div>}</section>
         </>}
 
         {tab === 'notifications' && <><div className="member-page-head"><div><small>NOTIFICATIONS</small><h2>알림함</h2><p>지원서, 상담 진행과 상대방 메시지를 놓치지 않도록 모았습니다.</p></div>{serverData.unreadCount > 0 && <button type="button" className="button outline" onClick={() => markAlertRead(null, true)}>모두 읽음 처리</button>}</div>{serverData.alerts.length ? <section className="member-panel member-alert-list">{serverData.alerts.map((alert) => <button type="button" key={alert.id} className={alert.readAt ? 'read' : 'unread'} onClick={() => markAlertRead(alert)}><span><Bell /></span><div><small>{formatAdminTime(alert.createdAt)}</small><strong>{alert.title}</strong><p>{alert.body}</p></div>{!alert.readAt && <em>NEW</em>}<ChevronRight /></button>)}</section> : <div className="member-empty member-empty-large"><Bell /><strong>아직 도착한 알림이 없습니다</strong><p>새 지원서나 상담 메시지가 오면 이곳과 상단 알림 버튼에 표시됩니다.</p></div>}</>}

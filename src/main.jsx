@@ -1796,6 +1796,8 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
     setCondition('전체 조건');
     setKeyword('');
     setStandardVisible(STANDARD_STEP);
+    // Clear the original deep-link filters too, so reload does not restore them.
+    if (params.toString()) navigate('/jobs');
   };
   const openJob = (job) => {
     trackConversion('job_detail_open', { jobId: job.id, source: 'jobs' });

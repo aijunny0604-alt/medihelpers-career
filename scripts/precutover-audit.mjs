@@ -11,6 +11,7 @@ const suites=[
  ['cloudflare-legacy-payment-replies',['scripts/runtime-legacy-payment-bridge-audit.mjs'],'json'],
  ['payment-live-config',['scripts/runtime-payment-live-config-audit.mjs'],'json'],
  ['admin-capabilities',['scripts/runtime-admin-capabilities-audit.mjs'],'json'],
+ ['customer-journey',['scripts/runtime-customer-journey-audit.mjs'],'json'],
  ...['readiness','admin-storage','member-flow','integration','system-relations','hospital-document',
  'transition-contact','talent-unlock','mobile-assets','legacy-login','legacy-links','http-methods','inicis','payment-launch','manual-refund','adversarial']
  .map(name=>[name,['scripts/runtime-'+name+'-audit.mjs'],'json']),
