@@ -19,6 +19,9 @@ let inFlight = false;
 const OPERATIONS_TTL_MS = 15000;
 
 export function siteOperationsFailure(value) {
+  if (value?.code === 'REQUEST_TIMEOUT') return {error:true,errorCode:'REQUEST_TIMEOUT',errorMessage:'채용정보 응답이 지연되어 조회를 중단했습니다. 다시 불러오기를 눌러주세요. 등록된 공고는 그대로 보관되어 있습니다.'};
+  if (value?.code === 'NETWORK_ERROR') return {error:true,errorCode:'NETWORK_ERROR',errorMessage:'채용정보 서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 불러오기를 눌러주세요.'};
+  if (value?.code === 'INVALID_RESPONSE') return {error:true,errorCode:'INVALID_RESPONSE',errorMessage:'채용정보 응답을 읽지 못했습니다. 다시 불러오기를 눌러주세요. 문제가 계속되면 고객센터에 알려주세요.'};
   return value?.code === 'SERVICE_DAILY_LIMIT'
     ? { error:true, errorCode:'SERVICE_DAILY_LIMIT', errorMessage:'현재 채용정보 조회가 일시 중단되었습니다. 한국시간 오전 9시 이후 다시 이용해 주세요. 등록된 공고가 삭제된 것은 아닙니다.' }
     : { error:true, errorCode:'UNAVAILABLE', errorMessage:'정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.' };
@@ -33,17 +36,19 @@ export function loadOperations(force = false) {
     const controller = new AbortController();
     let timeout;
     const deadline = new Promise((_, reject) => {
-      timeout = setTimeout(() => { controller.abort(); reject(new Error('Operations request timed out')); }, 12000);
+      timeout = setTimeout(() => { controller.abort(); reject({code:'REQUEST_TIMEOUT'}); }, 12000);
     });
-    const request = Promise.resolve().then(() => fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin', signal:controller.signal }))
+    const request = Promise.resolve().then(() => fetch('/api/site-operations', { headers:{ accept:'application/json' }, credentials:'same-origin', cache:'no-store', signal:controller.signal }))
+      .catch(() => { throw {code:controller.signal.aborted ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR'}; })
       .then(async (response) => {
-        if (response.ok) return response.json();
+        if (response.ok) return response.json().catch(() => { throw {code:'INVALID_RESPONSE'}; });
         const value = await response.json().catch(() => null);
         throw siteOperationsFailure(value);
       });
     pending = Promise.race([request, deadline])
       .then((value) => {
         if (revision !== requestRevision) return pending;
+        if (!value || typeof value !== 'object' || !Array.isArray(value.contents)) throw {code:'INVALID_RESPONSE'};
         value = sanitizeDisplayData(value);
         cached = { ...defaultSiteOperations, ...value, settings:{ ...defaultSiteOperations.settings, ...(value.settings || {}) }, features:{ ...defaultSiteOperations.features, ...(value.features || {}) } };
         fetchedAt = Date.now();
@@ -53,7 +58,7 @@ export function loadOperations(force = false) {
         if (revision !== requestRevision) return pending;
         // A failing service should not be retried on every route/focus event.
         fetchedAt = Date.now();
-        return { ...cached, ...siteOperationsFailure({ code:error?.errorCode }) };
+        return { ...cached, ...siteOperationsFailure({ code:error?.errorCode || error?.code }) };
       }).finally(() => {
         clearTimeout(timeout);
         if (revision === requestRevision) inFlight = false;

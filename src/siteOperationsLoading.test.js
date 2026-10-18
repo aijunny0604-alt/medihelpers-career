@@ -32,14 +32,36 @@ test('a stalled response body becomes a safe retryable error and recovers', asyn
   await Promise.resolve(); deadline();
   const failure = await loading;
   assert.equal(signal.aborted, true);
-  assert.equal(failure.errorCode, 'UNAVAILABLE');
-  assert.match(failure.errorMessage, /다시 시도/);
+  assert.equal(failure.errorCode, 'REQUEST_TIMEOUT');
+  assert.match(failure.errorMessage, /다시 불러오기/);
   await loadOperations(); assert.equal(calls, 1);
   invalidateSiteOperations();
   assert.equal((await loadOperations()).contents[0].title, 'recovered');
   assert.equal(calls, 2);
   stalled.resolve({contents:[{title:'obsolete'}]});
   assert.equal((await loadOperations()).contents[0].title, 'recovered');
+});
+
+test('network and unreadable responses have distinct safe guidance and can retry', async (t) => {
+  let calls=0;
+  t.mock.method(globalThis,'fetch',(_url,options)=>{
+    assert.equal(options.cache,'no-store');
+    calls++;
+    if(calls===1) return Promise.reject(new TypeError('private transport details'));
+    if(calls===2) return {ok:true,json:async()=>{throw new SyntaxError('private response body');}};
+    if(calls===3) return {ok:true,json:async()=>({})};
+    return reply('restored');
+  });
+  const {loadOperations}=await fresh();
+  assert.equal((await loadOperations()).errorCode,'NETWORK_ERROR');
+  for(let i=0;i<2;i++){
+    const failure=await loadOperations(true);
+    assert.equal(failure.errorCode,'INVALID_RESPONSE');
+    assert.doesNotMatch(failure.errorMessage,/private/);
+  }
+  const result=await loadOperations(true);
+  assert.equal(result.contents[0].title,'restored');
+  assert.equal(result.error,undefined);
 });
 
 test('invalidation prevents an older response from overwriting the new result', async (t) => {
