@@ -90,7 +90,7 @@ function buildPayForm(inicis, order) {
  * @param {object} order  { productName, buyerName, buyerTel, buyerEmail }
  * 결제창에서 인증이 끝나면 이니시스가 returnUrl(서버)로 POST하고, 서버가 승인·리다이렉트를 처리한다.
  */
-export async function openInicisPayment(inicis, order = {}) {
+export async function openInicisPayment(inicis, order = {}, {onClose} = {}) {
   if (!inicis?.configured) throw new Error('결제 설정이 준비되지 않았습니다.');
   if (!inicis.returnUrl) throw new Error('결제 결과 수신 주소가 설정되지 않았습니다.');
   if (inicis.mobile) {
@@ -105,6 +105,16 @@ export async function openInicisPayment(inicis, order = {}) {
     document.body.appendChild(form); form.submit(); return;
   }
   const INIStdPay = await loadInicisScript(inicis.live !== false);
+  if (typeof onClose === 'function' && typeof INIStdPay.viewOff === 'function') {
+    const original = INIStdPay.viewOff.__medihelpersOriginal || INIStdPay.viewOff;
+    let closed = false;
+    const wrapped = function (...args) {
+      try { return original.apply(this,args); }
+      finally { if (!closed) { closed=true; onClose(); } }
+    };
+    wrapped.__medihelpersOriginal = original;
+    INIStdPay.viewOff = wrapped;
+  }
   const formId = buildPayForm(inicis, order);
   INIStdPay.pay(formId);
 }

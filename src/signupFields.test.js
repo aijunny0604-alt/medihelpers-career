@@ -96,6 +96,8 @@ test('병원: 담당자 직책은 선택이며 기관명·대표자·사업자�
 test('병원: 사업자번호는 숫자 10자리여야 한다', () => {
   assert.ok(validateField('businessNumber', { businessNumber: '123-45-6789' }), '9자리 거부');
   assert.equal(validateField('businessNumber', { businessNumber: '123-45-67890' }), '', '10자리 통과');
+  assert.equal(validateField('businessNumber', { businessNumber: ' 1234567890 ' }), '', '공백·하이픈 정규화');
+  for (const value of ['12345678901','ABC1234567890','12345가67890','12345/67890']) assert.ok(validateField('businessNumber',{businessNumber:value}), '문자·자리수 오류 거부');
 });
 
 test('병원: 조건부 필드를 채우면 통과한다', () => {

@@ -46,6 +46,22 @@ async function register(overrides={}) {
  return {status:response.status,data:await response.json(),cookie:response.headers.get('set-cookie')?.split(';')[0]};
 }
 const before=count('accounts');
+for (const value of [null, [], 'invalid']) {
+ const form=new FormData();form.set('payload',JSON.stringify(value));
+ const response=await worker.fetch(new Request('https://audit.local/api/auth/register',{method:'POST',headers:{origin:'https://audit.local'},body:form}),env,{});
+ record('multipart malformed payload '+JSON.stringify(value),response.status,400);
+}
+const duplicates=new FormData();duplicates.append('payload','{}');duplicates.append('payload','{}');
+record('multipart duplicate payload rejected',(await worker.fetch(new Request('https://audit.local/api/auth/register',{method:'POST',headers:{origin:'https://audit.local'},body:duplicates}),env,{})).status,400);
+const oversized=new FormData();oversized.set('payload',JSON.stringify(base));oversized.set('businessDocument',new Blob([new Uint8Array(12*1024*1024)],{type:'image/png'}),'large.png');
+record('multipart byte limit without content-length',(await worker.fetch(new Request('https://audit.local/api/auth/register',{method:'POST',headers:{origin:'https://audit.local'},body:oversized}),env,{})).status,413);
+for (const businessNumber of ['', '123456789', '12345678901', 'abc1234567890', '12345/67890']) {
+ const invalid=await register({hospitalDocumentConsent:true,businessNumber});
+ record('invalid business number '+businessNumber,invalid.status,400);
+ record('specific business number guidance '+businessNumber,invalid.data.error.includes('사업자등록번호'),true);
+}
+record('invalid business number leaves no account',count('accounts'),before);
+record('invalid business number leaves no upload',objects.size,0);
 for(const value of [undefined,false,'true',1])record('reject non-consent '+String(value),(await register({hospitalDocumentConsent:value})).status,400);
 record('no account without consent',count('accounts'),before);
 record('no file without consent',objects.size,0);

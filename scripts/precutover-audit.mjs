@@ -10,7 +10,7 @@ const suites=[
  ['cloudflare-legacy-links',['scripts/runtime-legacy-links-audit.mjs','--cloudflare'],'json'],
  ['cloudflare-legacy-payment-replies',['scripts/runtime-legacy-payment-bridge-audit.mjs'],'json'],
  ...['readiness','admin-storage','member-flow','integration','hospital-document',
- 'transition-contact','talent-unlock','mobile-assets','legacy-login','legacy-links','http-methods','inicis','manual-refund','adversarial']
+ 'transition-contact','talent-unlock','mobile-assets','legacy-login','legacy-links','http-methods','inicis','payment-launch','manual-refund','adversarial']
  .map(name=>[name,['scripts/runtime-'+name+'-audit.mjs'],'json']),
 ];
 const results=[];

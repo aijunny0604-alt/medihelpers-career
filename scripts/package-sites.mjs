@@ -3,6 +3,7 @@ import { postPublicUntil } from '../src/jobPostLifecycle.js';
 import { migrationControl, migrationGate } from '../src/migrationGate.js';
 import { normalizeContactPhone } from '../src/contactPhone.js';
 import { normalizeWebsiteUrl } from '../src/websiteUrl.js';
+import { validateBusinessNumber } from '../src/businessNumber.js';
 import { serviceFailure } from '../server/serviceFailure.js';
 import { legacyPaymentBridge } from '../server/legacyPaymentBridge.js';
 import { talent } from '../src/data.js';
@@ -108,6 +109,7 @@ const initializeDbOnce = createDbInitializer();
 ${paymentLedgerServer}
 ${paymentExceptionsServer}
 ${uploadsServer}
+${validateBusinessNumber.toString()}
 ${retentionServer}
 function getUploadStorage(env) {
   return env.UPLOADS || env.BACKUPS || (env.D1_UPLOADS_ENABLED === 'true' && env.DB ? createD1UploadStorage(env.DB) : null);
@@ -1161,14 +1163,17 @@ async function authApi(request, env, pathname, ctx) {
   let businessDocument = null;
   try {
     if (multipartRegistration) {
-      const formData = await request.formData();
+      const bytes = await readLimitedBody(request,12 * 1024 * 1024);
+      const formData = await new Request(request.url,{method:'POST',headers:{'content-type':request.headers.get('content-type')},body:bytes}).formData();
+      if (formData.getAll('payload').length !== 1 || formData.getAll('businessDocument').length > 1) throw Error('DUPLICATE_FIELDS');
       body = JSON.parse(String(formData.get('payload') || '{}'));
       const candidate = formData.get('businessDocument');
       businessDocument = candidate && typeof candidate.arrayBuffer === 'function' ? candidate : null;
     } else {
       body = await readRequestObject(request);
     }
-  } catch { return json({ error:'입력 내용을 확인해주세요.' }, 400); }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw Error('INVALID_INPUT');
+  } catch (error) { return json({ error:error instanceof RangeError ? '첨부 파일을 포함한 요청은 12MB 이하로 보내주세요.' : '입력 내용을 확인해주세요.' }, error instanceof RangeError ? 413 : 400); }
   if (pathname === '/api/auth/change-password') {
     const identity = await authenticatedUser(request, env);
     if (!identity?.accountId) return json({error:'로그인 후 비밀번호를 변경해주세요.'},401);
@@ -1275,9 +1280,10 @@ async function authApi(request, env, pathname, ctx) {
       if (body.hospitalDocumentConsent !== true) return json({ error:'병원 확인용 서류 수집·이용에 동의해주세요.' }, 400);
       const hospitalName = String(body.hospitalName || '').trim();
       const representativeName = String(body.representativeName || '').trim();
-      const businessNumber = String(body.businessNumber || '').replace(/[^0-9]/g, '');
       const address = String(body.address || '').trim();
-      if (!hospitalName || !representativeName || businessNumber.length !== 10 || !address) return json({ error:'병원명·대표자명·사업자등록번호·주소를 확인해주세요.' }, 400);
+      const businessNumberError = validateBusinessNumber(body.businessNumber);
+      if (businessNumberError) return json({ error:businessNumberError },400);
+      if (!hospitalName || !representativeName || !address) return json({ error:'병원명·대표자명·주소를 확인해주세요.' }, 400);
       if (!businessDocument) return json({ error:'사업자등록증 PDF 또는 이미지 파일을 첨부해주세요.' }, 400);
       if (!['application/pdf','image/jpeg','image/png','image/webp'].includes(String(businessDocument.type || '').toLowerCase())) return json({ error:'사업자등록증은 PDF, JPG, PNG, WEBP 파일만 등록할 수 있습니다.' }, 400);
       if (!businessDocument.size || businessDocument.size > 10 * 1024 * 1024) return json({ error:'사업자등록증 파일은 10MB 이하로 등록해주세요.' }, 413);
@@ -2533,6 +2539,43 @@ async function paymentOrderApi(request, env) {
   if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' }, 403);
   let body; try { body = await readRequestObject(request); } catch { return json({ error:'주문 내용을 확인해주세요.' }, 400); }
   if (body.checkoutAcknowledged !== true || body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'상품·환불 조건과 개인정보 처리 안내를 확인해주세요.' }, 400);
+  // Reopen an unpaid order without creating another draft, charge or consent record.
+  // Once any approval attempt exists, only reconciliation may resolve it.
+  if (body.resumeOrderNumber) {
+    const saved = await env.DB.prepare('SELECT id, order_number AS orderNumber, product_id AS productId, product_name AS productName, total_amount AS totalAmount, status, metadata_json AS metadataJson, customer_name AS buyerName, customer_email AS buyerEmail, customer_phone AS buyerTel FROM payment_orders WHERE order_number=? AND account_id=?').bind(String(body.resumeOrderNumber).slice(0,80),account.id).first();
+    if (!saved) return json({error:'본인의 주문을 찾을 수 없습니다.'},404);
+    if (saved.status === 'paid') return json({order:{orderNumber:saved.orderNumber,status:'paid'},alreadyPaid:true});
+    if (account.role !== 'hospital' || !['pending_review','awaiting_payment'].includes(saved.status)) return json({error:'다시 결제할 수 없는 주문입니다. 결제 내역을 확인해주세요.'},409);
+    const attempt = await env.DB.prepare('SELECT status FROM payment_pg_attempts WHERE order_id=?').bind(saved.id).first();
+    if (attempt) return json({error:'승인 요청 이력이 있어 결제창을 다시 열지 않습니다. 중복 결제하지 말고 관리자에게 주문번호를 알려주세요.',code:'PAYMENT_RECONCILIATION_REQUIRED'},409);
+    const meta = parseJsonObject(saved.metadataJson) || {};
+    const product = Object.hasOwn(paymentProductCatalog,saved.productId) ? paymentProductCatalog[saved.productId] : null;
+    if (!product || product.legacy || product.amount !== saved.totalAmount) return json({error:'상품 조건이 변경되었습니다. 관리자에게 기존 주문을 확인해주세요.'},409);
+    if (product.type === 'doctor_ad') {
+      const content = await env.DB.prepare('SELECT status,payload_json AS payloadJson FROM admin_content_records WHERE id=?').bind(meta.contentRecordId || '').first();
+      if (!content || (meta.renewalContentId ? !isAdExposureExpired(parseJsonObject(content.payloadJson)) : content.status !== 'draft')) return json({error:'공고 상태가 변경되었습니다. 마이페이지에서 확인해주세요.'},409);
+    }
+    // A candidate may withdraw or change disclosure after the first payment window closed.
+    if (product.type === 'talent_search' && meta.talentId) {
+      const targetId = String(meta.talentId);
+      const demo = testTalentDetail(env,targetId);
+      const target = demo || (targetId.startsWith('seeker-')
+        ? await env.DB.prepare("SELECT r.id FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.id=? AND p.status='active' LIMIT 1").bind(targetId.slice(7)).first()
+        : targetId.startsWith('resume-') ? await env.DB.prepare("SELECT id FROM resumes WHERE id=? AND visibility IN ('public','proposal') LIMIT 1").bind(targetId.slice(7)).first() : null);
+      const hidden = targetId.startsWith('resume-') && await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND status<>'active' LIMIT 1").bind(targetId.slice(7)).first();
+      const contact = targetId.startsWith('seeker-') ? await env.DB.prepare('SELECT contact_visibility AS visibility FROM job_seeker_posts WHERE id=?').bind(targetId.slice(7)).first() : null;
+      const visibility = (contact?.visibility || demo?.contactVisibility) === 'ticket' ? 'ticket' : 'private';
+      if (!target || hidden || (meta.contactVisibilityAtPurchase === 'ticket' && visibility !== 'ticket')) return json({error:'작성자가 공개 범위를 변경했습니다. 인재 목록에서 최신 안내를 확인해주세요.',code:'CONTACT_VISIBILITY_CHANGED'},409);
+      if (product.unlockCount === 1 && await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?').bind(account.id,targetId).first()) return json({error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.'},409);
+    }
+    try {
+      if (!env.INICIS_MID || !env.INICIS_SIGN_KEY) return json({error:'결제 설정을 확인 중입니다.'},503);
+      const tax = paymentTax(env,saved.productId,saved.totalAmount);
+      if (JSON.stringify(tax) !== JSON.stringify(meta.taxSnapshot)) return json({error:'결제 조건이 변경되었습니다. 관리자에게 기존 주문을 확인해주세요.'},409);
+      const inicis = await buildInicisPaymentParams(env,{...saved,amount:saved.totalAmount,channel:meta.paymentChannel || 'pc'});
+      return json({order:{id:saved.id,orderNumber:saved.orderNumber,productName:saved.productName,totalAmount:saved.totalAmount,status:saved.status},inicis});
+    } catch { return json({error:'결제창을 준비하지 못했습니다. 같은 주문으로 다시 시도해주세요.'},503); }
+  }
   // [보안] Object.hasOwn으로 조회해야 한다. 대괄호 조회만 쓰면 'constructor'·'toString' 같은
   // 프로토타입 키가 truthy로 잡혀 !product 가드를 통과하고, product.amount가 undefined가 되어
   // 금액이 NaN→NULL로 저장된다. 그러면 승인 시 0 !== 0 비교가 통과해 '무료 결제'가 성립한다.
@@ -2693,8 +2736,16 @@ async function paymentApproveApi(request, env) {
   if (!testMode && !['test','live'].includes(env.INICIS_ENV)) return json({error:'결제 환경 설정을 확인해주세요.'},503);
   try { await ensureCommerceSchema(env); } catch { return json({ error:'결제 저장소를 사용할 수 없습니다.' }, 503); }
   let body;
-  try { body = fromPgForm ? Object.fromEntries((await request.formData()).entries()) : await readRequestObject(request); }
-  catch { return json({ error:'결제 결과를 확인할 수 없습니다.' }, 400); }
+  try {
+    if (fromPgForm) {
+      const pairs = new URLSearchParams(new TextDecoder().decode(await readLimitedBody(request,65536)));
+      body = Object.create(null);
+      for (const [name,value] of pairs) {
+        if (Object.hasOwn(body,name)) throw new Error('DUPLICATE_PAYMENT_FIELD');
+        body[name] = value;
+      }
+    } else body = await readRequestObject(request);
+  } catch (error) { return json({ error:'결제 결과를 확인할 수 없습니다.' }, error instanceof RangeError ? 413 : 400); }
   // 브라우저가 직접 이동해 온 경우(PG 리턴)에는 JSON이 아니라 결과 페이지로 보내야 한다.
   // (그렇지 않으면 사용자 화면에 JSON 원문이 그대로 노출된다)
   const siteOrigin = env.SITE_ORIGIN || new URL(request.url).origin;

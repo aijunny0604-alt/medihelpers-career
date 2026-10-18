@@ -3009,7 +3009,7 @@ function Checkout({ plan, auth }) {
           buyerName: data.manager,
           buyerTel: data.phone,
           buyerEmail: data.email,
-        });
+        }, {onClose: () => setRecoveryOrder(createdOrder)});
         // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
         paymentWindowOpened = true;
         return;
@@ -3513,7 +3513,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
           buyerName: lockedCustomer.name,
           buyerTel: lockedCustomer.phone,
           buyerEmail: lockedCustomer.email,
-        });
+        }, {onClose: () => setRecoveryOrder(createdOrder)});
         // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
         paymentWindowOpened = true;
         return;

@@ -23,7 +23,6 @@
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest",
-    "vinext": "latest",
     "vite": "latest"
   },
   "devDependencies": {

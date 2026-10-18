@@ -333,19 +333,23 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const [touched, setTouched] = useState({});
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [businessDocument, setBusinessDocument] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
   const [documentDragging, setDocumentDragging] = useState(false);
   const formRef = useRef(null);
 
   const chooseBusinessDocument = (file, input) => {
     if (!file) return;
     const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-    const error = !allowed.includes(file.type) ? 'PDF, JPG, PNG, WEBP 파일만 등록할 수 있습니다.' : file.size > 10 * 1024 * 1024 ? '파일은 10MB 이하로 등록해주세요.' : '';
+    const error = !allowed.includes(file.type) ? 'PDF, JPG, PNG, WEBP 파일만 등록할 수 있습니다.' : !file.size ? '비어 있는 파일입니다. 원본 사업자등록증을 선택해주세요.' : file.size > 10 * 1024 * 1024 ? '파일은 10MB 이하로 등록해주세요.' : '';
     if (error) {
+      setBusinessDocument(null);
       setErrors((current) => ({ ...current, businessDocument:error }));
       if (input) input.value = '';
       return;
     }
     setBusinessDocument(file);
+    if (input) input.value = ''; // 동일 파일을 삭제한 뒤 다시 선택할 수 있도록 초기화
     setErrors((current) => ({ ...current, businessDocument:'' }));
   };
 
@@ -393,6 +397,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (submitLock.current) return;
     setSubmittedOnce(true);
     const validation = validateApplicationDraft(draft, memberType);
     const optionalFields = ['specialty','birthYear','gender','institutionType','hospitalRole','department','addressDetail','website','fax'];
@@ -417,6 +422,8 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       node?.focus?.();
       return;
     }
+    submitLock.current = true;
+    setSubmitting(true);
     if (signedIn) {
       try {
         const result = await accountRequest('POST', {
@@ -431,7 +438,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       } catch (requestError) {
         setErrors((current) => ({ ...current, submit: requestError.message }));
         return;
-      }
+      } finally { submitLock.current=false; setSubmitting(false); }
     }
     try {
       const payload = {
@@ -469,7 +476,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       onComplete(result.account, result.identity);
     } catch (requestError) {
       setErrors((current) => ({ ...current, submit: requestError.message }));
-    }
+    } finally { submitLock.current=false; setSubmitting(false); }
   };
 
   const consentError = submittedOnce && (errors.termsAccepted || errors.privacyAccepted || errors.ageConfirmed);
@@ -557,7 +564,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       </div>
 
       {errors.submit && <p className="signup-error" role="alert">{errors.submit}</p>}
-      <button className="button primary full" type="submit">{signedIn ? '회원가입 완료' : '회원가입 신청'} <ArrowRight /></button>
+      <button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가입 정보와 첨부 파일을 저장하는 중…' : signedIn ? '회원가입 완료' : '회원가입 신청'} <ArrowRight /></button>
       <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 작성</a>
     </form>
   </section>;

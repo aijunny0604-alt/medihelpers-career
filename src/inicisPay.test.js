@@ -19,6 +19,21 @@ test('payment device detection supports mobile and desktop-mode iPad',()=>{
  for(const nav of [{userAgent:'iPhone'},{userAgent:'Android Mobile'},{userAgent:'Macintosh Safari',platform:'MacIntel',maxTouchPoints:5}])assert.equal(inicisPaymentChannel(nav),'mobile');
  for(const nav of [{userAgent:'Windows Chrome'},{userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:0},undefined])assert.equal(inicisPaymentChannel(nav),'pc');
 });
+test('closing and reopening PC payment invokes only the current close handler',async()=>{
+ const oldDocument=globalThis.document,oldWindow=globalThis.window;
+ let originalCalls=0,firstClosed=0,secondClosed=0;
+ const sdk={viewOff(){originalCalls++;},pay(){}};
+ globalThis.window={INIStdPay:sdk};
+ globalThis.document={getElementById(){return null;},createElement:()=>({style:{},appendChild(){}}),body:{appendChild(){}}};
+ try {
+  const {openInicisPayment:open}=await import('./inicisPay.js?close-test');
+  const params={configured:true,returnUrl:'https://audit.local/api/payment-approve'};
+  await open(params,{}, {onClose:()=>firstClosed++});sdk.viewOff();sdk.viewOff();
+  assert.equal(firstClosed,1);assert.equal(originalCalls,2);
+  await open(params,{}, {onClose:()=>secondClosed++});sdk.viewOff();
+  assert.equal(firstClosed,1);assert.equal(secondClosed,1);assert.equal(originalCalls,3);
+ } finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
+});
 test('mobile checkout posts hidden fields to exact provider without PC script',async()=>{
  const original=globalThis.document;let posted=null;
  globalThis.document={createElement:tag=>({tag,children:[],style:{},appendChild(e){this.children.push(e);},submit(){posted=this;}}),body:{appendChild(){}},head:{appendChild(){throw Error('PC script should not load');}}};

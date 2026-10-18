@@ -36,7 +36,7 @@ export async function recordManualInicisRefund(env, refund, capture, evidence, a
         SELECT 1 FROM payment_orders o JOIN payment_refunds r ON r.order_id=o.id
         WHERE o.id=? AND r.id=? AND o.status='paid' AND r.status='requested'
           AND o.metadata_json=?
-          AND o.total_amount=? AND r.amount=o.total_amount
+          AND o.total_amount=? AND r.amount IN (0,o.total_amount)
           AND o.payment_method='card' AND (o.paid_at IS NULL OR datetime(o.paid_at)<=datetime(?))
           AND (SELECT COUNT(*) FROM payment_transactions WHERE order_id=o.id AND transaction_type='capture' AND status='succeeded')=1
           AND EXISTS (SELECT 1 FROM payment_transactions WHERE order_id=o.id AND transaction_type='capture' AND status='succeeded' AND provider='inicis' AND provider_transaction_id=? AND amount=o.total_amount)
@@ -44,7 +44,9 @@ export async function recordManualInicisRefund(env, refund, capture, evidence, a
       ) THEN 'manual_completed' ELSE NULL END)`)
       .bind(refund.orderId,refund.id,refund.orderId,refund.id,refund.metadataJson,evidence.amount,evidence.canceledAt,capture.tid),
     env.DB.prepare("UPDATE payment_orders SET status='refunded',metadata_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify(meta),refund.orderId),
-    env.DB.prepare("UPDATE payment_refunds SET status='succeeded',processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(refund.id),
+    // Member requests start at 0 (amount not yet determined). Only verified full
+    // cancellation evidence may set that amount, inside the guarded transaction.
+    env.DB.prepare("UPDATE payment_refunds SET status='succeeded',amount=?,processed_at=CURRENT_TIMESTAMP WHERE id=?").bind(evidence.amount,refund.id),
     env.DB.prepare("INSERT INTO payment_transactions (id,order_id,transaction_type,provider,provider_transaction_id,amount,status,processed_at) VALUES (?,?,'refund','inicis',?,?,'succeeded',CURRENT_TIMESTAMP)").bind('inicis-manual-refund-'+refund.orderId,refund.orderId,capture.tid,evidence.amount),
     ...revokeStatements,
     ...(meta.contentRecordId ? [env.DB.prepare("UPDATE admin_content_records SET status='hidden',updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS (SELECT 1 FROM payment_orders WHERE id<>? AND status='paid' AND json_extract(metadata_json,'$.contentRecordId')=? AND json_extract(metadata_json,'$.exposure.end')>=date('now'))").bind(meta.contentRecordId,refund.orderId,meta.contentRecordId)] : []),

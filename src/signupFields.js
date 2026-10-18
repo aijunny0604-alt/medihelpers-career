@@ -1,4 +1,5 @@
 import { ACCOUNT_ROLES } from './signupModel.js';
+import { validateBusinessNumber } from './businessNumber.js';
 
 // 정식 오픈 전에 사용하는 프론트엔드 전용 회원가입 신청서입니다.
 // 입력값은 브라우저 저장소에 남기지 않으며, 실제 계정 생성은 인증 서버가 열린 뒤 연결합니다.
@@ -49,12 +50,6 @@ function validatePhone(value) {
 }
 
 // 사업자등록번호는 필수. 하이픈 유무 무관하게 숫자 10자리인지 확인한다.
-function validateBusinessNumber(value) {
-  const digits = digitsOnly(value);
-  if (!digits) return '사업자등록번호를 입력해주세요.';
-  if (digits.length !== 10) return '사업자등록번호 10자리를 정확히 입력해주세요. 예: 123-45-67890';
-  return '';
-}
 
 function validateEmail(value) {
   const email = String(value ?? '').trim();
