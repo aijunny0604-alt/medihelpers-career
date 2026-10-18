@@ -102,7 +102,9 @@ const paymentExceptionsServer = (await readFile('server/paymentExceptions.js', '
 const paymentLedgerServer = (await readFile('server/paymentLedger.js', 'utf8')).replace(/^export /gm, '');
 const uploadsServer = (await readFile('server/d1Uploads.js', 'utf8')).replace(/^export /gm, '');
 const retentionServer = (await readFile('server/d1Retention.js', 'utf8')).replace(/^export /gm, '');
+const talentCreditsServer = (await readFile('server/talentCredits.js', 'utf8')).replace(/^export /gm, '');
 const server = `${inicisServer}
+${talentCreditsServer}
 ${manualRefundServer}
 ${dbInitializationServer}
 const initializeDbOnce = createDbInitializer();
@@ -1780,7 +1782,8 @@ async function memberCenterApi(request, env) {
       ).bind(account.id));
     }
     if (account.role === 'hospital') {
-      addQuery('talentCredits', env.DB.prepare("SELECT COALESCE(SUM(total_credits),0) AS total, COALESCE(SUM(used_credits),0) AS used, COALESCE(SUM(total_credits-used_credits),0) AS remaining FROM talent_credit_pools WHERE hospital_account_id=? AND used_credits<total_credits AND NOT EXISTS(SELECT 1 FROM payment_orders WHERE id=talent_credit_pools.order_id AND json_extract(metadata_json,'$.refundServiceEnded')=1) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE order_id=talent_credit_pools.order_id AND status IN ('requested','processing'))").bind(account.id));
+      addQuery('talentUsage', env.DB.prepare("SELECT o.order_number AS orderNumber,c.total_credits AS total,c.used_credits AS used,(SELECT COUNT(*) FROM talent_unlocks tu WHERE tu.hospital_account_id=o.account_id AND (tu.order_id=o.id OR tu.order_id=c.id)) AS grants FROM payment_orders o LEFT JOIN talent_credit_pools c ON c.order_id=o.id AND c.hospital_account_id=o.account_id WHERE o.account_id=? AND o.product_id LIKE 'talent-unlock-%' ORDER BY o.created_at DESC,o.rowid DESC LIMIT 100").bind(account.id));
+      addQuery('talentCredits', env.DB.prepare("SELECT COALESCE(SUM(total_credits),0) AS total, COALESCE(SUM(used_credits),0) AS used, COALESCE(SUM(total_credits-used_credits),0) AS remaining FROM talent_credit_pools WHERE hospital_account_id=? AND NOT EXISTS(SELECT 1 FROM payment_orders WHERE id=talent_credit_pools.order_id AND json_extract(metadata_json,'$.refundServiceEnded')=1) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE order_id=talent_credit_pools.order_id AND status IN ('requested','processing'))").bind(account.id));
       addQuery('unlockedTalents', env.DB.prepare(
         "SELECT tu.talent_id AS talentId, tu.unlocked_at AS unlockedAt, " +
         "COALESCE((SELECT p.title FROM job_seeker_posts p WHERE 'seeker-' || p.id=tu.talent_id LIMIT 1), (SELECT r.title FROM resumes r WHERE 'resume-' || r.id=tu.talent_id LIMIT 1), '열람한 인재') AS title, " +
@@ -1856,12 +1859,14 @@ async function memberCenterApi(request, env) {
       return { id:row.id,title:row.title,subtitle:row.subtitle,status:row.status,originalCreated:String(migration.originalDates?.created || ''),services:Array.isArray(migration.services)?migration.services.filter(s=>typeof s==='string'):[],editable:false,exposureVerified:false };
     });
     const ownedAdContentById = new Map(ownedAdContents.map(record => [record.id, record]));
+    const usageByOrder = new Map(rows('talentUsage').map(row => [row.orderNumber,row]));
     const orderList = (orders.results || []).map(row => {
       const { metadataJson, ...rest } = row;
       const meta = parseJsonObject(metadataJson) || {};
       const content = ownedAdContentById.get(String(meta.contentRecordId || '')) || null;
       return {
         ...rest,
+        creditUsage:talentCreditUsage({...rest,serviceEnded:meta.refundServiceEnded === true},usageByOrder.get(rest.orderNumber),paymentProductCatalog[rest.productId]?.unlockCount),
         exposure:normalizeExposureWindow(meta.exposure),
         contentRecordId:content?.id || '',
         isRenewal:Boolean(meta.renewalContentId),
@@ -2225,7 +2230,7 @@ async function talentUnlockHistoryApi(request, env) {
   const key = identityKey(identity);
   const account = await env.DB.prepare('SELECT id, role FROM accounts WHERE user_key=? LIMIT 1').bind(key).first();
   if (!account || account.role !== 'hospital') return json({ unlocks:[] });
-  const result = await env.DB.prepare("SELECT talent_id AS talentId, unlocked_at AS unlockedAt FROM talent_unlocks WHERE hospital_account_id=? ORDER BY unlocked_at DESC LIMIT 200").bind(account.id).all();
+  const result = await env.DB.prepare("SELECT talent_id AS talentId, " + talentKeyExpression('talent_id') + " AS canonicalId, unlocked_at AS unlockedAt FROM talent_unlocks WHERE hospital_account_id=? ORDER BY unlocked_at DESC LIMIT 200").bind(account.id).all();
   return json({ unlocks:result.results || [] });
 }
 // 인재 상세 열람: 병원이 열람권을 보유한 인재에게만 연락처·이력서 상세를 서버가 제공한다.
@@ -2252,6 +2257,7 @@ async function talentDetailApi(request, env, pathname) {
     ? await env.DB.prepare("SELECT id, account_id AS accountId, resume_id AS resumeId, contact_visibility AS contactVisibility, contact_phone AS contactPhone, additional_contact_phone AS additionalContactPhone FROM job_seeker_posts WHERE id=? AND status<>'deleted' AND (status='active' OR account_id=?) LIMIT 1").bind(seekerPostId,account?.id || '').first()
     : null;
   const resumeId = seekerPost?.resumeId || (talentId.startsWith('resume-') ? talentId.slice('resume-'.length) : '');
+  const auditTalentId = resumeId ? 'resume-' + resumeId : talentId;
   const resumeMeta = seekerPost || (resumeId
     ? await env.DB.prepare('SELECT account_id AS accountId, visibility FROM resumes WHERE id = ? LIMIT 1').bind(resumeId).first()
     : null);
@@ -2274,26 +2280,26 @@ async function talentDetailApi(request, env, pathname) {
       const dayAgo = new Date(Date.now() - 86400000).toISOString();
       const burstAgo = new Date(Date.now() - BURST_WINDOW_MIN * 60000).toISOString();
       // 오늘 이 병원이 조회한 서로 다른 후보 수(같은 후보 반복은 1로 계산).
-      const dailyRow = await env.DB.prepare("SELECT COUNT(DISTINCT subject_ref) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND datetime(created_at) >= datetime(?)").bind(identityPrincipal(identity), dayAgo).first();
+      const dailyRow = await env.DB.prepare("SELECT COUNT(DISTINCT " + talentKeyExpression('subject_ref') + ") AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND datetime(created_at) >= datetime(?)").bind(identityPrincipal(identity), dayAgo).first();
       dailyCount = Number(dailyRow?.n || 0);
       const burstRow = await env.DB.prepare("SELECT COUNT(*) AS n FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND datetime(created_at) >= datetime(?)").bind(identityPrincipal(identity), burstAgo).first();
       const burstCount = Number(burstRow?.n || 0);
       // 하루 상한 초과: 차단하고 경고 로그.
-      const alreadySeen = await env.DB.prepare("SELECT 1 FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND subject_ref = ? LIMIT 1").bind(identityPrincipal(identity), talentId).first();
+      const alreadySeen = await env.DB.prepare("SELECT 1 FROM access_audit_logs WHERE actor_key = ? AND action = 'talent_unlock_view' AND " + talentKeyExpression('subject_ref') + " = ? LIMIT 1").bind(identityPrincipal(identity), auditTalentId).first();
       if (!alreadySeen && dailyCount >= DAILY_LIMIT) {
-        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_blocked', ?, ?)").bind(crypto.randomUUID(), identityPrincipal(identity), talentId, JSON.stringify({ reason:'daily_limit', dailyCount, limit:DAILY_LIMIT })).run(); } catch {}
+        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_blocked', ?, ?)").bind(crypto.randomUUID(), identityPrincipal(identity), auditTalentId, JSON.stringify({ reason:'daily_limit', dailyCount, limit:DAILY_LIMIT })).run(); } catch {}
         return json({ unlocked:false, detail:null, limited:true, message:'금일 열람 한도를 초과했습니다. 대량 정보 수집 방지를 위해 잠시 후 다시 이용해 주세요.' }, 429);
       }
       // 단시간 폭주: 차단하진 않되 경고 로그를 남겨 관리자가 탐지.
       if (burstCount + 1 >= BURST_LIMIT) {
-        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_burst', ?, ?)").bind(crypto.randomUUID(), identityPrincipal(identity), talentId, JSON.stringify({ burstCount:burstCount + 1, windowMin:BURST_WINDOW_MIN })).run(); } catch {}
+        try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, action, subject_ref, metadata_json) VALUES (?, ?, 'talent_unlock_burst', ?, ?)").bind(crypto.randomUUID(), identityPrincipal(identity), auditTalentId, JSON.stringify({ burstCount:burstCount + 1, windowMin:BURST_WINDOW_MIN })).run(); } catch {}
       }
     } catch {}
   }
   let viewLogged = false;
   let hasUnlock = Boolean(isAdmin || isOwner);
   if (!hasUnlock && account?.role === 'hospital') {
-    const row = await env.DB.prepare("SELECT id FROM talent_unlocks WHERE hospital_account_id = ? AND talent_id = ? LIMIT 1").bind(account.id, talentId).first();
+    const row = await findTalentUnlock(env, account.id, talentId);
     hasUnlock = Boolean(row);
     // 이 인재에 직접 열람권이 없으면, 남은 '팩 크레딧'으로 새로 연다(크레딧 1개 소모).
     // [보안] 단, 비공개(private) 이력서에는 크레딧을 쓰지 않는다. 어차피 상세는 안 나가므로
@@ -2303,14 +2309,14 @@ async function talentDetailApi(request, env, pathname) {
         await ensureTalentCreditSchema(env);
         // Grant, debit and view reservation succeed or roll back together in one D1 batch.
         const grantResult = await env.DB.batch([
-          env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, c.order_id, NULL FROM talent_credit_pools c WHERE c.hospital_account_id=? AND c.used_credits<c.total_credits AND NOT EXISTS(SELECT 1 FROM payment_orders WHERE id=c.order_id AND json_extract(metadata_json,'$.refundServiceEnded')=1) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE order_id=c.order_id AND status IN ('requested','processing')) AND (?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND r.account_id=? AND ((?='' AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active')))) AND (SELECT COUNT(DISTINCT subject_ref) FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')) < ? ORDER BY c.created_at ASC, c.id ASC LIMIT 1").bind(crypto.randomUUID(), account.id, talentId, account.id, demo ? 1 : 0, resumeId, resumeMeta?.accountId || '', seekerPostId, seekerPostId, identityPrincipal(identity), DAILY_LIMIT),
+          env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, c.order_id, NULL FROM talent_credit_pools c WHERE c.hospital_account_id=? AND c.used_credits<c.total_credits AND NOT EXISTS(SELECT 1 FROM payment_orders WHERE id=c.order_id AND json_extract(metadata_json,'$.refundServiceEnded')=1) AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE order_id=c.order_id AND status IN ('requested','processing')) AND (?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND r.account_id=? AND ((?='' AND r.visibility IN ('public','proposal')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active')))) AND (SELECT COUNT(DISTINCT " + talentKeyExpression('subject_ref') + ") FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')) < ? AND NOT EXISTS (SELECT 1 FROM talent_unlocks existing WHERE existing.hospital_account_id=c.hospital_account_id AND " + talentKeyExpression('existing.talent_id') + "=?) ORDER BY c.created_at ASC, c.id ASC LIMIT 1").bind(crypto.randomUUID(), account.id, talentId, account.id, demo ? 1 : 0, resumeId, resumeMeta?.accountId || '', seekerPostId, seekerPostId, identityPrincipal(identity), DAILY_LIMIT, resumeId ? 'resume-' + resumeId : talentId),
           env.DB.prepare("UPDATE talent_credit_pools SET used_credits=used_credits+1 WHERE hospital_account_id=? AND order_id=(SELECT order_id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?) AND used_credits<total_credits AND changes()=1").bind(account.id, account.id, talentId),
-          env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) SELECT ?, ?, ?, 'talent_unlock_view' WHERE changes()=1").bind(crypto.randomUUID(), identityPrincipal(identity), talentId)
+          env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) SELECT ?, ?, ?, 'talent_unlock_view' WHERE changes()=1").bind(crypto.randomUUID(), identityPrincipal(identity), auditTalentId)
         ]);
         viewLogged = runChanges(grantResult[2]) === 1;
-        hasUnlock = Boolean(await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(account.id, talentId).first());
+        hasUnlock = Boolean(await findTalentUnlock(env, account.id, talentId));
         if (!hasUnlock) {
-          const current = await env.DB.prepare("SELECT COUNT(DISTINCT subject_ref) AS n FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')").bind(identityPrincipal(identity)).first();
+          const current = await env.DB.prepare("SELECT COUNT(DISTINCT " + talentKeyExpression('subject_ref') + ") AS n FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')").bind(identityPrincipal(identity)).first();
           if (Number(current?.n || 0) >= DAILY_LIMIT) return json({unlocked:false,detail:null,limited:true,message:'금일 열람 한도를 초과했습니다.'},429);
         }
       } catch { return json({ unlocked:false, detail:null, error:'열람 처리에 실패했습니다. 같은 인재를 다시 확인해주세요.' },503); }
@@ -2328,7 +2334,7 @@ async function talentDetailApi(request, env, pathname) {
     if (r) {
       if (!isOwner && !viewLogged) {
         try {
-          const logged = await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) SELECT ?, ?, ?, 'talent_unlock_view' WHERE ?=1 OR EXISTS (SELECT 1 FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND subject_ref=?) OR (SELECT COUNT(DISTINCT subject_ref) FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')) < ?").bind(crypto.randomUUID(), identityPrincipal(identity), talentId, isAdmin ? 1 : 0, identityPrincipal(identity), talentId, identityPrincipal(identity), DAILY_LIMIT).run();
+          const logged = await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) SELECT ?, ?, ?, 'talent_unlock_view' WHERE ?=1 OR EXISTS (SELECT 1 FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND " + talentKeyExpression('subject_ref') + "=?) OR (SELECT COUNT(DISTINCT " + talentKeyExpression('subject_ref') + ") FROM access_audit_logs WHERE actor_key=? AND action='talent_unlock_view' AND datetime(created_at)>=datetime('now','-1 day')) < ?").bind(crypto.randomUUID(), identityPrincipal(identity), auditTalentId, isAdmin ? 1 : 0, identityPrincipal(identity), auditTalentId, identityPrincipal(identity), DAILY_LIMIT).run();
           if (!runChanges(logged)) return json({ unlocked:false, detail:null, limited:true, message:'금일 열람 한도를 초과했습니다.' },429);
         } catch { return json({ unlocked:false,detail:null,error:'열람 상태를 기록하지 못했습니다. 다시 시도해주세요.' },503); }
       }
@@ -2345,7 +2351,7 @@ async function talentDetailApi(request, env, pathname) {
     }
   }
   // 실제 이력서가 없더라도(정적 샘플 등) 열람 사실은 기록해 빈도 집계에 반영.
-  try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identityPrincipal(identity), talentId).run(); } catch {}
+  try { await env.DB.prepare("INSERT INTO access_audit_logs (id, actor_key, subject_ref, action) VALUES (?, ?, ?, 'talent_unlock_view')").bind(crypto.randomUUID(), identityPrincipal(identity), auditTalentId).run(); } catch {}
   return json({ unlocked:true, detail:null });
 }
 const paymentProductCatalog = {
@@ -2582,7 +2588,7 @@ async function paymentOrderApi(request, env) {
       const contact = targetId.startsWith('seeker-') ? await env.DB.prepare('SELECT contact_visibility AS visibility FROM job_seeker_posts WHERE id=?').bind(targetId.slice(7)).first() : null;
       const visibility = (contact?.visibility || demo?.contactVisibility) === 'ticket' ? 'ticket' : 'private';
       if (!target || hidden || (meta.contactVisibilityAtPurchase === 'ticket' && visibility !== 'ticket')) return json({error:'작성자가 공개 범위를 변경했습니다. 인재 목록에서 최신 안내를 확인해주세요.',code:'CONTACT_VISIBILITY_CHANGED'},409);
-      if (product.unlockCount === 1 && await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?').bind(account.id,targetId).first()) return json({error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.'},409);
+      if (product.unlockCount === 1 && await findTalentUnlock(env, account.id,targetId)) return json({error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.'},409);
     }
     try {
       if (!env.INICIS_MID || !env.INICIS_SIGN_KEY) return json({error:'결제 설정을 확인 중입니다.'},503);
@@ -2640,7 +2646,7 @@ async function paymentOrderApi(request, env) {
       const contactPost = targetId.startsWith('seeker-') ? await env.DB.prepare('SELECT contact_visibility AS visibility FROM job_seeker_posts WHERE id=?').bind(targetId.slice(7)).first() : null;
       metadata.contactVisibilityAtPurchase = (contactPost?.visibility || testTalentDetail(env,targetId)?.contactVisibility) === 'ticket' ? 'ticket' : 'private';
       if (body.contactVisibilityAtCheckout === 'ticket' && metadata.contactVisibilityAtPurchase === 'private') return json({error:'작성자가 연락처를 비공개로 변경했습니다. 결제 안내를 다시 확인해주세요.',code:'CONTACT_VISIBILITY_CHANGED'},409);
-      if (product.unlockCount === 1 && await env.DB.prepare('SELECT id FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(account.id,targetId).first()) return json({ error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.' },409);
+      if (product.unlockCount === 1 && await findTalentUnlock(env, account.id,targetId)) return json({ error:'이미 열람 가능한 인재입니다. 추가 구매 없이 상세를 확인해주세요.' },409);
     }
     // 열람권 결제자 정보는 요청 본문을 신뢰하지 않고 회원가입 때 저장한 병원 원본으로 고정한다.
     // 개발자도구로 readonly를 해제하거나 API를 직접 호출해도 다른 병원명·연락처를 저장할 수 없다.
@@ -2834,7 +2840,7 @@ async function paymentApproveApi(request, env) {
       if (existingPool) return;
       const creditOrder = () => env.DB.prepare("INSERT INTO talent_credit_pools (id, hospital_account_id, order_id, total_credits, used_credits, expires_at) SELECT ?, ?, ?, ?, 0, ? WHERE EXISTS (SELECT 1 FROM payment_orders WHERE id=? AND status='paid') AND NOT EXISTS (SELECT 1 FROM payment_refunds WHERE order_id=? AND status='processing') ON CONFLICT(order_id) DO NOTHING").bind(crypto.randomUUID(), order.accountId, order.id, unlockCount, null, order.id, order.id).run();
       if (unlockCount > 1 || !talentId) { await creditOrder(); return; }
-      const existing = await env.DB.prepare('SELECT id, order_id AS orderId FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=? LIMIT 1').bind(order.accountId,talentId).first();
+      const existing = await findTalentUnlock(env, order.accountId,talentId);
       if (existing?.orderId === order.id) return;
       const demo = testTalentDetail(env, talentId);
       const target = demo || (talentId.startsWith('seeker-')
@@ -2843,9 +2849,9 @@ async function paymentApproveApi(request, env) {
       // If the candidate disappeared or another purchase already opened it, preserve one usable credit.
       const hiddenLegacyPost = talentId.startsWith('resume-') && await env.DB.prepare("SELECT id FROM job_seeker_posts WHERE resume_id=? AND status<>'active' LIMIT 1").bind(talentId.slice(7)).first();
       if (existing || !target || hiddenLegacyPost) { await creditOrder(); return; }
-      const grant = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM payment_orders WHERE id=? AND status='paid') AND NOT EXISTS (SELECT 1 FROM payment_refunds WHERE order_id=? AND status='processing') AND (?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND ((?=1 AND r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active'))))").bind(crypto.randomUUID(),order.accountId,talentId,order.id,null,order.id,order.id,demo?1:0,target.id || '',talentId.startsWith('resume-')?1:0,talentId.startsWith('seeker-')?talentId.slice(7):'').run();
+      const grant = await env.DB.prepare("INSERT OR IGNORE INTO talent_unlocks (id, hospital_account_id, talent_id, order_id, expires_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM payment_orders WHERE id=? AND status='paid') AND NOT EXISTS (SELECT 1 FROM payment_refunds WHERE order_id=? AND status='processing') AND (?=1 OR EXISTS (SELECT 1 FROM resumes r WHERE r.id=? AND ((?=1 AND r.visibility IN ('public','proposal') AND NOT EXISTS (SELECT 1 FROM job_seeker_posts hidden WHERE hidden.resume_id=r.id AND hidden.status<>'active')) OR EXISTS (SELECT 1 FROM job_seeker_posts p WHERE p.id=? AND p.resume_id=r.id AND p.account_id=r.account_id AND p.status='active')))) AND NOT EXISTS (SELECT 1 FROM talent_unlocks existing WHERE existing.hospital_account_id=? AND " + talentKeyExpression('existing.talent_id') + "=?)").bind(crypto.randomUUID(),order.accountId,talentId,order.id,null,order.id,order.id,demo?1:0,target.id || '',talentId.startsWith('resume-')?1:0,talentId.startsWith('seeker-')?talentId.slice(7):'',order.accountId,target.id ? 'resume-' + target.id : talentId).run();
       if (!runChanges(grant)) {
-        const winner = await env.DB.prepare('SELECT order_id AS orderId FROM talent_unlocks WHERE hospital_account_id=? AND talent_id=?').bind(order.accountId,talentId).first();
+        const winner = await findTalentUnlock(env, order.accountId,talentId);
         if (winner?.orderId !== order.id) await creditOrder();
       }
     } catch (error) {

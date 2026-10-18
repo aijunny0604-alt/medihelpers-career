@@ -14,8 +14,8 @@ test('기존 D1 결제 스키마에서도 인재 열람권 주문 유형을 호�
 test('가상 결제 승인 실패를 성공 화면으로 넘기지 않는다', async () => {
   const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
   assert.match(mainSource, /!approve\.ok \|\| !approveResult\.approved/);
-  assert.match(mainSource, /가상 결제로 열람권 활성화/);
-  assert.match(mainSource, /실제 카드나 계좌에서 금액이 청구되지 않으며/);
+  assert.match(mainSource, /원 결제하기/);
+  assert.doesNotMatch(mainSource, /현재는 가상 결제 테스트 중입니다/);
 });
 
 test('열람권 결제 정보는 병원 회원가입 원본으로 고정한다', async () => {
@@ -70,6 +70,6 @@ test('이미 열람한 인재는 목록과 마이페이지에서 표시하고 �
   assert.match(mainSource, /unlockedTalentIds\.has\(talentId\)/);
   assert.match(mainSource, /열람 완료/);
   assert.match(memberSource, /id="member-unlocked-talents"/);
-  assert.match(memberSource, /기간 제한 없이 다시 열람/);
+  assert.match(memberSource, /공개 유지 시 추가 차감 없이 재열람/);
   assert.match(memberSource, /\/medical-staff\/talents\/\$\{encodeURIComponent\(talent\.talentId\)\}/);
 });

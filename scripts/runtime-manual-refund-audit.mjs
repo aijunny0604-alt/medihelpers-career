@@ -202,6 +202,8 @@ for(const diff of [{cancellationTid:''},{cancellationTid:part.body.evidence.tid}
 }
 const pendingCenter=(await call('/api/member-center','hospital')).data;
 record('pending visible to requester',pendingCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).refundPending,1);
+record('pending counts show eight held',pendingCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).creditUsage.held,8);
+record('pending counts show zero available',pendingCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).creditUsage.remaining,0);
 record('request history records reason',pendingCenter.refunds.find(r=>r.id===part.id).reason,'합성 미사용분 환불 요청');
 record('duplicate customer request blocked',(await call('/api/member-center','hospital',{action:'refund_request',orderNumber:part.order.orderNumber,reason:'duplicate'})).status,409);
 record('partial recorded',(await submit(part,{body:pbody})).status,200);
@@ -212,6 +214,9 @@ record('paid used access preserved',sqlite.prepare("SELECT COUNT(*) n FROM talen
 record('partial amount matches ledger',sqlite.prepare("SELECT SUM(amount) n FROM payment_transactions WHERE order_id=? AND transaction_type='refund'").get(part.order.id).n,partAmount);
 const partCenter=(await call('/api/member-center','hospital')).data;
 record('member cumulative refund',partCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).refundedAmount,partAmount);
+record('partial counts retain two used',partCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).creditUsage.used,2);
+record('partial counts show zero available',partCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).creditUsage.remaining,0);
+record('partial counts explain service ended',partCenter.orders.find(o=>o.orderNumber===part.order.orderNumber).creditUsage.state,'ended');
 record('member result amount',partCenter.refunds.find(r=>r.id===part.id).amount,partAmount);
 record('member gets public explanation',partCenter.refunds.find(r=>r.id===part.id).customerMessage,pbody.evidence.customerMessage);
 record('internal evidence not exposed',JSON.stringify(partCenter.refunds).includes('synthetic merchant-console'),false);
@@ -260,6 +265,7 @@ record('rejection never creates cancellation',state(deny).refunds,0);
 const deniedCenter=(await call('/api/member-center','hospital')).data;
 record('member sees rejection reason',deniedCenter.refunds.find(r=>r.id===deny.id).customerMessage,rejectBody.reason);
 record('member sees rejection status',deniedCenter.refunds.find(r=>r.id===deny.id).status,'rejected');
+record('rejected counts return ten available',deniedCenter.orders.find(o=>o.orderNumber===deny.order.orderNumber).creditUsage.remaining,10);
 record('rejection notification once',deniedCenter.alerts.filter(r=>r.id==='refund-result-'+deny.id).length,1);
 record('rejected order allows new request',(await call('/api/member-center','hospital',{action:'refund_request',orderNumber:deny.order.orderNumber,reason:'새 증빙으로 재검토 요청'})).status,200);
 const failedNotice=await requestedFixture();
