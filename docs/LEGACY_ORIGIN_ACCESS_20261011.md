@@ -1,5 +1,23 @@
 # 전환 후 기존 랭크업 접근 준비
 
+## 2026-10-18 전환 후 재확인
+
+정식 www/apex는 새 Cloudflare 홈페이지다. 기존 서버 `121.254.171.115`는 보존돼 있고 별도 공개 URL은 아직 없다. 요청별 IP 지정으로 옛 홈 `/` 및 관리자 로그인 `/RAD/rankup_index/index.html`을 다시 읽어 **각각 HTTP200·원격121.254.171.115·TLS 검증 성공**을 확인했다. 홈의 Rankup 경로와 관리자 password 입력 폼도 확인했다.
+
+이 확인은 공개 DNS나 hosts를 바꾸지 않은 읽기 요청이다. 실제 로그인·저장·결제와 전체 원본 백업 복원을 검증한 것은 아니다. 일반 브라우저에서 현재 도메인이나 옛 관리자 경로를 클릭하면 새 Worker로 연결되므로 옛 사이트의 별도 바로가기로 안내하지 않는다.
+
+관리 PC의 임시 hosts 방식은 아래 절차대로 별도 적용할 수 있으나 이번에는 적용하지 않았다. 적용 중에는 해당 PC의 정식 주소가 모두 옛 사이트로 향하므로 사용자 작업과 새 사이트 검수를 섞지 않는다. 임의 서브도메인을 만들면 가상호스트·인증서·절대 링크·쿠키가 달라질 수 있어 추가 검증이 필요하다.
+
+읽기 전용 재확인 명령(시스템 설정 변경·로그인·폼 제출 없음):
+
+```text
+curl.exe --silent --show-error --max-time 25 --resolve www.medihelpers.co.kr:443:121.254.171.115 https://www.medihelpers.co.kr/ --output NUL --write-out "HTTP=%{http_code} remote=%{remote_ip} TLS=%{ssl_verify_result}"
+```
+
+TLS 검증을 끄는 `-k` 옵션은 사용하지 않는다. 증거 원문은 비공개 감사 폴더의 `docs-origin-home-20261018.html`, `docs-origin-login-20261018.html`에 보관했다. [현재 운영 현황](OPERATIONS_CURRENT.md), [전체 복귀 절차](ROLLBACK_RUNBOOK.md).
+
+## 2026-10-11 사전 확인 기록
+
 2026-10-11 공개 DNS와 PC hosts 파일을 변경하지 않고 curl의 요청별 `--resolve`로 기존 원본 서버에 직접 연결했다. 기존 로그인 쿠키·비밀번호를 사용하지 않았다. 인증서 검증을 끄는 옵션도 사용하지 않았다.
 
 | 요청 | HTTP | 실제 원격 IP | TLS 검증 |
