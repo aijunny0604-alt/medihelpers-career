@@ -24,7 +24,7 @@ test('auth-sensitive pages reuse the single app account lookup', async () => {
 
 test('member center follows the shared role immediately after a test-account switch', async () => {
   const source = await readFile(new URL('./MemberCenterPage.jsx', import.meta.url), 'utf8');
-  assert.match(source, /MemberCenterPage\(\{ route, qa, auth \}\)/);
+  assert.match(source, /MemberCenterPage\(\{ route, qa, auth, onNavigate/);
   assert.match(source, /role:auth\?\.role \|\| ''/);
   assert.match(source, /auth\?\.status, auth\?\.role, auth\?\.isAdmin, auth\?\.email/);
   assert.match(source, /setServerData\(\{ consultations: \[\], alerts: \[\]/);

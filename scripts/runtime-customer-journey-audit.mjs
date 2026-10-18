@@ -7,15 +7,17 @@ import {PRIVACY_FORM_VERSION} from '../src/privacyConsent.js';
 import worker from '../dist-cf/server/index.js';
 
 const db=new DatabaseSync(':memory:');
+const queryTrace=[];
 for(const file of (await readdir(new URL('../drizzle/',import.meta.url))).filter(f=>f.endsWith('.sql')).sort())db.exec(await readFile(new URL('../drizzle/'+file,import.meta.url),'utf8'));
 class Statement {
  constructor(sql,args=[]){this.sql=sql;this.args=args;}
  bind(...args){return new Statement(this.sql,args.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v));}
- async all(){return {results:db.prepare(this.sql).all(...this.args),success:true};}
+ async all(){queryTrace.push(this.sql);return {results:db.prepare(this.sql).all(...this.args),success:true};}
  async first(column){const row=(await this.all()).results[0]||null;return column?row?.[column]:row;}
- async run(){return {success:true,meta:{changes:Number(db.prepare(this.sql).run(...this.args).changes)}};}
+ async run(){queryTrace.push(this.sql);return {success:true,meta:{changes:Number(db.prepare(this.sql).run(...this.args).changes)}};}
 }
 const DB={prepare:sql=>new Statement(sql),exec:async sql=>db.exec(sql),batch:async list=>{
+ queryTrace.push(...list.map(s=>s.sql));
  db.exec('BEGIN');try{const result=list.map(s=>{const p=db.prepare(s.sql);return /^\s*(SELECT|PRAGMA)/i.test(s.sql)?{results:p.all(...s.args),success:true}:{success:true,meta:{changes:Number(p.run(...s.args).changes)}};});db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}
 }};
 const config=JSON.parse(await readFile(new URL('../deploy/cloudflare.live-with-legacy-replies.json',import.meta.url),'utf8'));
@@ -127,6 +129,21 @@ try{
  check('repeated refund cannot duplicate ledger',(await call('/api/admin-refund-review','admin',partial)).status,409);
  check('one partial refund row',one("SELECT COUNT(*) n FROM payment_transactions WHERE order_id=? AND transaction_type='refund'",pack.order.id).n,1);
  check('paid ad unaffected by ticket refund',(await call('/api/site-operations')).data.contents.some(c=>c.id===adId),true);
+ queryTrace.length=0;
+ const notifications=await call('/api/member-center?notificationsOnly=1','hospital');
+ check('lightweight notifications authorized',notifications.status,200);
+ check('lightweight notifications match full member view',JSON.stringify(notifications.data.alerts),JSON.stringify(refunded.alerts));
+ check('notification reads do not update posts or paid ads',queryTrace.some(sql=>/^(UPDATE|INSERT|DELETE)/i.test(sql)),false);
+ check('notification reads do not load payment ledger',queryTrace.some(sql=>/payment_orders|payment_refunds|talent_credits/.test(sql)),false);
+ queryTrace.length=0;
+ check('account still returns trusted hospital profile',(await call('/api/account','hospital')).data.hospitalProfile.businessNumber,'1234567890');
+ check('account lookup does not run post expiration',queryTrace.some(sql=>/UPDATE job_seeker_posts/.test(sql)),false);
+ // Public board reads must still expire old posts before returning any content.
+ db.prepare("UPDATE job_seeker_posts SET status='active',public_until='2000-01-01 00:00:00' WHERE id=?").run(post.data.post.id);
+ const expiredBoard=await call('/api/site-operations','hospital');
+ check('expired post stays hidden after optimization',expiredBoard.data.contents.some(c=>c.id==='seeker-'+post.data.post.id),false);
+ check('expiration records state change',one('SELECT status FROM job_seeker_posts WHERE id=?',post.data.post.id).status,'closed');
+
  for(const role of ['doctor','hospital','admin']){check(role+' logout',(await call('/api/auth/logout',role,{})).status,200);check(role+' expired session blocked',(await call('/api/member-center',role)).status,401);}
  check('only simulated provider approvals',pgCalls,2);
  check('database integrity',one('PRAGMA integrity_check').integrity_check,'ok');
@@ -143,6 +160,7 @@ if(process.argv.includes('--serve')&&!process.exitCode){
  globalThis.fetch=async()=>{throw Error('External network disabled in local visual audit');};
  createServer(async(req,res)=>{
   try{
+   console.log('UI request: '+req.method+' '+req.url);
    const role=req.url.match(/^\/__login\/(doctor|hospital|admin)$/)?.[1];
    if(role){const login=await call('/api/auth/login','',{email:'journey-'+role+'@example.invalid',password});res.writeHead(302,{'set-cookie':login.cookie+'; Path=/; HttpOnly; SameSite=Lax',location:'/mypage?tab=payments'});res.end();return;}
    const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);

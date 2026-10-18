@@ -378,13 +378,13 @@ const postPublicUntil = ${postPublicUntil.toString()}
 ${resumePublicationMissing.toString()};
 async function expireJobPosts(env) {
   // Backfill legacy deadlines separately from schema migrations; month ends clamp.
-  await env.DB.prepare("UPDATE job_seeker_posts SET public_until=datetime(min(date(updated_at,'+9 hours','+5 months'),date(updated_at,'+9 hours','start of month','+6 months','-1 day')) || ' ' || time(updated_at,'+9 hours'),'-9 hours') WHERE public_until='' AND status<>'deleted'").run();
   await env.DB.batch([
+    env.DB.prepare("UPDATE job_seeker_posts SET public_until=datetime(min(date(updated_at,'+9 hours','+5 months'),date(updated_at,'+9 hours','start of month','+6 months','-1 day')) || ' ' || time(updated_at,'+9 hours'),'-9 hours') WHERE public_until='' AND status<>'deleted'"),
     env.DB.prepare("INSERT INTO member_activity (id,account_id,event_type,title,detail) SELECT 'auto-hide-' || id || '-' || public_until,account_id,'job_seeker_post_auto_hide','5개월 동안 관리하지 않은 구직글이 자동 비공개되었습니다.',title FROM job_seeker_posts WHERE status='active' AND public_until<=CURRENT_TIMESTAMP ON CONFLICT(id) DO NOTHING"),
     env.DB.prepare("UPDATE job_seeker_posts SET status='closed', hidden_reason='inactive' WHERE status='active' AND public_until<=CURRENT_TIMESTAMP")
   ]);
 }
-async function ensureMemberCenterSchema(env) {
+async function ensureMemberCenterSchema(env, { expirePosts = true } = {}) {
   // 기존 운영 DB에도 구직글 원장과 이력서 연결을 추가하도록 최신 테이블을 probe로 사용한다.
   await ensureSchemaGroup(env, 'member-center', 'SELECT 1 FROM job_seeker_posts, member_registration_profiles LIMIT 0', memberCenterSchemaStatements, 'MEMBER_CENTER_DB_UNAVAILABLE');
   if (!schemaReadyPromises.has('job-post-contacts-v1')) {
@@ -416,7 +416,7 @@ async function ensureMemberCenterSchema(env) {
   }
   if (!schemaReadyPromises.has('multiple-job-posts-v1')) schemaReadyPromises.set('multiple-job-posts-v1',env.DB.prepare('DROP INDEX IF EXISTS job_seeker_posts_active_resume_idx').run().catch(error=>{schemaReadyPromises.delete('multiple-job-posts-v1');throw error;}));
   await schemaReadyPromises.get('multiple-job-posts-v1');
-  await expireJobPosts(env);
+  if (expirePosts) await expireJobPosts(env);
   try { await schemaReadyPromises.get('member-unlock-date-v1'); }
   catch (error) { schemaReadyPromises.delete('member-unlock-date-v1'); throw error; }
 }
@@ -1512,10 +1512,9 @@ async function accountApi(request, env, ctx) {
   if (request.method === 'GET') {
     // Stopping new registration must not hide an existing member's account/profile.
     if (!identity) return json({ signupEnabled: enabled, testAccountsEnabled:testAccountSwitchEnabled(env), signedIn: false, account: null, identity: {}, isAdmin: false, welcomeEmailAvailable, adminSignupEmailAvailable });
-    try { await ensureAccountSchema(env); await ensureMemberCenterSchema(env); await ensureCommerceSchema(env); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+    try { await Promise.all([ensureAccountSchema(env), ensureMemberCenterSchema(env, { expirePosts:false })]); } catch { return json({ error: '회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
     const key = identityKey(identity);
     const row = await env.DB.prepare('SELECT id, role, created_at AS createdAt FROM accounts WHERE user_key = ?').bind(key).first();
-    if (row) await env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, last_login_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(row.id, identity.email, identity.displayName || '').run();
     // 증빙 원본/저장 키는 제외하고 로그인한 본인에게만 가입 시 작성한 기본값을 반환한다.
     let profile = null;
     let registrationProfile = null;
@@ -1525,6 +1524,7 @@ async function accountApi(request, env, ctx) {
         const results = await env.DB.batch([
           env.DB.prepare('SELECT display_name AS name, phone, organization, job_title AS jobTitle FROM member_profiles WHERE account_id = ?').bind(row.id),
           env.DB.prepare('SELECT profile_json AS profileJson FROM member_registration_profiles WHERE account_id = ?').bind(row.id),
+          env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, last_login_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, last_login_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP").bind(row.id, identity.email, identity.displayName || ''),
         ]);
         profile = results[0]?.results?.[0] || null;
         registrationProfile = parseJsonObject(results[1]?.results?.[0]?.profileJson) || null;
@@ -1744,7 +1744,13 @@ async function memberCenterApi(request, env) {
   const identity = await authenticatedUser(request, env);
   if (!identity) return json({ signedIn:false, account:null, identity:{} }, 401);
   if (!env.ACCOUNT_HASH_SECRET || String(env.ACCOUNT_HASH_SECRET).length < 32) return json({ error:'회원 보안 설정을 확인해주세요.' }, 503);
-  try { await Promise.all([ensureAccountSchema(env), ensureConsultationSchema(env), ensureMemberCenterSchema(env), ensureCommerceSchema(env), ensureTalentCreditSchema(env)]); } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
+  const notificationsOnly = request.method === 'GET' && new URL(request.url).searchParams.get('notificationsOnly') === '1';
+  try {
+    await Promise.all([
+      ensureAccountSchema(env), ensureMemberCenterSchema(env, { expirePosts:!notificationsOnly }),
+      ...(notificationsOnly ? [] : [ensureConsultationSchema(env), ensureCommerceSchema(env), ensureTalentCreditSchema(env)])
+    ]);
+  } catch { return json({ error:'회원 데이터 저장소를 사용할 수 없습니다.' }, 503); }
   const key = identityKey(identity);
   const account = await env.DB.prepare("SELECT a.id, a.role, a.created_at AS createdAt, COALESCE(ap.status,'active') status FROM accounts a LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE a.user_key = ?").bind(key).first();
   // 관리자 여부를 함께 내려준다(마이페이지가 관리자를 운영 콘솔로 안내하도록).
@@ -1752,15 +1758,15 @@ async function memberCenterApi(request, env) {
   if (!account) return json({ signedIn:true, account:null, identity:publicIdentity(identity), isAdmin });
   if (account.status !== 'active') return json({ error:account.status === 'suspended' ? '이용이 정지된 계정입니다. 관리자에게 문의해주세요.' : '탈퇴 처리된 계정입니다.' }, 403);
   if (request.method === 'GET') {
-    if ((account.role === 'hospital' || isAdmin)) {
-      await ensureSchemaGroup(env, 'hospital-member-dependencies', 'SELECT 1 FROM admin_content_records, candidate_submissions LIMIT 0', [...adminConsoleSchemaStatements, ...recruitmentCrmSchemaStatements], 'MEMBER_CENTER_DB_UNAVAILABLE');
-      await publishLegacyPaidAdContentRecords(env);
-    }
     const alertStatement = env.DB.prepare("SELECT id, kind, title, body, action_url AS actionUrl, read_at AS readAt, created_at AS createdAt FROM member_notifications WHERE account_id=? AND kind<>'inquiry_reply' ORDER BY created_at DESC LIMIT 100").bind(account.id);
-    if (new URL(request.url).searchParams.get('notificationsOnly') === '1') {
+    if (notificationsOnly) {
       const alertRows = await alertStatement.all();
       const alerts = alertRows.results || [];
       return json({ signedIn:true, alerts, unreadCount:alerts.reduce((count, item) => count + (item.readAt ? 0 : 1), 0) });
+    }
+    if ((account.role === 'hospital' || isAdmin)) {
+      await ensureSchemaGroup(env, 'hospital-member-dependencies', 'SELECT 1 FROM admin_content_records, candidate_submissions LIMIT 0', [...adminConsoleSchemaStatements, ...recruitmentCrmSchemaStatements], 'MEMBER_CENTER_DB_UNAVAILABLE');
+      await publishLegacyPaidAdContentRecords(env);
     }
     // 전체 마이페이지는 모든 SELECT를 D1 batch 한 번으로 전송한다. 개별 Promise를 여러 개
     // 보내는 것보다 왕복 횟수와 네트워크 편차가 줄고, 결과 순서는 이름 맵으로 안전하게 복원한다.
@@ -3064,8 +3070,7 @@ async function publicCategoriesApi(request, env) {
 }
 async function publicSiteOperationsApi(request, env) {
   if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
-  await ensureAdminConsoleSchema(env);
-  await ensureMemberCenterSchema(env);
+  await Promise.all([ensureAdminConsoleSchema(env), ensureMemberCenterSchema(env)]);
   await seedAdminConsole(env);
   // 이전 버전에서 결제 완료 후 공개 전 상태로 남은 공고도 첫 공개 조회 때 자동 게시한다.
   await publishLegacyPaidAdContentRecords(env);
@@ -3073,7 +3078,7 @@ async function publicSiteOperationsApi(request, env) {
   const allowedVisibility = new Set(['public']);
   const identity = await authenticatedUser(request, env);
   let viewerAccount = null;
-  if (await adminIdentity(request, env)) ['doctor','hospital','admin'].forEach(value => allowedVisibility.add(value));
+  if (identity && isAdminEmail(identityPrincipal(identity), env)) ['doctor','hospital','admin'].forEach(value => allowedVisibility.add(value));
   else if (identity && env.ACCOUNT_HASH_SECRET) {
     try {
       await ensureAccountSchema(env);
@@ -3082,10 +3087,10 @@ async function publicSiteOperationsApi(request, env) {
       if (viewerAccount?.role) allowedVisibility.add(viewerAccount.role);
     } catch {}
   }
-  const [settingsResult, featuresResult, contentResult] = await Promise.all([
-    env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings').all(),
-    env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags').all(),
-    env.DB.prepare("SELECT id, content_type AS contentType, title, subtitle, visibility, payload_json AS payloadJson, sort_order AS sortOrder, published_at AS publishedAt, updated_at AS updatedAt FROM admin_content_records WHERE status='published' ORDER BY sort_order DESC, published_at DESC, updated_at DESC LIMIT 500").all()
+  const [settingsResult, featuresResult, contentResult] = await env.DB.batch([
+    env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings'),
+    env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags'),
+    env.DB.prepare("SELECT id, content_type AS contentType, title, subtitle, visibility, payload_json AS payloadJson, sort_order AS sortOrder, published_at AS publishedAt, updated_at AS updatedAt FROM admin_content_records WHERE status='published' ORDER BY sort_order DESC, published_at DESC, updated_at DESC LIMIT 500")
   ]);
   const settings = Object.fromEntries((settingsResult.results || []).map(row => [row.settingKey, row.settingValue]));
   const features = Object.fromEntries((featuresResult.results || []).map(row => [row.flagKey, Boolean(row.enabled)]));

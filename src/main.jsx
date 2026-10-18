@@ -61,8 +61,25 @@ import { formatKoreanPhone } from './signupFields.js';
 import { createSavedItemsController } from './savedItemsController.js';
 import { decodeRouteId, isValidRoutePath } from './routeInput.js';
 import { notify } from './browserStorage.js';
+import { internalScreenRoute, canHandleNavigationClick } from './navigationPolicy.js';
+import { startVisiblePolling } from './visiblePolling.js';
 
 const AccountPage = lazy(() => import('./AccountPage.jsx'));
+
+// Fetch page code on explicit navigation intent; no account or payment data is prefetched.
+function preloadScreen(route) {
+  const path = route.split('?')[0];
+  let load;
+  if (path === '/login' || path === '/account' || path.startsWith('/signup')) load = () => import('./AccountPage.jsx');
+  else if (path.startsWith('/mypage') || path === '/member-center') load = () => import('./MemberCenterPage.jsx');
+  else if (path.startsWith('/admin')) load = () => import('./AdminConsolePage.jsx');
+  else if (path.startsWith('/medical-staff')) load = () => import('./MedicalStaffPage.jsx');
+  else if (path === '/account/recovery') load = () => import('./AccountRecoveryPage.jsx');
+  else if (path === '/resume') load = () => import('./ResumePage.jsx');
+  else if (path.startsWith('/job-seeker-posts/')) load = () => import('./JobSeekerPostPage.jsx');
+  else if (path.startsWith('/request/')) load = () => import('./HeadHunterRequestPage.jsx');
+  if (load) void load().catch(() => {});
+}
 const SignupWelcomePage = lazy(() => import('./AccountPage.jsx').then(m => ({ default: m.SignupWelcomePage })));
 
 installAuthenticatedFetch();
@@ -535,11 +552,16 @@ function Header({ path, qa, operations, auth }) {
         if (active && response.ok) setUnreadCount(Number(payload.unreadCount || 0));
       } catch {}
     };
-    refresh();
-    const timer = window.setInterval(refresh, 30000);
-    window.addEventListener('medihelpers:notifications-changed', refresh);
-    return () => { active = false; window.clearInterval(timer); window.removeEventListener('medihelpers:notifications-changed', refresh); };
-  }, [isSignedIn, isAdminUser, auth.role]);
+    // Mypage already loads the same alerts. Let that screen publish the count.
+    const memberScreen = path === '/mypage' || path.startsWith('/mypage/') || path === '/member-center';
+    const polling = memberScreen ? null : startVisiblePolling(refresh);
+    const onChanged = (event) => {
+      if (Number.isFinite(event.detail?.unreadCount)) setUnreadCount(Math.max(0, event.detail.unreadCount));
+      else void polling?.refresh();
+    };
+    window.addEventListener('medihelpers:notifications-changed', onChanged);
+    return () => { active = false; polling?.stop(); window.removeEventListener('medihelpers:notifications-changed', onChanged); };
+  }, [isSignedIn, isAdminUser, auth.role, auth.email, path]);
   const signOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
@@ -3639,6 +3661,31 @@ function Toaster() {
 }
 
 export function App() {
+  useEffect(() => {
+    const routeFor = (anchor) => anchor && internalScreenRoute(anchor.getAttribute('href'), window.location.href, appBase);
+    const onClick = (event) => {
+      const anchor = event.target?.closest?.('a[href]');
+      if (!anchor || !canHandleNavigationClick(event, anchor)) return;
+      const route = routeFor(anchor);
+      if (route === null) return;
+      event.preventDefault();
+      navigate(route);
+    };
+    const onIntent = (event) => {
+      const anchor = event.target?.closest?.('a[href]');
+      if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+      const route = routeFor(anchor);
+      if (route !== null) preloadScreen(route);
+    };
+    document.addEventListener('click', onClick);
+    document.addEventListener('pointerover', onIntent);
+    document.addEventListener('focusin', onIntent);
+    return () => {
+      document.removeEventListener('click', onClick);
+      document.removeEventListener('pointerover', onIntent);
+      document.removeEventListener('focusin', onIntent);
+    };
+  }, []);
   const rawRoute = useRoute();
   const rawPath = rawRoute.split('?')[0].replace(/\/$/, '') || '/';
   const search = rawRoute.includes('?') ? `?${rawRoute.split('?')[1]}` : '';
@@ -3744,7 +3791,7 @@ export function App() {
   else if (path === '/qa-preview') page = <NotFoundPage />;
   else if (path === '/admin/consultations' || path === '/admin/recruitment-crm' || path === '/admin/post') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
   else if (path === '/admin' || path === '/admin/console') page = <AdminConsolePage qa={qa.active && qa.info.capabilities.admin} />;
-  else if (path === '/mypage' || path.startsWith('/mypage/inquiries/') || path.startsWith('/mypage/ads/') || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} auth={auth} />;
+  else if (path === '/mypage' || path.startsWith('/mypage/inquiries/') || path.startsWith('/mypage/ads/') || path === '/member-center') page = <MemberCenterPage route={path === '/member-center' ? route.replace('/member-center', '/mypage') : route} qa={qa} auth={auth} onNavigate={navigate} />;
   else if (path === '/account/recovery') page = <AccountRecoveryPage />;
   else if (path === '/login') page = <AccountPage loginOnly auth={auth} />;
   else if (path === '/signup/welcome') page = <SignupWelcomePage auth={auth} />;

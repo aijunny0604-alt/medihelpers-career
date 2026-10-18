@@ -1,3 +1,4 @@
+import { startVisiblePolling } from './visiblePolling.js';
 import { decodeRouteId, memberTab } from './routeInput.js';
 import TalentCreditUsage from './TalentCreditUsage.jsx';
 import RefundHistory from './RefundHistory.jsx';
@@ -170,7 +171,7 @@ function HeadhunterMessagePanel({ role, profile, professionType = '', specialty 
   </section>;
 }
 
-export default function MemberCenterPage({ route, qa, auth }) {
+export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) => window.location.assign(withBase(path)) }) {
   const params = new URLSearchParams(route.split('?')[1] || '');
   const routePath = route.split('?')[0].replace(/\/$/, '');
   const requestedTab = params.get('tab');
@@ -291,7 +292,7 @@ export default function MemberCenterPage({ route, qa, auth }) {
   }, [qa.active, auth?.status, auth?.role, auth?.isAdmin, auth?.email]);
 
   useEffect(() => {
-    if (qa.active || !accountState.signedIn) return undefined;
+    if (qa.active || accountState.loading || accountState.failed || !accountState.signedIn) return undefined;
     let active = true;
     let previousUnread = Number(serverData.unreadCount) || 0;
     const refresh = async () => {
@@ -307,9 +308,15 @@ export default function MemberCenterPage({ route, qa, auth }) {
         window.dispatchEvent(new CustomEvent('medihelpers:notifications-changed', { detail:{ unreadCount:nextUnread } }));
       } catch {}
     };
-    const timer = window.setInterval(refresh, 30000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [qa.active, accountState.signedIn]);
+    const polling = startVisiblePolling(refresh, { immediate:false });
+    return () => { active = false; polling.stop(); };
+  }, [qa.active, accountState.loading, accountState.failed, accountState.signedIn, auth?.email, auth?.role]);
+
+  useEffect(() => {
+    if (!qa.active && !accountState.loading && accountState.signedIn) {
+      window.dispatchEvent(new CustomEvent('medihelpers:notifications-changed', { detail:{ unreadCount:Number(serverData.unreadCount) || 0 } }));
+    }
+  }, [qa.active, accountState.loading, accountState.signedIn, serverData.unreadCount]);
 
   // 관심공고(저장한 공고). 서버 API는 있었지만 화면에서 한 번도 호출하지 않아 마이페이지에 보이지 않았다.
   // 서버는 saved를 jobId '문자열 배열'로 준다(saved_jobs 테이블에 제목·과·지역 컬럼이 없음).
@@ -487,11 +494,11 @@ export default function MemberCenterPage({ route, qa, auth }) {
   const openInquiry = (inquiry) => {
     const id = inquiry?.id;
     if (!id) return;
-    window.location.href = withBase(`/mypage/inquiries/${encodeURIComponent(id)}`);
+    onNavigate(`/mypage/inquiries/${encodeURIComponent(id)}`);
   };
   const selectMemberTab = (id) => {
     if (requestedInquiryId || requestedAdEditId) {
-      window.location.href = withBase(`/mypage?tab=${encodeURIComponent(id)}`);
+      onNavigate(`/mypage?tab=${encodeURIComponent(id)}`);
       return;
     }
     setTab(id);

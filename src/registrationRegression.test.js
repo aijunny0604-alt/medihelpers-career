@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { operationalDoctorJobs } from './siteOperations.js';
 
 const source = await readFile(new URL('../scripts/package-sites.mjs', import.meta.url), 'utf8');
-const start = source.indexOf('async function ensureMemberCenterSchema(env)');
+const start = source.indexOf('async function ensureMemberCenterSchema(');
 const code = source.slice(start, source.indexOf('async function ensureCommerceSchema', start));
 
 for (const column of ['created_at', 'unlocked_at']) {
