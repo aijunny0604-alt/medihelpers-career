@@ -51,6 +51,8 @@ try{
  const profile={displayName:'격리 관리자',phone:'010-0000-0000',organization:'',jobTitle:'운영자',email:'forged@example.invalid',role:'hospital'};
  check('nonadmin cannot edit registration identity',(await call('/api/member-center','doctor',{profile},'PATCH')).status,403);
  check('admin can save own billing profile',(await call('/api/member-center','admin',{profile},'PATCH')).status,200);
+ check('invalid billing contact rejected',(await call('/api/member-center','admin',{profile:{phone:'not-a-phone'}},'PATCH')).status,400);
+ check('bad contact does not overwrite saved data',one('SELECT phone FROM member_profiles WHERE account_id=?',ids.admin).phone,profile.phone);
  check('profile cannot change stored role',one('SELECT role FROM accounts WHERE id=?',ids.admin).role,'doctor');
  check('profile cannot change login principal',one('SELECT email_normalized email FROM auth_credentials WHERE account_id=?',ids.admin).email,emails.admin);
  check('profile visible after refresh',(await call('/api/account','admin')).data.profile.phone,'010-0000-0000');

@@ -2003,6 +2003,7 @@ async function memberCenterApi(request, env) {
     if (!isAdmin && Object.keys(proposed).some(key => ['displayName','phone','organization','jobTitle'].includes(key) && String(proposed[key] || '') !== String(previousProfile?.[key] || ''))) return json({ error:'가입한 회원정보는 직접 변경할 수 없습니다. 정보 정정은 고객센터에 문의해주세요.' },403);
     // 본인 프로필의 허용 필드만 정정한다. 이메일·회원 유형·관리자 지정은 바꾸지 않는다.
     const profile = cleanMemberProfile(isAdmin ? { ...previousProfile, ...proposed } : previousProfile || {});
+    if (isAdmin && profile.phone && normalizeContactPhone(profile.phone) === null) return json({ error:'연락처 형식을 확인해주세요. 숫자와 하이픈으로 올바른 전화번호를 입력해주세요.' },400);
     const preferences = Object.fromEntries(['email','sms','service','marketing'].map(key => [key, Object.hasOwn(preferenceInput,key) ? preferenceInput[key] : previousPreferences ? Boolean(previousPreferences[key]) : key !== 'marketing']));
     if (preferences.marketing === true && body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'선택 이메일 수신 안내를 확인해주세요.' }, 400);
     const marketingEvents = Boolean(previousPreferences?.marketing) !== (preferences.marketing === true) ? [consentEvent(env, account.id, 'marketing', account.id, '', preferences.marketing === true)] : [];
