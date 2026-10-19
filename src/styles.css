@@ -6586,7 +6586,8 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .home-keyword-input button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:44px;min-height:44px;border:0;border-radius:10px;background:#edf4ff;color:#1263e8;cursor:pointer;flex-shrink:0;font:inherit;font-weight:700}
 .home-keyword-input .home-keyword-submit{padding:0 18px;background:#1263e8;color:white}
 .home-keyword-search>small{display:block;margin-top:8px;color:#66768c;line-height:1.6}
-.home-search-results{margin-top:20px;padding-top:18px;border-top:1px solid #e1e9f4}
+.home-keyword-input input::-webkit-search-cancel-button{display:none}
+.home-search-results{margin:0 0 20px;padding:14px 16px;border:1px solid #e1e9f4;border-radius:14px;background:#f8fbff}
 .home-search-results-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .home-search-results-head button{min-height:44px;padding:8px;border:0;background:transparent;color:#526780;cursor:pointer;font:inherit}
 .home-search-results ul{list-style:none;margin:5px 0;padding:0}

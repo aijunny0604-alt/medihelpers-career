@@ -30,6 +30,6 @@ export function matchesKeywords(fields, keyword) {
 export function matchesJobKeywords(job, keyword) {
   return matchesKeywords([
     job.hospital, job.title, job.summary, job.location, job.region, job.dept,
-    job.type, job.recruitmentType, job.schedule, job.pay, ...(job.benefits || []),
+    job.type, job.recruitmentType, job.schedule, job.pay, ...(Array.isArray(job.benefits) ? job.benefits : []),
   ], keyword);
 }
