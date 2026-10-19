@@ -38,7 +38,11 @@ const consoleData=await call('/api/admin-console','admin');record('admin sees pe
 const resumeInput={title:'동의 검수',name:'가상 의료인',phone:'01000000000',createNew:true};
 const signupInput={email:'privacy-audit@example.invalid',password:'Audit-test-2026!',role:'doctor',displayName:'가상 가입자',phone:'01000000000',professionType:'의사',termsAccepted:true,privacyAcknowledged:true,ageConfirmed:true};
 record('signup rejects stale privacy notice',(await call('/api/auth/register','',{...signupInput,privacyVersion:null})).status,400);
-record('signup optional fields require separate consent',(await call('/api/auth/register','',{...signupInput,specialty:'내과',optionalPrivacyConsent:false})).status,400);
+record('signup ignores unconsented optional information',(await call('/api/auth/register','',{...signupInput,email:'optional-denied@example.invalid',specialty:'내과',organization:'내과',jobTitle:'임의선택정보',optionalPrivacyConsent:false})).status,201);
+const optionalDenied=sqlite.prepare("SELECT a.account_id,m.organization,m.job_title,r.profile_json FROM auth_credentials a JOIN member_profiles m ON m.account_id=a.account_id JOIN member_registration_profiles r ON r.account_id=a.account_id WHERE a.email_normalized='optional-denied@example.invalid'").get();
+record('optional specialty discarded',JSON.parse(optionalDenied.profile_json).specialty,'');
+record('optional organization alias discarded',optionalDenied.organization,'');
+record('optional title alias discarded',optionalDenied.job_title,'의사');
 record('signup succeeds without optional information',(await call('/api/auth/register','',signupInput)).status,201);
 record('signup accepts separately agreed optional information',(await call('/api/auth/register','',{...signupInput,email:'privacy-optional@example.invalid',specialty:'내과',optionalPrivacyConsent:true})).status,201);
 record('signup optional consent snapshot saved',sqlite.prepare("SELECT COUNT(*) n FROM processing_consent_events WHERE scope='signupOptional'").get().n,1);

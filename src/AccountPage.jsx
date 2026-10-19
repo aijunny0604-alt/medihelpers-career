@@ -71,7 +71,8 @@ const roleContent = {
 const FIELD_META = {
   name: { label: '담당자 성명', type: 'text', autoComplete: 'name', placeholder: '예: 홍길동' },
   phone: { label: '휴대폰 번호', type: 'tel', autoComplete: 'tel', inputMode: 'numeric', placeholder: '010-1234-5678', phone: true, maxLength: 13, hint: '숫자만 입력해도 하이픈이 자동으로 표시됩니다. 상담·채용 연락에만 사용합니다.' },
-  email: { label: '로그인 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '별도 아이디 없이 이메일을 로그인 아이디로 사용합니다.', wide: true, compact: true },
+  loginId: { label: '아이디', type: 'text', autoComplete: 'username', placeholder: '영문·숫자 4~30자', maxLength: 30, hint: '영문·숫자·밑줄·하이픈을 사용할 수 있습니다. 대소문자를 구분합니다.', wide: true, compact: true },
+  email: { label: '연락 이메일', type: 'email', autoComplete: 'email', inputMode: 'email', placeholder: 'hr@hospital.co.kr', hint: '계정 복구와 서비스 안내에 사용합니다. 로그인은 아이디로 할 수 있습니다.', wide: true, compact: true },
   password: { label: '비밀번호', type: 'password', autoComplete: 'new-password', placeholder: '영문·숫자 포함 8~128자', hint: '영문과 숫자를 모두 포함해 8~128자로 만들어주세요.' },
   passwordConfirm: { label: '비밀번호 확인', type: 'password', autoComplete: 'new-password', placeholder: '비밀번호를 한 번 더 입력' },
   professionType: {
@@ -130,7 +131,7 @@ function MemberTypeChooser() {
       <a className="doctor-choice" href={withBase('/signup/doctor')}><span><Stethoscope /></span><div><small>INDIVIDUAL · 의료인 회원</small><strong>채용정보를 찾고 있어요</strong><p>의사·의료인 채용정보 · 비공개 상담 · 이력서 관리</p><b>의료인 회원으로 시작하기 <ArrowRight /></b></div></a>
       <a className="hospital-choice" href={withBase('/signup/hospital')}><span><Building2 /></span><div><small>HOSPITAL · 병원 회원</small><strong>의사를 채용하고 싶어요</strong><p>초빙공고 등록 · 후보 추천 · 채용 진행 관리</p><b>병원 회원으로 시작하기 <ArrowRight /></b></div></a>
     </div>
-    <div className="signup-existing-account">이미 메디헬퍼스 계정이 있으신가요? <a href={withBase('/login')}>이메일로 로그인</a></div>
+    <div className="signup-existing-account">이미 메디헬퍼스 계정이 있으신가요? <a href={withBase('/login')}>아이디로 로그인</a></div>
   </section>;
 }
 
@@ -275,19 +276,18 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
 // 정식 오픈 전(백엔드 signupEnabled=false)에서 동작하는 프론트엔드 전용 회원가입 신청 폼입니다.
 
 
-function AgreementItem({ id, checked, onChange, title, children, confirmation = '동의합니다' }) {
+function AgreementItem({ id, checked, onChange, title, children, optional = false }) {
   return <article className="signup-agreement-item">
     <div className="signup-agreement-heading">
       <label htmlFor={id}>
         <input id={id} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-        <span><b>필수</b><strong>{title}</strong></span>
+        <span><b className={optional ? 'is-optional' : ''}>{optional ? '선택' : '필수'}</b><strong>{title}</strong></span>
       </label>
       <details>
         <summary>내용 보기</summary>
         <div className="signup-legal-copy">{children}</div>
       </details>
     </div>
-    <p>{confirmation}</p>
   </article>;
 }
 
@@ -311,7 +311,7 @@ function PrivacyCopy({ memberType }) {
     <h4>개인정보 수집·이용 안내</h4>
     <dl>
       <div><dt>수집 목적</dt><dd>회원 식별과 본인확인, 계정 보안, 상담·채용 서비스 제공, 문의 처리, 결제·계약 내역 관리</dd></div>
-      <div><dt>필수 항목</dt><dd>이름, 휴대폰 번호, 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 병원명, 대표자명, 사업자등록번호, 주소, 사업자등록증 제출 파일' : ', 의료 직군, 활동 지역'}</dd></div>
+      <div><dt>필수 항목</dt><dd>아이디, 비밀번호 단방향 해시, 이름, 휴대폰 번호, 연락 이메일, 회원 유형, 가입·약관 동의 일시와 버전{memberType === 'hospital' ? ', 병원명, 대표자명, 사업자등록번호, 주소, 사업자등록증 제출 파일' : ', 의료 직군, 활동 지역'}</dd></div>
       <div><dt>보유 기간</dt><dd>회원정보는 탈퇴 시까지, 상담·채용 연결 기록은 상담 종료 후 3년까지 보유합니다. {memberType === 'hospital' ? '사업자등록증은 확인 완료 시 삭제하며 제출 후 최대 30일 보관합니다. 확인 결과·일시는 탈퇴 시까지 보관합니다. ' : ''}계약·결제 기록은 관계 법령에 따라 5년, 소비자 불만·분쟁처리 기록은 3년간 분리 보관합니다.</dd></div>
       <div><dt>처리 근거</dt><dd>계정 생성·관리에 필요한 최소정보는 서비스 계약 이행을 위해 처리합니다. 아래 확인은 처리방침 전체에 대한 포괄 동의가 아닙니다. 상담·이력서 제출과 병원 제공 시에는 별도 안내와 동의를 받습니다.</dd></div>
       <div><dt>처리 위탁·국외 보관</dt><dd>Cloudflare의 호스팅·보관 서비스와 미국 Resend의 계정 안내 메일 발송 서비스를 이용합니다. 이전 항목·시점·기간·거부 방법은 <a href={withBase('/privacy')} target="_blank" rel="noreferrer">개인정보처리방침 04항</a>에서 확인해주세요.</dd></div>
@@ -399,12 +399,11 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     event.preventDefault();
     if (submitLock.current) return;
     setSubmittedOnce(true);
-    const validation = validateApplicationDraft(draft, memberType);
     const optionalFields = ['specialty','birthYear','gender','institutionType','hospitalRole','department','addressDetail','website','fax'];
-    if (optionalFields.some(key => String(draft[key] || '').trim()) && !optionalPrivacyConsent) {
-      setErrors({ submit:'추가 회원정보 수집·이용에 동의하거나 선택 입력 항목을 비워주세요.' });
-      return;
-    }
+    // 미동의 선택정보는 검증·전송 대상에서 제외한다. 필수 정보는 그대로 검증한다.
+    const submittedDraft = { ...draft };
+    if (!optionalPrivacyConsent) for (const key of optionalFields) submittedDraft[key] = '';
+    const validation = validateApplicationDraft(submittedDraft, memberType);
     if (memberType === 'hospital' && !businessDocument) {
       validation.valid = false;
       validation.errors.businessDocument = '사업자등록증 파일을 첨부해주세요.';
@@ -443,23 +442,24 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     try {
       const payload = {
         role: memberType,
-        email: draft.email,
-        password: draft.password,
-        displayName: draft.name,
-        phone: draft.phone,
-        hospitalName: draft.hospitalName,
-        institutionType: draft.institutionType,
-        hospitalRole: draft.hospitalRole,
-        representativeName: draft.representativeName,
-        businessNumber: draft.businessNumber,
-        address: draft.address,
-        addressDetail: draft.addressDetail,
-        website: normalizeWebsiteUrl(draft.website) || String(draft.website || '').trim(),
-        fax: draft.fax,
-        department: draft.department,
-        professionType: draft.professionType,
-        specialty: draft.specialty,
-        region:draft.region, birthYear:draft.birthYear, gender:draft.gender,
+        loginId: submittedDraft.loginId,
+        email: submittedDraft.email,
+        password: submittedDraft.password,
+        displayName: submittedDraft.name,
+        phone: submittedDraft.phone,
+        hospitalName: submittedDraft.hospitalName,
+        institutionType: submittedDraft.institutionType,
+        hospitalRole: submittedDraft.hospitalRole,
+        representativeName: submittedDraft.representativeName,
+        businessNumber: submittedDraft.businessNumber,
+        address: submittedDraft.address,
+        addressDetail: submittedDraft.addressDetail,
+        website: normalizeWebsiteUrl(submittedDraft.website) || String(submittedDraft.website || '').trim(),
+        fax: submittedDraft.fax,
+        department: submittedDraft.department,
+        professionType: submittedDraft.professionType,
+        specialty: submittedDraft.specialty,
+        region:submittedDraft.region, birthYear:submittedDraft.birthYear, gender:submittedDraft.gender,
         optionalPrivacyConsent, hospitalDocumentConsent, privacyVersion:PRIVACY_FORM_VERSION,
         termsAccepted: true,
         privacyAcknowledged: true,
@@ -499,11 +499,11 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       {memberType === 'hospital' ? <>
         <section className="signup-form-section">
           <header><span>01</span><div><h3>담당자 계정</h3><p>공고·문의·결제 알림을 실제로 받을 담당자 정보를 입력해주세요.</p></div></header>
-          <div className="signup-field-grid">{hospitalAccountFields().map(renderField)}</div>
+          <div className="signup-field-grid">{hospitalAccountFields().filter(field => !FIELD_META[field].optional).map(renderField)}</div>
         </section>
         <section className="signup-form-section hospital-info-section">
           <header><span>02</span><div><h3>병원·기관 정보</h3><p>의사가 신뢰할 수 있는 공고와 기관 인증에 필요한 기본정보입니다.</p></div></header>
-          <div className="signup-field-grid">{hospitalInfoFields().map(renderField)}</div>
+          <div className="signup-field-grid">{hospitalInfoFields().filter(field => !FIELD_META[field].optional).map(renderField)}</div>
         </section>
         <section className="signup-form-section hospital-document-section">
           <header><span>03</span><div><h3>사업자등록증 제출</h3><p>기관 정보 확인과 허위·도용 가입 방지에만 사용합니다. 가입과 로그인은 바로 가능합니다.</p></div></header>
@@ -537,22 +537,29 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         </section>
         <section className="signup-form-section individual-profile-section">
           <header><span>02</span><div><h3>의료 직군·활동정보</h3><p>맞춤 채용정보와 상담 연결에 필요한 최소 경력정보만 입력해주세요.</p></div></header>
-          <div className="signup-field-grid">{individualProfileFields().map(renderField)}</div>
+          <div className="signup-field-grid">{individualProfileFields().filter(field => !FIELD_META[field].optional).map(renderField)}</div>
         </section>
       </>}
 
+      <details className="signup-optional-section">
+        <summary>추가 정보 입력 <span>선택 · 나중에 입력할 수 있어요</span></summary>
+        <p>동의한 경우에만 아래 정보를 저장합니다. 동의하지 않아도 회원가입할 수 있습니다.</p>
+        <AgreementItem id={`signup-${memberType}-optionalPrivacyConsent`} optional checked={optionalPrivacyConsent} onChange={setOptionalPrivacyConsent} title="추가 회원정보 수집·이용">
+          <PrivacyNotice scope="signupOptional" />
+        </AgreementItem>
+        <fieldset disabled={!optionalPrivacyConsent} className="signup-optional-fields"><legend className="sr-only">선택 회원정보</legend><div className="signup-field-grid">{fields.filter(field => FIELD_META[field]?.optional).map(renderField)}</div></fieldset>
+      </details>
       <div className="signup-consent-block">
-        <PrivacyNotice scope="signupOptional" />
-        <label className="signup-age-confirm"><input type="checkbox" checked={optionalPrivacyConsent} onChange={event => setOptionalPrivacyConsent(event.target.checked)} /><span><b>선택</b><strong>추가 회원정보 수집·이용에 동의합니다.</strong></span></label>
+        <h3>약관 동의</h3>
         <label className="signup-consent-all">
           <input type="checkbox" checked={allConsentsAccepted(draft)} onChange={(event) => toggleAllConsents(event.target.checked)} />
-          <span><b>전체 동의</b> 아래 필수 항목에 한 번에 동의합니다. (마케팅 수신 동의는 포함되지 않습니다.)</span>
+          <span><b>필수 항목 모두 동의</b></span>
         </label>
         <div className="signup-agreements">
           <AgreementItem id={`signup-${memberType}-termsAccepted`} checked={draft.termsAccepted} onChange={(value) => toggleConsent('termsAccepted', value)} title="서비스 이용약관">
             <TermsCopy />
           </AgreementItem>
-          <AgreementItem id={`signup-${memberType}-privacyAccepted`} checked={draft.privacyAccepted} onChange={(value) => toggleConsent('privacyAccepted', value)} title="개인정보 처리 안내 확인" confirmation="안내를 확인했습니다">
+          <AgreementItem id={`signup-${memberType}-privacyAccepted`} checked={draft.privacyAccepted} onChange={(value) => toggleConsent('privacyAccepted', value)} title="개인정보 처리 안내 확인">
             <PrivacyCopy memberType={memberType} />
           </AgreementItem>
           <label className="signup-age-confirm">
@@ -577,7 +584,7 @@ function SignedOutCard({ memberType }) {
     <span className="signup-card-icon"><RoleIcon /></span>
     <small>{content.eyebrow}</small>
     <h2>{content.label} 로그인</h2>
-    <p>{content.description} 메디헬퍼스 자체 이메일 계정으로 안전하게 로그인합니다.</p>
+    <p>{content.description} 기존 회원은 사용하던 아이디로 로그인할 수 있습니다.</p>
     <a className="button primary full signup-provider" href={withBase('/login')}>
       {content.label}으로 계속 <ArrowRight />
     </a>
@@ -637,9 +644,9 @@ function LoginCard({ testAccountsEnabled = false }) {
     <span className="signup-card-icon"><LockKeyhole /></span>
     <small>MEDIHELPERS ACCOUNT</small>
     <h2>메디헬퍼스 로그인</h2>
-    <p>새로 가입한 회원은 가입 이메일을, 이전이 완료된 기존 회원은 기존 아이디를 입력해주세요. 메일함 로그인 비밀번호가 아닌 메디헬퍼스 비밀번호를 사용합니다.</p>
+    <p>메디헬퍼스 아이디와 비밀번호를 입력해주세요. 이메일로 가입한 회원은 기존 이메일도 사용할 수 있습니다.</p>
     <form onSubmit={submit}>
-      <label><span>이메일 또는 기존 아이디</span><input type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="이메일 또는 기존 아이디" maxLength={254} required /></label>
+      <label><span>아이디 또는 이메일</span><input type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="아이디 또는 이메일" maxLength={254} required /></label>
       <label><span>비밀번호</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="비밀번호를 입력해주세요" maxLength={128} required /></label>
       {error && <div className="signup-error" role="alert"><p>{error}</p><p>아이디와 비밀번호의 오타, 한/영 입력 및 Caps Lock을 확인해주세요. 비밀번호가 기억나지 않으면 아래 재설정 메뉴를 이용해주세요.</p></div>}
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" /> 로그인 중</> : <>로그인 <ArrowRight /></>}</button>
@@ -776,7 +783,7 @@ export function SignupWelcomePage({ auth }) {
     return undefined;
   }, [auth]);
   if (state.loading) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-loading" role="status"><LoaderCircle className="spin" /><strong>가입 완료 정보를 확인하고 있습니다</strong></section></div>;
-  if (!state.signedIn || !state.account) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-gate"><span><ShieldAlert /></span><small>ACCOUNT CHECK</small><h1>가입 완료 정보를 확인할 수 없습니다</h1><p>{error || '가입을 마친 브라우저에서 다시 확인하거나 가입한 이메일로 로그인해주세요.'}</p><div><a className="button primary" href={withBase('/login')}>로그인하기 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입 화면</a></div></section></div>;
+  if (!state.signedIn || !state.account) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-gate"><span><ShieldAlert /></span><small>ACCOUNT CHECK</small><h1>가입 완료 정보를 확인할 수 없습니다</h1><p>{error || '가입을 마친 브라우저에서 다시 확인하거나 가입한 아이디로 로그인해주세요.'}</p><div><a className="button primary" href={withBase('/login')}>로그인하기 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입 화면</a></div></section></div>;
   const role = state.account.role === 'hospital' ? 'hospital' : 'doctor';
   const RoleIcon = role === 'hospital' ? Building2 : Stethoscope;
   const roleLabel = accountRoleLabel(role);
@@ -797,7 +804,7 @@ export function SignupWelcomePage({ auth }) {
       <p>메디헬퍼스 <strong>{roleLabel}</strong> 가입이 완료되었습니다.<br />필요한 채용 정보와 상담 기능을 지금부터 편하게 이용해보세요.</p>
       <div className="signup-welcome-summary">
         <span><RoleIcon /></span><div><small>가입 회원 유형</small><strong>{roleLabel}</strong></div>
-        <span><Mail /></span><div><small>로그인 이메일</small><strong>{email}</strong></div>
+        <span><UserRound /></span><div><small>{state.identity?.loginId ? '로그인 아이디' : '연락 이메일'}</small><strong>{state.identity?.loginId || email}</strong></div>
       </div>
       <div className={`signup-welcome-mail ${state.welcomeEmailAvailable ? 'is-ready' : 'is-pending'}`}>
         <Mail /><div><strong>{state.welcomeEmailAvailable ? '가입 축하 메일을 전송 요청했습니다' : '가입 정보는 정상적으로 저장되었습니다'}</strong><p>{state.welcomeEmailAvailable ? `${email}에서 메디헬퍼스 환영 인사를 확인해주세요.` : '이메일 발송 설정이 완료되면 환영 메일 안내도 함께 제공됩니다.'}</p></div>

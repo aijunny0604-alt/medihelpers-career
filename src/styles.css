@@ -6533,3 +6533,32 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 }
 
 .admin-resume-photo{display:block;width:120px;height:160px;max-width:100%;object-fit:contain;margin:0 0 20px;border:1px solid #dbe5f4;border-radius:12px;background:#f6f9fd;}
+
+/* 가입 동의: 상세는 펼쳐 읽고, 기본 화면은 짧은 행으로 표시한다. */
+.signup-consent-block > h3 { margin:0 0 16px; font-size:21px; }
+.signup-agreements { gap:0; }
+.signup-agreement-item { padding:14px 0; border:0; border-bottom:1px solid #e1e8f2; border-radius:0; background:transparent; }
+.signup-agreement-heading { gap:16px; }
+.signup-agreement-heading label { min-height:44px; }
+.signup-agreement-heading>label b,.signup-age-confirm b { flex:0 0 auto; white-space:nowrap; }
+.signup-agreement-heading>label strong,.signup-age-confirm strong { word-break:keep-all; overflow-wrap:break-word; }
+.signup-agreement-heading details > summary { min-height:44px; display:flex; align-items:center; white-space:nowrap; }
+.signup-agreement-heading details[open] { grid-column:1/-1; }
+.signup-agreement-heading .signup-legal-copy { margin-top:12px; }
+.signup-consent-block .signup-age-confirm { min-height:52px; padding:12px 0; border:0; border-radius:0; }
+.signup-consent-all { margin:0; padding:16px; border-radius:12px; background:#f3f7fc; }
+.signup-optional-section { margin:28px 0; padding:20px; border:1px solid #dce5f0; border-radius:16px; }
+.signup-optional-section > summary { min-height:44px; cursor:pointer; font-weight:750; }
+.signup-optional-section > summary span { margin-left:10px; color:#64748b; font-size:14px; font-weight:400; }
+.signup-optional-section > p { color:#52647c; font-size:14px; }
+.signup-optional-fields { border:0; padding:16px 0 0; margin:0; min-width:0; }
+.signup-optional-fields:disabled { opacity:.6; }
+.signup-agreement-heading b.is-optional { color:#52647c; background:#edf2f7; }
+@media(max-width:600px) {
+ .signup-optional-section { padding:14px; }
+ .signup-optional-section > summary span { display:block; margin:5px 0 0; }
+ .signup-agreement-heading { grid-template-columns:minmax(0,1fr) auto; gap:0 8px; }
+ .signup-agreement-heading label,.signup-agreement-heading label span { min-width:0; }
+ .signup-agreement-heading details { grid-column:auto; }
+ .signup-agreement-heading details[open] { grid-column:1/-1; }
+}

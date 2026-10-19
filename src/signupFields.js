@@ -3,7 +3,7 @@ import { validateBusinessNumber } from './businessNumber.js';
 
 // 정식 오픈 전에 사용하는 프론트엔드 전용 회원가입 신청서입니다.
 // 입력값은 브라우저 저장소에 남기지 않으며, 실제 계정 생성은 인증 서버가 열린 뒤 연결합니다.
-const COMMON_FIELDS = ['name', 'phone', 'email', 'password', 'passwordConfirm'];
+const COMMON_FIELDS = ['name', 'phone', 'loginId', 'email', 'password', 'passwordConfirm'];
 const INDIVIDUAL_PROFILE_FIELDS = ['professionType', 'specialty', 'region', 'birthYear', 'gender'];
 const HOSPITAL_ACCOUNT_FIELDS = ['hospitalRole', 'department'];
 // 기관 유형·대표 전화·우편번호는 가입 단계에서 제거(요청). 주소는 검색으로 입력, 사업자번호는 필수.
@@ -53,7 +53,7 @@ function validatePhone(value) {
 
 function validateEmail(value) {
   const email = String(value ?? '').trim();
-  if (!email) return '로그인에 사용할 이메일을 입력해주세요.';
+  if (!email) return '연락과 계정 복구에 사용할 이메일을 입력해주세요.';
   if (!EMAIL_PATTERN.test(email)) return '이메일 형식을 확인해주세요.';
   return '';
 }
@@ -117,6 +117,7 @@ export function validateField(field, draft = {}) {
   switch (field) {
     case 'name': return validateName(draft.name);
     case 'phone': return validatePhone(draft.phone);
+    case 'loginId': return /^[a-zA-Z0-9][a-zA-Z0-9_-]{3,29}$/.test(String(draft.loginId || '').trim()) ? '' : '아이디는 영문·숫자로 시작하는 4~30자 영문·숫자·밑줄·하이픈으로 입력해주세요.';
     case 'email': return validateEmail(draft.email);
     case 'password': return validatePassword(draft.password);
     case 'passwordConfirm': return validatePasswordConfirm(draft.password, draft.passwordConfirm);
@@ -160,6 +161,7 @@ export function createEmptyDraft(memberType = '') {
     role: normalizeRole(memberType),
     name: '',
     phone: '',
+    loginId: '',
     email: '',
     password: '',
     passwordConfirm: '',

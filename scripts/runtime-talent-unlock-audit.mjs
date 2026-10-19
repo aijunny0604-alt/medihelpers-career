@@ -181,7 +181,9 @@ record('private-contact preview explicit',(await call(detailPath(lifecycle)+'?pr
 record('contact policy change stops stale checkout',(await call('/api/payment-orders','hospital',{...consent,checkoutAcknowledged:true,productId:'talent-unlock-single',metadata:{talentId:lifecycle.talentId},contactVisibilityAtCheckout:'ticket'})).data.code,'CONTACT_VISIBILITY_CHANGED');
 sqlite.prepare("UPDATE job_seeker_posts SET public_until='',updated_at=datetime('now','-6 months') WHERE id=?").run(lifecycle.id);
 record('expired post removed on public read',(await call('/api/site-operations')).data.contents.some(c=>c.id===lifecycle.talentId),false);
-record('expired post persisted closed',one('SELECT status FROM job_seeker_posts WHERE id=?',lifecycle.id).status,'closed');
+record('public expiration check remains read only',one('SELECT status FROM job_seeker_posts WHERE id=?',lifecycle.id).status,'active');
+await call('/api/member-center','doctor');
+record('member maintenance persists closed',one('SELECT status FROM job_seeker_posts WHERE id=?',lifecycle.id).status,'closed');
 record('expiry reason persisted',one('SELECT hidden_reason reason FROM job_seeker_posts WHERE id=?',lifecycle.id).reason,'inactive');
 const expiredOwn = await call('/api/job-seeker-posts/'+lifecycle.id,'other');
 record('owner retains expired post',expiredOwn.status,200);

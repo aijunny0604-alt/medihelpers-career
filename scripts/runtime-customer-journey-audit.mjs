@@ -52,7 +52,7 @@ async function buy(productId){
 try{
  check('production test switch disabled',(await call('/api/auth/test-switch','',{key:'admin'})).status,404);
  for(const role of ['doctor','hospital','admin']){
-  const input={...consent,email:'journey-'+role+'@example.invalid',password,role:role==='hospital'?'hospital':'doctor',displayName:'격리 '+role,phone:'01000000000',professionType:'의사',termsAccepted:true,privacyAcknowledged:true,ageConfirmed:true};
+  const input={...consent,loginId:'journey-'+role,email:'journey-'+role+'@example.invalid',password,role:role==='hospital'?'hospital':'doctor',displayName:'격리 '+role,phone:'01000000000',professionType:'의사',termsAccepted:true,privacyAcknowledged:true,ageConfirmed:true};
   let body=input;
   if(role==='hospital'){
    body=new FormData();body.set('payload',JSON.stringify({...input,hospitalName:'격리 신규 병원',representativeName:'격리 대표',businessNumber:'123-45-67890',address:'서울 격리 시험 주소',hospitalDocumentConsent:true}));
@@ -61,10 +61,29 @@ try{
   const registered=await call('/api/auth/register','',body);check(role+' fresh signup',registered.status,201);
   if(registered.status!==201)throw Error('Signup failed: '+JSON.stringify(registered.data));
   cookies[role]=registered.cookie;await call('/api/auth/logout',role,{});cookies[role]='';
-  const login=await call('/api/auth/login','',{email:input.email,password});check(role+' clean password login',login.status,200);cookies[role]=login.cookie;
+  const emailLogin=await call('/api/auth/login','',{email:input.email,password});check(role+' email compatibility',emailLogin.status,200);
+  const login=await call('/api/auth/login','',{email:input.loginId,password});check(role+' clean ID password login',login.status,200);cookies[role]=login.cookie;
+  check(role+' saved login ID',(await call('/api/account',role)).data.identity.loginId,input.loginId);
   check(role+' trusted admin status',(await call('/api/account',role)).data.isAdmin,role==='admin');
   check(role+' console access',(await call('/api/admin-console',role)).status,role==='admin'?200:403);
  }
+ const signupInput={...consent,password,role:'doctor',displayName:'아이디 검수',phone:'01000000000',professionType:'의사',termsAccepted:true,privacyAcknowledged:true,ageConfirmed:true};
+ check('duplicate native ID rejected',(await call('/api/auth/register','',{...signupInput,email:'duplicate@example.invalid',loginId:'journey-doctor'})).status,409);
+ check('invalid native ID rejected',(await call('/api/auth/register','',{...signupInput,email:'invalid@example.invalid',loginId:'ab c'})).status,400);
+ const doctorId=one('SELECT account_id id FROM auth_usernames WHERE login_id=?','journey-doctor').id;
+ db.prepare("INSERT INTO auth_login_aliases (login_id,account_id,source) VALUES (?,?,'rankup')").run('reserved-legacy',doctorId);
+ check('reserved old ID cannot be taken',(await call('/api/auth/register','',{...signupInput,email:'takeover@example.invalid',loginId:'reserved-legacy'})).status,409);
+ check('old alias still authenticates',(await call('/api/auth/login','',{email:'reserved-legacy',password})).status,200);
+ let collision=false;try{db.prepare("INSERT INTO auth_login_aliases (login_id,account_id,source) VALUES (?,?,'rankup')").run('journey-doctor',doctorId);}catch{collision=true;}
+ check('database protects cross-table ID collision',collision,true);
+ db.prepare('DELETE FROM auth_login_aliases WHERE login_id=?').run('reserved-legacy');
+ check('case-sensitive ID does not select another account',(await call('/api/auth/login','',{email:'JOURNEY-doctor',password})).status,401);
+ check('wrong password rejected',(await call('/api/auth/login','',{email:'journey-doctor',password:'wrong-password'})).status,401);
+ const sameId=await Promise.all(['race-one','race-two'].map(name=>call('/api/auth/register','',{...signupInput,email:name+'@example.invalid',loginId:'race-shared'})));
+ check('concurrent same ID has exactly one success',sameId.filter(r=>r.status===201).length,1);
+ check('concurrent same ID has exactly one conflict',sameId.filter(r=>r.status===409).length,1);
+ check('failed concurrent signup leaves no orphan account',one('SELECT COUNT(*) n FROM accounts a LEFT JOIN auth_credentials c ON c.account_id=a.id WHERE c.account_id IS NULL').n,0);
+ check('new ID password recovery accepted',(await call('/api/account-recovery','',{requestType:'password',email:'journey-doctor',privacyVersion:PRIVACY_FORM_VERSION,privacyConsent:true})).status,202);
  const hospitalId=one('SELECT account_id id FROM auth_credentials WHERE email_normalized=?','journey-hospital@example.invalid').id;
  const document=one('SELECT * FROM hospital_verification_requests WHERE account_id=?',hospitalId);
  check('D1 business document exists',Boolean(document),true);
@@ -190,11 +209,17 @@ try{
  queryTrace.length=0;
  check('account still returns trusted hospital profile',(await call('/api/account','hospital')).data.hospitalProfile.businessNumber,'1234567890');
  check('account lookup does not run post expiration',queryTrace.some(sql=>/UPDATE job_seeker_posts/.test(sql)),false);
- // Public board reads must still expire old posts before returning any content.
+ queryTrace.length=0;
+ const repeatedBoard=await call('/api/site-operations','hospital');
+ check('repeated public board does not write',queryTrace.some(sql=>/^\s*(UPDATE|INSERT|DELETE|CREATE|ALTER)/i.test(sql)),false);
+ check('server timings distinguish setup from query',/setup;dur=.+auth;dur=.+query;dur=/.test(repeatedBoard.response.headers.get('server-timing')),true);
+ // Public board reads exclude expired posts; maintenance persists their closed state.
  db.prepare("UPDATE job_seeker_posts SET status='active',public_until='2000-01-01 00:00:00' WHERE id=?").run(post.data.post.id);
  const expiredBoard=await call('/api/site-operations','hospital');
  check('expired post stays hidden after optimization',expiredBoard.data.contents.some(c=>c.id==='seeker-'+post.data.post.id),false);
- check('expiration records state change',one('SELECT status FROM job_seeker_posts WHERE id=?',post.data.post.id).status,'closed');
+ check('public expiration check does not write',one('SELECT status FROM job_seeker_posts WHERE id=?',post.data.post.id).status,'active');
+ await worker.scheduled({},env,{});
+ check('scheduled expiration records state change',one('SELECT status FROM job_seeker_posts WHERE id=?',post.data.post.id).status,'closed');
 
  for(const role of ['doctor','hospital','admin']){check(role+' logout',(await call('/api/auth/logout',role,{})).status,200);check(role+' expired session blocked',(await call('/api/member-center',role)).status,401);}
  check('only simulated provider approvals',pgCalls,2);

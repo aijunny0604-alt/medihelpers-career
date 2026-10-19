@@ -166,7 +166,7 @@ const makeConsentSnapshot = ${makeConsentSnapshot.toString()};
 function consentEvent(env, accountId, scope, resourceId, recipient = '', granted = true) {
   return env.DB.prepare('INSERT INTO processing_consent_events (id, account_id, scope, resource_id, document_version, notice_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), accountId, scope, resourceId, PRIVACY_FORM_VERSION, JSON.stringify({ ...makeConsentSnapshot(scope, recipient), granted }));
 }
-const privacyNoticeVersion = 'privacy-v1.3-2026-10-18';
+const privacyNoticeVersion = 'privacy-v1.4-2026-10-19';
 const defaultPublicOrigin = 'https://medihelpers-career.junnyai.chatgpt.site';
 const publicSitemapRoutes = ['/', '/jobs', '/medical-staff', '/headhunting', '/advertise', '/terms', '/privacy', '/refund', '/withdrawal'];
 function publicOrigin(request) {
@@ -329,8 +329,8 @@ async function authenticatedUser(request, env) {
     await ensureAccountSchema(env);
     for (const token of tokens) {
       const tokenHash = await authSha256Hex(token);
-      const row = await env.DB.prepare("SELECT COALESCE(ci.email,c.email_normalized) AS email, c.email_normalized AS principal, a.user_key AS userKey, s.account_id AS accountId FROM auth_sessions s JOIN auth_credentials c ON c.account_id=s.account_id JOIN accounts a ON a.id=s.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE s.token_hash=? AND s.expires_at > CURRENT_TIMESTAMP AND COALESCE(ap.status,'active')='active' LIMIT 1").bind(tokenHash).first();
-      if (row) return { email: row.email, principal:row.principal, userKey:row.userKey, displayName:'', accountId: row.accountId };
+      const row = await env.DB.prepare("SELECT COALESCE(ci.email,c.email_normalized) AS email, c.email_normalized AS principal, a.user_key AS userKey, COALESCE(al.login_id,nu.login_id) AS loginId, s.account_id AS accountId FROM auth_sessions s JOIN auth_credentials c ON c.account_id=s.account_id JOIN accounts a ON a.id=s.account_id LEFT JOIN auth_login_aliases al ON al.account_id=a.id LEFT JOIN auth_usernames nu ON nu.account_id=a.id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE s.token_hash=? AND s.expires_at > CURRENT_TIMESTAMP AND COALESCE(ap.status,'active')='active' LIMIT 1").bind(tokenHash).first();
+      if (row) return { email: row.email, principal:row.principal, userKey:row.userKey, displayName:'', loginId:row.loginId || '', accountId: row.accountId };
     }
     return null;
   } catch {
@@ -349,7 +349,7 @@ function identityKey(identity) {
   return identity.userKey;
 }
 function identityPrincipal(identity) { return String(identity?.principal || '').toLowerCase(); }
-function publicIdentity(identity) { return identity ? {email:identity.email,displayName:identity.displayName || '',accountId:identity.accountId} : {}; }
+function publicIdentity(identity) { return identity ? {email:identity.email,loginId:identity.loginId || '',displayName:identity.displayName || '',accountId:identity.accountId} : {}; }
 // 기존에는 API를 호출할 때마다 모든 CREATE TABLE/INDEX를 다시 D1에 전송했다.
 // 이미 생성된 운영 DB는 대표 테이블 1개만 확인하고, Worker 인스턴스 안에서는 그 결과를 재사용한다.
 // 새 환경/누락 스키마에서는 기존 ensure*Schema 동작대로 전체 스키마를 자동 생성한다.
@@ -369,7 +369,7 @@ async function ensureSchemaGroup(env, key, probeSql, statements, unavailableCode
 async function ensureAccountSchema(env) {
   // 새 계정 기능을 추가한 기존 D1에서도 전체 계정 스키마 문장을 한 번 실행하도록
   // 가장 최근 테이블을 probe한다. CREATE IF NOT EXISTS라 기존 회원 데이터는 유지된다.
-  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets, processing_consent_events, auth_login_aliases, account_contact_identities LIMIT 0', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
+  return ensureSchemaGroup(env, 'account', 'SELECT 1 FROM account_password_resets, processing_consent_events, auth_login_aliases, account_contact_identities, auth_usernames LIMIT 0', accountSchemaStatements, 'ACCOUNT_DB_UNAVAILABLE');
 }
 async function ensureConsultationSchema(env) {
   return ensureSchemaGroup(env, 'consultation', 'SELECT 1 FROM consultation_requests LIMIT 0', consultationSchemaStatements, 'CONSULTATION_DB_UNAVAILABLE');
@@ -449,6 +449,12 @@ async function ensureRecruitmentCrmSchema(env) {
 async function ensureAdminConsoleSchema(env) {
   if (!env || !env.DB) throw new Error('ADMIN_CONSOLE_DB_UNAVAILABLE');
   return initializeDbOnce(env.DB, 'admin-console-schema-v1', async () => {
+  // 정상 운영 DB의 공개 조회에서는 매번 CREATE/ALTER/INDEX를 실행하지 않는다.
+  try {
+    await env.DB.prepare('SELECT sort_order FROM admin_content_records LIMIT 0').first();
+    const ready = await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('admin_categories','site_settings','feature_flags','admin_audit_logs','admin_content_records_public_order_idx')").first();
+    if (Number(ready?.n) === 5) return;
+  } catch {}
   await env.DB.batch(adminConsoleSchemaStatements.map(statement => env.DB.prepare(statement)));
   // 마이그레이션: 이미 생성된 admin_content_records 테이블에 sort_order가 없으면 추가(상단 고정용).
   // CREATE TABLE IF NOT EXISTS는 기존 테이블을 안 바꾸므로, 배포 이전 생성분에는 컬럼이 없어 SELECT가 실패한다.
@@ -482,10 +488,10 @@ async function ensureHospitalVerificationSchema(env) {
   try { await schemaReadyPromises.get('hospital-document-purpose-v2'); }
   catch (error) { schemaReadyPromises.delete('hospital-document-purpose-v2'); throw error; }
 }
-const backupSchemaVersion = '0020';
+const backupSchemaVersion = '0022';
 const backupRetentionDays = 35;
 const backupTables = [
-  'accounts','auth_credentials','auth_login_aliases','account_contact_identities','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
+  'accounts','auth_credentials','auth_login_aliases','auth_usernames','account_contact_identities','processing_consent_events','consent_records','withdrawn_members','account_recovery_requests','account_password_resets',
   'consultation_requests','member_profiles','member_registration_profiles','member_preferences','member_activity','member_notifications','inquiry_messages',
   'resumes','job_seeker_posts','saved_jobs','talent_unlocks','account_admin_profiles','payment_orders',
   'payment_transactions','payment_refunds','payment_receipts','payment_events','payment_pg_attempts','payment_pg_refunds',
@@ -1234,8 +1240,8 @@ async function authApi(request, env, pathname, ctx) {
 
   if (pathname === '/api/auth/login') {
     // Email-shaped input is never resolved as a legacy alias, so aliases cannot shadow an email login.
-    // Aliases are created only by a verified import, never by client-supplied registration fields.
-    const credential = await env.DB.prepare("SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email, c.email_normalized AS principal, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status, COALESCE(ap.verification_status,'unverified') AS verificationStatus FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE " + (email ? "c.email_normalized=?" : "c.account_id=(SELECT account_id FROM auth_login_aliases WHERE login_id=? AND source='rankup')") + " LIMIT 1").bind(email || loginId).first();
+    // Legacy aliases remain import-only; native IDs have a separate collision-protected table.
+    const credential = await env.DB.prepare("SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email, c.email_normalized AS principal, c.password_hash AS passwordHash, c.password_salt AS passwordSalt, c.password_iterations AS passwordIterations, c.failed_attempts AS failedAttempts, c.locked_until AS lockedUntil, a.role, COALESCE(ap.status,'active') AS status, COALESCE(ap.verification_status,'unverified') AS verificationStatus FROM auth_credentials c JOIN accounts a ON a.id=c.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id LEFT JOIN account_admin_profiles ap ON ap.account_id=a.id WHERE " + (email ? "c.email_normalized=?" : "c.account_id=(SELECT account_id FROM auth_login_aliases WHERE login_id=? AND source='rankup' UNION ALL SELECT account_id FROM auth_usernames WHERE login_id=?)") + " LIMIT 1").bind(...(email ? [email] : [loginId, loginId])).first();
     // [보안] 잠금 상태여도 즉시 응답하지 않는다.
     // 예전에는 잠긴 계정에만 429를 돌려줘서, 공격자가 아무 비밀번호나 5번 넣어보고
     // 상태 코드만으로 "이 이메일이 가입돼 있는지" 확인할 수 있었다(계정 열거).
@@ -1279,15 +1285,19 @@ async function authApi(request, env, pathname, ctx) {
     const token = await createAuthSession(env, credential.accountId, { isAdmin: isAdminAccount });
     const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
     const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:token } : {};
-    return json({ signedIn:true, isAdmin:isAdminAccount, account:{ role:credential.role }, identity:{ email }, ...sessionFallback }, 200, { 'set-cookie':authCookie(token, cookieMaxAge) });
+    return json({ signedIn:true, isAdmin:isAdminAccount, account:{ role:credential.role }, identity:{ email:credential.email }, ...sessionFallback }, 200, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
 
   if (pathname === '/api/auth/register') {
     if (!signupEnabled(env)) return json({ error:'회원가입 운영 설정이 아직 완료되지 않았습니다.' }, 503);
     if (body.privacyVersion !== PRIVACY_FORM_VERSION) return json({ error:'최신 개인정보 처리 안내를 확인한 뒤 다시 가입해주세요.' }, 400);
     const optionalProfileFields = ['specialty','birthYear','gender','institutionType','hospitalRole','department','addressDetail','website','fax'];
-    const hasOptionalProfile = optionalProfileFields.some(key => String(body[key] || '').trim());
-    if (hasOptionalProfile && (body.optionalPrivacyConsent !== true || body.privacyVersion !== PRIVACY_FORM_VERSION)) return json({ error:'선택 회원정보 수집·이용에 동의하거나 추가 정보를 비워주세요.' }, 400);
+    if (body.optionalPrivacyConsent !== true) {
+      for (const key of optionalProfileFields) body[key] = '';
+      body.organization = body.role === 'hospital' ? body.hospitalName : '';
+      body.jobTitle = body.professionType || '';
+    }
+    const hasOptionalProfile = body.optionalPrivacyConsent === true && optionalProfileFields.some(key => String(body[key] || '').trim());
     if (!['doctor','hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error:'회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
     }
@@ -1304,6 +1314,13 @@ async function authApi(request, env, pathname, ctx) {
       if (!businessDocument) return json({ error:'사업자등록증 PDF 또는 이미지 파일을 첨부해주세요.' }, 400);
       if (!['application/pdf','image/jpeg','image/png','image/webp'].includes(String(businessDocument.type || '').toLowerCase())) return json({ error:'사업자등록증은 PDF, JPG, PNG, WEBP 파일만 등록할 수 있습니다.' }, 400);
       if (!businessDocument.size || businessDocument.size > 10 * 1024 * 1024) return json({ error:'사업자등록증 파일은 10MB 이하로 등록해주세요.' }, 413);
+    }
+    // Older deployed forms can still register by email. New forms always supply loginId.
+    const newLoginId = String(body.loginId || '').trim();
+    if (body.loginId !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]{3,29}$/.test(newLoginId)) return json({error:'아이디는 영문·숫자로 시작하는 4~30자 영문·숫자·밑줄·하이픈으로 입력해주세요.'},400);
+    if (newLoginId) {
+      const existingId = await env.DB.prepare('SELECT account_id FROM auth_login_aliases WHERE login_id=? UNION ALL SELECT account_id FROM auth_usernames WHERE login_id=? LIMIT 1').bind(newLoginId,newLoginId).first();
+      if (existingId) return json({error:'이미 사용 중인 아이디입니다. 다른 아이디를 입력해주세요.'},409);
     }
     const duplicate = await env.DB.prepare('SELECT account_id FROM auth_credentials WHERE email_normalized=? UNION ALL SELECT account_id FROM account_contact_identities WHERE email=? LIMIT 1').bind(email,email).first();
     if (duplicate) return json({ error:'이미 가입된 이메일입니다. 로그인해주세요.' }, 409);
@@ -1373,6 +1390,7 @@ async function authApi(request, env, pathname, ctx) {
       ...(verificationRecord ? [consentEvent(env, account.id, 'hospitalDocument', verificationRecord.id)] : []),
       env.DB.prepare('DELETE FROM withdrawn_members WHERE user_key=?').bind(key),
       env.DB.prepare('INSERT INTO auth_credentials (account_id, email_normalized, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)').bind(account.id, email, hash, salt, passwordIterations),
+      ...(newLoginId ? [env.DB.prepare('INSERT INTO auth_usernames (login_id,account_id) VALUES (?,?)').bind(newLoginId,account.id)] : []),
       env.DB.prepare("INSERT INTO account_admin_profiles (account_id, email, full_name, status, verification_status, last_login_at) VALUES (?, ?, ?, 'active', ?, ?) ON CONFLICT(account_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name, status='active', verification_status=excluded.verification_status, last_login_at=excluded.last_login_at, updated_at=CURRENT_TIMESTAMP").bind(account.id, email, displayName, body.role === 'hospital' ? 'verified' : 'unverified', new Date().toISOString()),
       env.DB.prepare("INSERT INTO member_profiles (account_id, display_name, phone, organization, job_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name, phone=excluded.phone, organization=excluded.organization, job_title=excluded.job_title, updated_at=CURRENT_TIMESTAMP").bind(account.id, displayName, phone, organization, jobTitle),
       env.DB.prepare("INSERT INTO member_registration_profiles (account_id, profile_json) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET profile_json=excluded.profile_json, updated_at=CURRENT_TIMESTAMP").bind(account.id, JSON.stringify(registrationProfile)),
@@ -1393,7 +1411,7 @@ async function authApi(request, env, pathname, ctx) {
     catch {
       if (storedDocumentKey) try { await getUploadStorage(env).delete(storedDocumentKey); } catch {}
       if (createdAccount) try { await env.DB.prepare('DELETE FROM accounts WHERE id=?').bind(account.id).run(); } catch {}
-      return json({ error:'이미 가입된 이메일이거나 가입 정보를 저장하지 못했습니다.' }, 409);
+      return json({ error:'이미 가입된 아이디·이메일이거나 가입 정보를 저장하지 못했습니다.' }, 409);
     }
     // [보안] 가입 직후 세션도 로그인과 동일하게 관리자면 12시간으로 단축한다.
     const isAdminAccount = String(env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(email);
@@ -1402,7 +1420,7 @@ async function authApi(request, env, pathname, ctx) {
     const token = await createAuthSession(env, account.id, { isAdmin: isAdminAccount });
     const cookieMaxAge = isAdminAccount ? adminSessionSeconds : authSessionSeconds;
     const sessionFallback = request.headers.get('x-mh-session-fallback') === 'session-storage' ? { sessionToken:token } : {};
-    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, displayName }, welcomeEmailAvailable:recoveryEmailConfigured(env), adminSignupEmailAvailable:signupAdminRecipients(env).length > 0 && recoveryEmailConfigured(env), ...sessionFallback }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
+    return json({ signedIn:true, account:{ role:account.role, createdAt:account.createdAt }, identity:{ email, loginId:newLoginId, displayName }, welcomeEmailAvailable:recoveryEmailConfigured(env), adminSignupEmailAvailable:signupAdminRecipients(env).length > 0 && recoveryEmailConfigured(env), ...sessionFallback }, 201, { 'set-cookie':authCookie(token, cookieMaxAge) });
   }
   return json({ error:'지원하지 않는 인증 요청입니다.' }, 404);
 }
@@ -1465,7 +1483,7 @@ async function accountRecoveryApi(request, env, ctx) {
       ? await env.DB.prepare('SELECT account_id AS accountId, email_normalized AS email FROM auth_credentials WHERE email_normalized=? LIMIT 1').bind(email).all()
       : email
       ? await env.DB.prepare('SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email FROM auth_credentials c LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id WHERE COALESCE(ci.email,c.email_normalized)=? LIMIT 2').bind(email).all()
-      : await env.DB.prepare("SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email FROM auth_login_aliases al JOIN auth_credentials c ON c.account_id=al.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id WHERE al.login_id=? AND al.source='rankup' LIMIT 2").bind(loginId).all();
+      : await env.DB.prepare("SELECT c.account_id AS accountId, COALESCE(ci.email,c.email_normalized) AS email FROM (SELECT login_id,account_id FROM auth_login_aliases UNION ALL SELECT login_id,account_id FROM auth_usernames) al JOIN auth_credentials c ON c.account_id=al.account_id LEFT JOIN account_contact_identities ci ON ci.account_id=c.account_id WHERE al.login_id=? LIMIT 2").bind(loginId).all();
     // A shared mailbox never chooses an arbitrary account. Its owner uses the exact legacy ID.
     target = candidates.results?.length === 1 ? candidates.results[0] : null;
   } else {
@@ -1493,7 +1511,7 @@ async function accountRecoveryApi(request, env, ctx) {
       .then(status => env.DB.prepare('UPDATE account_password_resets SET delivery_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(status, resetId).run())
       .catch(() => env.DB.prepare("UPDATE account_password_resets SET delivery_status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(resetId).run());
   } else if (target && normalizeEmail(target.email) && requestType === 'id') {
-    const alias = await env.DB.prepare('SELECT login_id AS loginId FROM auth_login_aliases WHERE account_id=?').bind(target.accountId).first();
+    const alias = await env.DB.prepare('SELECT login_id AS loginId FROM auth_login_aliases WHERE account_id=? UNION ALL SELECT login_id AS loginId FROM auth_usernames WHERE account_id=?').bind(target.accountId,target.accountId).first();
     deliveryTask = sendRecoveryEmail(env, { type:'id', to:target.email, loginId:alias?.loginId }).catch(() => {});
   }
   if (deliveryTask) {
@@ -1602,6 +1620,7 @@ async function accountApi(request, env, ctx) {
     // 재가입 30일 제한을 위해 탈퇴 시각 기록(개인정보 아닌 user_key 해시만).
     const markWithdrawn = env.DB.prepare("INSERT INTO withdrawn_members (user_key, withdrawn_at) VALUES (?, CURRENT_TIMESTAMP) ON CONFLICT(user_key) DO UPDATE SET withdrawn_at=CURRENT_TIMESTAMP").bind(key);
     const withdrawalCleanup = [
+      env.DB.prepare('DELETE FROM auth_usernames WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM auth_login_aliases WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM account_contact_identities WHERE account_id=?').bind(account.id),
       env.DB.prepare('DELETE FROM member_registration_profiles WHERE account_id=?').bind(account.id),
@@ -3022,6 +3041,8 @@ async function seedAdminConsole(env) {
   return initializeDbOnce(env.DB, 'admin-console-defaults-v1', () => seedAdminConsoleDefaults(env));
 }
 async function seedAdminConsoleDefaults(env) {
+  const initialized = await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key='migration_medical_staff_hub_v1'").first();
+  if (initialized?.setting_value === 'completed') return;
   const categories = [
     ['doctor_specialty','한의사','korean-medicine',5], ['doctor_specialty','내과','internal-medicine',10], ['doctor_specialty','외과','general-surgery',20],
     ['doctor_specialty','정형외과','orthopedics',30], ['doctor_specialty','신경외과','neurosurgery',40],
@@ -3078,11 +3099,15 @@ async function publicCategoriesApi(request, env) {
 }
 async function publicSiteOperationsApi(request, env) {
   if (request.method !== 'GET') return json({ error:'지원하지 않는 요청입니다.' }, 405);
-  await Promise.all([ensureAdminConsoleSchema(env), ensureMemberCenterSchema(env)]);
-  await seedAdminConsole(env);
-  // 이전 버전에서 결제 완료 후 공개 전 상태로 남은 공고도 첫 공개 조회 때 자동 게시한다.
-  await publishLegacyPaidAdContentRecords(env);
-  await migrateSingleBrandImageBanners(env);
+  const started = Date.now();
+  await Promise.all([ensureAdminConsoleSchema(env), ensureMemberCenterSchema(env, { expirePosts:false })]);
+  await initializeDbOnce(env.DB, 'public-content-compatibility-v2', async () => {
+    await seedAdminConsole(env);
+    // 이전 버전에서 결제 완료 후 공개 전 상태로 남은 공고도 첫 공개 조회 때 자동 게시한다.
+    await publishLegacyPaidAdContentRecords(env);
+    await migrateSingleBrandImageBanners(env);
+  });
+  const setupFinished = Date.now();
   const allowedVisibility = new Set(['public']);
   const identity = await authenticatedUser(request, env);
   let viewerAccount = null;
@@ -3095,6 +3120,7 @@ async function publicSiteOperationsApi(request, env) {
       if (viewerAccount?.role) allowedVisibility.add(viewerAccount.role);
     } catch {}
   }
+  const authFinished = Date.now();
   const [settingsResult, featuresResult, contentResult] = await env.DB.batch([
     env.DB.prepare('SELECT setting_key AS settingKey, setting_value AS settingValue FROM site_settings'),
     env.DB.prepare('SELECT flag_key AS flagKey, enabled FROM feature_flags'),
@@ -3131,7 +3157,7 @@ async function publicSiteOperationsApi(request, env) {
   // 구직글은 이력서와 분리해 게시 원장으로 노출한다. 선택한 이력서의 경력만 참조하며
   // 실명·전화·이메일은 이 공개 응답에 절대 포함하지 않는다.
   try {
-    const postRows = await env.DB.prepare("SELECT p.id AS postId, p.account_id AS accountId, p.title AS postTitle, p.summary, p.specialty AS postSpecialty, p.desired_region AS postRegion, p.available_from AS postAvailable, p.employment_type AS postEmployment, p.contact_visibility AS contactVisibility, p.updated_at AS updatedAt, r.id, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.status='active' ORDER BY p.created_at DESC, p.id DESC LIMIT 200").all();
+    const postRows = await env.DB.prepare("SELECT p.id AS postId, p.account_id AS accountId, p.title AS postTitle, p.summary, p.specialty AS postSpecialty, p.desired_region AS postRegion, p.available_from AS postAvailable, p.employment_type AS postEmployment, p.contact_visibility AS contactVisibility, p.updated_at AS updatedAt, r.id, r.profession, r.specialty, r.desired_regions AS desiredRegions, r.detail_json AS detailJson FROM job_seeker_posts p JOIN resumes r ON r.id=p.resume_id AND r.account_id=p.account_id WHERE p.status='active' AND COALESCE(NULLIF(p.public_until,''),datetime(min(date(p.updated_at,'+9 hours','+5 months'),date(p.updated_at,'+9 hours','start of month','+6 months','-1 day')) || ' ' || time(p.updated_at,'+9 hours'),'-9 hours'))>CURRENT_TIMESTAMP ORDER BY p.created_at DESC, p.id DESC LIMIT 200").all();
     for (const r of (postRows.results || [])) {
       const detail = parseJsonObject(r.detailJson) || {};
       const career = detail.experienceYears ? String(detail.experienceYears) : (detail.career || '');
@@ -3159,7 +3185,7 @@ async function publicSiteOperationsApi(request, env) {
       });
     }
   } catch {}
-  return json({ settings, features, contents });
+  return json({ settings, features, contents }, 200, { 'server-timing':'setup;dur=' + (setupFinished-started) + ', auth;dur=' + (authFinished-setupFinished) + ', query;dur=' + (Date.now()-authFinished) });
 }
 async function hospitalVerificationDocumentApi(request, env, pathname) {
   const completing = pathname.endsWith('/complete');
@@ -3727,7 +3753,13 @@ ${inlineAssets ? `  if (pathname === '/og-medihelpers.jpg') return new Response(
 }
 export default {
   async scheduled(event, env, ctx) {
-    const task = runBoundedD1Retention(env);
+    const task = (async () => {
+      if (env?.DB && env.STAGING_READ_ONLY !== 'true' && (env.MIGRATION_MODE || 'open') === 'open') {
+        await ensureMemberCenterSchema(env, { expirePosts:false });
+        await expireJobPosts(env);
+      }
+      return runBoundedD1Retention(env);
+    })();
     if (ctx?.waitUntil) ctx.waitUntil(task);
     return await task;
   },

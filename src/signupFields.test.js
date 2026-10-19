@@ -18,6 +18,7 @@ function validDoctorDraft(overrides = {}) {
     ...createEmptyDraft('doctor'),
     name: '홍길동',
     phone: '010-1234-5678',
+    loginId: 'test_member',
     email: 'user@example.com',
     password: 'medi1234',
     passwordConfirm: 'medi1234',
@@ -46,16 +47,16 @@ function validHospitalDraft(overrides = {}) {
 
 test('fieldsForRole: 개인과 병원 회원에게 필요한 조건부 필드를 구분한다', () => {
   assert.deepEqual(fieldsForRole('doctor'), [
-    'name', 'phone', 'email', 'password', 'passwordConfirm',
+    'name', 'phone', 'loginId', 'email', 'password', 'passwordConfirm',
     'professionType', 'specialty', 'region', 'birthYear', 'gender'
   ]);
   assert.deepEqual(fieldsForRole('hospital'), [
-    'name', 'hospitalRole', 'department', 'phone', 'email', 'password', 'passwordConfirm',
+    'name', 'hospitalRole', 'department', 'phone', 'loginId', 'email', 'password', 'passwordConfirm',
     'hospitalName', 'institutionType', 'representativeName', 'businessNumber',
     'address', 'addressDetail', 'website', 'fax'
   ]);
   // 알 수 없는 역할은 공통 필드만 반환한다.
-  assert.deepEqual(fieldsForRole(''), ['name', 'phone', 'email', 'password', 'passwordConfirm']);
+  assert.deepEqual(fieldsForRole(''), ['name', 'phone', 'loginId', 'email', 'password', 'passwordConfirm']);
 });
 
 test('의료인: 올바른 입력은 통과한다', () => {
@@ -67,7 +68,7 @@ test('의료인: 올바른 입력은 통과한다', () => {
 test('의료인: 전문 분야를 제외한 빈 필수 입력은 각 필드 오류를 낸다', () => {
   const result = validateApplicationDraft(createEmptyDraft('doctor'), 'doctor');
   assert.equal(result.valid, false);
-  for (const field of ['name', 'phone', 'email', 'password', 'passwordConfirm', 'professionType', 'region', 'termsAccepted', 'privacyAccepted', 'ageConfirmed']) {
+  for (const field of ['name', 'phone', 'loginId', 'email', 'password', 'passwordConfirm', 'professionType', 'region', 'termsAccepted', 'privacyAccepted', 'ageConfirmed']) {
     assert.ok(result.errors[field], `${field} 오류 필요`);
   }
   assert.equal(result.errors.specialty, undefined);

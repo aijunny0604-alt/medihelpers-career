@@ -20,7 +20,7 @@ function LegalLayout({ eyebrow, title, description, children, privacyRevision = 
       <span><ShieldCheck /> {eyebrow}</span>
       <h1>{title}</h1>
       <p>{description}</p>
-      <div className="legal-effective"><b>시행일</b> {privacyRevision ? '2026년 10월 18일' : '2026년 7월 18일'} <i>{privacyRevision ? 'v1.3' : 'v1.0'}</i></div>
+      <div className="legal-effective"><b>시행일</b> {privacyRevision ? '2026년 10월 19일' : '2026년 7월 18일'} <i>{privacyRevision ? 'v1.4' : 'v1.0'}</i></div>
     </header>
     <div className="legal-layout">
       <article className="legal-document">{children}</article>
@@ -163,7 +163,7 @@ export function PrivacyPolicyPage() {
     <Section number="01" title="처리 목적과 항목">
       <p>계정 생성·보안과 신청한 상품 제공에 필요한 최소정보는 계약 이행을 위해 처리합니다. 상담·이력서 수집·이용, 지원 병원에 대한 제공, 이메일 마케팅은 각각 안내 후 동의를 받습니다. 처리방침 확인을 모든 개인정보 처리에 대한 포괄 동의로 사용하지 않습니다.</p>
       <div className="legal-table">
-        <div><b>회원·계정</b><span>회원 식별, 로그인, 계정 보안, 권한 제공</span><span>이름, 이메일, 휴대폰 번호, 비밀번호 단방향 해시, 회원 유형, 동의 일시·버전</span></div>
+        <div><b>회원·계정</b><span>회원 식별, 로그인, 계정 보안, 권한 제공</span><span>아이디, 이름, 연락 이메일, 휴대폰 번호, 비밀번호 단방향 해시, 회원 유형, 동의 일시·버전</span></div>
         <div><b>개인 회원</b><span>맞춤 채용정보, 이력서·상담 관리</span><span>의료 직군, 전문 분야, 활동 지역, 선택 입력한 경력·희망조건</span></div>
         <div><b>병원 회원</b><span>회원 계정, 공고·채용의뢰·결제 관리</span><span>담당자명·직책, 병원명, 대표자명, 사업자등록번호, 연락처, 주소</span></div>
         <div><b>병원 확인 서류</b><span>기관 정보 확인 및 허위·도용 가입 방지. 다른 목적으로 이용하지 않음</span><span>별도 동의를 받은 사업자등록증 제출본의 병원명·대표자명·사업자등록번호·사업장 주소, 확인 결과·일시</span></div>

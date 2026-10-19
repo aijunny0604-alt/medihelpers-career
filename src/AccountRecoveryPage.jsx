@@ -4,7 +4,7 @@ import { withBase } from './basePath.js';
 
 const genericMessage = {
   id: '입력한 정보와 일치하는 계정이 있으면 가입 이메일로 아이디 안내를 발송합니다. 도착하지 않으면 잠시 후 다시 확인해주세요.',
-  password: '입력한 이메일 또는 기존 아이디와 일치하는 계정이 있으면 등록된 이메일로 비밀번호 재설정 링크를 발송합니다.',
+  password: '입력한 아이디 또는 이메일과 일치하는 계정이 있으면 등록된 이메일로 비밀번호 재설정 링크를 발송합니다.',
 };
 
 export default function AccountRecoveryPage() {
@@ -125,11 +125,11 @@ export default function AccountRecoveryPage() {
         </form> : <form onSubmit={requestRecovery}>
           <span className="recovery-icon">{mode === 'id' ? <Mail /> : <LockKeyhole />}</span>
           <h2>{mode === 'id' ? '가입 이메일로 아이디 받기' : '비밀번호 재설정 링크 받기'}</h2>
-          <p>{mode === 'id' ? '회원가입 때 입력한 이름과 휴대전화 번호를 확인한 뒤 가입 이메일로 안내합니다.' : '가입 이메일 또는 기존 아이디를 입력해주세요. 이메일을 여러 계정이 함께 사용하는 경우 기존 아이디를 입력하면 해당 계정의 등록 이메일로 안내합니다.'}</p>
+          <p>{mode === 'id' ? '회원가입 때 입력한 이름과 휴대전화 번호를 확인한 뒤 가입 이메일로 안내합니다.' : '가입 아이디 또는 이메일를 입력해주세요. 이메일을 여러 계정이 함께 사용하는 경우 기존 아이디를 입력하면 해당 계정의 등록 이메일로 안내합니다.'}</p>
           {mode === 'id' ? <>
             <label><span>이름 또는 담당자명</span><input required name="name" autoComplete="name" placeholder="회원가입 때 입력한 이름" /></label>
             <label><span>휴대전화</span><input required name="phone" type="tel" autoComplete="tel" placeholder="010-0000-0000" /></label>
-          </> : <label><span>이메일 또는 기존 아이디</span><input required name="email" type="text" maxLength={254} autoComplete="username" placeholder="가입 이메일 또는 기존 아이디" /></label>}
+          </> : <label><span>아이디 또는 이메일</span><input required name="email" type="text" maxLength={254} autoComplete="username" placeholder="가입 아이디 또는 이메일" /></label>}
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button primary full" type="submit" disabled={submitting}>{submitting ? '요청 중' : '이메일로 안내받기'} {!submitting && <ArrowRight />}</button>
         </form>}
