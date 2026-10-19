@@ -265,6 +265,13 @@ if(checks.some(c=>!c.pass))process.exitCode=1;
 
 // Optional browser inspection against the same disposable data, never production.
 if(process.argv.includes('--serve')&&!process.exitCode){
+ const fixtureIndex=process.argv.indexOf('--public-content-fixture');
+ if(fixtureIndex!==-1){
+  // Optional public API snapshot for layout inspection in this in-memory DB only.
+  const fixture=JSON.parse((await readFile(process.argv[fixtureIndex+1],'utf8')).replace(/^\uFEFF/,''));
+  const insert=db.prepare("INSERT INTO admin_content_records (id,content_type,title,subtitle,status,visibility,payload_json,sort_order,created_by,updated_by,published_at) VALUES (?,?,?,?,'published','public',?,0,'isolated-layout','isolated-layout',CURRENT_TIMESTAMP)");
+  for(const item of fixture.contents||[])if(item.contentType==='doctor_job'&&item.visibility==='public')insert.run(item.id,item.contentType,item.title,item.subtitle||'',JSON.stringify(item.payload||{}));
+ }
  const {default:localWorker}=await import('../dist/server/index.js');
  const {createServer}=await import('node:http');
  const localOrigin='http://127.0.0.1:5197';env.SITE_ORIGIN=localOrigin;origin=localOrigin;

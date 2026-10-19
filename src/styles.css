@@ -5969,6 +5969,21 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 
 /* 병원이 작성한 상세내용은 줄바꿈·목록을 입력 그대로 보여준다. */
 .job-summary-text{white-space:pre-line}
+.job-description{display:grid;gap:22px;min-width:0;color:#263c58;text-align:left}
+.job-description .job-description-paragraph{margin:0;white-space:pre-line;line-height:1.9;font-size:16px;word-break:keep-all;overflow-wrap:anywhere}
+.job-description .job-description-section{padding:0;border:1px solid #dfe7f0;border-radius:16px;overflow:hidden;background:#fff;min-width:0}
+.job-description-section h4{margin:0;padding:16px 20px;background:#f2f6fc;border-bottom:1px solid #dfe7f0;color:#17385f;font-size:17px;font-weight:800}
+.job-description-section dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;padding:4px 20px}
+.job-description-section dl>div{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:start;gap:12px;min-width:0;padding:16px 12px 16px 0;border-bottom:1px solid #edf1f6}
+.job-description-section dl>div.is-wide{grid-column:1/-1}
+.job-description-section dt{color:#63738a;font-size:14px;font-weight:700;line-height:1.7;word-break:keep-all}
+.job-description-section dd{margin:0;min-width:0;color:#1c324f;font-size:15px;font-weight:600;line-height:1.65;white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere}
+.job-description-section dd.is-empty{color:#7b899c;font-weight:400}
+.job-content-link{color:#1263d6;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;overflow-wrap:anywhere;word-break:break-word}
+.job-content-link:hover{color:#0845a1}
+.job-content-link:focus-visible{outline:3px solid #82b7ff;outline-offset:4px;border-radius:3px}
+@media(max-width:1100px){.job-description-section dl{grid-template-columns:1fr}}
+@media(max-width:620px){.job-description{gap:18px}.job-description .job-description-paragraph{font-size:15px;line-height:1.85}.job-description-section h4{padding:14px 16px;font-size:16px}.job-description-section dl{padding:2px 16px}.job-description-section dl>div{grid-template-columns:76px minmax(0,1fr);gap:10px;padding:13px 0}.job-description-section dt{font-size:13px}.job-description-section dd{font-size:14px}.job-description-section dd .job-content-link{display:inline-flex;align-items:center;min-height:44px;max-width:100%;margin:-8px 0;overflow-wrap:anywhere}}
 
 /* 인재 상세: 화면 크기에 따라 자연스럽게 줄어들도록. 큰 모니터에서는 과하게 퍼지지 않게,
    노트북(1280 전후)에서는 화면을 꽉 채우지 않게 여백을 남긴다. */

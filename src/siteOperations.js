@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { jobDescriptionFacts } from './jobDescription.js';
 import { sanitizeDisplayData } from './textIntegrity.js';
 import { normalizeExposureWindow } from './billingPeriods.js';
 
@@ -167,7 +168,8 @@ export function operationalDoctorJobs(contents = [], { includeExpired = false } 
   return contents.filter((item) => item.contentType === 'doctor_job' && !isHeadhuntBoardContent(item) && (includeExpired || !isExposureExpired(item.payload))).map((item) => {
     const p = item.payload || {};
     const region = operationalJobRegion(p);
-    return { detailsRedacted:Boolean(p.locked), website:p.website || '', specialties:p.specialties || '', established:p.established || '', doctorCount:p.doctorCount || '', staffCount:p.staffCount || '', equipment:p.equipment || '', beds:p.beds || '', representative:p.representative || '', businessNumber:p.businessNumber || '', postedDate:String(p.exposure?.start || item.publishedAt || item.createdAt || '').slice(0,10), id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title || '의사 초빙공고', location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.locked ? '로그인 후 공개' : p.pay || p.salaryBasis || (!p.fromHospital && p.secondary) || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || '상시채용', updated:p.fromHospital ? '병원 등록' : '관리자 등록', color:'#1769d4', summary:p.description || (p.locked ? '상세 내용은 로그인 후 확인할 수 있습니다.' : p.fromHospital ? '병원에서 등록한 의사 초빙공고입니다.' : '메디헬퍼스 의사 초빙공고입니다.'), benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier === 'spotlight' ? 'featured' : (p.adTier || undefined), logo:p.logo || undefined, banner:p.banner || undefined, brandImageLayout:p.brandImageLayout || undefined, facility:p.facility || undefined, hospitalPhotos:Array.isArray(p.facilityPhotos) ? p.facilityPhotos : [], posterImages:Array.isArray(p.posterImages) ? p.posterImages : [], brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
+    const facts = p.locked ? {} : jobDescriptionFacts(p.description);
+    return { detailsRedacted:Boolean(p.locked), hasOriginalDescription:Boolean(p.description), fullAddress:p.fullAddress || facts['병원주소'] || facts['근무지주소'] || '', website:p.website || facts['홈페이지'] || '', specialties:p.specialties || '', established:p.established || '', doctorCount:p.doctorCount || '', staffCount:p.staffCount || facts['사원수'] || facts['직원수'] || '', equipment:p.equipment || '', beds:p.beds || '', representative:p.representative || facts['대표자'] || '', businessNumber:p.businessNumber || '', postedDate:String(p.exposure?.start || item.publishedAt || item.createdAt || '').slice(0,10), id:`admin-${item.id}`, sourceId:item.id, hospital:item.subtitle || '메디헬퍼스 등록병원', title:item.title || '의사 초빙공고', location:p.location || p.primary || region, region, type:p.employmentType || '정규직', dept:p.department || '전문의', pay:p.locked ? '로그인 후 공개' : p.pay || p.salaryBasis || (!p.fromHospital && p.secondary) || '협의 후 결정', schedule:p.schedule || '근무일정 협의', deadline:p.deadline || facts['접수기간'] || '상시채용', updated:p.fromHospital ? '병원 등록' : '관리자 등록', color:'#1769d4', summary:p.description || (p.locked ? '상세 내용은 로그인 후 확인할 수 있습니다.' : p.fromHospital ? '병원에서 등록한 의사 초빙공고입니다.' : '메디헬퍼스 의사 초빙공고입니다.'), benefits:p.benefits || ['근무조건 협의'], focus:p.focus || p.department || '전문의 진료', recruitmentReason:p.recruitmentReason || '의료진 충원', workHours:p.workHours || p.schedule || '협의', daysOff:p.daysOff || '협의', facilityType:p.facilityType || '의료기관', scale:p.scale || '병원 확인 필요', access:p.access || p.location || p.primary || '병원 문의', adTier:p.adTier === 'spotlight' ? 'featured' : (p.adTier || undefined), logo:p.logo || undefined, banner:p.banner || undefined, brandImageLayout:p.brandImageLayout || undefined, facility:p.facility || undefined, hospitalPhotos:Array.isArray(p.facilityPhotos) ? p.facilityPhotos : [], posterImages:Array.isArray(p.posterImages) ? p.posterImages : [], brandFit:p.banner ? 'banner' : (p.logo ? 'mark' : undefined) };
   });
 }
 
@@ -205,6 +207,7 @@ export function operationalTalent(contents = []) {
 export function operationalMedicalJobs(contents = []) {
   return contents.filter((item) => item.contentType === 'medical_job' && !isHeadhuntBoardContent(item) && !isExposureExpired(item.payload)).map((item) => {
     const p = item.payload || {};
+    const facts = p.locked ? {} : jobDescriptionFacts(p.description);
     const asList = (value, fallback) => Array.isArray(value)
       ? value.filter(Boolean)
       : String(value || '').split(/\r?\n|,\s*/).map((item) => item.trim()).filter(Boolean).length
@@ -223,7 +226,7 @@ export function operationalMedicalJobs(contents = []) {
       type:p.employmentType || '정규직',
       career:p.career || '경력무관',
       pay:p.pay || p.secondary || '협의',
-      deadline:p.deadline || '상시채용',
+      deadline:p.deadline || facts['접수기간'] || '상시채용',
       summary:p.summary || p.description,
       workHours:p.workHours || p.schedule,
       daysOff:p.daysOff,

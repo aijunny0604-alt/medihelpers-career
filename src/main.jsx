@@ -38,6 +38,7 @@ const TermsPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.
 const WithdrawalPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ default: m.WithdrawalPolicyPage })));
 import { invalidateSiteOperations, retrySiteOperations, isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import JobLocationMap from './JobLocationMap.jsx';
+import JobDescription, { JobText } from './JobDescription.jsx';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
@@ -1239,7 +1240,6 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <h3>병원 정보</h3>
               </div>
             </div>
-            <p className="job-summary-text">{job.summary}</p>
             <div className="institution-profile-layout">
               <div className="hospital-photo-gallery">
                 {hospitalPhotos.length > 0 ? (
@@ -1270,13 +1270,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                   <div key={label}>
                     <dt>{label}</dt>
                     <dd>
-                      {label === "홈페이지" ? (
-                        <a href={value} target="_blank" rel="noreferrer">
-                          {value}
-                        </a>
-                      ) : (
-                        value
-                      )}
+                      <JobText website={label === '홈페이지'}>{value}</JobText>
                     </dd>
                   </div>
                 ))}
@@ -1313,7 +1307,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <h3>포지션과 근무조건</h3>
               </div>
             </div>
-            <p className="job-summary-text">{job.summary}</p>
+            <JobDescription text={job.summary} title={job.title} />
             {posterImages.length > 0 && (
               <div className="job-poster-detail" aria-label={`${job.hospital} 채용 홍보 자료`}>
                 <header>
@@ -1331,11 +1325,11 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 </div>
               </div>
             )}
-            <div className="job-detail-copy">
+            {!job.hasOriginalDescription && <div className="job-detail-copy">
               <div><h4>근무조건</h4><p>급여조건은 {job.pay}이며, 근무시간은 {job.workHours || job.schedule}입니다. {job.daysOff || "휴무일은 상담을 통해 조율합니다."}</p></div>
               <div><h4>업무내용</h4><p>{job.focus} 업무를 중심으로 진료합니다. 세부 진료범위와 환자 수, 시술·검사 범위는 지원 후 병원 채용담당자와 직접 확인합니다.</p></div>
               <div><h4>복리후생·협의사항</h4><p>{(job.benefits || []).join(" · ")} 조건을 제공하며 경력과 담당 진료범위에 따라 세부 내용을 조율합니다.</p></div>
-            </div>
+            </div>}
             <div className="benefit-list">
               {(job.benefits || []).map((item) => (
                 <span key={item}>
@@ -2455,7 +2449,7 @@ function HeadhuntPostDetailPage({ post }) {
         {post.description && (
           <section className="hp-body">
             <h2>상세 내용</h2>
-            <p>{post.description}</p>
+            <JobDescription text={post.description} title={post.title} />
           </section>
         )}
 

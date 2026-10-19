@@ -7,6 +7,7 @@ import {
 import { withBase } from './basePath.js';
 import { operationalMedicalJobs } from './siteOperations.js';
 import { DEMO_MODE } from './demoMode.js';
+import JobDescription, { JobText } from './JobDescription.jsx';
 
 const categories = ['전체 직군', '간호직', '보건관련직', '의료기사직', '약무직', '의사직', '제약·기타직'];
 
@@ -99,7 +100,7 @@ export default function MedicalStaffPage({ operations, medicalTalent = [], talen
 function DetailList({ title, icon, items }) {
   return <section className="medical-staff-detail-card">
     <header>{icon}<h2>{title}</h2></header>
-    <ul>{items.map((item) => <li key={item}><CheckCircle2 /> <span>{item}</span></li>)}</ul>
+    <ul>{items.map((item) => <li key={item}><CheckCircle2 /> <span><JobText>{item}</JobText></span></li>)}</ul>
   </section>;
 }
 
@@ -147,7 +148,7 @@ export function MedicalStaffDetailPage({ operations, jobId, qa, auth }) {
           <section className="medical-staff-detail-intro">
             <small>POSITION SUMMARY</small>
             <h2>포지션 안내</h2>
-            <p>{job.summary}</p>
+            <JobDescription text={job.summary} title={job.title} />
           </section>
           <div className="medical-staff-detail-grid">
             <DetailList title="담당업무" icon={<ClipboardCheck />} items={job.responsibilities} />
