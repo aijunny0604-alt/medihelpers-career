@@ -39,6 +39,7 @@ const WithdrawalPolicyPage = lazy(() => import('./LegalPages.jsx').then(m => ({ 
 import { invalidateSiteOperations, retrySiteOperations, isHeadhuntBoardContent, operationalDoctorJobs, operationalTalent, useSiteOperations } from './siteOperations.js';
 import JobLocationMap from './JobLocationMap.jsx';
 import JobDescription, { JobText } from './JobDescription.jsx';
+import { matchesJobKeywords, matchesKeywords } from './keywordSearch.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
@@ -1564,11 +1565,14 @@ function HomePremiumLoading() {
   </div>;
 }
 
-function HomePage({ liveJobs = jobs, jobsReady = true, auth }) {
+function HomePage({ liveJobs = jobs, jobsReady = true, operations = {}, auth }) {
   const siteCategories = useSiteCategories();
   const [recruitmentType, setRecruitmentType] = useState('전체 초빙');
   const [dept, setDept] = useState('전체 진료과');
   const [region, setRegion] = useState('전국');
+  const [keyword, setKeyword] = useState('');
+  const searchActive = Boolean(keyword.trim() || dept !== '전체 진료과' || region !== '전국' || recruitmentType !== '전체 초빙');
+  const searchResults = useMemo(() => liveJobs.filter(job => matchesJob(job, {dept, region, keyword, recruitmentType})), [liveJobs, dept, region, keyword, recruitmentType]);
   const [saved, toggleSaved] = useServerSyncedSavedItems('job', auth);
   const promotedJobs = useMemo(() => prioritizeJobs(liveJobs.filter((job) => getAdTierPresentation(job.adTier)?.key === 'main')), [liveJobs]);
   const latestStandardJobs = useMemo(() => {
@@ -1579,7 +1583,8 @@ function HomePage({ liveJobs = jobs, jobsReady = true, auth }) {
     trackConversion('job_detail_open', { jobId: job.id, source: 'home' });
     navigate(`/jobs/${encodeURIComponent(job.id)}`);
   };
-  const search = () => navigate(`/jobs?recruitmentType=${encodeURIComponent(recruitmentType)}&dept=${encodeURIComponent(dept)}&region=${encodeURIComponent(region)}`);
+  const searchUrl = `/jobs?${new URLSearchParams({keyword:keyword.trim(), recruitmentType, dept, region})}`;
+  const search = () => navigate(searchUrl);
   return <>
     <section className="home-video-hero" aria-label="메디헬퍼스 소개">
       <HeroMedia />
@@ -1597,7 +1602,12 @@ function HomePage({ liveJobs = jobs, jobsReady = true, auth }) {
       <div className="home-job-hub-inner">
         <div className="home-job-hub-head"><div><span className="section-kicker">QUICK JOB FINDER</span><h2>조건으로 빠르게 찾기</h2></div><p>전체 공고 탐색과 상세 비교는 병원채용 페이지에서 이어집니다.</p></div>
         <div className="hero-search-card" role="search" aria-label="의사 초빙정보 검색">
-          <div className="hero-search-title"><span><Search /></span><div><strong>의사 초빙정보 바로 찾기</strong><small>초빙유형·진료과·지역을 선택하세요</small></div><em className="hero-search-badge">의사 전용</em></div>
+          <div className="hero-search-title"><span><Search /></span><div><strong>의사 초빙정보 바로 찾기</strong><small>검색어를 입력하면 바로 찾아드려요</small></div><em className="hero-search-badge">의사 전용</em></div>
+          <form className="home-keyword-search" onSubmit={event => { event.preventDefault(); search(); }}>
+            <label htmlFor="home-job-keyword">검색어</label>
+            <div className="home-keyword-input"><Search size={22} aria-hidden="true" /><input id="home-job-keyword" type="search" value={keyword} onChange={event => setKeyword(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault(); }} placeholder="병원명, 진료과, 지역, 근무조건 검색" autoComplete="off" aria-describedby="home-search-help" />{keyword && <button type="button" aria-label="검색어 지우기" onClick={() => setKeyword('')}><X size={19} /></button>}<button className="home-keyword-submit" type="submit">검색 <ArrowRight size={18} /></button></div>
+            <small id="home-search-help">띄어쓰기나 단어 순서가 달라도 검색돼요. 예: 인천 내과 · 주4일</small>
+          </form>
           <div className="hero-search-fields">
             <label><small>초빙 유형</small><span><BriefcaseBusiness size={19} /><HeroSelect label="초빙 유형" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></span></label>
             <label><small>진료과</small><span><Stethoscope size={19} /><HeroSelect label="진료과" value={dept} onChange={setDept} options={siteCategories.departments} /></span></label>
@@ -1605,10 +1615,12 @@ function HomePage({ liveJobs = jobs, jobsReady = true, auth }) {
             <button className="hero-search-button" onClick={search}>의사 초빙정보 보기 <ArrowRight /></button>
           </div>
           <div className="popular-searches"><span>많이 찾는 조건</span><Link to="/jobs?keyword=주%204일">주 4일</Link><Link to="/jobs?keyword=검진센터">검진센터</Link><Link to="/jobs?region=서울">서울</Link><Link to="/jobs?region=부산">부산</Link></div>
+          {operations.error && <div className="home-operations-notice" role="alert"><p>{operations.errorMessage}</p><button type="button" className="button outline" disabled={operations.loading} onClick={retrySiteOperations}>{operations.loading ? '다시 확인 중…' : '다시 불러오기'}</button></div>}
+          {searchActive && <section className="home-search-results" aria-label="실시간 채용 검색 결과"><div className="home-search-results-head"><strong role="status" aria-live="polite">{!jobsReady ? '채용정보를 확인하고 있습니다' : operations.error ? '마지막 조회 결과' : `검색 결과 ${searchResults.length}건`}</strong><button type="button" onClick={() => { setKeyword(''); setDept('전체 진료과'); setRegion('전국'); setRecruitmentType('전체 초빙'); }}>조건 초기화</button></div>{jobsReady && <>{searchResults.length ? <ul>{searchResults.slice(0, 4).map(job => <li key={job.id}><Link to={`/jobs/${encodeURIComponent(job.id)}`}><span><strong>{job.title}</strong><small>{[job.hospital, job.location || job.region, job.dept].filter(Boolean).join(' · ')}</small></span><ArrowRight size={18} aria-hidden="true" /></Link></li>)}</ul> : <p className="home-search-empty">일치하는 공고가 없습니다. 검색어를 줄이거나 지역·진료과 조건을 바꿔보세요.</p>}<Link className="home-search-all" to={searchUrl}>전체 검색 결과 보기 <ArrowRight size={17} /></Link></>}</section>}
         </div>
       </div>
     </section>
-    {(!jobsReady || promotedJobs.length > 0) && <section className="section home-premium-showcase" id="premium-recruitment">
+    {((!jobsReady && !operations.error) || promotedJobs.length > 0) && <section className="section home-premium-showcase" id="premium-recruitment">
       <div className="home-premium-inner">
         <div className="home-premium-head">
           <div><span><Crown /> MAIN RECRUITMENT AD</span><h2>지금 주목할 메인 광고</h2><p>메인 영역에 우선 노출되는 병원 채용광고입니다.</p></div>
@@ -1657,7 +1669,7 @@ function matchesJob(job, { dept, region, keyword, recruitmentType = '전체 초�
   const regionOk = region === '전국' || job.region === region;
   const recruitmentOk = recruitmentType === '전체 초빙' || getRecruitmentType(job) === recruitmentType;
   const conditionOk = matchesDoctorCondition(job, condition);
-  const keywordOk = !keyword || `${job.hospital} ${job.title} ${job.summary} ${job.location} ${job.dept} ${job.type} ${job.schedule} ${job.pay} ${(Array.isArray(job.benefits) ? job.benefits : []).join(' ')}`.toLowerCase().includes(keyword.toLowerCase());
+  const keywordOk = matchesJobKeywords(job, keyword);
   return deptOk && regionOk && recruitmentOk && conditionOk && keywordOk;
 }
 
@@ -2482,7 +2494,7 @@ function HeadhuntBoard({ operations, qa }) {
     (filter === 'all' || (filter === 'doctor' ? p.kind === '의사' : p.kind === '의료인')) &&
     (region === '전체' || p.region === region) &&
     (dept === '전체' || p.dept === dept || dept === '한의사' && p.profession === '한의사') &&
-    (!keyword || `${p.title} ${p.hospital} ${p.region} ${p.dept}`.includes(keyword))
+    matchesKeywords([p.title, p.hospital, p.region, p.dept], keyword)
   );
   const total = visible.length;
   const hasFilter = region !== '전체' || dept !== '전체' || keyword;
@@ -2604,7 +2616,7 @@ function JobSeekerBoard({ liveTalent = [], medicalTalent = [], qa, auth, route =
     (filter === 'all' || (filter === 'doctor' ? (p.staffType || 'doctor') === 'doctor' : p.staffType === 'medical')) &&
     (dept === '전체' || p.dept === dept || dept === '한의사' && p.profession === '한의사') &&
     (region === '전체' || p.region === region) &&
-    (!keyword || `${p.postTitle || ''} ${p.dept || ''} ${p.region || ''} ${p.preference || ''} ${p.location || ''}`.includes(keyword))
+    matchesKeywords([p.postTitle, p.dept, p.region, p.preference, p.location], keyword)
   );
   const total = rows.length;
   const doctorCount = all.filter((p) => (p.staffType || 'doctor') === 'doctor').length;
@@ -3780,8 +3792,8 @@ export function App() {
   const remoteDetailRoute = ['/jobs/', '/headhunting/posts/', '/medical-staff/talents/', '/medical-staff/jobs/'].some(prefix => path.startsWith(prefix));
   const remoteListRoute = ['/', '/jobs', '/medical-staff', '/headhunting'].includes(path);
   if (!isValidRoutePath(path)) page = <NotFoundPage />;
-  else if (((remoteDetailRoute || path === '/jobs' || (remoteListRoute && operations.retrying)) && !operations.ready) || ((remoteDetailRoute || remoteListRoute) && operations.error)) page = <OperationsStatus operations={operations} path={path} route={route} auth={auth} />;
-  else if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} auth={auth} />;
+  else if (path !== '/' && (((remoteDetailRoute || path === '/jobs' || (remoteListRoute && operations.retrying)) && !operations.ready) || ((remoteDetailRoute || remoteListRoute) && operations.error))) page = <OperationsStatus operations={operations} path={path} route={route} auth={auth} />;
+  else if (path === '/') page = <HomePage liveJobs={liveJobs} jobsReady={operations.ready} operations={operations} auth={auth} />;
   else if (path === '/jobs') page = operations.features.doctorRecruitment === false ? <NotFoundPage /> : <JobsPage route={route} qa={qa} auth={auth} liveJobs={liveJobs} />;
   else if (path.startsWith('/jobs/')) {
     const job = liveJobs.find((item) => item.id === decodeRouteId(path.slice('/jobs/'.length)));
