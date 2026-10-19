@@ -5069,7 +5069,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .home-video-hero-actions .button.glass{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(6px)}
 .home-video-hero-actions .button.glass:hover{background:rgba(255,255,255,.2)}
 @media(max-width:640px){.home-video-hero{min-height:420px}.home-video-hero-actions{flex-direction:column}.home-video-hero-actions .button{width:100%;justify-content:center}}
-/* 모바일·동작 줄이기·데이터 절약 환경은 HeroMedia의 정지 이미지를 사용한다. */
+/* 메인 영상은 화면 크기·동작 줄이기·데이터 절약 여부와 무관하게 무음 재생한다. */
 @media(prefers-reduced-motion:reduce){.home-video-hero{background:linear-gradient(120deg,#0b1524,#16304f)}}
 
 /* 이미지 업로드(배너·로고·시설 사진) */

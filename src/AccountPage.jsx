@@ -8,7 +8,7 @@ import {
   ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, CircleCheck, LoaderCircle,
   FileCheck2, LockKeyhole, Mail, ShieldAlert, ShieldCheck, Sparkles, Stethoscope, Upload, UserRound, X
 } from 'lucide-react';
-import { accountRoleLabel, validateSignup } from './signupModel.js';
+import { accountRoleLabel, validateSignup, DOCTOR_PROFESSIONS, OTHER_MEDICAL_PROFESSIONS } from './signupModel.js';
 import {
   allConsentsAccepted,
   clearDraftFields,
@@ -41,8 +41,8 @@ const roleContent = {
     eyebrow: 'INDIVIDUAL MEMBER',
     title: '의료인 회원가입',
     description: '의사·의료인 채용정보 탐색과 비공개 이직 상담을 위한 개인 계정입니다.',
-    afterTitle: '면허·자격 확인은 나중에',
-    afterCopy: '비공개 공고 열람이나 소개 진행 시점에 면허·자격 확인을 별도로 안내합니다. 가입 단계에서는 전문과·면허번호를 받지 않습니다.',
+    afterTitle: '직군을 선택해 간편하게 가입',
+    afterCopy: '의사와 다른 의료직군은 선택한 직군으로 구분합니다. 면허번호나 자격 서류 제출 없이 가입할 수 있습니다.',
     benefits: [
       '채용공고 탐색과 관심공고 저장',
       '비공개 이직 상담 우선 연결',
@@ -79,7 +79,7 @@ const FIELD_META = {
     label: '의료 직군',
     type: 'select',
     placeholder: '직군을 선택해주세요',
-    options: ['의사', '치과의사', '한의사', '간호사', '간호조무사', '방사선사', '임상병리사', '물리치료사', '작업치료사', '치과위생사', '병원 행정·원무', '기타 의료인']
+    optionGroups: [{ label:'의사 직군', options:DOCTOR_PROFESSIONS }, { label:'그 외 의료직군', options:OTHER_MEDICAL_PROFESSIONS }]
   },
   specialty: { label: '전문 분야·주요 업무', optional: true, type: 'text', placeholder: '예: 정형외과 전문의, MRI 방사선사, 외래 간호', hint: '가입 후 이력서나 구직글을 작성할 때 입력해도 됩니다.' },
   region: {
@@ -96,7 +96,7 @@ const FIELD_META = {
   institutionType: { label: '기관 유형', optional: true, type: 'select', placeholder: '기관 유형 선택', options: ['종합병원', '병원', '요양병원', '한방병원', '의원', '검진·전문센터', '기타 의료기관'] },
   representativeName: { label: '대표자명', type: 'text', placeholder: '예: 김메디' },
   businessNumber: { label: '사업자등록번호', type: 'text', inputMode: 'numeric', placeholder: '000-00-00000', hint: '10자리 숫자. 기관 정보와 광고 결제 내역 연결에 사용합니다.' },
-  address: { label: '병원 주소', type: 'text', autoComplete: 'street-address', placeholder: '주소 검색 버튼을 눌러주세요', wide: true, addressSearch: true, readOnly: true },
+  address: { label: '병원 주소', type: 'text', autoComplete: 'street-address', placeholder: '주소를 검색하거나 직접 입력해주세요', hint: '검색이 열리지 않으면 도로명 또는 지번 주소를 직접 입력할 수 있습니다.', wide: true, addressSearch: true },
   addressDetail: { label: '상세 주소', optional: true, type: 'text', placeholder: '예: 5층 인사팀', wide: true },
   website: { label: '홈페이지', optional: true, type: 'text', autoComplete: 'url', placeholder: 'www.hospital.co.kr' },
   fax: { label: '팩스번호', optional: true, type: 'tel', inputMode: 'numeric', placeholder: '02-0000-0000', phone: true }
@@ -214,7 +214,7 @@ function openAddressSearch(onSelect) {
       height: '100%'
     }).embed(host);
   }).catch(() => {
-    if (typeof window !== 'undefined') void notifyAction('주소 검색을 열 수 없습니다. 잠시 후 다시 시도해 주세요.');
+    if (typeof window !== 'undefined') void notifyAction('주소 검색을 열 수 없습니다. 병원 주소란에 직접 입력해주세요.');
   });
 }
 
@@ -229,12 +229,13 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
         id={fieldId}
         name={fieldId}
         type="text"
-        readOnly
+        autoComplete={meta.autoComplete}
         required={!meta.optional}
         aria-required={!meta.optional ? 'true' : undefined}
         placeholder={meta.placeholder}
         value={value}
-        onClick={() => openAddressSearch((addr) => { onChange(addr); onBlur?.(); })}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
       />
@@ -251,7 +252,7 @@ function SignupField({ fieldId, meta, value, error, onChange, onBlur }) {
       aria-describedby={describedBy}
     >
       <option value="">{meta.placeholder}</option>
-      {meta.options.map((option) => <option key={option} value={option}>{option}</option>)}
+      {meta.optionGroups ? meta.optionGroups.map(group => <optgroup key={group.label} label={group.label}>{group.options.map(option => <option key={option} value={option}>{option}</option>)}</optgroup>) : meta.options.map((option) => <option key={option} value={option}>{option}</option>)}
     </select> : <input
       id={fieldId}
       name={fieldId}
@@ -296,7 +297,7 @@ function TermsCopy() {
     <h4>서비스 이용약관 필수 안내</h4>
     <dl>
       <div><dt>서비스 범위</dt><dd>의사·의료인 채용정보, 인재정보, 비공개 이직상담, 병원 채용의뢰 및 관련 관리 서비스를 제공합니다.</dd></div>
-      <div><dt>계정과 확인</dt><dd>계정은 가입자 본인 또는 등록된 병원 담당자만 사용할 수 있습니다. 의료인 자격 확인이 필요한 기능은 해당 단계에서 별도로 안내합니다. 병원 회원가입은 사업자등록증 제출과 함께 즉시 완료됩니다.</dd></div>
+      <div><dt>계정과 확인</dt><dd>계정은 가입자 본인 또는 등록된 병원 담당자만 사용할 수 있습니다. 개인 회원은 선택한 의료 직군으로 구분합니다. 병원 회원가입은 사업자등록증 제출과 함께 즉시 완료됩니다.</dd></div>
       <div><dt>이용자 의무</dt><dd>허위 공고, 타인의 정보 도용, 무단 연락처 수집·판매, 후보자 동의 없는 개인정보 전달을 금지합니다.</dd></div>
       <div><dt>유료 서비스</dt><dd>공고·열람·채용 상품의 금액, 제공기간, 청약철회·환불조건은 결제 전에 별도로 안내하고 확인을 받습니다.</dd></div>
       <div><dt>서비스 제한</dt><dd>약관 위반, 허위 기관·자격 정보, 개인정보 침해가 확인되면 게시물 또는 계정 이용을 제한할 수 있습니다.</dd></div>
@@ -494,7 +495,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   return <section className="signup-card signup-application">
     <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
     <h2>{content.label} 가입</h2>
-    <p>{memberType === 'hospital' ? '채용 담당자 정보와 병원 기본정보, 사업자등록증을 함께 제출하면 병원 회원가입과 로그인이 바로 완료됩니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 면허·자격과 경력 상세정보는 가입 후 이력서 또는 인증 단계에서 추가할 수 있습니다.'}</p>
+    <p>{memberType === 'hospital' ? '채용 담당자 정보와 병원 기본정보, 사업자등록증을 함께 제출하면 병원 회원가입과 로그인이 바로 완료됩니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 경력과 자기소개는 가입 후 이력서에서 작성할 수 있습니다.'}</p>
     <form ref={formRef} onSubmit={submit} noValidate>
       {memberType === 'hospital' ? <>
         <section className="signup-form-section">
@@ -553,7 +554,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         <h3>약관 동의</h3>
         <label className="signup-consent-all">
           <input type="checkbox" checked={allConsentsAccepted(draft)} onChange={(event) => toggleAllConsents(event.target.checked)} />
-          <span><b>필수 항목 모두 동의</b></span>
+          <span><b>아래 필수 항목 모두 동의</b></span>
         </label>
         <div className="signup-agreements">
           <AgreementItem id={`signup-${memberType}-termsAccepted`} checked={draft.termsAccepted} onChange={(value) => toggleConsent('termsAccepted', value)} title="서비스 이용약관">
@@ -701,7 +702,7 @@ function SignupForm({ identity = {}, memberType, onComplete }) {
   return <section className="signup-card signup-form-card">
     <div className="signup-identity"><span><BadgeCheck /></span><div><small>인증된 계정</small><strong>{identity.displayName || identity.email || '인증 완료'}</strong></div></div>
     <h2>{content.label}으로 가입합니다</h2>
-    <p>{content.description} 자격이나 기관 확인은 해당 기능을 사용할 때 별도로 진행합니다.</p>
+    <p>{content.description}</p>
     <form onSubmit={submit} noValidate>
       <div className={`signup-fixed-role ${memberType}`}><span><RoleIcon /></span><div><small>선택한 회원 유형</small><strong>{content.label}</strong></div><CircleCheck /></div>
       <div className="signup-agreements">
@@ -763,6 +764,7 @@ function accountStateFromAuth(auth) {
     account: auth?.account || null,
     identity: auth?.identity || {},
     profile: auth?.profile || {},
+    registrationProfile: auth?.registrationProfile || {},
     email: auth?.email || '',
     testAccountsEnabled: auth?.testAccountsEnabled,
     welcomeEmailAvailable: Boolean(auth?.welcomeEmailAvailable),
@@ -786,7 +788,8 @@ export function SignupWelcomePage({ auth }) {
   if (!state.signedIn || !state.account) return <div className="signup-welcome-page"><section className="signup-welcome-card signup-welcome-gate"><span><ShieldAlert /></span><small>ACCOUNT CHECK</small><h1>가입 완료 정보를 확인할 수 없습니다</h1><p>{error || '가입을 마친 브라우저에서 다시 확인하거나 가입한 아이디로 로그인해주세요.'}</p><div><a className="button primary" href={withBase('/login')}>로그인하기 <ArrowRight /></a><a className="button outline" href={withBase('/signup')}>회원가입 화면</a></div></section></div>;
   const role = state.account.role === 'hospital' ? 'hospital' : 'doctor';
   const RoleIcon = role === 'hospital' ? Building2 : Stethoscope;
-  const roleLabel = accountRoleLabel(role);
+  const professionType = state.registrationProfile?.professionType || '';
+  const roleLabel = role === 'doctor' && professionType ? `${professionType} 회원` : accountRoleLabel(role);
   const name = state.profile?.name || state.profile?.displayName || state.identity?.displayName || (role === 'hospital' ? '병원 담당자' : '의료인 회원');
   const email = state.email || state.identity?.email || '';
   const primary = role === 'hospital'

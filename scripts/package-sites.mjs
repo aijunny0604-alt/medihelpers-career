@@ -1,4 +1,5 @@
 import { resumePublicationMissing } from '../src/resumeReadiness.js';
+import { SIGNUP_PROFESSIONS } from '../src/signupModel.js';
 import { postPublicUntil } from '../src/jobPostLifecycle.js';
 import { migrationControl, migrationGate } from '../src/migrationGate.js';
 import { normalizeContactPhone } from '../src/contactPhone.js';
@@ -1300,6 +1301,10 @@ async function authApi(request, env, pathname, ctx) {
     const hasOptionalProfile = body.optionalPrivacyConsent === true && optionalProfileFields.some(key => String(body[key] || '').trim());
     if (!['doctor','hospital'].includes(body.role) || body.termsAccepted !== true || body.ageConfirmed !== true || body.privacyAcknowledged !== true) {
       return json({ error:'회원 유형과 필수 약관·안내를 확인해주세요.' }, 400);
+    }
+    // 새 아이디 가입은 직군을 필수로 검증한다. 이전 이메일 폼의 누락 필드는 호환한다.
+    if (body.role === 'doctor' && (body.loginId !== undefined || body.professionType !== undefined) && !${JSON.stringify(SIGNUP_PROFESSIONS)}.includes(String(body.professionType || '').trim())) {
+      return json({error:'의료 직군을 목록에서 선택해주세요.'},400);
     }
     const phoneDigits = String(body.phone || '').replace(/[^0-9]/g, '');
     if (!/^01[016789][0-9]{7,8}$/.test(phoneDigits)) return json({ error:'필수 연락처를 정확히 입력해주세요. 예: 010-1234-5678' }, 400);

@@ -1,4 +1,4 @@
-import { ACCOUNT_ROLES } from './signupModel.js';
+import { ACCOUNT_ROLES, SIGNUP_PROFESSIONS } from './signupModel.js';
 import { validateBusinessNumber } from './businessNumber.js';
 
 // 정식 오픈 전에 사용하는 프론트엔드 전용 회원가입 신청서입니다.
@@ -121,7 +121,7 @@ export function validateField(field, draft = {}) {
     case 'email': return validateEmail(draft.email);
     case 'password': return validatePassword(draft.password);
     case 'passwordConfirm': return validatePasswordConfirm(draft.password, draft.passwordConfirm);
-    case 'professionType': return validateSelect(draft.professionType, '의료 직군');
+    case 'professionType': return SIGNUP_PROFESSIONS.includes(draft.professionType) ? '' : '의료 직군을 목록에서 선택해주세요.';
     case 'specialty': return requiredText(draft.specialty, '전문 분야');
     case 'region': return validateSelect(draft.region, '활동 지역');
     case 'hospitalRole': return requiredText(draft.hospitalRole, '담당자 직책');

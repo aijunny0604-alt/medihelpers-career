@@ -1,4 +1,7 @@
 export const ACCOUNT_ROLES = Object.freeze(['doctor', 'hospital']);
+export const DOCTOR_PROFESSIONS = Object.freeze(['의사', '치과의사', '한의사']);
+export const OTHER_MEDICAL_PROFESSIONS = Object.freeze(['간호사', '간호조무사', '방사선사', '임상병리사', '물리치료사', '작업치료사', '치과위생사', '병원 행정·원무', '기타 의료인']);
+export const SIGNUP_PROFESSIONS = Object.freeze([...DOCTOR_PROFESSIONS, ...OTHER_MEDICAL_PROFESSIONS]);
 export const TERMS_VERSION = 'terms-v1.0-2026-07-18';
 export const PRIVACY_NOTICE_VERSION = 'privacy-v1.1-2026-09-12';
 

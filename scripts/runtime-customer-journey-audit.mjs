@@ -4,6 +4,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {readFile,readdir} from 'node:fs/promises';
 import {PRIVACY_FORM_VERSION} from '../src/privacyConsent.js';
+import {SIGNUP_PROFESSIONS,DOCTOR_PROFESSIONS} from '../src/signupModel.js';
 import worker from '../dist-cf/server/index.js';
 
 const db=new DatabaseSync(':memory:');
@@ -84,6 +85,39 @@ try{
  check('concurrent same ID has exactly one conflict',sameId.filter(r=>r.status===409).length,1);
  check('failed concurrent signup leaves no orphan account',one('SELECT COUNT(*) n FROM accounts a LEFT JOIN auth_credentials c ON c.account_id=a.id WHERE c.account_id IS NULL').n,0);
  check('new ID password recovery accepted',(await call('/api/account-recovery','',{requestType:'password',email:'journey-doctor',privacyVersion:PRIVACY_FORM_VERSION,privacyConsent:true})).status,202);
+ for(const professionType of ['', '가짜 직군']){
+  check('new ID rejects missing/unknown profession '+professionType,(await call('/api/auth/register','',{...signupInput,email:'bad-profession@example.invalid',loginId:'bad-profession',professionType})).status,400);
+ }
+ for(const [index,professionType] of SIGNUP_PROFESSIONS.entries()){
+  const key='profession-'+index;
+  const registered=await call('/api/auth/register','',{...signupInput,email:key+'@example.invalid',loginId:key,professionType,optionalPrivacyConsent:false,specialty:'미동의 전문분야'});
+  check(professionType+' signup without optional consent',registered.status,201);
+  cookies[key]=registered.cookie;
+  const account=(await call('/api/account',key)).data;
+  check(professionType+' registration persists',account.registrationProfile?.professionType,professionType);
+  check(professionType+' optional data omitted',account.registrationProfile?.specialty,'');
+  check(professionType+' no automatic license verification',one('SELECT verification_status s FROM account_admin_profiles WHERE account_id=?',account.account.id).s,'unverified');
+  const opposite=DOCTOR_PROFESSIONS.includes(professionType)?'간호사':'의사';
+  const saved=await call('/api/resumes',key,{...consent,createNew:true,profession:opposite,title:'격리 직군 검수 '+professionType,specialty:'격리 주요 업무',desiredRegions:'서울',detail:{introduction:'가입 직군이 이력서와 게시판에 정확하게 유지되는지 확인하는 격리된 합성 자료입니다.'}});
+  check(professionType+' resume saved',saved.status,201);
+  check(professionType+' cannot spoof resume profession',(await call('/api/resumes?id='+saved.data.id,key)).data.resume?.profession,professionType);
+  const published=await call('/api/job-seeker-posts',key,{...consent,publicationAcknowledged:true,resumeId:saved.data.id,title:'격리 직군 공개 '+professionType,contactVisibility:'private'});
+  check(professionType+' publication succeeds',published.status,201);
+  const listed=(await call('/api/site-operations')).data.contents.find(c=>c.id==='seeker-'+published.data.post?.id);
+  check(professionType+' correct board',listed?.payload.staffType,DOCTOR_PROFESSIONS.includes(professionType)?'doctor':'medical');
+  check(professionType+' exact profession visible',listed?.payload.profession,professionType);
+ }
+ const hospitalInput={...signupInput,role:'hospital',loginId:'hospital-consent',email:'hospital-consent@example.invalid',hospitalName:'격리 동의 병원',representativeName:'격리 대표',businessNumber:'1234567890',address:'서울 격리 주소',hospitalDocumentConsent:true,optionalPrivacyConsent:false,institutionType:'종합병원',hospitalRole:'담당자',department:'미동의 부서',addressDetail:'미동의 상세주소',website:'https://example.invalid',fax:'0200000000'};
+ const hospitalForm=(input,withFile=true)=>{const form=new FormData();form.set('payload',JSON.stringify(input));if(withFile)form.set('businessDocument',new Blob([png],{type:'image/png'}),'synthetic.png');return form;};
+ check('hospital rejects absent required document consent',(await call('/api/auth/register','',hospitalForm({...hospitalInput,hospitalDocumentConsent:false}))).status,400);
+ check('hospital rejects absent required document',(await call('/api/auth/register','',hospitalForm(hospitalInput,false))).status,400);
+ const hospitalOptional=await call('/api/auth/register','',hospitalForm(hospitalInput));
+ check('hospital accepts unchecked optional consent',hospitalOptional.status,201);
+ cookies.hospitalConsent=hospitalOptional.cookie;
+ const hospitalAccount=(await call('/api/account','hospitalConsent')).data;
+ for(const field of ['institutionType','hospitalRole','department','website','fax'])check('hospital omits unconsented '+field,hospitalAccount.registrationProfile?.[field],'');
+ check('hospital omits unconsented address detail',hospitalAccount.registrationProfile?.address,hospitalInput.address);
+ check('hospital retains required institution name',hospitalAccount.registrationProfile?.hospitalName,hospitalInput.hospitalName);
  const hospitalId=one('SELECT account_id id FROM auth_credentials WHERE email_normalized=?','journey-hospital@example.invalid').id;
  const document=one('SELECT * FROM hospital_verification_requests WHERE account_id=?',hospitalId);
  check('D1 business document exists',Boolean(document),true);
