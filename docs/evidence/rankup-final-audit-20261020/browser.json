@@ -1,0 +1,66 @@
+{
+  "checkedAt": "2026-10-20T05:55:08.290Z",
+  "loginHospitalCheck": [
+    {
+      "checked": false,
+      "id": "kind_general"
+    },
+    {
+      "checked": true,
+      "id": "kind_company"
+    }
+  ],
+  "loginGeneralCheck": [
+    {
+      "checked": true,
+      "id": "kind_general"
+    },
+    {
+      "checked": false,
+      "id": "kind_company"
+    }
+  ],
+  "loginFormCheck": [
+    {
+      "action": "https://www.medihelpers.co.kr/search/index.html",
+      "fields": [],
+      "method": "get"
+    },
+    {
+      "action": "https://www.medihelpers.co.kr/rankup_module/rankup_member/login_regist.php",
+      "fields": [
+        {
+          "name": "kind",
+          "type": "radio"
+        },
+        {
+          "name": "kind",
+          "type": "radio"
+        },
+        {
+          "name": "id",
+          "type": "text"
+        },
+        {
+          "name": "",
+          "type": "image"
+        },
+        {
+          "name": "passwd",
+          "type": "password"
+        }
+      ],
+      "method": "post"
+    }
+  ],
+  "paymentMethods": [
+    "onlycard",
+    "onlydbank",
+    "online"
+  ],
+  "bankFieldsVisible": true,
+  "loginSubmitted": false,
+  "paymentSubmitted": false,
+  "adminAuthenticated": false,
+  "whoisHostingServicesVisible": 0
+}

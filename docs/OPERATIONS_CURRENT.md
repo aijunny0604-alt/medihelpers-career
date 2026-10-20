@@ -1,6 +1,6 @@
 ## 2026-10-20 랭크업 웹 연결·네임서버 복구
 
-Cloudflare apex/www 프록시를 DNS 전용으로 전환하고 후이즈에서 기존 `ns1.koreafree.co.kr`·`ns1.whoiskorea.co.kr`로 변경 완료했다. 14:44 KST 공식 WHOIS 반영 확인, 외부 DNS 캐시는 전파 중이다. 원본 웹 A·Daum MX/SPF 일치, 저장 후 공개 15경로 HTTP200 및 HTTPS 검증 통과. 본문 응답은 같은 PC 3회 측정 기준 약1.8초에서 0.31~0.33초로 감소했다. 랭크업 파일·회원 DB·결제 설정은 유지하며 실회원 로그인·실거래는 미검증이다. 새 사이트 재배포는 없고 문서만 동기화한다. [연결 복구 상세](RANKUP_CONNECTION_RESTORE_20261020.md). 아래 이전 DNS/프록시 상태는 각 작업 당시 이력이다.
+Cloudflare apex/www 프록시를 DNS 전용으로 전환하고 후이즈에서 기존 `ns1.koreafree.co.kr`·`ns1.whoiskorea.co.kr`로 변경 완료했다. 14:44 KST 공식 WHOIS 반영 후 14:51 공개 DNS 세 곳과 원본 두 곳의 25질의 일치·상위 DNS 위임을 확인했다. 원본 웹 A·Daum MX/SPF 일치, 저장 후 15경로 비교에 이어 후속 공개 36경로 및 HTTPS 검증을 통과했다. 본문 응답은 같은 PC 3회 측정 기준 약1.8초에서 0.31~0.33초로 감소했다. 랭크업 파일·회원 DB·결제 설정은 유지하며 실회원 로그인·실거래는 미검증이다. 새 사이트 재배포는 없고 문서만 동기화한다. [연결 복구 상세](RANKUP_CONNECTION_RESTORE_20261020.md). 아래 이전 DNS/프록시 상태는 각 작업 당시 이력이다.
 
 ## 2026-10-20 전체 재검증 완료 — 새 사이트 문서 최신화
 
@@ -33,7 +33,7 @@ Cloudflare apex/www 프록시를 DNS 전용으로 전환하고 후이즈에서 �
 | 정식 주소 | https://www.medihelpers.co.kr/ 및 https://medihelpers.co.kr/ — 랭크업 원본 응답, HTTPS 200 |
 | 원본 호스팅 | 기존 121.254.171.115. 원본 파일·DB·회원 인증 시스템을 교체하거나 덮어쓰지 않음 |
 | 웹 연결 | 새 앱을 가리키던 www/apex Workers Routes 2개 제거, 잔여 Route 0개 확인 |
-| DNS와 TLS | 10월 20일 apex/www DNS 전용 전환 및 기존 ns1.koreafree.co.kr·ns1.whoiskorea.co.kr 복구. 공식 WHOIS 반영 완료·외부 DNS 캐시 전파 중. 원본 HTTPS 정상, 웹 A·Daum MX/SPF 일치 |
+| DNS와 TLS | 10월 20일 apex/www DNS 전용 전환 및 기존 ns1.koreafree.co.kr·ns1.whoiskorea.co.kr 복구. 공식 WHOIS 및 공개 DNS 3곳·상위 DNS 위임 반영 확인. 원본 HTTPS 정상, 웹 A·Daum MX/SPF 일치 |
 | 구 관리자 | https://www.medihelpers.co.kr/RAD/rankup_index/index.html — 실제 관리자 로그인 확인, 회원/공고/결제 원장 조회 정상 |
 | 회원 로그인 | 원래 개인회원·병원회원 구분과 아이디/비밀번호 로그인 화면. 실제 회원 인증 성공은 아직 미검수 |
 | 가입 | 개인·병원 가입 선택과 약관 화면 정상 응답. 가입 제출은 하지 않음 |

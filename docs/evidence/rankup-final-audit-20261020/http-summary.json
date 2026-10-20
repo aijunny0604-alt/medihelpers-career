@@ -1,0 +1,367 @@
+{
+  "checkedAt": "2026-10-20T14:53:12.061457+09:00",
+  "scope": "읽기 전용 공개 GET. 로그인/주문/결제 제출 및 운영 설정 변경 없음.",
+  "pages": [
+    {
+      "url": "https://www.medihelpers.co.kr/main/index.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.347,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_member/login.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.299,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/mypage/index.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.227,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_cooperation/guide.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.236,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_callcenter/callcenter.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.262,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/services.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.281,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_regist.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.256,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/resume_regist.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.232,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/mypage/estate_regist.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.226,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_index.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.289,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/resume_list.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.292,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/estate/index.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.264,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/board/index.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.291,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_search.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.261,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/resume_search.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.245,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_member/member_intro.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.236,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=285",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.25,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=135",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.251,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=324",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.245,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=296",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.251,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_list.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.291,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=287",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.212,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=140",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.237,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=147",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.211,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/work/employ_detail.html?no=125",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.212,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_cooperation/introduce.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.238,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_cooperation/privacy.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.224,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_member/article.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.27,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_cooperation/concert.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.238,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_direct/direct_pay.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.287,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_rss/index.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.253,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.56,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_member/member_article.html?kind=general",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.237,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/rankup_member/member_article.html?kind=company",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.246,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/RAD/rankup_index/index.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.206,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    },
+    {
+      "url": "https://medihelpers.co.kr/",
+      "status": 200,
+      "tlsVerify": 0,
+      "seconds": 0.637,
+      "phpError": false,
+      "ok": true,
+      "remoteIP": "121.254.171.115"
+    }
+  ],
+  "extra": [
+    {
+      "url": "https://www.medihelpers.co.kr/m/login.html",
+      "status": 200,
+      "tlsVerify": 0,
+      "effectiveUrl": "https://www.medihelpers.co.kr/m/login.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.medihelpers.co.kr/rankup_module/images/ic_dot1.gif",
+      "status": 403,
+      "tlsVerify": 0,
+      "effectiveUrl": "https://www.medihelpers.co.kr/rankup_module/images/ic_dot1.gif",
+      "ok": false
+    },
+    {
+      "url": "https://stdpay.inicis.com/stdjs/INIStdPay.js",
+      "status": 200,
+      "tlsVerify": 0,
+      "effectiveUrl": "https://stdpay.inicis.com/stdjs/INIStdPay.js",
+      "ok": true
+    },
+    {
+      "url": "http://medihelpers.co.kr/work/employ_detail.html?no=324",
+      "status": 200,
+      "tlsVerify": 0,
+      "effectiveUrl": "https://www.medihelpers.co.kr/work/employ_detail.html?no=324",
+      "ok": true
+    },
+    {
+      "url": "http://www.medihelpers.co.kr/work/employ_detail.html?no=324",
+      "status": 200,
+      "tlsVerify": 0,
+      "effectiveUrl": "https://www.medihelpers.co.kr/work/employ_detail.html?no=324",
+      "ok": true
+    }
+  ]
+}

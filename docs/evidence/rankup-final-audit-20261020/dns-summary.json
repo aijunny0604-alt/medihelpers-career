@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-20T14:51:24.5395727+09:00",
+  "queries": 25,
+  "passed": 25,
+  "publicResolvers": 3,
+  "authoritativeServers": 2,
+  "allGlobalCachesVerified": false,
+  "parentNS": "b.dns.kr nslookup confirms original two NS",
+  "note": "Glue A records are checked separately from requested domain A answers."
+}
