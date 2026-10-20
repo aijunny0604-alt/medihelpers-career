@@ -275,6 +275,14 @@ if(process.argv.includes('--serve')&&!process.exitCode){
  const {default:localWorker}=await import('../dist/server/index.js');
  const {createServer}=await import('node:http');
  const localOrigin='http://127.0.0.1:5197';env.SITE_ORIGIN=localOrigin;origin=localOrigin;
+ const pgWindowTest=process.argv.includes('--pg-window-test');
+ if(pgWindowTest){
+  // Official public test merchant only: https://manual.inicis.com/inipaypro/
+  // Synthetic buyer data; server-side approval/network remains disabled below.
+  env.INICIS_ENV='test';env.INICIS_MID='INIpayTest';
+  env.INICIS_SIGN_KEY='SU5JTElURV9UUklQTEVERVNfS0VZU1RS';
+  env.SITE_ORIGIN=localOrigin.replace('http:','https:');
+ }
  globalThis.fetch=async()=>{throw Error('External network disabled in local visual audit');};
  let resumeFault=process.argv.includes('--fail-resumes-once');
  let operationsFault=process.argv.includes('--stall-operations-once');
@@ -288,6 +296,14 @@ if(process.argv.includes('--serve')&&!process.exitCode){
    if(role){const login=await call('/api/auth/login','',{email:'journey-'+role+'@example.invalid',password});res.writeHead(302,{'set-cookie':login.cookie+'; Path=/; HttpOnly; SameSite=Lax',location:'/mypage?tab=payments'});res.end();return;}
    const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);
    const response=await localWorker.fetch(new Request(localOrigin+req.url,{method:req.method,headers:req.headers,...(body.length?{body}:{})}),env,{});
+   if(pgWindowTest&&req.url==='/api/payment-orders'&&response.ok){
+    const result=await response.json();
+    // The production adapter requires HTTPS. Only this loopback test transport
+    // maps the browser return/close URLs to the local HTTP server; no production
+    // security setting or signed order field is changed.
+    if(result.inicis){result.inicis.returnUrl=localOrigin+'/api/payment-approve';result.inicis.closeUrl=localOrigin+'/api/payment-close';}
+    res.writeHead(response.status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+   }
    res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
   }catch{res.writeHead(500);res.end('Isolated visual audit request failed');}
  }).listen(5197,'127.0.0.1',()=>console.log('Isolated customer UI: '+localOrigin));

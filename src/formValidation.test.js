@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fieldValidationMessage as message } from './formValidation.js';
+import { fieldValidationMessage as message, isInvalidFormField } from './formValidation.js';
+
+test('미동의 fieldset에 속한 선택정보는 이전 오류가 남아도 안내에서 제외한다', () => {
+  const field={disabled:false,matches:selector=>selector === ':disabled',getAttribute:()=> 'true'};
+  assert.equal(isInvalidFormField(field),false);
+  assert.equal(isInvalidFormField({...field,matches:()=>false}),true);
+  assert.equal(isInvalidFormField({disabled:true}),false);
+  assert.equal(isInvalidFormField({willValidate:true,validity:{valid:false}}),true);
+});
 
 test('missing fields distinguish input, selection and consent', () => {
   assert.match(message({validity:{valueMissing:true}}), /비어 있습니다/);

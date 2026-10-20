@@ -2799,7 +2799,7 @@ function Checkout({ plan, auth }) {
   const [submitting, setSubmitting] = useState(false);
   const submitLock = useRef(false);
   const [recoveryOrder, setRecoveryOrder, rememberOrder] = usePaymentRecovery(auth, plan.id);
-  const [method, setMethod] = useState("card");
+  const method = "card";
   const [facilityType, setFacilityType] = useState("");
   const [facilityError, setFacilityError] = useState("");
   const [brandPreview, setBrandPreview] = useState("");
@@ -3452,24 +3452,17 @@ function Checkout({ plan, auth }) {
               <section className="ad-form-section ad-form-final">
                 <div className="ad-form-section-head">
                   <span>{isMainAdPlan ? '05' : '04'}</span>
-                  <div><h2>결제·게시 안내</h2><p>결제 방식을 선택하고 공고 등록을 완료해주세요.</p></div>
+                  <div><h2>결제·게시 안내</h2><p>카드 결제창에서 금액을 확인하고 공고 등록을 완료해주세요.</p></div>
                 </div>
               <div className="payment-choice">
-                <span>결제 안내 방식</span>
+                <span>결제수단</span>
                 <div>
                   <button
                     type="button"
-                    className={method === "card" ? "active" : ""}
-                    onClick={() => setMethod("card")}
+                    className="active"
+                    aria-pressed="true"
                   >
-                    <CreditCard /> 카드 결제 링크
-                  </button>
-                  <button
-                    type="button"
-                    className={method === "transfer" ? "active" : ""}
-                    onClick={() => setMethod("transfer")}
-                  >
-                    <Banknote /> 계좌이체
+                    <CreditCard /> 신용·체크카드
                   </button>
                 </div>
               </div>

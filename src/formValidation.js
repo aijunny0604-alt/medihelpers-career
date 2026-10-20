@@ -1,3 +1,9 @@
+export function isInvalidFormField(field) {
+  // field.disabled는 상위 fieldset의 비활성 상태를 포함하지 않는다.
+  if (field.disabled || field.matches?.(':disabled')) return false;
+  return field.getAttribute?.('aria-invalid') === 'true' || Boolean(field.willValidate && !field.validity.valid);
+}
+
 export function fieldValidationMessage(field) {
   const v = field.validity || {};
   if (field.getAttribute?.('aria-invalid') === 'true') {

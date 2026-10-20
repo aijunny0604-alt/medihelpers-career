@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { fieldValidationLabel, fieldValidationMessage } from './formValidation.js';
+import { fieldValidationLabel, fieldValidationMessage, isInvalidFormField } from './formValidation.js';
 
 export default function FormValidationNotice() {
   const [notice, setNotice] = useState(null);
@@ -11,7 +11,7 @@ export default function FormValidationNotice() {
       frame = requestAnimationFrame(() => {
         if (!form?.isConnected) return setNotice(null);
         const fields = [...form.querySelectorAll('input,select,textarea,[aria-invalid="true"]')]
-          .filter(el => !el.disabled && (el.getAttribute('aria-invalid') === 'true' || (el.willValidate && !el.validity.valid)));
+          .filter(isInvalidFormField);
         if (!fields.length) return setNotice(null);
         const first = fields.find(el => el.getBoundingClientRect().height > 1) || fields[0];
         setNotice({ title: `${fields.length}개 항목을 수정해주세요`, errors: fields.map(field => ({ label: fieldValidationLabel(field), message: fieldValidationMessage(field) })) });
