@@ -663,7 +663,7 @@ function Footer({ operations }) {
     <div className="footer-grid">
       <div className="footer-brand-block">
         <Link className="brand footer-logo" to="/"><img src={withBase('/medihelpers-logo.svg')} alt="메디헬퍼스" /></Link>
-        <p>이직도 채용도 결국 사람의 일입니다.<br />메디헬퍼스가 직접 듣고, 꼼꼼히 연결하겠습니다.</p>
+        <p>의료진에게 맞는 일자리,<br />병원에 필요한 인재를 연결합니다.</p>
         <div className="footer-contact"><a href={`tel:${operations.settings.supportPhone.replace(/\D/g,'')}`}><Phone size={15} /> {operations.settings.supportPhone}</a><a href={`mailto:${operations.settings.supportEmail}`}><Mail size={15} /> {operations.settings.supportEmail}</a></div>
       </div>
     </div>
