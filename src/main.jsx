@@ -178,13 +178,19 @@ function useScrollMotion(route) {
   useEffect(() => {
     const reduced = motionIsReduced();
     if (reduced) return undefined;
+    const progressBar = document.querySelector('.scroll-progress');
+    const hero = document.querySelector('.home-hero');
     let frame = 0;
+    let lastProgress = -1;
     const update = () => {
       frame = 0;
       const max = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
-      const progress = Math.min(window.scrollY / max, 1);
-      document.documentElement.style.setProperty('--scroll-progress', progress);
-      const hero = document.querySelector('.home-hero');
+      const progress = Math.max(0, Math.min(window.scrollY / max, 1));
+      // 루트의 상속 CSS 변수를 매 프레임 바꾸면 긴 모바일 페이지 전체가 영향을 받는다.
+      if (progressBar && progress !== lastProgress) {
+        progressBar.style.transform = `scaleX(${progress})`;
+        lastProgress = progress;
+      }
       if (hero) {
         const distance = Math.min(window.scrollY, window.innerHeight);
         hero.style.setProperty('--hero-copy-shift', `${distance * 0.055}px`);
@@ -196,10 +202,12 @@ function useScrollMotion(route) {
     };
     update();
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
     return () => {
       window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
       if (frame) window.cancelAnimationFrame(frame);
-      document.documentElement.style.removeProperty('--scroll-progress');
+      progressBar?.style.removeProperty('transform');
     };
   }, [route]);
 }
