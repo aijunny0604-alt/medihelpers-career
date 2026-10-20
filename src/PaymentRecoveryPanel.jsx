@@ -27,7 +27,7 @@ export default function PaymentRecoveryPanel({ order, message, onRecovered }) {
     inFlight.current = true;
     setBusy(true);
     try {
-      const {response,result} = await postPayment('/api/payment-approve', {orderNumber:order.orderNumber});
+      const {response,result} = await postPayment('/api/payment-approve', {orderNumber:order.orderNumber,checkOnly:true});
       if (!response.ok || !result.approved) throw new Error(result.error || result.message || '주문 상태를 확인하지 못했습니다.');
       onRecovered(result);
     } catch (failure) {

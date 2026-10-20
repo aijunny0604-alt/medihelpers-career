@@ -38,6 +38,17 @@ for(const productId of ['basic','featured']){
  const row=db.prepare('SELECT customer_name,metadata_json FROM payment_orders WHERE id=?').get(order.id);
  check(productId+' buyer sourced from member',row.customer_name!=='FORGED',true);
  check(productId+' hospital not forged',JSON.parse(row.metadata_json).hospital!=='FORGED',true);
+ const checkOnly={orderNumber:order.orderNumber,checkOnly:true};
+ check(productId+' anonymous status denied',(await call('/api/payment-approve','',checkOnly,pg)).status,401);
+ check(productId+' foreign owner status denied',(await call('/api/payment-approve','doctor',checkOnly,pg)).status,403);
+ check(productId+' cross-site status denied',(await call('/api/payment-approve','hospital',checkOnly,pg,'https://evil.invalid')).status,403);
+ const unpaidStatus=await call('/api/payment-approve','hospital',checkOnly,pg);
+ check(productId+' unpaid status query succeeds',unpaidStatus.status,200);
+ check(productId+' unpaid query does not approve',unpaidStatus.data.approved,false);
+ check(productId+' unpaid query can resume',unpaidStatus.data.canResume,true);
+ check(productId+' unpaid query creates no capture',number('SELECT COUNT(*) n FROM payment_transactions WHERE order_id=?',order.id),0);
+ const noKeys={...pg,INICIS_MID:'',INICIS_SIGN_KEY:'',PAYMENT_LIVE:'false'};
+ check(productId+' checkOnly never simulates approval',(await call('/api/payment-approve','hospital',checkOnly,noKeys)).data.approved,false);
  const before=number('SELECT COUNT(*) n FROM payment_orders');
  const resume={...consent,resumeOrderNumber:order.orderNumber,totalAmount:1,productId:'talent-unlock-pack'};
  check(productId+' anonymous resume denied',(await call('/api/payment-orders','',resume,pg)).status,401);
@@ -89,6 +100,9 @@ db.prepare('UPDATE payment_orders SET metadata_json=? WHERE id=?').run(JSON.stri
 check('changed tax cannot reopen',(await call('/api/payment-orders','hospital',pendingResume,pg)).status,409);
 db.prepare('UPDATE payment_orders SET metadata_json=? WHERE id=?').run(pendingMeta,pending.data.order.id);
 db.prepare("INSERT INTO payment_pg_attempts(order_id,status) VALUES (?,'review')").run(pending.data.order.id);
+const pendingStatus=await call('/api/payment-approve','hospital',{orderNumber:pending.data.order.orderNumber,checkOnly:true},pg);
+check('uncertain status query does not approve',pendingStatus.data.approved,false);
+check('uncertain status query blocks resume',pendingStatus.data.canResume,false);
 check('uncertain approval cannot reopen',(await call('/api/payment-orders','hospital',{...consent,resumeOrderNumber:pending.data.order.orderNumber},pg)).status,409);
 const r=await call('/api/resumes','doctor',{...consent,privacyConsent:true,createNew:true,title:'격리 재결제 검수',name:'합성 회원',phone:'01000000000',email:'synthetic@example.invalid',profession:'의사',specialty:'내과',desiredRegions:'서울',detail:{experienceYears:'8년',introduction:'실제 회원이 아닌 격리 검수 데이터입니다. 내과 외래 및 건강검진 경력에 대한 합성 소개입니다.',skills:'내과 외래',careers:[{institution:'가상 병원',department:'내과',duties:'외래'}]}},pg);
 const p=await call('/api/job-seeker-posts','doctor',{...consent,privacyConsent:true,publicationAcknowledged:true,contactConsent:true,resumeId:r.data.id,title:'격리 재결제 검수',contactVisibility:'ticket'},pg);

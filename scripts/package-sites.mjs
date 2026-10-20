@@ -2841,7 +2841,7 @@ async function paymentApproveApi(request, env) {
   // Cross-site PG returns cannot rely on SameSite login cookies. Bind them to the original server-signed order.
   const returnState = mobileState?.state || String(body.merchantData || '');
   const orderChannel = parseJsonObject(order.metadataJson)?.paymentChannel || 'pc';
-  if (!testMode && (mobileReturn ? orderChannel !== 'mobile' : orderChannel !== 'pc')) return json({error:'결제 요청 방식이 일치하지 않습니다.'},403);
+  if (!testMode && !(body.checkOnly === true && !fromPgForm) && (mobileReturn ? orderChannel !== 'mobile' : orderChannel !== 'pc')) return json({error:'결제 요청 방식이 일치하지 않습니다.'},403);
   if (!testMode && fromPgForm && !await verifyInicisState(env, {orderNumber:oid, amount:order.totalAmount}, returnState)) return json({error:'결제 요청의 유효기간 또는 인증 정보를 확인해주세요.'},403);
   if (Object.hasOwn(testTalentDetails, String(parseJsonObject(order.metadataJson)?.talentId || '')) && !testTalentDetail(env, String(parseJsonObject(order.metadataJson)?.talentId || ''))) return json({ error:'예시 이력서는 가상 결제 테스트에서만 열람할 수 있습니다.' },400);
   // [보안] 주문 소유자 본인만 승인할 수 있다. 예전에는 주문번호만 알면
@@ -2919,6 +2919,15 @@ async function paymentApproveApi(request, env) {
     if (pending) return fromPgForm ? pgRedirect('pending',oid,'주문 상태와 서비스 반영을 확인 중입니다. 다시 결제하지 마세요.') : pending;
     if (fromPgForm) return pgRedirect('paid', oid, '');
     return json({ approved:true, status:'paid', orderNumber:oid, duplicated:true, testMode });
+  }
+  // 본인 주문의 상태 조회는 PG 인증/승인 요청과 분리한다. 테스트 모드에서도
+  // 조회 버튼으로 가상 승인이 실행되지 않으며, 승인 시도 이력은 그대로 보존한다.
+  if (!fromPgForm && body.checkOnly === true) {
+    const attempted = await env.DB.prepare('SELECT status FROM payment_pg_attempts WHERE order_id=?').bind(order.id).first();
+    const canResume = !attempted && ['pending_review','awaiting_payment'].includes(order.status);
+    return json({approved:false,status:order.status,orderNumber:oid,canResume,
+      message:canResume ? '아직 결제가 완료되지 않았습니다. 같은 주문의 결제창을 다시 열어 진행해주세요.'
+        : '결제 결과를 확인 중이거나 재개할 수 없는 주문입니다. 추가 결제 없이 결제 내역을 확인해주세요.'});
   }
   // Batch is atomic: changes() gates capture/event inserts on the single winning status update.
   const captureOrder = async (provider, tid, metadataJson) => {
