@@ -40,6 +40,7 @@ import { invalidateSiteOperations, retrySiteOperations, isHeadhuntBoardContent, 
 import JobLocationMap from './JobLocationMap.jsx';
 import JobDescription, { JobText } from './JobDescription.jsx';
 import { matchesJobKeywords, matchesKeywords } from './keywordSearch.js';
+import { DEFAULT_JOB_SEARCH, readJobSearch, jobSearchRoute, newestJobs } from './jobSearchState.js';
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
@@ -1771,15 +1772,31 @@ function PremiumAdCarousel({ items, renderCard }) {
 
 function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   const siteCategories = useSiteCategories();
-  const params = new URLSearchParams(route.split('?')[1] || '');
-  const [recruitmentType, setRecruitmentType] = useState(params.get('recruitmentType') || '전체 초빙');
-  const [dept, setDept] = useState(params.get('dept') || '전체 진료과');
-  const [region, setRegion] = useState(params.get('region') || '전국');
-  const [condition, setCondition] = useState(params.get('condition') || '전체 조건');
-  const [keyword, setKeyword] = useState(params.get('keyword') || '');
+  const [filters, setFilters] = useState(() => readJobSearch(route));
+  const { recruitmentType, dept, region, condition, keyword, sort: jobSort } = filters;
+  useEffect(() => {
+    const syncRoute = () => {
+      if (getRoute().split('?')[0] === '/jobs') setFilters(readJobSearch(getRoute()));
+    };
+    window.addEventListener('popstate', syncRoute);
+    return () => window.removeEventListener('popstate', syncRoute);
+  }, []);
+  const updateFilters = (patch) => {
+    const next = { ...filters, ...patch };
+    // 입력 중에는 화면을 다시 마운트하거나 방문 기록을 쌓지 않는다.
+    // 상세 이동 전 현재 주소에 기록해 새로고침·뒤로가기에도 같은 조건을 복원한다.
+    const nextRoute = jobSearchRoute(next, getRoute());
+    if (getRoute() !== nextRoute) window.history.replaceState(window.history.state, '', withBase(nextRoute));
+    setFilters(next);
+  };
+  const setRecruitmentType = (value) => updateFilters({ recruitmentType: value });
+  const setDept = (value) => updateFilters({ dept: value });
+  const setRegion = (value) => updateFilters({ region: value });
+  const setCondition = (value) => updateFilters({ condition: value });
+  const setKeyword = (value) => updateFilters({ keyword: value });
+  const setJobSort = (value) => updateFilters({ sort: value });
   const [saved, toggleSaved] = useServerSyncedSavedItems('job', auth);
   const [standardVisible, setStandardVisible] = useState(STANDARD_STEP);
-  const [jobSort, setJobSort] = useState('balanced');
   // 실제 로그인 세션 기준으로 판정. qa.active만 보면 진짜 로그인한 병원이 공고 등록을 못 한다.
   const adAuth = auth;
   const authLoading = adAuth.status === 'loading';
@@ -1812,7 +1829,7 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   const orderedPromoted = useMemo(() => prioritizeJobs(filtered.filter((job) => getAdTierPresentation(job.adTier)?.key === 'main')), [filtered]);
   // 일반: 진료과·지역 라운드로빈 균형.
   const orderedStandard = useMemo(() => balancedOrder(filtered.filter((job) => getAdTierPresentation(job.adTier)?.key !== 'main'), { seed: daySeed }), [filtered, daySeed]);
-  const standardDisplayOrder = useMemo(() => jobSort === 'recent' ? filtered.filter((job) => getAdTierPresentation(job.adTier)?.key !== 'main') : orderedStandard, [filtered, orderedStandard, jobSort]);
+  const standardDisplayOrder = useMemo(() => jobSort === 'recent' ? newestJobs(filtered.filter((job) => getAdTierPresentation(job.adTier)?.key !== 'main')) : orderedStandard, [filtered, orderedStandard, jobSort]);
 
   // 필터 변경 시 더보기 카운트 초기화.
   useEffect(() => {
@@ -1820,14 +1837,8 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
   }, [dept, region, keyword, recruitmentType, condition]);
 
   const resetFilters = () => {
-    setRecruitmentType('전체 초빙');
-    setDept('전체 진료과');
-    setRegion('전국');
-    setCondition('전체 조건');
-    setKeyword('');
+    updateFilters(DEFAULT_JOB_SEARCH);
     setStandardVisible(STANDARD_STEP);
-    // Clear the original deep-link filters too, so reload does not restore them.
-    if (params.toString()) navigate('/jobs');
   };
   const openJob = (job) => {
     trackConversion('job_detail_open', { jobId: job.id, source: 'jobs' });
@@ -1841,10 +1852,10 @@ function JobsPage({ route, qa, auth, liveJobs = jobs }) {
 
   return <>
     <nav className="job-hub-nav jobs-hub-nav" aria-label="채용정보 공고 등록"><div><strong className="job-hub-title">채용정보</strong>{authLoading ? <span className="job-hub-register auth-action-pending" aria-hidden="true" /> : <Link className="job-hub-register" to={canRegisterAds ? '/advertise' : `/advertise/apply?plan=${adPlans[0].id}`}><Plus /> 공고 등록 <ArrowRight /></Link>}</div></nav>
-    <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={siteCategories.departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={siteCategories.regions} /></label><label className="filter-keyword"><Search /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
+    <section className="section jobs-page"><div className="doctor-search-dock"><div className="doctor-search-title"><span><Search /> QUICK SEARCH</span><strong>원하는 의사 초빙조건을 한 번에 찾으세요</strong><button type="button" onClick={resetFilters}>조건 초기화</button></div><div className="filter-bar doctor-filter-bar"><label><BriefcaseBusiness /><HeroSelect label="초빙 유형 필터" value={recruitmentType} onChange={setRecruitmentType} options={recruitmentTypes} /></label><label><Stethoscope /><HeroSelect label="진료과 필터" value={dept} onChange={setDept} options={siteCategories.departments} /></label><label><MapPin /><HeroSelect label="지역 필터" value={region} onChange={setRegion} options={siteCategories.regions} /></label><label className="filter-keyword"><Search /><input type="search" aria-label="채용공고 검색어" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="병원명, 진료과, 근무조건 검색" /></label></div>
       <div className="doctor-condition-filter" role="group" aria-label="의사 초빙 상세조건">{doctorConditions.map((item) => <button key={item} type="button" className={condition === item ? 'active' : ''} aria-pressed={condition === item} onClick={() => setCondition(item)}>{item}</button>)}</div>
       </div><div className="specialty-strip" role="group" aria-label="진료과 빠른 필터">{specialtyStrip.map((item) => <button key={item.key} type="button" className={`specialty-chip ${dept === item.key ? 'active' : ''}`} aria-pressed={dept === item.key} onClick={() => setDept(item.key)}><span>{item.label}</span><b>{item.count}</b></button>)}</div>
-      <div className="result-row portal-result-row"><div><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
+      <div className="result-row portal-result-row"><div role="status" aria-live="polite" aria-atomic="true"><small>검색 결과</small><strong><em>{filtered.length}</em>개의 의사 초빙공고</strong></div><div className="result-actions"><span><Heart size={15} /> 관심공고 {saved.length}개</span><button type="button" aria-pressed={jobSort === 'balanced'} className={jobSort === 'balanced' ? 'active' : ''} onClick={() => setJobSort('balanced')}>추천순</button><button type="button" aria-pressed={jobSort === 'recent'} className={jobSort === 'recent' ? 'active' : ''} onClick={() => setJobSort('recent')}>최신순</button></div></div>
       {filtered.length ? <>
         {orderedPromoted.length > 0 && <div className="promoted-jobs portal-promoted-section"><div className="promotion-heading"><div><span><Crown /> MAIN RECRUITMENT AD</span><strong>메인 광고 초빙공고</strong><small>메인 광고 상품으로 등록된 공고입니다. 목록 최상단에 우선 노출됩니다.</small></div><div className="tier-heading-actions">{authLoading ? <span className="tier-apply-button featured auth-action-pending" aria-hidden="true" /> : <button type="button" className="tier-apply-button featured" onClick={() => requestAdPlan(adPlans[0])}>메인 광고 등록 <ArrowRight /></button>}</div></div><PremiumAdCarousel items={orderedPromoted} renderCard={renderPortalCard} /></div>}
         <div className="balance-legend compact"><span className="balance-legend-icon"><Sparkles /></span><div><strong>진료과·지역 균형 노출</strong><p>광고 등급을 지키면서 같은 조건의 공고가 한쪽에 몰리지 않도록 고르게 배치합니다.</p></div></div>
