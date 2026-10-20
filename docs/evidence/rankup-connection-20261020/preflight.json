@@ -1,0 +1,213 @@
+{
+  "comparisons": [
+    {
+      "path": "/",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/main/index.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/rankup_module/rankup_member/login.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/rankup_module/rankup_member/member_intro.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/rankup_module/rankup_member/member_article.html?kind=general",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/rankup_module/rankup_member/member_article.html?kind=company",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/work/employ_index.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/work/employ_list.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/work/employ_detail.html?no=324",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/work/resume_list.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/board/index.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/rankup_module/rankup_callcenter/callcenter.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/work/services.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/rankup_module/rankup_direct/direct_pay.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    },
+    {
+      "path": "/RAD/rankup_index/index.html",
+      "edgeStatus": 200,
+      "originStatus": 200,
+      "tls": 0,
+      "sameTitle": true,
+      "sameForms": true,
+      "sameRadios": true,
+      "sameJobLinks": true,
+      "phpError": false
+    }
+  ],
+  "transport": [
+    {
+      "host": "medihelpers.co.kr",
+      "scheme": "http",
+      "status": 301,
+      "tls": 0,
+      "headers": {
+        "Server": "Apache/2.2",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Location": "https://www.medihelpers.co.kr/"
+      }
+    },
+    {
+      "host": "medihelpers.co.kr",
+      "scheme": "https",
+      "status": 200,
+      "tls": 0,
+      "headers": {
+        "Server": "Apache/2.2",
+        "Strict-Transport-Security": "max-age=31536000"
+      }
+    },
+    {
+      "host": "www.medihelpers.co.kr",
+      "scheme": "http",
+      "status": 301,
+      "tls": 0,
+      "headers": {
+        "Server": "Apache/2.2",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Location": "https://www.medihelpers.co.kr/"
+      }
+    },
+    {
+      "host": "www.medihelpers.co.kr",
+      "scheme": "https",
+      "status": 200,
+      "tls": 0,
+      "headers": {
+        "Server": "Apache/2.2",
+        "Strict-Transport-Security": "max-age=31536000"
+      }
+    }
+  ]
+}

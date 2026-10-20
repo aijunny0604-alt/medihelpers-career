@@ -1,0 +1,630 @@
+[
+  {
+    "server": "1.1.1.1",
+    "name": "medihelpers.co.kr",
+    "type": "NS",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "javier.ns.cloudflare.com",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 86400
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "lily.ns.cloudflare.com",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 86400
+      }
+    ]
+  },
+  {
+    "server": "1.1.1.1",
+    "name": "medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "1.1.1.1",
+    "name": "www.medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "www.medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "1.1.1.1",
+    "name": "medihelpers.co.kr",
+    "type": "MX",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "aspmx.daum.net",
+        "Preference": 10,
+        "Strings": null,
+        "TTL": 300
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "alt.aspmx.daum.net",
+        "Preference": 20,
+        "Strings": null,
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "1.1.1.1",
+    "name": "medihelpers.co.kr",
+    "type": "TXT",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 16,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": [
+          "v=spf1 include:_spf.daum.net ~all"
+        ],
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "8.8.8.8",
+    "name": "medihelpers.co.kr",
+    "type": "NS",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "lily.ns.cloudflare.com",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 21600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "javier.ns.cloudflare.com",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 21600
+      }
+    ]
+  },
+  {
+    "server": "8.8.8.8",
+    "name": "medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "8.8.8.8",
+    "name": "www.medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "www.medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "8.8.8.8",
+    "name": "medihelpers.co.kr",
+    "type": "MX",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "aspmx.daum.net",
+        "Preference": 10,
+        "Strings": null,
+        "TTL": 300
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "alt.aspmx.daum.net",
+        "Preference": 20,
+        "Strings": null,
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "8.8.8.8",
+    "name": "medihelpers.co.kr",
+    "type": "TXT",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 16,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": [
+          "v=spf1 include:_spf.daum.net ~all"
+        ],
+        "TTL": 300
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.112",
+    "name": "medihelpers.co.kr",
+    "type": "NS",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.koreafree.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.whoiskorea.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.koreafree.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.112",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.whoiskorea.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.111",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.112",
+    "name": "medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.whoiskorea.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.koreafree.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.koreafree.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.112",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.whoiskorea.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.111",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.112",
+    "name": "www.medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "www.medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.koreafree.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.whoiskorea.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.koreafree.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.112",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.whoiskorea.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.111",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.112",
+    "name": "medihelpers.co.kr",
+    "type": "MX",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "ALT.ASPMX.daum.net",
+        "Preference": 20,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "ASPMX.daum.net",
+        "Preference": 10,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.whoiskorea.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.koreafree.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.koreafree.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.112",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.whoiskorea.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.111",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.112",
+    "name": "medihelpers.co.kr",
+    "type": "TXT",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 16,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": [
+          "v=spf1 include:_spf.daum.net ~all"
+        ],
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.koreafree.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.whoiskorea.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.koreafree.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.112",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.whoiskorea.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.111",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.111",
+    "name": "medihelpers.co.kr",
+    "type": "NS",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.whoiskorea.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 2,
+        "NameHost": "ns1.koreafree.co.kr",
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.whoiskorea.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.111",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "ns1.koreafree.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.112",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.111",
+    "name": "medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.111",
+    "name": "www.medihelpers.co.kr",
+    "type": "A",
+    "answers": [
+      {
+        "Name": "www.medihelpers.co.kr",
+        "Type": 1,
+        "NameHost": null,
+        "IPAddress": "121.254.171.115",
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.111",
+    "name": "medihelpers.co.kr",
+    "type": "MX",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "ASPMX.daum.net",
+        "Preference": 10,
+        "Strings": null,
+        "TTL": 600
+      },
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 15,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": "ALT.ASPMX.daum.net",
+        "Preference": 20,
+        "Strings": null,
+        "TTL": 600
+      }
+    ]
+  },
+  {
+    "server": "121.254.171.111",
+    "name": "medihelpers.co.kr",
+    "type": "TXT",
+    "answers": [
+      {
+        "Name": "medihelpers.co.kr",
+        "Type": 16,
+        "NameHost": null,
+        "IPAddress": null,
+        "NameExchange": null,
+        "Preference": null,
+        "Strings": [
+          "v=spf1 include:_spf.daum.net ~all"
+        ],
+        "TTL": 600
+      }
+    ]
+  }
+]
