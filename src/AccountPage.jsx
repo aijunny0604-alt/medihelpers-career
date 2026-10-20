@@ -27,6 +27,7 @@ import { withBase } from './basePath.js';
 import { authRequest, TEST_ACCOUNTS } from './accountApi.js';
 export { authRequest, TEST_ACCOUNTS } from './accountApi.js';
 import { resolveLoginDestination } from './loginRedirect.js';
+import { revealAndFocusField } from './formFocus.js';
 
 const initialForm = (role = '') => ({
   role,
@@ -419,7 +420,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       // id 는 `signup-<role>-<field>` 형태로 항상 안전한 문자만 사용하므로 CSS.escape 없이 getElementById 로 직접 찾습니다.
       // (일부 구형 브라우저는 CSS.escape 를 지원하지 않습니다.)
       const node = firstInvalid && document.getElementById(`signup-${memberType}-${firstInvalid}`);
-      node?.focus?.();
+      revealAndFocusField(node);
       return;
     }
     submitLock.current = true;
@@ -602,6 +603,7 @@ function LoginCard({ testAccountsEnabled = false }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
   const goNext = (role = '') => {
     // 보던 공고·상담 화면에서 로그인했다면 그 화면으로 돌아간다. 직접 로그인 화면을
     // 열었을 때는 관리자는 운영 콘솔, 일반·병원회원은 메인으로 이동한다.
@@ -617,6 +619,8 @@ function LoginCard({ testAccountsEnabled = false }) {
   };
   const submit = async (event) => {
     event.preventDefault();
+    if (submitLock.current) return;
+    submitLock.current = true;
     setError('');
     setSubmitting(true);
     try {
@@ -624,12 +628,14 @@ function LoginCard({ testAccountsEnabled = false }) {
       goNext(result?.isAdmin || result?.account?.role === 'admin' ? 'admin' : result?.account?.role || '');
     } catch (requestError) {
       setError(requestError.message);
-    } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
   // 테스트 계정은 서버가 계정 상태와 세션을 복구한 뒤 바로 전환한다.
   const loginTest = async (acct) => {
+    if (submitLock.current) return;
+    submitLock.current = true;
     setError('');
     setSubmitting(true);
     try {
@@ -638,6 +644,7 @@ function LoginCard({ testAccountsEnabled = false }) {
       goNext(acct.key === 'admin' ? 'admin' : acct.role);
     } catch (requestError) {
       setError('테스트 계정 로그인에 실패했습니다: ' + requestError.message);
+      submitLock.current = false;
       setSubmitting(false);
     }
   };

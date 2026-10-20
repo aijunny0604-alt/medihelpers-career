@@ -44,6 +44,7 @@ import { DEFAULT_JOB_SEARCH, readJobSearch, jobSearchRoute, newestJobs } from '.
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
+import { postPayment } from './paymentApi.js';
 import {
   appendStoredRecord,
   loadSavedFromServer,
@@ -3023,11 +3024,7 @@ function Checkout({ plan, auth }) {
       data.hospitalPhotoUrls = hospitalPhotoUrls;
       data.facility = hospitalPhotoUrls[0] || "";
       data.posterImageUrls = posterImageUrls;
-      const response = await fetch("/api/payment-orders", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+      const {response,result} = await postPayment("/api/payment-orders", {
           productId: plan.id,
           paymentChannel: inicisPaymentChannel(),
           privacyVersion:PRIVACY_FORM_VERSION, checkoutAcknowledged:data.terms === 'agreed',
@@ -3036,9 +3033,7 @@ function Checkout({ plan, auth }) {
           customerEmail: data.email,
           customerPhone: data.phone,
           metadata: data,
-        }),
       });
-      const result = await response.json().catch(() => ({}));
       if (!response.ok)
         throw new Error(result.error || "결제 요청을 저장하지 못했습니다.");
       createdOrder = result.order;
@@ -3055,11 +3050,7 @@ function Checkout({ plan, auth }) {
         paymentWindowOpened = true;
         return;
       }
-      const approveResponse = await fetch('/api/payment-approve', {
-        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ orderNumber:result.order?.orderNumber, resultCode:'0000' })
-      });
-      const approveResult = await approveResponse.json().catch(() => ({}));
+      const {response:approveResponse,result:approveResult} = await postPayment('/api/payment-approve', { orderNumber:result.order?.orderNumber, resultCode:'0000' });
       if (!approveResponse.ok || !approveResult.approved) {
         throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
       }
@@ -3078,6 +3069,7 @@ function Checkout({ plan, auth }) {
       setDone({ ...(result.order || {}), ...approveResult, status:approveResult.status || 'paid' });
     } catch (error) {
       if (createdOrder?.orderNumber) setRecoveryOrder(createdOrder);
+      else if (error.code === 'PAYMENT_RESULT_UNKNOWN') setRecoveryOrder({});
       setSubmitError(error.message);
     } finally {
       // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
@@ -3542,11 +3534,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     let paymentWindowOpened = false;
     let createdOrder = null;
     try {
-      const response = await fetch('/api/payment-orders', {
-        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ productId:plan.id, paymentChannel:inicisPaymentChannel(), privacyVersion:PRIVACY_FORM_VERSION, contactVisibilityAtCheckout:contactPreview.contactVisibility, checkoutAcknowledged:data.terms === 'agreed', paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } })
-      });
-      const result = await response.json().catch(() => ({}));
+      const {response,result} = await postPayment('/api/payment-orders', { productId:plan.id, paymentChannel:inicisPaymentChannel(), privacyVersion:PRIVACY_FORM_VERSION, contactVisibilityAtCheckout:contactPreview.contactVisibility, checkoutAcknowledged:data.terms === 'agreed', paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } });
       if (!response.ok) { if (result.code === 'CONTACT_VISIBILITY_CHANGED') setPreviewRetry(v => v+1); throw new Error(result.error || '결제 요청을 저장하지 못했습니다.'); }
       const orderNumber = result.order?.orderNumber;
       createdOrder = result.order;
@@ -3563,11 +3551,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
         paymentWindowOpened = true;
         return;
       }
-      const approve = await fetch('/api/payment-approve', {
-        method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' },
-        body:JSON.stringify({ orderNumber, resultCode:'0000' })
-      });
-      const approveResult = await approve.json().catch(() => ({}));
+      const {response:approve,result:approveResult} = await postPayment('/api/payment-approve', { orderNumber, resultCode:'0000' });
       if (!approve.ok || !approveResult.approved) {
         throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
       }
@@ -3577,6 +3561,7 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
       setDone(true);
     } catch (error) {
       if (createdOrder?.orderNumber) setRecoveryOrder(createdOrder);
+      else if (error.code === 'PAYMENT_RESULT_UNKNOWN') setRecoveryOrder({});
       setSubmitError(error.message);
     } finally {
       // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.

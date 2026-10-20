@@ -47,6 +47,40 @@ test('failed PC script load or missing SDK can be retried without retaining a re
   assert.equal(await third,sdk);assert.equal(await loadInicisScript(),sdk);assert.equal(scripts.length,3);
  } finally {globalThis.document=originalDocument;globalThis.window=originalWindow;}
 });
+
+test('PC 결제 모듈 무응답은 제한 시간 후 끝나며 늦은 이벤트가 재시도를 방해하지 않는다',async()=>{
+ const originalDocument=globalThis.document,originalWindow=globalThis.window;
+ const scripts=[];globalThis.window={};
+ globalThis.document={createElement:()=>({remove(){this.removed=true;}}),head:{appendChild(s){scripts.push(s);}}};
+ try {
+  const {loadInicisScript}=await import('./inicisPay.js?timeout-test');
+  const first=loadInicisScript(true,{timeoutMs:5});
+  assert.equal(loadInicisScript(),first);
+  const lateLoad=scripts[0].onload;
+  await assert.rejects(first,/응답이 지연/);assert.equal(scripts[0].removed,true);
+  assert.equal(scripts[0].onload,null);assert.equal(scripts[0].onerror,null);
+  const second=loadInicisScript();
+  lateLoad();
+  assert.equal(loadInicisScript(),second);
+  const sdk={pay(){}};window.INIStdPay=sdk;scripts[1].onload();
+  assert.equal(await second,sdk);assert.equal(scripts.length,2);
+ } finally {globalThis.document=originalDocument;globalThis.window=originalWindow;}
+});
+
+test('불완전한 SDK와 스크립트 삽입 실패 뒤에도 정상 결제 모듈을 다시 불러온다',async()=>{
+ const originalDocument=globalThis.document,originalWindow=globalThis.window;
+ const scripts=[];let fail=true;globalThis.window={INIStdPay:{}};
+ globalThis.document={createElement:()=>({remove(){}}),head:{appendChild(s){if(fail)throw Error('blocked');scripts.push(s);}}};
+ try {
+  const {loadInicisScript}=await import('./inicisPay.js?incomplete-test');
+  await assert.rejects(loadInicisScript(),/불러오지/);
+  fail=false;
+  const second=loadInicisScript();scripts[0].onload();
+  await assert.rejects(second,/불러오지/);
+  const third=loadInicisScript();window.INIStdPay={pay(){}};scripts[1].onload();
+  assert.equal(typeof (await third).pay,'function');
+ } finally {globalThis.document=originalDocument;globalThis.window=originalWindow;}
+});
 test('payment device detection supports mobile and desktop-mode iPad',()=>{
  for(const nav of [{userAgent:'iPhone'},{userAgent:'Android Mobile'},{userAgent:'Macintosh Safari',platform:'MacIntel',maxTouchPoints:5}])assert.equal(inicisPaymentChannel(nav),'mobile');
  for(const nav of [{userAgent:'Windows Chrome'},{userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:0},undefined])assert.equal(inicisPaymentChannel(nav),'pc');

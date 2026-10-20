@@ -73,9 +73,10 @@ test('열려 있던 공고 입력 화면도 로그아웃 뒤에는 업로드와 
   );
   const guardIndex = checkout.indexOf('if (!isActiveHospitalMember(auth))');
   const uploadIndex = checkout.indexOf('uploadJobImage(brandFile');
-  const orderIndex = checkout.indexOf('fetch("/api/payment-orders"');
+  const orderIndex = checkout.indexOf('postPayment("/api/payment-orders"');
 
   assert.notEqual(guardIndex, -1);
+  assert.notEqual(orderIndex, -1);
   assert.ok(guardIndex < uploadIndex);
   assert.ok(guardIndex < orderIndex);
   assert.match(checkout, /로그인한 병원 회원만 공고를 등록할 수 있습니다/);

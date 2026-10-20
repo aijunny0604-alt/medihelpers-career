@@ -27,24 +27,33 @@ export function inicisMobileBrowserScheme(nav = globalThis.navigator) {
 }
 
 // 이니시스 표준결제 스크립트를 1회만 로드한다(중복 로드 시 결제창이 중복 호출됨).
-export function loadInicisScript(live = true) {
+export function loadInicisScript(live = true, { timeoutMs = 15000 } = {}) {
   if (scriptPromise) return scriptPromise;
   scriptPromise = new Promise((resolve, reject) => {
-    if (window.INIStdPay) return resolve(window.INIStdPay);
+    if (typeof window.INIStdPay?.pay === 'function') return resolve(window.INIStdPay);
     const script = document.createElement('script');
     script.src = live ? STDPAY_SCRIPT_LIVE : STDPAY_SCRIPT_TEST;
     script.async = true;
-    script.onload = () => {
-      if (window.INIStdPay) return resolve(window.INIStdPay);
-      scriptPromise = null; script.remove();
-      reject(new Error('결제 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'));
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      script.onload = null;
+      script.onerror = null;
+      if (error) {
+        script.remove();
+        reject(error);
+      } else resolve(window.INIStdPay);
     };
-    script.onerror = () => {
-      scriptPromise = null;
-      script.remove();
-      reject(new Error('결제 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'));
-    };
-    document.head.appendChild(script);
+    const timer = setTimeout(() => finish(new Error('결제 모듈 응답이 지연됩니다. 같은 주문의 결제창을 다시 열어주세요.')), timeoutMs);
+    script.onload = () => finish(typeof window.INIStdPay?.pay === 'function' ? null : new Error('결제 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'));
+    script.onerror = () => finish(new Error('결제 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'));
+    try { document.head.appendChild(script); }
+    catch { finish(new Error('결제 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')); }
+  }).catch(error => {
+    scriptPromise = null;
+    throw error;
   });
   return scriptPromise;
 }
