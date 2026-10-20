@@ -17,5 +17,5 @@ test('메인 채용광고는 DB 목록이 확정되기 전에 예시 공고를 �
 test('최신 메인 채용광고 로딩 영역은 실제 카드와 비슷한 높이를 유지한다', () => {
   assert.match(main, /aria-label="최신 메인 채용공고 불러오는 중"/);
   assert.match(styles, /\.home-premium-loading\{[^}]*min-height:430px/);
-  assert.match(styles, /@media\(prefers-reduced-motion:reduce\)[^{]*\{\.home-premium-loading-card/);
+  assert.match(styles, /@media\(prefers-reduced-motion:reduce\)[^{]*\{html:not\(\.force-motion\) \.home-premium-loading-card/);
 });

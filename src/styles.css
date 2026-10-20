@@ -1257,7 +1257,6 @@ body.job-detail-scroll-context{
 .hero-search-card{position:relative;z-index:20}.hero-search-fields{overflow:visible}.hero-search-fields>label{position:relative}.hero-search-fields label>span{overflow:visible}.hero-custom-select{position:relative;min-width:0;flex:1}.hero-select-trigger{width:100%;min-height:32px;padding:0;border:0;background:transparent;color:#1f304b;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:17px;font-weight:700;text-align:left}.hero-select-trigger>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hero-select-trigger svg{width:17px;flex:0 0 auto;color:#71819a;transition:transform .25s ease}.hero-custom-select.open .hero-select-trigger svg{transform:rotate(180deg)}.hero-custom-select.disabled{opacity:.58}.hero-select-menu{position:absolute;z-index:90;top:calc(100% + 16px);left:-12px;width:max(calc(100% + 24px),230px);max-height:min(340px,var(--select-available-height,340px));overflow:auto;padding:9px;border:1px solid #d8e2ef;border-radius:15px;background:#fff;box-shadow:0 22px 50px rgba(24,51,90,.2);animation:select-menu-in .22s cubic-bezier(.22,1,.36,1) both}.hero-custom-select.opens-up .hero-select-menu{top:auto;bottom:calc(100% + 16px)}.hero-select-menu button{width:100%;min-height:52px;padding:0 14px;border:0;border-radius:10px;background:#fff;color:#253955;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:16px;font-weight:650;text-align:left;transition:background .18s ease,color .18s ease,transform .18s ease}.hero-select-menu button:hover,.hero-select-menu button.selected{background:#edf4ff;color:#1263e8}.hero-select-menu button:hover{transform:translateX(3px)}.hero-select-menu button svg{width:17px;color:#1263e8}.hero-search-fields>label:nth-child(3) .hero-select-menu{left:auto;right:-12px}@keyframes select-menu-in{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
 @media(max-width:780px){.hero-search-fields .hero-select-trigger,.doctor-filter-bar .hero-select-trigger{min-height:44px}.hero-select-menu{top:calc(100% + 12px);left:-10px;width:max(calc(100% + 20px),210px);max-height:min(310px,var(--select-available-height,310px))}.hero-select-menu button{min-height:50px;font-size:16px}.hero-search-fields>label:nth-child(3) .hero-select-menu{right:-10px}}
 @media(max-width:460px){.hero-custom-select:not(.form-custom-select).opens-up .hero-select-menu{top:auto!important;bottom:78px!important}.hero-select-menu{position:fixed;left:14px!important;right:14px!important;top:auto;bottom:78px;width:auto;max-height:54vh;padding:10px}.hero-select-menu button{min-height:54px}}
-@media(prefers-reduced-motion:reduce){html.force-motion .route-stage{animation:route-stage-enter .56s cubic-bezier(.16,1,.3,1) both!important}html.force-motion .route-stage.route-leaving{opacity:0!important;transform:translateY(-9px)!important;transition:opacity .17s ease,transform .17s cubic-bezier(.4,0,1,1)!important}html.force-motion.motion-enabled .scroll-reveal{opacity:0!important;filter:blur(4px)!important;transform:translate3d(0,38px,0) scale(.985)!important;transition:opacity 760ms cubic-bezier(.22,1,.36,1) var(--reveal-delay,0ms),transform 900ms cubic-bezier(.16,1,.3,1) var(--reveal-delay,0ms),filter 720ms ease-out var(--reveal-delay,0ms)!important}html.force-motion.motion-enabled .scroll-reveal.is-visible{opacity:1!important;filter:none!important;transform:none!important}html.force-motion .job-card,html.force-motion .premium-ad .ad-brand-stage,html.force-motion .premium-ad .hospital-logo.prominent,html.force-motion .premium-ad .hospital-wordmark{transition-duration:.6s!important}html.force-motion .scroll-progress{display:block!important}}
 
 /* Premium, brand-consistent scrollbars */
 html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thin}
@@ -1450,12 +1449,12 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 /* Responsive override placed after the first-party signup base block so <=780px stays single column (earlier @media rule would otherwise be overridden by the later two-column base rule). */
 @media(max-width:780px){.signup-field-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.signup-consent-block{padding:18px 15px}.signup-complete-draft dl>div{flex-direction:column;align-items:flex-start;gap:6px}.signup-complete-draft dl>div{align-items:flex-start}}
-@media(prefers-reduced-motion:reduce){.signup-field input{transition:none}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .signup-field input{transition:none}}
 
 /* Dedicated post-signup celebration page */
 .signup-welcome-page{position:relative;min-height:100vh;padding:150px 24px 105px;overflow:hidden;background:radial-gradient(circle at 15% 18%,rgba(18,99,232,.09),transparent 25%),radial-gradient(circle at 88% 76%,rgba(21,164,131,.1),transparent 28%),#f8fbff;display:flex;align-items:center;justify-content:center}.signup-welcome-card{position:relative;z-index:2;width:min(820px,100%);padding:58px 64px;border:1px solid #dbe6f2;border-radius:32px;background:rgba(255,255,255,.97);box-shadow:0 32px 90px rgba(28,62,105,.14);text-align:center}.signup-welcome-mark{position:relative;width:78px;height:78px;margin:0 auto 18px;border-radius:25px;background:linear-gradient(145deg,#e8f7f2,#e9f2ff);color:#0e9475;display:grid;place-items:center}.signup-welcome-mark>svg:first-child{width:42px;height:42px}.signup-welcome-mark>svg:last-child{position:absolute;right:-12px;top:-10px;width:28px;height:28px;padding:5px;border-radius:10px;background:#1263e8;color:#fff;box-shadow:0 8px 18px rgba(18,99,232,.25)}.signup-welcome-card>small{color:#1263e8;font:850 11px Manrope,sans-serif;letter-spacing:1.8px}.signup-welcome-card>h1{margin:12px 0 16px;color:#102747;font-size:clamp(36px,4vw,52px);line-height:1.2;letter-spacing:-2.3px}.signup-welcome-card>p{margin:0;color:#617188;font-size:17px;line-height:1.8}.signup-welcome-card>p strong{color:#173b6d}.signup-welcome-summary{margin:32px 0 18px;padding:20px;border:1px solid #e0e8f1;border-radius:18px;background:#fbfdff;display:grid;grid-template-columns:48px minmax(0,1fr) 48px minmax(0,1fr);align-items:center;gap:12px;text-align:left}.signup-welcome-summary>span{width:48px;height:48px;border-radius:14px;background:#eaf2ff;color:#1263e8;display:grid;place-items:center}.signup-welcome-summary>span:nth-of-type(2){background:#e8f8f3;color:#108d70}.signup-welcome-summary svg{width:22px}.signup-welcome-summary>div{min-width:0;display:flex;flex-direction:column}.signup-welcome-summary small{color:#8090a5;font-size:11px}.signup-welcome-summary strong{margin-top:3px;color:#203854;font-size:14px;overflow-wrap:anywhere}.signup-welcome-mail{padding:17px 19px;border-radius:15px;display:flex;align-items:flex-start;gap:13px;text-align:left}.signup-welcome-mail.is-ready{border:1px solid #bfe4d8;background:#f0faf7;color:#137b66}.signup-welcome-mail.is-pending{border:1px solid #ead6a4;background:#fff9e9;color:#85651d}.signup-welcome-mail>svg{width:23px;flex:0 0 auto}.signup-welcome-mail>div{display:flex;flex-direction:column}.signup-welcome-mail strong{font-size:13px}.signup-welcome-mail p{margin:4px 0 0;color:#6a7a8f;font-size:12px;line-height:1.55}.signup-welcome-actions{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.signup-welcome-actions .button{min-height:54px}.signup-welcome-home{display:inline-block;margin-top:20px;color:#6f7f94;font-size:12px;font-weight:750;text-decoration:underline;text-underline-offset:4px}.signup-welcome-loading,.signup-welcome-gate{min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center}.signup-welcome-loading>svg{width:34px;color:#1263e8}.signup-welcome-loading>strong{margin-top:14px;color:#53677f}.signup-welcome-gate>span{width:64px;height:64px;border-radius:19px;background:#fff3e2;color:#a66b15;display:grid;place-items:center}.signup-welcome-gate>span svg{width:29px}.signup-welcome-gate>h1{font-size:34px}.signup-welcome-gate>p{max-width:520px}.signup-welcome-gate>div{margin-top:22px;display:flex;gap:9px}.signup-confetti{position:absolute;inset:90px 0 0;z-index:1;pointer-events:none}.signup-confetti i{position:absolute;width:10px;height:20px;border-radius:3px;background:#1263e8;transform:rotate(18deg);animation:signup-confetti-float 5s ease-in-out infinite}.signup-confetti i:nth-child(2n){width:14px;height:14px;border-radius:50%;background:#18a887}.signup-confetti i:nth-child(3n){background:#f4b83d;transform:rotate(52deg)}.signup-confetti i:nth-child(1){left:8%;top:14%}.signup-confetti i:nth-child(2){left:17%;top:62%;animation-delay:-1s}.signup-confetti i:nth-child(3){left:27%;top:8%;animation-delay:-2.2s}.signup-confetti i:nth-child(4){left:38%;top:78%;animation-delay:-.4s}.signup-confetti i:nth-child(5){left:48%;top:4%;animation-delay:-3s}.signup-confetti i:nth-child(6){left:59%;top:84%;animation-delay:-1.8s}.signup-confetti i:nth-child(7){left:69%;top:11%;animation-delay:-.7s}.signup-confetti i:nth-child(8){left:79%;top:70%;animation-delay:-2.5s}.signup-confetti i:nth-child(9){left:90%;top:20%;animation-delay:-1.3s}.signup-confetti i:nth-child(10){left:4%;top:82%;animation-delay:-3.5s}.signup-confetti i:nth-child(11){left:94%;top:78%;animation-delay:-2.8s}.signup-confetti i:nth-child(12){left:85%;top:4%;animation-delay:-.2s}@keyframes signup-confetti-float{0%,100%{translate:0 0;rotate:0deg}50%{translate:0 14px;rotate:18deg}}
 @media(max-width:780px){.signup-welcome-page{padding:115px 16px 70px}.signup-welcome-card{padding:40px 25px;border-radius:24px}.signup-welcome-summary{grid-template-columns:48px minmax(0,1fr)}.signup-welcome-card>p{font-size:15px}.signup-welcome-actions{grid-template-columns:1fr}.signup-confetti{opacity:.55}.signup-welcome-gate>div{width:100%;flex-direction:column}.signup-welcome-gate>div .button{width:100%}}
-@media(prefers-reduced-motion:reduce){.signup-confetti i{animation:none}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .signup-confetti i{animation:none}}
 
 /* Hospital member registration */
 .signup-application:has(.hospital-info-section),.signup-application:has(.individual-profile-section){padding:44px;max-width:none}
@@ -4546,7 +4545,7 @@ html.performance-lite .premium-rotator{box-shadow:0 8px 22px rgba(25,52,88,.07)}
 .home-premium-loading-card i,.home-premium-loading-card b,.home-premium-loading-card span{display:block;border-radius:10px;background:linear-gradient(100deg,#edf2f7 20%,#f7f9fc 38%,#edf2f7 56%);background-size:220% 100%;animation:home-premium-loading 1.35s ease-in-out infinite}
 .home-premium-loading-card i{height:132px}.home-premium-loading-card b{width:76%;height:20px;margin-top:22px}.home-premium-loading-card b+b{width:52%;height:14px;margin-top:14px}.home-premium-loading-card span{height:52px;margin-top:28px}
 @keyframes home-premium-loading{to{background-position:-220% 0}}
-@media(prefers-reduced-motion:reduce){.home-premium-loading-card i,.home-premium-loading-card b,.home-premium-loading-card span{animation:none}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .home-premium-loading-card i,html:not(.force-motion) .home-premium-loading-card b,html:not(.force-motion) .home-premium-loading-card span{animation:none}}
 
 /* Home recruitment hub: compact search hands off to the full jobs portal. */
 .home-job-hub{margin-top:0;padding:30px max(24px,calc((100vw - 1440px)/2)) 34px;background:linear-gradient(135deg,#f6f9ff,#eff6ff 62%,#edf9f6)}
@@ -5070,7 +5069,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .home-video-hero-actions .button.glass:hover{background:rgba(255,255,255,.2)}
 @media(max-width:640px){.home-video-hero{min-height:420px}.home-video-hero-actions{flex-direction:column}.home-video-hero-actions .button{width:100%;justify-content:center}}
 /* 메인 영상은 화면 크기·동작 줄이기·데이터 절약 여부와 무관하게 무음 재생한다. */
-@media(prefers-reduced-motion:reduce){.home-video-hero{background:linear-gradient(120deg,#0b1524,#16304f)}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .home-video-hero{background:linear-gradient(120deg,#0b1524,#16304f)}}
 
 /* 이미지 업로드(배너·로고·시설 사진) */
 .post-form-uploads{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -5511,7 +5510,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   transition:transform .32s cubic-bezier(.16,1,.3,1),box-shadow .32s cubic-bezier(.16,1,.3,1),border-color .24s ease!important;
 }
 @media(max-width:420px){.ad-submit-dock>div{max-width:105px}.ad-submit-dock .button{padding-inline:13px;font-size:13px}.ad-form-submit-panel strong{font-size:17px}}
-@media(prefers-reduced-motion:reduce){.ad-submit-dock{transition:none}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .ad-submit-dock{transition:none}}
 /* 병원 배너가 주인공이 되도록 색 띠 대신 얇은 경계와 표면광만 남긴다. */
 :is(.unified-job-grid,.premium-rotation-page) .job-card.premium-ad .ad-brand-stage{
   background:linear-gradient(180deg,rgba(251,253,255,.98),#fff)!important;
@@ -5698,7 +5697,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 @keyframes addressOverlayIn{from{opacity:0}to{opacity:1}}
 @keyframes addressPanelIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
 @media(max-width:640px){.address-search-overlay{padding:10px}.address-search-panel{height:calc(100dvh - 20px);border-radius:20px}.address-search-bar{min-height:74px;padding:13px 12px 13px 18px}.address-search-heading strong{font-size:18px}.address-search-heading small{font-size:11px}.address-search-bar button{width:44px;height:44px;border-radius:13px}}
-@media(prefers-reduced-motion:reduce){.address-search-overlay,.address-search-panel{animation:none}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .address-search-overlay,html:not(.force-motion) .address-search-panel{animation:none}}
 
 /* 공개 사이트 관리자 인라인 관리 바 + 카드 수정/삭제 */
 .admin-inline-bar{margin:0 max(24px,calc((100vw - 1440px)/2)) 0;margin-top:18px;padding:16px 20px;border:1px solid #b9d4f2;border-radius:16px;background:linear-gradient(120deg,#eaf3ff,#f3f8ff);display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px}
@@ -6137,7 +6136,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
 .ad-apply-page .payment-choice button{border-radius:12px}
 .ad-apply-page .checkout-form :is(input:not([type="checkbox"]):not([type="file"]),textarea),.owned-ad-edit-page .owned-ad-form-grid :is(input,textarea){border-color:#dbe6f3;border-radius:12px}
 @media(max-width:620px){.jobs-page :is(.portal-promoted-section,.standard-jobs) :is(.promotion-heading,.standard-heading){grid-template-columns:1fr;gap:18px;min-height:0;padding:22px 20px;border-radius:18px}.jobs-page :is(.portal-promoted-section,.standard-jobs) :is(.promotion-heading,.standard-heading) strong{font-size:22px}.jobs-page .portal-promoted-section .tier-heading-actions{width:100%;justify-self:stretch}.jobs-page :is(.portal-promoted-section,.standard-jobs) .tier-apply-button{width:100%;min-width:0}.ad-apply-page .button.primary,.owned-ad-edit-page .button.primary{min-width:0;width:100%}}
-@media(prefers-reduced-motion:reduce){.jobs-page .tier-apply-button,.ad-apply-page .button.primary,.owned-ad-edit-page .button.primary{transition:none}}
+@media(prefers-reduced-motion:reduce){html:not(.force-motion) .jobs-page .tier-apply-button,html:not(.force-motion) .ad-apply-page .button.primary,html:not(.force-motion) .owned-ad-edit-page .button.primary{transition:none}}
 
 /* A single submission action follows the completed recruitment form. */
 /* Crisp recruitment cards: artwork and typography carry the identity. */
@@ -6193,7 +6192,7 @@ html:not(.force-motion).motion-reduce .auth-gate-spinner{animation-duration:1.4s
   .home-video-hero h1{font-size:clamp(30px,8.5vw,38px);line-height:1.25;word-break:keep-all}
   .medi-angel-assistant{right:14px;bottom:calc(16px + env(safe-area-inset-bottom));width:58px;height:68px}
   .medi-angel-toggle{width:58px;height:68px}
-  .medi-angel-toggle>img{width:54px;height:62px;animation:none}
+  .medi-angel-toggle>img{width:54px;height:62px}
   .medi-angel-sparkle{display:none}
   .medi-angel-status{right:0;bottom:0;font-size:10px;padding:5px 6px}
   .medi-angel-panel{right:0;bottom:78px;width:min(370px,calc(100vw - 40px));max-height:calc(100dvh - 180px)}
@@ -6305,9 +6304,9 @@ html body .app form[data-validation-attempted] label:has(input[type="checkbox"]:
 @media(max-width:900px){.talent-unlock-checkout-section .talent-unlock-checkout{grid-template-columns:1fr;padding:24px;gap:24px}.talent-unlock-product{padding:24px}}
 @media(max-width:520px){.talent-unlock-checkout-section .talent-unlock-checkout{padding:18px}.talent-unlock-product{padding:20px}.talent-unlock-product h2{font-size:27px}}
 
-/* Navigation and history restoration must not animate the whole page. */
+/* 위치 복원은 즉시 수행하고, 명시적 모션 모드에서는 기존 화면 전환을 허용한다. */
 html{scroll-behavior:auto!important}
-html body .app .route-stage,html body .app .route-stage.route-leaving,html body .app .scroll-reveal{
+html:not(.force-motion) body .app .route-stage,html:not(.force-motion) body .app .route-stage.route-leaving,html:not(.force-motion) body .app .scroll-reveal{
   animation:none!important;transition:none!important;transform:none!important;filter:none!important;opacity:1!important;
 }
 /* Larger, readable career profiles at desktop and mobile widths. */
@@ -6479,9 +6478,9 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .payment-ledger-download label {display:grid;gap:6px;font-size:13px}
 .payment-ledger-download input {padding:10px;border:1px solid #cbdaf0;border-radius:8px;background:white;color:#10213f;min-width:0}
 .action-confirm-buttons .button {font-size:17px;min-height:52px}
-.signup-welcome-page .signup-confetti {display:none}
+html:not(.force-motion) .signup-welcome-page .signup-confetti {display:none}
 .signup-welcome-card {box-shadow:0 20px 70px #10213f12;border:1px solid #dbe5f0}
-.signup-welcome-mark {animation:none!important}
+html:not(.force-motion) .signup-welcome-mark {animation:none!important}
 .hospital-photo-gallery img {aspect-ratio:8/5;object-fit:contain;background:#eff4f8}
 .recovery-shell {max-width:1420px;width:calc(100% - 48px)}
 @media(max-width:720px){.recovery-shell {width:calc(100% - 24px)}.renew-ad-action .button{width:100%}}

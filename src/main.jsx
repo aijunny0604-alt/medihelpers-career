@@ -160,24 +160,12 @@ function useRoute() {
 }
 
 function getPerformanceProfile() {
-  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const lowCpu = Number.isFinite(navigator.hardwareConcurrency) && navigator.hardwareConcurrency <= 4;
-  const lowMemory = Number.isFinite(navigator.deviceMemory) && navigator.deviceMemory <= 4;
-  const dataSaver = Boolean(connection?.saveData);
-  const slowNetwork = /^(slow-2g|2g|3g)$/.test(connection?.effectiveType || '');
-  const reduced = prefersReduced || lowCpu || lowMemory || dataSaver || slowNetwork;
-  const reasons = [
-    prefersReduced && '시스템 동작 줄이기',
-    lowCpu && '저사양 CPU',
-    lowMemory && '메모리 절약',
-    dataSaver && '데이터 절약 모드',
-    slowNetwork && '느린 네트워크'
-  ].filter(Boolean);
-  document.documentElement.classList.remove('force-motion');
-  document.documentElement.classList.toggle('performance-lite', reduced);
-  document.documentElement.dataset.performance = reduced ? 'lite' : 'full';
-  return { reduced, reasons };
+  // 운영자 요청: OS·절약 모드와 무관하게 사이트의 기존 모션을 활성화한다.
+  // 탭 비활성화·사용자 조작 중 캐러셀 일시정지와 브라우저 영상 정책은 유지한다.
+  document.documentElement.classList.add('force-motion');
+  document.documentElement.classList.remove('performance-lite');
+  document.documentElement.dataset.performance = 'full';
+  return { reduced: false, reasons: [] };
 }
 
 function motionIsReduced() {
