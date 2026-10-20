@@ -6602,3 +6602,9 @@ input[readonly] {background:#f1f5fa;color:#425773;cursor:default}
 .home-operations-notice{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:16px;padding:16px;border-radius:12px;background:#fff8ec;color:#754a13}
 .home-operations-notice p{flex:1 1 240px;margin:0;word-break:keep-all}
 @media(max-width:600px){.home-job-hub .hero-search-title{display:grid;grid-template-columns:40px minmax(0,1fr);gap:8px 12px}.home-job-hub .hero-search-title>span{grid-row:1/3;width:40px;height:40px}.home-job-hub .hero-search-title>div{min-width:0;word-break:keep-all;overflow-wrap:anywhere}.home-job-hub .hero-search-badge{grid-column:2;justify-self:start;margin:0}.home-keyword-input{gap:8px;padding-left:10px}.home-keyword-input .home-keyword-submit{padding:0 12px}.home-keyword-input .home-keyword-submit svg{display:none}.home-keyword-input input{font-size:16px}.home-keyword-search>small{font-size:12px}.home-search-results-head{font-size:14px}}
+/* 결제 내역 안의 재개 패널은 독립 페이지의 큰 여백을 사용하지 않는다. */
+.member-payment-row > .payment-recovery{width:100%;max-width:none;margin:0;padding:20px 0 0}
+.member-payment-row > .payment-recovery .checkout-success{padding:24px 18px;border-radius:16px;background:#f5f9ff;text-align:left}
+.member-payment-row > .payment-recovery h2{font-size:22px;line-height:1.45;word-break:keep-all}
+.member-payment-row > .payment-recovery .button{display:flex;width:100%;min-height:44px;margin:12px 0;white-space:normal;text-align:center}
+.member-payment-list .member-payment-buttons button{min-height:44px}

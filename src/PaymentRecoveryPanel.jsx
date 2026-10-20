@@ -37,13 +37,13 @@ export default function PaymentRecoveryPanel({ order, message, onRecovered }) {
       setBusy(false);
     }
   };
-  if (!order?.orderNumber) return <section className="section"><div className="checkout-success" role="status">
+  if (!order?.orderNumber) return <section className="section payment-recovery"><div className="checkout-success" role="status">
     <h2>결제 요청의 처리 결과를 확인해주세요</h2>
     <p role="alert">{error}</p>
     <p>주문이 저장되었을 수 있습니다. 중복 요청을 막기 위해 결제 내역으로 이동한 뒤 기존 주문을 확인해주세요.</p>
     <a className="button primary" href={withBase('/mypage?tab=payments')}>내 결제 내역 확인</a>
   </div></section>;
-  return <section className="section"><div className="checkout-success" role="status">
+  return <section className="section payment-recovery"><div className="checkout-success" role="status">
     <h2>기존 주문의 처리 결과를 확인해주세요</h2>
     <p>주문번호 {order.orderNumber}<br />새 주문을 만들지 않고 같은 주문으로 다시 확인합니다.</p>
     {error && <p role="alert">{error}</p>}
