@@ -1,40 +1,45 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { withBase } from './basePath.js';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import { openInicisPayment } from './inicisPay.js';
-import { postPayment } from './paymentApi.js';
+import { isConfirmedPayment, postPayment } from './paymentApi.js';
 
 export default function PaymentRecoveryPanel({ order, message, onRecovered }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(message);
   const inFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current=true; return () => { mounted.current=false; }; }, []);
   const resume = async () => {
     if (inFlight.current) return;
     inFlight.current=true; setBusy(true); setError('');
     let opened=false;
-    const release=()=>{inFlight.current=false;setBusy(false);};
+    const release=()=>{inFlight.current=false;if(mounted.current)setBusy(false);};
     try {
       const {response,result}=await postPayment('/api/payment-orders',{resumeOrderNumber:order.orderNumber,privacyVersion:PRIVACY_FORM_VERSION,checkoutAcknowledged:true});
+      if (!mounted.current) return;
       if (!response.ok) throw Error(result.error || '주문을 확인하지 못했습니다.');
-      if (result.alreadyPaid) { release(); await retry(); return; }
-      await openInicisPayment(result.inicis,result.order,{onClose:release});
+      if (result.alreadyPaid === true) { release(); await retry(); return; }
+      await openInicisPayment(result.inicis,result.order,{onClose:release,shouldOpen:()=>mounted.current});
       opened=true;
-    } catch(failure) { setError(failure.message || '결제창을 열지 못했습니다.'); }
+    } catch(failure) { if(mounted.current)setError(failure.message || '결제창을 열지 못했습니다.'); }
     finally { if (!opened) release(); }
   };
   const retry = async () => {
     if (inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
+    setError('');
     try {
       const {response,result} = await postPayment('/api/payment-approve', {orderNumber:order.orderNumber,checkOnly:true});
-      if (!response.ok || !result.approved) throw new Error(result.error || result.message || '주문 상태를 확인하지 못했습니다.');
-      onRecovered(result);
+      if (!mounted.current) return;
+      if (!response.ok || !isConfirmedPayment(result, order.orderNumber)) throw new Error(result.error || result.message || '주문 상태를 확인하지 못했습니다.');
+      await onRecovered(result);
     } catch (failure) {
-      setError(failure.message || '연결을 확인하고 다시 시도해주세요.');
+      if(mounted.current)setError(failure.message || '연결을 확인하고 다시 시도해주세요.');
     } finally {
       inFlight.current = false;
-      setBusy(false);
+      if(mounted.current)setBusy(false);
     }
   };
   if (!order?.orderNumber) return <section className="section payment-recovery"><div className="checkout-success" role="status">

@@ -6,6 +6,7 @@ import { normalizeContactPhone } from '../src/contactPhone.js';
 import { normalizeWebsiteUrl } from '../src/websiteUrl.js';
 import { validateBusinessNumber } from '../src/businessNumber.js';
 import { serviceFailure } from '../server/serviceFailure.js';
+import { inspectUploadImage } from '../server/uploadImageValidation.js';
 import { legacyPaymentBridge } from '../server/legacyPaymentBridge.js';
 import { talent } from '../src/data.js';
 import { demoTalentDetail } from '../src/talentDetailAccess.js';
@@ -122,6 +123,7 @@ ${migrationGate.toString()}
 ${normalizeContactPhone.toString()}
 ${normalizeWebsiteUrl.toString()}
 ${serviceFailure.toString()}
+${inspectUploadImage.toString()}
 ${target === 'cloudflare' ? legacyPaymentBridge.toString() : ''}
 const html = ${JSON.stringify(html)};
 const builtAssets = ${JSON.stringify(builtAssets)};
@@ -1749,18 +1751,14 @@ async function uploadApi(request, env, pathname) {
     if (!buffer || buffer.byteLength === 0) return json({ error:'빈 파일입니다. 이미지를 다시 선택해주세요.' }, 400);
     if (buffer.byteLength > UPLOAD_MAX_BYTES) return json({ error:'이미지는 5MB 이하만 업로드할 수 있습니다.' }, 413);
     const bytes = new Uint8Array(buffer);
-    const ascii = (start, end) => String.fromCharCode(...bytes.slice(start, end));
-    const validImage = contentType === 'image/png' ? bytes.length >= 8 && [137,80,78,71,13,10,26,10].every((value,index)=>bytes[index]===value)
-      : contentType === 'image/jpeg' ? bytes.length >= 3 && bytes[0]===255 && bytes[1]===216 && bytes[2]===255
-      : contentType === 'image/webp' ? bytes.length >= 12 && ascii(0,4)==='RIFF' && ascii(8,12)==='WEBP'
-      : contentType === 'image/gif' && ['GIF87a','GIF89a'].includes(ascii(0,6));
-    if (!validImage) return json({ error:'이미지 형식과 파일 내용이 일치하지 않습니다. 원본 이미지를 선택해주세요.' }, 400);
+    const imageSize = inspectUploadImage(bytes, contentType);
+    if (!imageSize) return json({ error:'이미지가 손상되었거나 지원 범위를 벗어났습니다. JPG·PNG·정지 WEBP 원본으로 다시 저장해주세요. 최대 3,200만 화소입니다.' }, 400);
     const objectKey = (isResumeProfile ? 'profiles/' : 'hospitals/') + ownerId + '/' + purpose + '/' + crypto.randomUUID() + '.' + ext;
     try { await uploadStorage.put(objectKey, buffer, { httpMetadata: { contentType: contentType }, customMetadata: { uploadedBy: ownerId, purpose: purpose } }); }
     catch { return json({error:'파일을 저장하지 못했습니다. 저장 공간 또는 연결 상태를 확인한 뒤 다시 시도해주세요.'},503); }
     // 병원 회원이면 활동 기록에 남겨 마이페이지에서 업로드 이력을 확인할 수 있게 한다(실패해도 업로드는 성공 처리).
     if (account) { try { await ensureMemberCenterSchema(env); await env.DB.prepare("INSERT INTO member_activity (id, account_id, event_type, title, detail) VALUES (?, ?, 'asset_upload', ?, ?)").bind(crypto.randomUUID(), account.id, ('이미지 업로드 · ' + purpose).slice(0,200), objectKey.slice(0,300)).run(); } catch {} }
-    return json({ uploaded:true, url:'/api/uploads/' + objectKey, key:objectKey, purpose:purpose }, 201);
+    return json({ uploaded:true, url:'/api/uploads/' + objectKey, key:objectKey, purpose:purpose, width:imageSize.width, height:imageSize.height }, 201);
   }
   return json({ error:'지원하지 않는 요청입니다.' }, 405);
 }

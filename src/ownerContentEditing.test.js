@@ -67,7 +67,7 @@ test('hospital job conditions use only four practical inputs while preserving le
   assert.match(editorSource, /초빙 분야 \*/);
   assert.match(editorSource, /급여·근무 일정·추가 안내만 간단히 수정/);
   assert.match(editorSource, /incentive:payload\.incentive/);
-  assert.match(editorSource, /content:\{ \.\.\.form, logo, banner \}/);
+  assert.match(editorSource, /await saveHospitalAd\(ad\.contentRecordId, \{ \.\.\.form, logo, banner \}\)/);
 });
 
 test('hospital job registration uses a large readable desktop form scale', () => {

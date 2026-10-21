@@ -47,10 +47,41 @@ test('같은 주문 결과 확인에 주문번호만 보내고 승인 여부는 
   const {result}=await postPayment('/api/payment-approve',{orderNumber:'LOCAL-ONLY'},{
     fetchImpl:async(_,init)=>{
       assert.deepEqual(JSON.parse(init.body),{orderNumber:'LOCAL-ONLY'});
-      return Response.json({approved:false,status:'pending'});
+      return Response.json({approved:false,status:'pending',orderNumber:'LOCAL-ONLY'});
     },
   });
   assert.equal(result.approved,false);
+});
+
+for (const [name, data] of [
+  ['문자열 false', {approved:'false',status:'paid',orderNumber:'LOCAL-ONLY'}],
+  ['문자열 true', {approved:'true',status:'paid',orderNumber:'LOCAL-ONLY'}],
+  ['다른 주문', {approved:true,status:'paid',orderNumber:'OTHER'}],
+  ['주문번호 없음', {approved:true,status:'paid'}],
+  ['상태 없음', {approved:true,orderNumber:'LOCAL-ONLY'}],
+  ['미결제 상태', {approved:true,status:'pending_review',orderNumber:'LOCAL-ONLY'}],
+  ['빈 응답', {}],
+]) test(`승인 응답 ${name}은 완료로 사용하지 않는다`, async()=>{
+  await assert.rejects(postPayment('/api/payment-approve',{orderNumber:'LOCAL-ONLY'}, {
+    fetchImpl:async()=>Response.json(data),
+  }), {code:'PAYMENT_RESULT_UNKNOWN'});
+});
+
+test('동일 주문의 명시적 승인과 paid 상태만 완료 계약으로 반환한다',async()=>{
+  const data={approved:true,status:'paid',orderNumber:'LOCAL-ONLY',testMode:true};
+  assert.deepEqual((await postPayment('/api/payment-approve',{orderNumber:'LOCAL-ONLY'}, {
+    fetchImpl:async()=>Response.json(data),
+  })).result,data);
+});
+
+for(const [name,data] of [
+  ['다른 주문',{order:{orderNumber:'OTHER'}}],
+  ['문자열 이미결제',{order:{orderNumber:'LOCAL-ONLY',status:'paid'},alreadyPaid:'false'}],
+  ['미결제 이미결제',{order:{orderNumber:'LOCAL-ONLY',status:'pending_review'},alreadyPaid:true}],
+]) test(`주문 재개의 ${name} 응답은 결제창을 열 수 없다`,async()=>{
+  await assert.rejects(postPayment('/api/payment-orders',{resumeOrderNumber:'LOCAL-ONLY'}, {
+    fetchImpl:async()=>Response.json(data),
+  }),{code:'PAYMENT_RESULT_UNKNOWN'});
 });
 
 test('기존 주문 재개도 같은 번호를 보존하고 지연은 불확실 상태로 반환한다', async () => {

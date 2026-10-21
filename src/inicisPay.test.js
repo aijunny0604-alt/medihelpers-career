@@ -109,3 +109,30 @@ test('mobile checkout posts hidden fields to exact provider without PC script',a
   posted=null;await assert.rejects(openInicisPayment({...p,action:'https://evil.test/'}));assert.equal(posted,null);
  } finally {globalThis.document=original;}
 });
+
+test('화면을 벗어난 뒤 도착한 PC SDK는 결제창을 열지 않고 나중에 같은 SDK를 다시 사용할 수 있다',async()=>{
+ const oldDocument=globalThis.document,oldWindow=globalThis.window;
+ const scripts=[];let current=true,opened=0,forms=0;
+ globalThis.window={};
+ globalThis.document={getElementById(){return null;},
+  createElement:()=>({style:{},appendChild(){},remove(){}}),
+  head:{appendChild(script){scripts.push(script);}},body:{appendChild(){forms++;}}};
+ try {
+  const {openInicisPayment:open}=await import('./inicisPay.js?abandoned-view-test');
+  const params={configured:true,returnUrl:'https://audit.local/api/payment-approve'};
+  const pending=open(params,{}, {shouldOpen:()=>current});
+  current=false;window.INIStdPay={pay(){opened++;}};scripts[0].onload();
+  await assert.rejects(pending,{code:'PAYMENT_VIEW_CLOSED'});
+  assert.equal(opened,0);assert.equal(forms,0);
+  current=true;await open(params,{}, {shouldOpen:()=>current});
+  assert.equal(opened,1);assert.equal(forms,1);assert.equal(scripts.length,1);
+ } finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
+});
+
+test('종료된 화면의 모바일 요청은 제출이나 SDK 요청 전에 차단한다',async()=>{
+ const oldDocument=globalThis.document;
+ globalThis.document={createElement(){assert.fail('종료된 화면에서는 폼을 만들지 않는다');}};
+ try {
+  await assert.rejects(openInicisPayment({configured:true,mobile:true}, {}, {shouldOpen:()=>false}),{code:'PAYMENT_VIEW_CLOSED'});
+ } finally {globalThis.document=oldDocument;}
+});

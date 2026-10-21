@@ -6618,3 +6618,14 @@ html:not(.force-motion) .signup-welcome-mark {animation:none!important}
 .member-payment-row > .payment-recovery h2{font-size:22px;line-height:1.45;word-break:keep-all}
 .member-payment-row > .payment-recovery .button{display:flex;width:100%;min-height:44px;margin:12px 0;white-space:normal;text-align:center}
 .member-payment-list .member-payment-buttons button{min-height:44px}
+/* 업로드한 로고·광고 문구·시설 사진은 자르지 않고 원본 비율로 표시한다. 배경 템플릿은 기존 cover를 유지한다. */
+:is(.unified-job-grid,.premium-rotation-page) .premium-ad.brand-full-banner.has-brand-banner .ad-brand-stage.media-banner .hospital-logo.prominent img{object-fit:contain!important;background:#fff!important}
+.detail-hero-banner:not(.has-banner-copy)>img,.detail-hero-banner:not(.has-banner-copy):hover>img{object-fit:contain;transform:none;background:#fff}
+.facility-photo-preview img,.hospital-photo-gallery img,.photo-lightbox-thumbnails img{object-fit:contain;background:#eff4f8}
+.job-detail-page .hospital-profile .hospital-photo-gallery img{filter:none}
+.job-image-fallback{display:flex;position:relative;width:100%;height:100%;min-height:96px;padding:12px;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#edf3f8;color:#60758c;font-size:12px;text-align:center;white-space:normal;overflow-wrap:anywhere}
+.job-image-fallback>svg{flex:none;width:28px;height:28px}
+.hospital-logo .job-image-fallback,.photo-lightbox-thumbnails .job-image-fallback{min-height:0;padding:6px;font-size:10px}
+.hospital-logo:not(.prominent) .job-image-fallback>span,.photo-lightbox-thumbnails .job-image-fallback>span{display:none}
+.job-poster-detail a>.job-image-fallback{position:relative;inset:auto;min-height:180px;margin:0;padding:20px;opacity:1;transform:none;border-radius:0;background:#edf3f8;color:#60758c}
+.image-preparation-status{color:#285f9d;font-size:13px;line-height:1.6;word-break:keep-all}

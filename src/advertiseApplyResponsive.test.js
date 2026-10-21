@@ -39,6 +39,6 @@ test('공고 등록은 양식 마지막의 버튼 하나로 제출한다', () =>
   assert.match(applyPage, /className="ad-form-submit-panel"/);
   assert.doesNotMatch(applyPage, /className="order-summary"|ad-submit-dock|finalActionVisible/);
   assert.equal((applyPage.match(/type="submit"/g) || []).length, 1);
-  assert.match(applyPage, /type="submit" disabled=\{submitting\}/);
+  assert.match(applyPage, /type="submit" disabled=\{submitting \|\| preparingImages > 0\}/);
   assert.match(styles, /\.ad-apply-page \.checkout-grid\{grid-template-columns:minmax\(0,1fr\)\}/);
 });

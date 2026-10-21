@@ -40,8 +40,8 @@ test('home and jobs cards open a shareable full-page JobDetail route', () => {
 });
 
 test('hospital job checkout uploads selected images before creating its payment order', () => {
-  assert.match(uploadSource, /fetch\(withBase\('\/api\/uploads'\)/);
-  assert.match(uploadSource, /'x-upload-purpose': purpose/);
+  assert.match(uploadSource, /fetcher\(withBase\('\/api\/uploads'\)/);
+  assert.match(uploadSource, /'x-upload-purpose':\s*purpose/);
   assert.match(mainSource, /await uploadJobImage\(brandFile, "banner"\)/);
   assert.match(mainSource, /facilityPhotos\.map\(\(photo\) => uploadJobImage\(photo\.file, "facility"\)\)/);
   assert.match(mainSource, /data\.hospitalPhotoUrls = hospitalPhotoUrls/);

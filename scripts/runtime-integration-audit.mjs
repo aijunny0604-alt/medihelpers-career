@@ -48,12 +48,16 @@ env.BACKUPS={
  async list(opts={}){return{objects:[...objects.values()].filter(o=>o.key.startsWith(opts.prefix||'')).map(o=>({...o,size:o.value?.byteLength||String(o.value).length})),truncated:false};},
  async delete(keys){for(const k of Array.isArray(keys)?keys:[keys])objects.delete(k);}
 };
-const png=Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,0]);
+const png=new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6Zf8AAAAASUVORK5CYII=','base64'));
 async function upload(role,bytes=png,purpose='resume-profile',type='image/png'){
  const r=await worker.fetch(new Request('https://audit.local/api/uploads',{method:'POST',headers:{cookie:cookies[role],origin:'https://audit.local','content-type':type,'x-upload-purpose':purpose},body:bytes}),env,{});return{status:r.status,data:await r.json()};
 }
 async function imageStatus(role,url){return(await worker.fetch(new Request('https://audit.local'+url,{headers:{cookie:cookies[role]||''}}),env,{})).status;}
 record('fake image rejected',(await upload('doctor',new TextEncoder().encode('<html>not an image</html>'))).status,400);
+record('signature-only image rejected',(await upload('doctor',png.slice(0,8))).status,400);
+record('truncated image rejected',(await upload('doctor',png.slice(0,-10))).status,400);
+const hugePng=png.slice();new DataView(hugePng.buffer).setUint32(16,24001);
+record('oversized pixel dimensions rejected',(await upload('doctor',hugePng)).status,400);
 const photo=await upload('doctor');record('profile image uploaded',photo.status,201);
 const unused=await upload('doctor');
 const resume=await call('/api/resumes','doctor',{...consent,title:'연동 검수 이력서',name:'가상 의료인',phone:'01000000000',profession:'의사',specialty:'내과',desiredRegions:'서울',createNew:true,detail:{photoUrl:photo.data.url,introduction:'합성 시험용 경력입니다. 내과 외래 진료 경력과 희망 근무 조건을 검증합니다.'}});

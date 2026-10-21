@@ -246,7 +246,7 @@ env.STAGING_READ_ONLY='false';delete env.STAGING_ADMIN_AUTH_ENABLED;
 env.D1_UPLOADS_ENABLED='true';
 const uploader=await call('/api/auth/login',{email:isolated[1].alias,password:'oldpass2'});
 check(uploader.status,200);
-const photo=Uint8Array.from([137,80,78,71,13,10,26,10,...new Array(200).fill(0)]);
+const photo=new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6Zf8AAAAASUVORK5CYII=','base64'));
 const uploaded=await worker.fetch(new Request('https://audit.local/api/uploads',{method:'POST',headers:{origin:'https://audit.local',cookie:uploader.cookie,'content-type':'image/png','x-upload-purpose':'resume-profile'},body:photo}),env,{});
 check(uploaded.status,201);const uploadData=await uploaded.json();
 const imageRead=async cookie=>worker.fetch(new Request('https://audit.local'+uploadData.url,{headers:cookie?{cookie}:{}}),env,{});

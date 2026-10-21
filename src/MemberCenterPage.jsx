@@ -6,6 +6,7 @@ import { koreanDate } from './koreanTime.js';
 import { formatAdminTime } from './adminStorage.js';
 import { notifyAction } from './confirmAction.js';
 import { paymentAmounts } from './paymentAmounts.js';
+import { paymentReturnNotice } from './paymentNotice.js';
 import RenewAdButton from './RenewAdButton.jsx';
 import PaymentRecoveryPanel from './PaymentRecoveryPanel.jsx';
 import PasswordChange from './PasswordChange.jsx';
@@ -25,7 +26,7 @@ import {
 import { withBase } from './basePath.js';
 import { loadResumes } from './resumeApi.js';
 import { authRequest, WithdrawSection } from './AccountPage.jsx';
-import { loadMemberPaymentDetails, requestMemberRefund } from './accountWorkflowApi.js';
+import { deleteMemberPost, loadMemberPaymentDetails, markMemberNotificationsRead, requestMemberRefund, saveMemberPreferences, setMemberPostVisibility } from './accountWorkflowApi.js';
 import { jobs } from './data.js';
 import { notify } from './browserStorage.js';
 import { cleanInquiryText } from './inquiryText.js';
@@ -184,17 +185,18 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
   const requestedAdEditId = routePath.startsWith('/mypage/ads/') && routePath.endsWith('/edit')
     ? decodeRouteId(routePath.slice('/mypage/ads/'.length, -'/edit'.length))
     : '';
-  // 이니시스 결제창에서 돌아온 결과(서버가 /mypage?payment=paid|failed 로 리다이렉트)를 안내한다.
+  // URL은 결제창 복귀의 표시만 맡고, 완료 여부는 본인 주문의 서버 상태로 확인한다.
   const paymentResult = params.get('payment') || '';
   const paymentOrder = params.get('order') || '';
-  const paymentMessage = params.get('message') || '';
   const [paymentNoticeClosed, setPaymentNoticeClosed] = useState(false);
   const [tab, setTab] = useState(requestedAdEditId ? 'ads' : memberTab(requestedTab));
   const [accountState, setAccountState] = useState({ loading: !qa.active, signedIn: qa.active && qa.info.capabilities.signedIn, role: qa.info.capabilities.hospital ? 'hospital' : qa.info.capabilities.doctor || qa.info.capabilities.membership ? 'doctor' : qa.info.capabilities.admin ? 'admin' : '', identity: {} });
   const [profile, setProfile] = useState(null);
   const [serverData, setServerData] = useState({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], refunds: [], migratedAds: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [], unlockedTalents: [], talentCredits: { total:0, used:0, remaining:0 } });
+  const paymentNotice = paymentReturnNotice(paymentOrder, serverData.orders);
   const [saved, setSaved] = useState('');
   const [saveBusy, setSaveBusy] = useState(false);
+  const saveLock = useRef(false);
   // 저장 결과가 성공인지 실패인지 화면에서 구분하기 위한 판단(문구 기준).
   const saveFailed = Boolean(saved) && !saved.startsWith('저장되었습니다');
   const [notifications, setNotifications] = useState({ email: true, sms: true, service: true, marketing: false });
@@ -463,28 +465,30 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
   const recordCards = role === 'hospital' ? ads : resumeCards;
   const jobSeekerPosts = role === 'doctor' ? (serverData.jobSeekerPosts || []) : [];
   const [postBusy, setPostBusy] = useState('');
+  const postLock = useRef(false);
   const toggleJobSeekerPost = async (post) => {
+    if (!post?.id || postLock.current) return;
+    postLock.current = true;
     const status = post.status === 'active' ? 'closed' : 'active';
     setPostBusy(post.id);
     try {
-      const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(post.id)}`), {method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({action:'set_visibility',status,privacyVersion:PRIVACY_FORM_VERSION,publicationAcknowledged:true})});
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || '공개 상태를 변경하지 못했습니다.');
+      const data = await setMemberPostVisibility(post.id, status, PRIVACY_FORM_VERSION);
       setServerData(current => ({...current,jobSeekerPosts:current.jobSeekerPosts.map(item => item.id === post.id ? {...item,...data.post} : item)}));
       invalidateSiteOperations();
       notify(status === 'active' ? '구직글을 다시 공개했습니다.' : '구직글이 비공개되었습니다.', 'ok');
-    } catch(error) {notify(error.message);} finally {setPostBusy('');}
+    } catch(error) {notify(error.message);} finally {postLock.current = false;setPostBusy('');}
   };
   const deleteJobSeekerPost = async (post) => {
-    if (!post?.id || !await confirmAction('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
+    if (!post?.id || postLock.current) return;
+    postLock.current = true;
+    setPostBusy(post.id);
     try {
-      const response = await fetch(withBase(`/api/job-seeker-posts/${encodeURIComponent(post.id)}`), { method:'DELETE', credentials:'same-origin' });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || '구직글을 삭제하지 못했습니다.');
+      if (!await confirmAction('이 구직글을 삭제할까요? 연결된 이력서는 삭제되지 않습니다.')) return;
+      await deleteMemberPost(post.id);
       setServerData((current) => ({ ...current, jobSeekerPosts:current.jobSeekerPosts.filter((item) => item.id !== post.id) }));
       invalidateSiteOperations();
       notify('구직글을 삭제했습니다.', 'ok');
-    } catch (error) { notify(error.message); }
+    } catch (error) { notify(error.message); } finally {postLock.current = false;setPostBusy('');}
   };
   const payments = qa.active ? demo.payments : serverData.orders.map((item) => {
     const {total, supply, tax} = paymentAmounts(item);
@@ -532,23 +536,26 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
     window.history.replaceState({}, '', url.pathname + url.search + url.hash);
   };
 
+  const alertReadLock = useRef(false);
+  const [alertReadBusy, setAlertReadBusy] = useState(false);
   const markAlertRead = async (alert, all = false) => {
-    if (!qa.active) {
-      try {
-        const response = await fetch('/api/member-center', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify(all ? { action:'notifications_read_all' } : { action:'notification_read', notificationId:alert.id }) });
-        if (!response.ok) throw new Error('알림 읽음 상태를 저장하지 못했습니다. 다시 시도해주세요.');
-      } catch {
-        window.dispatchEvent(new CustomEvent('medihelpers:notify', { detail:{ message:'알림 읽음 상태를 저장하지 못했습니다. 다시 시도해주세요.' } }));
-        return;
-      }
-    }
-    setServerData((current) => ({
-      ...current,
-      alerts:current.alerts.map((item) => all || item.id === alert?.id ? { ...item, readAt:item.readAt || new Date().toISOString() } : item),
-      unreadCount:all ? 0 : Math.max(0, current.unreadCount - (alert?.readAt ? 0 : 1))
-    }));
-    window.dispatchEvent(new CustomEvent('medihelpers:notifications-changed'));
-    if (!all && alert.actionUrl) window.location.href = withBase(alert.actionUrl);
+    if ((!all && !alert?.id) || alertReadLock.current) return;
+    alertReadLock.current = true;
+    setAlertReadBusy(true);
+    try {
+      if (!qa.active) await markMemberNotificationsRead(alert?.id, all);
+      setServerData((current) => {
+        const newlyRead = current.alerts.filter(item => !item.readAt && (all || item.id === alert?.id)).length;
+        return {
+          ...current,
+          alerts:current.alerts.map(item => all || item.id === alert?.id ? { ...item, readAt:item.readAt || new Date().toISOString() } : item),
+          unreadCount:all ? 0 : Math.max(0, current.unreadCount - newlyRead)
+        };
+      });
+      window.dispatchEvent(new CustomEvent('medihelpers:notifications-changed'));
+      if (!all && alert.actionUrl) window.location.href = withBase(alert.actionUrl);
+    } catch (error) { notify(error.message); }
+    finally { alertReadLock.current = false;setAlertReadBusy(false); }
   };
 
   const openMetricDetail = (label) => {
@@ -571,6 +578,7 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
 
   const saveProfile = async (event) => {
     event.preventDefault();
+    if (saveLock.current) return;
     const next = Object.fromEntries(new FormData(event.currentTarget).entries());
     if (qa.active) {
       setProfile({ ...currentProfile, ...next });
@@ -578,42 +586,31 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
       window.setTimeout(() => setSaved(''), 2500);
       return;
     }
-    // 서버 응답을 확인한 뒤에 결과를 알린다.
-    // 예전에는 fetch 전에 '저장되었습니다'를 먼저 띄우고 res.ok도 보지 않아서,
-    // 서버가 403·500을 돌려줘도 화면엔 성공으로 표시됐다(저장 안 됐는데 된 줄 앎).
+    saveLock.current = true;
     setSaveBusy(true);
     setSaved('');
     try {
-      const res = await fetch('/api/member-center', { method: 'PATCH', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ profile: next, notifications, privacyVersion:PRIVACY_FORM_VERSION }) });
-      if (res.ok) {
-        const result = await res.json();
-        setProfile({ ...currentProfile, ...result.profile });
-        if (result.notifications) setNotifications(result.notifications);
-        window.dispatchEvent(new CustomEvent('medihelpers:auth-changed'));
-        setSaved('저장되었습니다.');
-      } else {
-        let message = '';
-        try { message = (await res.json())?.error || ''; } catch {}
-        setSaved(message || (res.status === 401 ? '로그인이 만료되었습니다. 다시 로그인해 주세요.' : '저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'));
-      }
-    } catch {
-      setSaved('네트워크 연결을 확인한 뒤 다시 시도해 주세요.');
+      const result = await saveMemberPreferences({ profile:next, notifications, privacyVersion:PRIVACY_FORM_VERSION });
+      setProfile({ ...currentProfile, ...result.profile });
+      setNotifications(result.notifications);
+      window.dispatchEvent(new CustomEvent('medihelpers:auth-changed'));
+      setSaved('저장되었습니다.');
+    } catch (error) {
+      setSaved(error.message || '저장 결과를 확인하지 못했습니다. 입력 내용은 유지됩니다.');
     } finally {
+      saveLock.current = false;
       setSaveBusy(false);
     }
-    window.setTimeout(() => setSaved(''), 4000);
   };
 
   return <div className={`member-center role-${role}`}>
     {accountState.isAdmin && <section className="member-admin-tools"><div><strong>관리자 · 내 활동</strong><p>이 화면에는 관리자 본인의 공고·이력서·결제 내역이 표시됩니다. 전체 회원 기록은 관리자 콘솔에서 확인하세요.</p></div><a className="button outline" href={withBase("/admin/console")}>전체 운영 관리 <ArrowRight /></a></section>}
     {paymentResult && !paymentNoticeClosed && (
-      <div className={`payment-result-notice ${paymentResult === 'paid' ? 'ok' : 'fail'}`} role="status">
+      <div className={`payment-result-notice ${paymentNotice.tone}`} role="status">
         <div>
-          <strong>{paymentResult === 'paid' ? '결제가 완료되었습니다' : paymentResult === 'pending' ? '결제 결과를 확인하고 있습니다' : '결제가 완료되지 않았습니다'}</strong>
+          <strong>{paymentNotice.title}</strong>
           <p>
-            {paymentResult === 'paid'
-              ? '결제 내역과 이용 상태는 아래 결제·이용 내역에서 확인하실 수 있습니다.'
-              : (paymentMessage || '결제가 취소되었거나 승인에 실패했습니다. 다시 시도해 주세요.')}
+            {paymentNotice.message}
             {paymentOrder ? ` (주문번호 ${paymentOrder})` : ''}
           </p>
         </div>
@@ -646,11 +643,11 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
           <section className="member-panel"><div className="member-panel-head"><div><h3>최근 활동</h3><p>계정에서 발생한 주요 사용 기록입니다.</p></div><button onClick={() => selectMemberTab(role === 'hospital' ? 'ads' : 'resume')}>관리하기 <ArrowRight /></button></div>{activities.length ? <div className="member-timeline">{activities.slice(0, 3).map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>아직 사용 기록이 없습니다</strong><p>회원정보 수정, 상담, 결제 등의 활동이 기록됩니다.</p></div>}</section>
         </>}
 
-        {tab === 'notifications' && <><div className="member-page-head"><div><small>NOTIFICATIONS</small><h2>알림함</h2><p>지원서, 상담 진행과 상대방 메시지를 놓치지 않도록 모았습니다.</p></div>{serverData.unreadCount > 0 && <button type="button" className="button outline" onClick={() => markAlertRead(null, true)}>모두 읽음 처리</button>}</div>{serverData.alerts.length ? <section className="member-panel member-alert-list">{serverData.alerts.map((alert) => <button type="button" key={alert.id} className={alert.readAt ? 'read' : 'unread'} onClick={() => markAlertRead(alert)}><span><Bell /></span><div><small>{formatAdminTime(alert.createdAt)}</small><strong>{alert.title}</strong><p>{alert.body}</p></div>{!alert.readAt && <em>NEW</em>}<ChevronRight /></button>)}</section> : <div className="member-empty member-empty-large"><Bell /><strong>아직 도착한 알림이 없습니다</strong><p>새 지원서나 상담 메시지가 오면 이곳과 상단 알림 버튼에 표시됩니다.</p></div>}</>}
+        {tab === 'notifications' && <><div className="member-page-head"><div><small>NOTIFICATIONS</small><h2>알림함</h2><p>지원서, 상담 진행과 상대방 메시지를 놓치지 않도록 모았습니다.</p></div>{serverData.unreadCount > 0 && <button type="button" className="button outline" disabled={alertReadBusy} onClick={() => markAlertRead(null, true)}>모두 읽음 처리</button>}</div>{serverData.alerts.length ? <section className="member-panel member-alert-list">{serverData.alerts.map((alert) => <button type="button" key={alert.id} className={alert.readAt ? 'read' : 'unread'} disabled={alertReadBusy} onClick={() => markAlertRead(alert)}><span><Bell /></span><div><small>{formatAdminTime(alert.createdAt)}</small><strong>{alert.title}</strong><p>{alert.body}</p></div>{!alert.readAt && <em>NEW</em>}<ChevronRight /></button>)}</section> : <div className="member-empty member-empty-large"><Bell /><strong>아직 도착한 알림이 없습니다</strong><p>새 지원서나 상담 메시지가 오면 이곳과 상단 알림 버튼에 표시됩니다.</p></div>}</>}
 
         {(tab === 'ads' || tab === 'resume') && <>
           <div className="member-page-head"><div><small>{role === 'hospital' ? 'MY RECRUITMENT ADS' : 'MY CAREER PROFILE'}</small><h2>{role === 'hospital' ? '내 공고 관리' : '이력서·구직활동'}</h2><p>{role === 'hospital' ? '공고 내용과 노출 기간을 관리하고, 종료된 공고는 재구매해 다시 노출할 수 있습니다.' : '먼저 이력서를 만들고, 필요한 경우 이력서를 연결한 구직글을 게시합니다.'}</p></div><div className="member-page-head-actions"><a className="button primary" href={withBase(role === 'hospital' ? '/advertise' : serverData.resume ? '/resume' : `/resume?new=1&next=${encodeURIComponent('/mypage?tab=resume')}`)}>{role === 'hospital' ? '공고 등록' : serverData.resume ? '이력서 수정' : '이력서 만들기'} <ArrowRight /></a>{role === 'doctor' && serverData.resume && <a className="button outline" href={withBase('/job-seeker-posts/new')}>구직글 등록</a>}</div></div>
-          {role === 'doctor' && <section className="member-panel member-job-seeker-posts"><div className="member-panel-head"><div><h3>내 구직글</h3><p>내용 확인·수정, 비공개·재공개·삭제를 관리합니다. 마지막 등록·수정·재공개 후 5개월간 관리하지 않으면 자동 비공개됩니다.</p></div></div>{jobSeekerPosts.length ? <div className="member-job-seeker-grid">{jobSeekerPosts.map((post) => <article key={post.id}><div><span><BriefcaseBusiness /></span><em className={post.status === 'active' ? 'good' : ''}>{postStatusLabel(post)}</em></div><small>연동 이력서 · {post.resumeTitle || post.resumeId}</small><p className="member-post-deadline">{post.status === 'active' ? `자동 비공개 예정: ${postDeadlineLabel(post.publicUntil)}` : '외부 게시판에 노출되지 않습니다. 내 글은 계속 확인·수정할 수 있습니다.'}</p><h3>{post.title}</h3><p>{[post.specialty, post.desiredRegion, post.availableFrom].filter(Boolean).join(' · ') || '조건 협의'}</p><p className={`member-post-privacy ${post.contactVisibility === 'ticket' ? '' : 'is-private'}`}>{post.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 병원에 연락처 공개</> : <><LockKeyhole /> 전화번호 비공개 · 열람권으로도 미공개</>}</p><div className="member-post-actions"><a className="button outline" href={withBase(`/job-seeker-posts/${encodeURIComponent(post.id)}/edit`)}>내용 확인·수정</a><button type="button" className="button primary" disabled={postBusy === post.id} onClick={() => toggleJobSeekerPost(post)}>{postBusy === post.id ? '처리 중…' : post.status === 'active' ? '비공개로 전환' : '다시 공개'}</button><button type="button" className="button danger" disabled={postBusy === post.id} onClick={() => deleteJobSeekerPost(post)}>삭제</button></div></article>)}</div> : <div className="member-empty"><BriefcaseBusiness /><strong>등록한 구직글이 없습니다</strong><p>새 구직글에서 저장된 이력서를 선택해 게시할 수 있습니다.</p></div>}</section>}
+          {role === 'doctor' && <section className="member-panel member-job-seeker-posts"><div className="member-panel-head"><div><h3>내 구직글</h3><p>내용 확인·수정, 비공개·재공개·삭제를 관리합니다. 마지막 등록·수정·재공개 후 5개월간 관리하지 않으면 자동 비공개됩니다.</p></div></div>{jobSeekerPosts.length ? <div className="member-job-seeker-grid">{jobSeekerPosts.map((post) => <article key={post.id}><div><span><BriefcaseBusiness /></span><em className={post.status === 'active' ? 'good' : ''}>{postStatusLabel(post)}</em></div><small>연동 이력서 · {post.resumeTitle || post.resumeId}</small><p className="member-post-deadline">{post.status === 'active' ? `자동 비공개 예정: ${postDeadlineLabel(post.publicUntil)}` : '외부 게시판에 노출되지 않습니다. 내 글은 계속 확인·수정할 수 있습니다.'}</p><h3>{post.title}</h3><p>{[post.specialty, post.desiredRegion, post.availableFrom].filter(Boolean).join(' · ') || '조건 협의'}</p><p className={`member-post-privacy ${post.contactVisibility === 'ticket' ? '' : 'is-private'}`}>{post.contactVisibility === 'ticket' ? <><Eye /> 열람권 구매 병원에 연락처 공개</> : <><LockKeyhole /> 전화번호 비공개 · 열람권으로도 미공개</>}</p><div className="member-post-actions"><a className="button outline" href={withBase(`/job-seeker-posts/${encodeURIComponent(post.id)}/edit`)}>내용 확인·수정</a><button type="button" className="button primary" disabled={Boolean(postBusy)} onClick={() => toggleJobSeekerPost(post)}>{postBusy === post.id ? '처리 중…' : post.status === 'active' ? '비공개로 전환' : '다시 공개'}</button><button type="button" className="button danger" disabled={Boolean(postBusy)} onClick={() => deleteJobSeekerPost(post)}>삭제</button></div></article>)}</div> : <div className="member-empty"><BriefcaseBusiness /><strong>등록한 구직글이 없습니다</strong><p>새 구직글에서 저장된 이력서를 선택해 게시할 수 있습니다.</p></div>}</section>}
           {role === 'hospital' && Boolean(serverData.migratedAds?.length) && <section className="member-panel" aria-label="기존 홈페이지 공고"><div className="member-panel-head"><div><h3>기존 홈페이지에서 옮긴 공고</h3><p>기존 광고 기간과 이용 내역을 확인하고 있습니다. 확인이 끝나면 공개 상태와 수정 기능을 안내합니다.</p></div></div><div className="member-record-grid">{serverData.migratedAds.map(ad => <article key={ad.id}><div><span><Building2 /></span><em>이전 확인 중</em></div><small>{ad.subtitle}</small><h3>{ad.title}</h3>{ad.originalCreated && <p><CalendarDays /> 기존 등록일 · {ad.originalCreated}</p>}{ad.services.length > 0 && <ul>{ad.services.map((service,index)=><li key={index}>{service}</li>)}</ul>}<p>표시된 기간은 기존 기록이며, 현재 노출 여부는 확인 중입니다.</p></article>)}</div></section>}
           {role === 'doctor' && !qa.active && resumesLoading && <p role="status">내 이력서 목록을 불러오고 있습니다.</p>}
           {role === 'doctor' && !qa.active && resumesError && <div className="form-error" role="alert"><p>{resumesError} 일부 이력서가 표시되지 않을 수 있습니다.</p><button type="button" className="button outline" onClick={() => setResumesAttempt(value=>value+1)}>이력서 목록 다시 불러오기</button></div>}
@@ -662,7 +659,7 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
 
         {tab === 'payments' && <><div className="member-page-head"><div><small>BILLING & USAGE</small><h2>{role === 'hospital' ? '결제·사용이력' : '결제·이용 내역'}</h2><p>상품 결제와 실제 사용 상태를 같은 기준으로 확인합니다. 환불 처리 결과와 반려 사유는 아래 내역 및 홈페이지 알림에서 확인하세요.</p></div><button type="button" className="button outline" disabled={paymentRefreshing} onClick={refreshPaymentDetails}>{paymentRefreshing?'확인 중…':'처리 결과 새로고침'}</button></div>{role === 'hospital' && <section className="member-panel member-unlocked-talents" id="member-unlocked-talents"><div className="member-panel-head"><div><h3>열람 완료 인재</h3><p>같은 이력서는 추가 차감 없이 다시 볼 수 있습니다. 작성자가 비공개·삭제하면 열람이 제한되며, 전액 환불한 권한은 회수됩니다.</p></div><strong>{unlockedTalents.length}명</strong></div>{unlockedTalents.length ? <div className="member-unlocked-list">{unlockedTalents.map((talent) => <a key={talent.talentId} href={withBase(`/medical-staff/talents/${encodeURIComponent(talent.talentId)}`)}><span><BadgeCheck /></span><div><small>{String(talent.unlockedAt || '').slice(0,10) || '열람 완료'}</small><strong>{talent.title || '열람한 인재'}</strong><p>{talent.specialty || '상세 이력 확인'} · 공개 유지 시 추가 차감 없이 재열람</p></div><em>바로 보기 <ArrowRight /></em></a>)}</div> : <div className="member-empty"><Eye /><strong>아직 열람한 인재가 없습니다</strong><p>이력서 열람권을 사용하면 이곳에 기록됩니다. 재열람은 작성자의 공개 설정을 따릅니다.</p></div>}</section>}{payments.length ? <section className="member-panel member-payment-list">{payments.map((item) => <div key={item.id} className="member-payment-row"><article><span><Receipt /></span><div><small>{item.id}</small><strong>{item.item}</strong><p>{item.date}</p></div><b>{item.amount}</b><em className={statusClass(item.status)}>{item.status}</em><div className="member-payment-buttons">{!qa.active && ["pending_review","awaiting_payment"].includes(item.rawStatus) && <button type="button" aria-expanded={paymentRecovery === item.id} onClick={() => setPaymentRecovery(paymentRecovery === item.id ? null : item.id)}>결제 이어하기</button>}{!qa.active && item.refundable && <button type="button" className="member-refund-btn" disabled={refundBusy} onClick={() => { setRefundFor(refundFor === item.id ? null : item.id); setRefundReason(''); setRefundMsg(''); }}>환불 요청</button>}{!qa.active && <button type="button" onClick={() => setReceipt(item)}>영수증</button>}</div></article>{paymentRecovery === item.id && <PaymentRecoveryPanel key={item.id} order={{orderNumber:item.id}} onRecovered={async () => { setPaymentRecovery(null); await refreshPaymentDetails(); }} />}<TalentCreditUsage usage={item.creditUsage} />{item.refundedAmount>0&&<p className="member-refund-total">누적 환불 {item.refundedAmount.toLocaleString()}원 · 남은 결제 금액 {Math.max(0,item.total-item.refundedAmount).toLocaleString()}원</p>}<RefundHistory refunds={(serverData.refunds||[]).filter(refund=>refund.orderNumber===item.id)} />{refundFor === item.id && <div className="member-refund-form"><p className="member-refund-note">접수만으로 자동 환불되지 않습니다. 검토 중에는 해당 주문의 새 열람권 사용이 보류되며 기존 열람은 유지됩니다. 미사용분 부분 환불 시 남은 서비스는 종료되며, 이미 제공된 이용분은 공제될 수 있습니다. 처리 기준은 <a href={withBase('/refund')} target="_blank" rel="noreferrer">환불 정책</a>을 따릅니다.</p><textarea disabled={refundBusy} rows="3" maxLength={500} aria-label="환불 사유" placeholder="환불 사유를 입력해 주세요 (예: 단순 변심, 중복 결제, 서비스 미이용 등)" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><div className="member-refund-actions"><button type="button" className="button outline" onClick={() => setRefundFor(null)} disabled={refundBusy}>취소</button><button type="button" className="button primary" onClick={() => submitRefund(item.id)} disabled={refundBusy}>{refundBusy ? '접수 중…' : '환불 요청 접수'}</button></div></div>}</div>)}{refundMsg && <p className="member-refund-msg" role="status">{refundMsg}</p>}</section> : <div className="member-empty member-empty-large"><Receipt /><strong>아직 결제 내역이 없습니다</strong><p>공고 광고·인재 열람권 결제가 완료되면 영수증과 사용 상태가 표시됩니다.</p></div>}<section className="member-panel"><div className="member-panel-head"><div><h3>전체 사용 기록</h3><p>조회·상담·결제 등 계정 활동을 시간순으로 표시합니다.</p></div></div>{activities.length ? <div className="member-timeline">{activities.map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>기록된 사용 이력이 없습니다</strong><p>계정 활동이 발생하면 시간순으로 안전하게 기록됩니다.</p></div>}</section></>}
 
-        {tab === 'profile' && <><div className="member-page-head"><div><small>ACCOUNT & SECURITY</small><h2>회원정보·알림·보안</h2><p>모든 회원에게 공통으로 필요한 정보를 관리합니다.</p></div>{saved && <span className={saveFailed ? 'member-saved is-error' : 'member-saved'} role="status">{saveFailed ? <TriangleAlert /> : <CircleCheck />} {saved}</span>}</div><form className="member-profile-form" onSubmit={saveProfile}><section className="member-panel"><div className="member-panel-head"><div><h3>기본 회원정보</h3><p>{accountState.isAdmin ? '관리자 본인의 결제자 정보를 수정할 수 있습니다. 이메일과 권한은 변경되지 않습니다.' : '회원가입 때 등록한 정보입니다. 정보 정정은 고객센터를 통해 본인 확인 후 진행합니다.'}</p></div></div><div className="member-profile-grid"><label><span>이름·담당자명</span><input readOnly={!accountState.isAdmin} name="displayName" value={currentProfile.displayName} onChange={event => setProfile({...currentProfile,displayName:event.target.value})} /></label><label><span>연락 이메일</span><input name="email" type="email" value={currentProfile.email} readOnly /></label><label><span>휴대전화</span><input readOnly={!accountState.isAdmin} name="phone" value={currentProfile.phone} onChange={event => setProfile({...currentProfile,phone:event.target.value})} /></label><label><span>{role === 'hospital' ? '병원명' : '전문과목·직군'}</span><input readOnly={!accountState.isAdmin} name="organization" value={currentProfile.organization} onChange={event => setProfile({...currentProfile,organization:event.target.value})} /></label><label><span>{role === 'hospital' ? '담당자 직함' : '경력 표시'}</span><input readOnly={!accountState.isAdmin} name="jobTitle" value={currentProfile.jobTitle} onChange={event => setProfile({...currentProfile,jobTitle:event.target.value})} /></label></div></section><section className="member-panel"><div className="member-panel-head"><div><h3>알림 설정</h3><p>중요한 진행 상태만 선택해서 받아보세요.</p></div></div><PrivacyNotice scope="marketing" /><div className="member-toggle-list">{[['email','이메일 알림','상담·결제·계정 보안 안내'],['sms','문자 알림','새 문의와 헤드헌터 연락'],['service','서비스 알림','공고 마감·이력서 상태·멤버십'],['marketing','[선택] 이메일 혜택·이벤트','미동의해도 서비스 이용 가능 · 해제 후 저장하면 철회']].map(([key, title, copy]) => <label key={key}><div><strong>{title}</strong><small>{copy}</small></div><input type="checkbox" checked={notifications[key]} onChange={(event) => setNotifications((current) => ({ ...current, [key]: event.target.checked }))} /><span /></label>)}</div></section><section className="member-panel member-security"><div className="member-panel-head"><div><h3>로그인·보안</h3><p>아이디와 계정 접근 문제를 관리합니다.</p></div></div><div><span><KeyRound /></span><div><strong>로그인 정보</strong><p>{accountState.identity?.loginId || currentProfile.email}</p><small>비밀번호를 잊었거나 이메일 접근이 어렵다면 로그인 도움에서 본인 확인 절차를 진행하세요.</small></div><a className="button outline" href={withBase('/account/recovery')}>아이디·비밀번호 도움</a></div><div><span><ShieldCheck /></span><div><strong>개인정보처리방침·약관</strong><p>수집 항목과 보관 기간, 회원 탈퇴 처리 기준을 확인할 수 있습니다.</p></div><a className="button outline" href={withBase('/privacy')}>처리방침 보기</a></div></section><button className="button primary member-save" type="submit" disabled={saveBusy}>{saveBusy ? '저장 중…' : '변경사항 저장'}</button></form><PasswordChange /><WithdrawSection /></>}
+        {tab === 'profile' && <><div className="member-page-head"><div><small>ACCOUNT & SECURITY</small><h2>회원정보·알림·보안</h2><p>모든 회원에게 공통으로 필요한 정보를 관리합니다.</p></div>{saved && <span className={saveFailed ? 'member-saved is-error' : 'member-saved'} role="status">{saveFailed ? <TriangleAlert /> : <CircleCheck />} {saved}</span>}</div><form className="member-profile-form" onSubmit={saveProfile}><section className="member-panel"><div className="member-panel-head"><div><h3>기본 회원정보</h3><p>{accountState.isAdmin ? '관리자 본인의 결제자 정보를 수정할 수 있습니다. 이메일과 권한은 변경되지 않습니다.' : '회원가입 때 등록한 정보입니다. 정보 정정은 고객센터를 통해 본인 확인 후 진행합니다.'}</p></div></div><div className="member-profile-grid"><label><span>이름·담당자명</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="displayName" value={currentProfile.displayName} onChange={event => setProfile({...currentProfile,displayName:event.target.value})} /></label><label><span>연락 이메일</span><input name="email" type="email" value={currentProfile.email} readOnly /></label><label><span>휴대전화</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="phone" value={currentProfile.phone} onChange={event => setProfile({...currentProfile,phone:event.target.value})} /></label><label><span>{role === 'hospital' ? '병원명' : '전문과목·직군'}</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="organization" value={currentProfile.organization} onChange={event => setProfile({...currentProfile,organization:event.target.value})} /></label><label><span>{role === 'hospital' ? '담당자 직함' : '경력 표시'}</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="jobTitle" value={currentProfile.jobTitle} onChange={event => setProfile({...currentProfile,jobTitle:event.target.value})} /></label></div></section><section className="member-panel"><div className="member-panel-head"><div><h3>알림 설정</h3><p>중요한 진행 상태만 선택해서 받아보세요.</p></div></div><PrivacyNotice scope="marketing" /><div className="member-toggle-list">{[['email','이메일 알림','상담·결제·계정 보안 안내'],['sms','문자 알림','새 문의와 헤드헌터 연락'],['service','서비스 알림','공고 마감·이력서 상태·멤버십'],['marketing','[선택] 이메일 혜택·이벤트','미동의해도 서비스 이용 가능 · 해제 후 저장하면 철회']].map(([key, title, copy]) => <label key={key}><div><strong>{title}</strong><small>{copy}</small></div><input type="checkbox" disabled={saveBusy} checked={notifications[key]} onChange={(event) => setNotifications((current) => ({ ...current, [key]: event.target.checked }))} /><span /></label>)}</div></section><section className="member-panel member-security"><div className="member-panel-head"><div><h3>로그인·보안</h3><p>아이디와 계정 접근 문제를 관리합니다.</p></div></div><div><span><KeyRound /></span><div><strong>로그인 정보</strong><p>{accountState.identity?.loginId || currentProfile.email}</p><small>비밀번호를 잊었거나 이메일 접근이 어렵다면 로그인 도움에서 본인 확인 절차를 진행하세요.</small></div><a className="button outline" href={withBase('/account/recovery')}>아이디·비밀번호 도움</a></div><div><span><ShieldCheck /></span><div><strong>개인정보처리방침·약관</strong><p>수집 항목과 보관 기간, 회원 탈퇴 처리 기준을 확인할 수 있습니다.</p></div><a className="button outline" href={withBase('/privacy')}>처리방침 보기</a></div></section><button className="button primary member-save" type="submit" disabled={saveBusy}>{saveBusy ? '저장 중…' : '변경사항 저장'}</button></form><PasswordChange /><WithdrawSection /></>}
         {tab === 'inquiries' && role === 'hospital' && <section className="member-panel member-candidate-panel" id="member-recommended-candidates"><div className="member-panel-head"><div><h3>추천 후보 상세</h3><p>후보자의 동의가 확인된 추천 건만 표시됩니다.</p></div></div>{recommendedCandidates.length ? <div className="member-candidate-grid">{recommendedCandidates.map((candidate) => <article key={candidate.code}><span><UserRound /></span><div><small>{candidate.updatedAt ? String(candidate.updatedAt).slice(0,10) : '최근 업데이트'}</small><strong>{[candidate.specialty, candidate.positionTitle].filter(Boolean).join(' · ') || '추천 의료인'}</strong><p>현재 단계 · {candidate.stage || candidate.submissionStatus || '조건 확인'}</p></div><em className={statusClass(candidate.stage || '')}>{candidate.stage || '추천'}</em></article>)}</div> : <div className="member-empty"><UserRound /><strong>아직 추천 후보가 없습니다</strong><p>동의가 완료된 후보가 연결되면 이곳에 상세 진행 단계가 표시됩니다.</p></div>}</section>}
         </>}
       </main>

@@ -13,7 +13,8 @@ test('기존 D1 결제 스키마에서도 인재 열람권 주문 유형을 호�
 
 test('가상 결제 승인 실패를 성공 화면으로 넘기지 않는다', async () => {
   const mainSource = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
-  assert.match(mainSource, /!approve\.ok \|\| !approveResult\.approved/);
+  const checkout = mainSource.slice(mainSource.indexOf('function TalentUnlockCheckout'), mainSource.indexOf('function TalentUnlockPage'));
+  assert.match(checkout, /!approve\.ok \|\| !isConfirmedPayment\(approveResult, orderNumber\)/);
   assert.match(mainSource, /원 결제하기/);
   assert.doesNotMatch(mainSource, /현재는 가상 결제 테스트 중입니다/);
 });

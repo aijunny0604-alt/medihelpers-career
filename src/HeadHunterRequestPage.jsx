@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,6 +18,7 @@ import ResumeSubmitPicker from "./ResumeSubmitPicker.jsx";
 import PrivacyNotice from './PrivacyNotice.jsx';
 import { PRIVACY_FORM_VERSION } from './privacyConsent.js';
 import { useSiteOperations } from './siteOperations.js';
+import { createApplicationResume, submitMemberConsultation } from './accountWorkflowApi.js';
 
 const copy = {
   doctor: {
@@ -78,6 +79,8 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
   );
   const [done, setDone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const applicationResumeRef = useRef(null);
   const [submitError, setSubmitError] = useState("");
   const accountProfile = useAccountProfile(auth);
   const expectedRole = isDoctor ? 'doctor' : 'hospital';
@@ -89,6 +92,8 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
   const [selectedResumeId, setSelectedResumeId] = useState("");
   const submit = async (event) => {
     event.preventDefault();
+    if (submitLock.current || access !== 'allowed') return;
+    submitLock.current = true;
     setSubmitting(true);
     setSubmitError("");
     const form = new FormData(event.currentTarget);
@@ -102,6 +107,10 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
       ? { headhuntPostId, headhuntPostTitle, headhuntPostHospital }
       : isDirectApplication ? { jobId: appliedJobId } : {};
     const payload = { ...sourceContext, ...linkedResume, ...fields };
+    const applicationContext = isDoctor ? (appliedJobId || headhuntPostId || '') : '';
+    if (applicationContext && !payload.resumeId && applicationResumeRef.current?.context === applicationContext) {
+      payload.resumeId = applicationResumeRef.current.id;
+    }
     try {
       if (qaAllowed) {
         const previewId = `QA-${isDoctor ? "D" : "H"}-${String(Date.now()).slice(-6)}`;
@@ -125,37 +134,28 @@ export default function HeadHunterRequestPage({ mode = "doctor", qa, auth }) {
       // 공고 지원인데 저장 이력서가 하나도 없으면 현재 입력값으로 비공개 기본 이력서를 먼저 만들고,
       // 생성된 ID를 같은 지원 요청에 즉시 연결한다.
       if (isDoctor && (appliedJobId || headhuntPostId) && !payload.resumeId && resumes.length === 0) {
-        const savedResponse = await fetch("/api/resumes", {
-          method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
-          body: JSON.stringify({
+        const saved = await createApplicationResume({
             title: fields.specialty ? `${fields.specialty} 지원 이력서` : "공고 지원 이력서",
             name: fields.name || accountProfile.name || "", phone: fields.phone || accountProfile.phone || "",
             email: fields.email || accountProfile.email || "", profession: fields.professionalType || "의료인",
             specialty: fields.specialty || "", desiredRegions: fields.region || "", completion: 40,
             visibility: "private", createNew: true, privacyConsent, privacyVersion:PRIVACY_FORM_VERSION,
             detail: { workType: fields.workType || "", startTiming: fields.startTiming || "", introduction: fields.message || "" },
-          }),
         });
-        const saved = await savedResponse.json().catch(() => ({}));
-        if (!savedResponse.ok || !saved.id) throw new Error(saved.error || "지원에 사용할 이력서를 저장하지 못했습니다.");
         payload.resumeId = saved.id;
+        applicationResumeRef.current = { context:applicationContext, id:saved.id };
         const createdResume = { id:saved.id, title:fields.specialty ? `${fields.specialty} 지원 이력서` : "공고 지원 이력서", completion:40, visibility:"private" };
         setResumes([createdResume]);
         setSelectedResumeId(saved.id);
       }
-      const response = await fetch("/api/consultations", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ requestType: isDoctor ? "doctor" : "hospital", payload, privacyConsent, privacyVersion:PRIVACY_FORM_VERSION, thirdPartyConsent, recipient }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "상담 접수에 실패했습니다.");
+      const result = await submitMemberConsultation({ requestType:isDoctor ? "doctor" : "hospital", payload, privacyConsent, privacyVersion:PRIVACY_FORM_VERSION, thirdPartyConsent, recipient });
       appendStoredRecord(isDoctor ? "medihelpers_jobseeker_requests" : "medihelpers_hiring_requests", { id: result.id, createdAt: new Date().toISOString(), status: "new", ...payload }, 20);
       setDone(result.id);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       setSubmitError(error.message || "잠시 후 다시 시도해 주세요.");
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };

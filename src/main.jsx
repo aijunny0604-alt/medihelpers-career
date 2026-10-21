@@ -44,7 +44,7 @@ import { DEFAULT_JOB_SEARCH, readJobSearch, jobSearchRoute, newestJobs } from '.
 import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPreview.js';
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
-import { postPayment } from './paymentApi.js';
+import { isConfirmedPayment, postPayment } from './paymentApi.js';
 import {
   appendStoredRecord,
   loadSavedFromServer,
@@ -60,7 +60,8 @@ import { loadTalentAccess, pendingTalentAccess } from './talentDetailAccess.js';
 import ResumeSubmitPicker from './ResumeSubmitPicker.jsx';
 import { balancedOrder, countByDept } from './jobExposure.js';
 import { installAuthenticatedFetch } from './authTransport.js';
-import { JOB_IMAGE_MAX_BYTES, uploadJobImage } from './jobPostingUpload.js';
+import { uploadJobImage } from './jobPostingUpload.js';
+import { prepareImageUpload } from './imageOptimization.js';
 import { imageFilesFromTransfer, pasteImageFiles } from './imageInput.js';
 import { getAdTierPresentation } from './adTierPresentation.js';
 import { formatKoreanPhone } from './signupFields.js';
@@ -676,6 +677,12 @@ function PageHero({ eyebrow, title, description, children, tone = '' }) {
   </section>;
 }
 
+function JobImage({ src, alt = '', ...props }) {
+  const [failedSource, setFailedSource] = useState(null);
+  if (!src || failedSource === src) return <span className="job-image-fallback" role="img" aria-label={`${alt || '이미지'} · 불러올 수 없음`}><Building2 /><span>이미지를 불러오지 못했습니다</span></span>;
+  return <img {...props} src={src} alt={alt} onError={() => setFailedSource(src)} />;
+}
+
 function HospitalLogo({ job, prominent = false, source, fit }) {
   const brandSource = source || job.banner || job.logo;
   const brandUrl = brandSource ? withBase(brandSource) : '';
@@ -684,7 +691,7 @@ function HospitalLogo({ job, prominent = false, source, fit }) {
   if (!hasBrandAsset) return null;
   const mood = getHospitalMood(job);
   return <span className={`hospital-logo ${prominent ? 'prominent' : ''} has-image logo-fit-${brandFit} ${job.brandAsset ? `brand-asset-${job.brandAsset}` : ''}`} style={{ '--logo-color': mood.primary }}>
-    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : <img src={brandUrl} alt={`${job.hospital} ${brandFit === 'banner' ? '배너' : '로고'}`} loading="lazy" decoding="async" />}
+    {job.brandAsset === 'bluecare' ? <span className="bluecare-brand" aria-label={`${job.hospital} 예시 로고`}><i className="bluecare-symbol"><b /><em /></i><span><strong>블루케어</strong><small>BLUECARE MEDICAL CENTER</small></span></span> : <JobImage src={brandUrl} alt={`${job.hospital} ${brandFit === 'banner' ? '배너' : '로고'}`} loading="lazy" decoding="async" />}
   </span>;
 }
 
@@ -982,11 +989,11 @@ function PhotoLightbox({ photos, index, hospital, onIndex, onClose }) {
       <header><div><strong>{hospital}</strong><span>시설 사진</span></div><b>{index + 1} / {total}</b><button type="button" className="photo-lightbox-close" onClick={onClose} aria-label="사진 보기 닫기"><X /></button></header>
       <div className="photo-lightbox-stage">
         {total > 1 && <button type="button" className="photo-lightbox-arrow previous" onClick={previous} aria-label="이전 사진"><ChevronLeft /></button>}
-        <img src={photos[index]} alt={`${hospital} 시설 ${index + 1}`} />
+        <JobImage src={photos[index]} alt={`${hospital} 시설 ${index + 1}`} />
         {total > 1 && <button type="button" className="photo-lightbox-arrow next" onClick={next} aria-label="다음 사진"><ChevronRight /></button>}
       </div>
       <footer><span>← → 방향키로 이동 · ESC로 닫기</span><div className="photo-lightbox-thumbnails" aria-label="병원 사진 미리보기">
-        {photos.map((photo, photoIndex) => <button type="button" key={`${photo}-${photoIndex}`} ref={(element) => { thumbnailRefs.current[photoIndex] = element; }} className={photoIndex === index ? 'active' : ''} onClick={() => onIndex(photoIndex)} aria-label={`${photoIndex + 1}번 사진 보기`} aria-current={photoIndex === index ? 'true' : undefined}><img src={photo} alt="" /></button>)}
+        {photos.map((photo, photoIndex) => <button type="button" key={`${photo}-${photoIndex}`} ref={(element) => { thumbnailRefs.current[photoIndex] = element; }} className={photoIndex === index ? 'active' : ''} onClick={() => onIndex(photoIndex)} aria-label={`${photoIndex + 1}번 사진 보기`} aria-current={photoIndex === index ? 'true' : undefined}><JobImage src={photo} alt="" /></button>)}
       </div></footer>
     </div>
   </div>, document.body);
@@ -1150,7 +1157,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
         </div>
         {detailBanner && (
           <div className={`detail-hero-banner${!isFullBrandBanner ? ' has-banner-copy' : ''}`} aria-label={`${job.hospital} 채용 배너`}>
-            <img src={detailBanner} alt="" />
+            <JobImage src={detailBanner} alt={`${job.hospital} 채용 배너`} />
             {adTierPresentation && <span className={`detail-banner-chip ad-tier-${adTierPresentation.key}`}>{adTierPresentation.label}</span>}
             {!isFullBrandBanner && (
               <div>
@@ -1253,7 +1260,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                       onClick={() => setPhotoIndex(index)}
                       aria-label={`${job.hospital} 병원 사진 ${index + 1} 크게 보기`}
                     >
-                      <img
+                      <JobImage
                         src={photo}
                         alt={`${job.hospital} 시설 ${index + 1}`}
                         loading="lazy"
@@ -1320,7 +1327,7 @@ function JobDetail({ job, saved, onSave, onClose, qa, auth, page = false }) {
                 <div>
                   {posterImages.map((poster, index) => (
                     <a key={`${poster}-${index}`} href={poster} target="_blank" rel="noreferrer" aria-label={`${index + 1}번 채용 홍보 이미지 원본 보기`}>
-                      <img src={poster} alt={`${job.hospital} 채용 홍보 이미지 ${index + 1}`} loading="lazy" />
+                      <JobImage src={poster} alt={`${job.hospital} 채용 홍보 이미지 ${index + 1}`} loading="lazy" />
                       <span>원본 크게 보기 <ArrowRight /></span>
                     </a>
                   ))}
@@ -2791,6 +2798,8 @@ const AD_FIELD_LABELS = {
 };
 
 function Checkout({ plan, auth }) {
+  const checkoutMounted = useRef(true);
+  useEffect(() => { checkoutMounted.current=true; return () => { checkoutMounted.current=false; }; }, []);
   const accountProfile = useAccountProfile(auth);
   const isMainAdPlan = plan.id === "featured";
   const [done, setDone] = useState(null);
@@ -2812,6 +2821,27 @@ function Checkout({ plan, auth }) {
   const [posterImages, setPosterImages] = useState([]);
   const [posterError, setPosterError] = useState("");
   const [activeDrop, setActiveDrop] = useState("");
+  const [preparingImages, setPreparingImages] = useState(0);
+  const imagePreparation = useRef({ brand:0, facility:false, poster:false, pending:0, mounted:true, urls:new Set() });
+  useEffect(() => {
+    imagePreparation.current.mounted = true;
+    return () => {
+      const preparation = imagePreparation.current;
+      preparation.mounted = false; preparation.brand++;
+      preparation.urls.forEach((url) => URL.revokeObjectURL(url));
+      preparation.urls.clear();
+    };
+  }, []);
+  const setImagePending = (delta) => {
+    const preparation = imagePreparation.current;
+    preparation.pending = Math.max(0, preparation.pending + delta);
+    if (preparation.mounted) setPreparingImages(preparation.pending);
+  };
+  const preparedPreview = (file) => {
+    const url = URL.createObjectURL(file);
+    imagePreparation.current.urls.add(url);
+    return url;
+  };
   useEffect(() => {
     if (accountProfile.loaded && !facilityType && accountProfile.facilityType) {
       setFacilityType(accountProfile.facilityType);
@@ -2820,35 +2850,30 @@ function Checkout({ plan, auth }) {
   useEffect(() => () => {
     if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
   }, [brandPreview]);
-  const chooseBrand = (file, input) => {
+  const chooseBrand = async (file, input) => {
+    if (input) input.value = "";
+    if (!file || submitLock.current) return;
+    const preparation = imagePreparation.current;
+    const token = ++preparation.brand;
     setBrandError("");
-    if (!file) return;
     setBrandDimensions(null);
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      if (input) input.value = "";
-      setBrandName("");
-      setBrandFile(null);
-      setBrandPreview("");
-      setBrandTemplate("");
-      setBrandError("PNG·JPG·WEBP 이미지 파일을 선택해주세요.");
-      return;
+    setBrandName(""); setBrandFile(null); setBrandPreview(""); setBrandTemplate("");
+    setImagePending(1);
+    try {
+      const prepared = await prepareImageUpload(file, 'banner');
+      if (!preparation.mounted || token !== preparation.brand) return;
+      setBrandName(file.name); setBrandFile(prepared.file);
+      setBrandDimensions({ width:prepared.originalWidth, height:prepared.originalHeight });
+      setBrandPreview(preparedPreview(prepared.file));
+    } catch (problem) {
+      if (preparation.mounted && token === preparation.brand) setBrandError(problem.message || '이미지를 준비하지 못했습니다. 다시 선택해주세요.');
+    } finally {
+      setImagePending(-1);
     }
-    if (file.size > JOB_IMAGE_MAX_BYTES) {
-      if (input) input.value = "";
-      setBrandName("");
-      setBrandFile(null);
-      setBrandPreview("");
-      setBrandTemplate("");
-      setBrandError("5MB 이하 파일을 선택해주세요.");
-      return;
-    }
-    if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
-    setBrandName(file.name);
-    setBrandFile(file);
-    setBrandTemplate("");
-    setBrandPreview(URL.createObjectURL(file));
   };
   const chooseBrandTemplate = (template) => {
+    if (submitLock.current) return;
+    imagePreparation.current.brand++;
     setBrandDimensions(null);
     if (brandPreview?.startsWith("blob:")) URL.revokeObjectURL(brandPreview);
     setBrandError("");
@@ -2859,70 +2884,40 @@ function Checkout({ plan, auth }) {
   };
   const selectBrand = (event) =>
     chooseBrand(event.currentTarget.files?.[0], event.currentTarget);
-  const chooseFacilityPhotos = (files, input) => {
+  const chooseImageBatch = async (files, input, purpose, maximum, currentImages, setImages, setError) => {
     const selected = [...(files || [])];
-    setPhotoError("");
-    const available = Math.max(0, 6 - facilityPhotos.length);
+    if (input) input.value = "";
+    const preparation = imagePreparation.current;
+    if (!selected.length || submitLock.current || preparation[purpose]) return;
+    setError("");
+    const available = Math.max(0, maximum - currentImages.length);
     if (!available) {
-      setPhotoError("병원 사진은 최대 6장까지 등록할 수 있습니다.");
-      if (input) input.value = "";
+      setError(`이미지는 최대 ${maximum}장까지 등록할 수 있습니다.`);
       return;
     }
-    const valid = selected
-      .filter(
-        (file) =>
-          ["image/png", "image/jpeg", "image/webp"].includes(file.type) &&
-          file.size <= JOB_IMAGE_MAX_BYTES,
-      )
-      .slice(0, available);
-    const rejected = selected.filter((file) => !valid.includes(file));
-    if (rejected.length) setPhotoError(rejected.map((file) => {
-      const reason = !["image/png", "image/jpeg", "image/webp"].includes(file.type)
-        ? "지원하지 않는 형식 · PNG/JPG/WEBP로 저장해주세요"
-        : file.size > JOB_IMAGE_MAX_BYTES ? "5MB 초과" : "최대 6장 초과";
-      return `${file.name}: ${reason}`;
-    }).join(" / "));
-    setFacilityPhotos((current) => [
-      ...current,
-      ...valid.map((file) => ({
-        name: file.name,
-        url: URL.createObjectURL(file),
-        file,
-      })),
-    ]);
-    if (input) input.value = "";
+    preparation[purpose] = true; setImagePending(1);
+    const ready = [], errors = [];
+    try {
+      // 큰 사진을 여러 장 골라도 동시에 디코드하지 않아 모바일 메모리를 제한한다.
+      for (const file of selected) {
+        if (!preparation.mounted) break;
+        if (ready.length >= available) { errors.push(`최대 ${maximum}장까지 등록할 수 있습니다.`); break; }
+        try {
+          const prepared = await prepareImageUpload(file, purpose);
+          if (!preparation.mounted) break;
+          ready.push({ name:file.name, url:preparedPreview(prepared.file), file:prepared.file });
+        } catch (problem) { errors.push(`${file.name}: ${problem.message || '이미지를 준비하지 못했습니다.'}`); }
+      }
+      if (preparation.mounted) {
+        setImages((current) => [...current, ...ready]);
+        setError(errors.join(' / '));
+      }
+    } finally { preparation[purpose] = false; setImagePending(-1); }
   };
+  const chooseFacilityPhotos = (files, input) => chooseImageBatch(files, input, 'facility', 6, facilityPhotos, setFacilityPhotos, setPhotoError);
   const selectFacilityPhotos = (event) =>
     chooseFacilityPhotos(event.currentTarget.files, event.currentTarget);
-  const choosePosterImages = (files, input) => {
-    const selected = [...(files || [])];
-    setPosterError("");
-    const available = Math.max(0, 3 - posterImages.length);
-    if (!available) {
-      setPosterError("웹포스터·홍보 이미지는 최대 3장까지 등록할 수 있습니다.");
-      if (input) input.value = "";
-      return;
-    }
-    const valid = selected
-      .filter(
-        (file) =>
-          ["image/png", "image/jpeg", "image/webp"].includes(file.type) &&
-          file.size <= JOB_IMAGE_MAX_BYTES,
-      )
-      .slice(0, available);
-    if (valid.length !== selected.length) {
-      setPosterError("PNG·JPG·WEBP 이미지만 장당 5MB 이하로, 최대 3장까지 등록해주세요.");
-    }
-    setPosterImages((current) => [
-      ...current,
-      ...valid.map((file) => ({
-        name: file.name,
-        url: URL.createObjectURL(file),
-        file,
-      })),
-    ]);
-    if (input) input.value = "";
-  };
+  const choosePosterImages = (files, input) => chooseImageBatch(files, input, 'poster', 3, posterImages, setPosterImages, setPosterError);
   const selectPosterImages = (event) =>
     choosePosterImages(event.currentTarget.files, event.currentTarget);
   const dropZoneProps = (target, onFiles) => ({
@@ -2947,12 +2942,14 @@ function Checkout({ plan, auth }) {
     tabIndex: 0,
   });
   const removeFacilityPhoto = (index) => {
+    if (submitLock.current) return;
     setFacilityPhotos((current) => {
       URL.revokeObjectURL(current[index].url);
       return current.filter((_, photoIndex) => photoIndex !== index);
     });
   };
   const removePosterImage = (index) => {
+    if (submitLock.current) return;
     setPosterImages((current) => {
       URL.revokeObjectURL(current[index].url);
       return current.filter((_, imageIndex) => imageIndex !== index);
@@ -2961,6 +2958,7 @@ function Checkout({ plan, auth }) {
   const submit = async (event) => {
     event.preventDefault();
     if (submitLock.current) return;
+    if (imagePreparation.current.pending) { setSubmitError('이미지 준비가 끝나면 신청해주세요.'); return; }
     setSubmitError("");
     // 화면이 열린 뒤 로그아웃되거나 오래된 화면이 남아 있어도 업로드·주문 요청을
     // 시작하지 않는다. 서버도 같은 권한을 다시 검사한다.
@@ -3010,6 +3008,7 @@ function Checkout({ plan, auth }) {
       const posterImageUrls = await Promise.all(
         posterImages.map((image) => uploadJobImage(image.file, "poster")),
       );
+      if (!checkoutMounted.current) return;
       data.brandImageUrl = brandImageUrl;
       data.logo = "";
       data.banner = isMainAdPlan ? brandImageUrl || brandTemplate : "";
@@ -3037,6 +3036,7 @@ function Checkout({ plan, auth }) {
         throw new Error(result.error || "결제 요청을 저장하지 못했습니다.");
       createdOrder = result.order;
       rememberOrder(createdOrder);
+      if (!checkoutMounted.current) return;
       // 이니시스 키가 설정된 환경이면 실제 표준결제창을 띄우고, 이후 승인은 서버(returnUrl)가 처리한다.
       if (result.inicis?.configured) {
         await openInicisPayment(result.inicis, {
@@ -3044,18 +3044,19 @@ function Checkout({ plan, auth }) {
           buyerName: data.manager,
           buyerTel: data.phone,
           buyerEmail: data.email,
-        }, {onClose: () => setRecoveryOrder(createdOrder)});
+        }, {onClose: () => { if(checkoutMounted.current)setRecoveryOrder(createdOrder); }, shouldOpen:()=>checkoutMounted.current});
         // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
         paymentWindowOpened = true;
         return;
       }
       const {response:approveResponse,result:approveResult} = await postPayment('/api/payment-approve', { orderNumber:result.order?.orderNumber, resultCode:'0000' });
-      if (!approveResponse.ok || !approveResult.approved) {
+      if (!approveResponse.ok || !isConfirmedPayment(approveResult, result.order.orderNumber)) {
         throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
       }
       // 결제 완료 = 공고 즉시 공개. 목록 캐시를 버려야 /jobs 로 이동했을 때 새 공고가 바로 보인다.
       rememberOrder(null);
       invalidateSiteOperations();
+      if (!checkoutMounted.current) return;
       appendStoredRecord("medihelpers_ad_requests", {
         id: result.order?.orderNumber || `AD-${Date.now()}`,
         planId: plan.id,
@@ -3067,12 +3068,13 @@ function Checkout({ plan, auth }) {
       });
       setDone({ ...(result.order || {}), ...approveResult, status:approveResult.status || 'paid' });
     } catch (error) {
+      if (!checkoutMounted.current) return;
       if (createdOrder?.orderNumber) setRecoveryOrder(createdOrder);
       else if (error.code === 'PAYMENT_RESULT_UNKNOWN') setRecoveryOrder({});
       setSubmitError(error.message);
     } finally {
       // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
-      if (!paymentWindowOpened) { submitLock.current = false; setSubmitting(false); }
+      if (!paymentWindowOpened) { submitLock.current = false; if(checkoutMounted.current)setSubmitting(false); }
     }
   };
   if (recoveryOrder && !done) return <PaymentRecoveryPanel order={recoveryOrder} message={submitError} onRecovered={result => { invalidateSiteOperations(); setDone({ ...recoveryOrder, ...result }); setRecoveryOrder(null); }} />;
@@ -3135,11 +3137,10 @@ function Checkout({ plan, auth }) {
                 <div className={`single-brand-upload ${activeDrop === "brand" ? "is-dragging" : ""}`} {...dropZoneProps("brand", (files) => chooseBrand(files?.[0]))}>
                   <div className="banner-preview">
                   {brandPreview ? (
-                    <img
+                    <JobImage
                       key={brandPreview}
                       src={brandPreview}
                       alt="선택한 병원 배너 이미지 미리보기"
-                      onLoad={(event) => setBrandDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
                     />
                   ) : (
                     <div>
@@ -3157,13 +3158,14 @@ function Checkout({ plan, auth }) {
                     name="brandImage"
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
+                    disabled={submitting}
                     onChange={selectBrand}
                   />
                   <div className="upload-button">
                     <Upload />
                     <div>
                       <strong>{brandName || "클릭·드래그 또는 Ctrl+V로 붙여넣기"}</strong>
-                      <small>권장 1500×500px 가로형 · PNG·JPG·WEBP · 최대 5MB</small>
+                      <small>권장 1500×500px 가로형 · PNG·JPG·WEBP · 원본 20MB까지 자동 최적화</small>
                     </div>
                   </div>
                   {brandError && <em>{brandError}</em>}
@@ -3173,11 +3175,11 @@ function Checkout({ plan, auth }) {
                 <div className="sample-banner-picker">
                   <div className="sample-banner-picker-head">
                     <div><strong>이미지가 없다면 샘플 배너 선택</strong><small>병원명과 진료과는 공고 화면에서 자동으로 표시됩니다.</small></div>
-                    {brandTemplate && <button type="button" onClick={() => { setBrandTemplate(""); setBrandPreview(""); }}>선택 해제</button>}
+                    {brandTemplate && <button type="button" disabled={submitting} onClick={() => { imagePreparation.current.brand++; setBrandTemplate(""); setBrandPreview(""); }}>선택 해제</button>}
                   </div>
                   <div className="sample-banner-grid">
                     {SAMPLE_BANNER_TEMPLATES.map((template) => (
-                      <button key={template.id} type="button" className={brandTemplate === template.src ? "active" : ""} onClick={() => chooseBrandTemplate(template)} aria-pressed={brandTemplate === template.src}>
+                      <button key={template.id} type="button" disabled={submitting} className={brandTemplate === template.src ? "active" : ""} onClick={() => chooseBrandTemplate(template)} aria-pressed={brandTemplate === template.src}>
                         <span><img src={template.src} alt="" /></span>
                         <strong>{template.name}</strong>
                         <small>{template.tone}</small>
@@ -3203,14 +3205,14 @@ function Checkout({ plan, auth }) {
                 <div className="facility-upload-head">
                   <div>
                     <strong>병원 사진</strong>
-                    <span>선택사항 · 예: 1600×1000px 가로형 · PNG·JPG·WEBP · 장당 5MB · 최대 6장</span>
+                    <span>선택사항 · 예: 1600×1000px 가로형 · PNG·JPG·WEBP · 원본 장당 20MB까지 자동 최적화 · 최대 6장</span>
                   </div>
                 </div>
                 {facilityPhotos.length ? (
                   <div className="facility-photo-preview">
                     {facilityPhotos.map((photo, index) => (
                       <figure key={`${photo.name}-${index}`}>
-                        <img
+                        <JobImage
                           src={photo.url}
                           alt={`병원 사진 미리보기 ${index + 1}`}
                         />
@@ -3236,7 +3238,7 @@ function Checkout({ plan, auth }) {
                 )}
                 <div className="facility-upload-actions">
                   <label>
-                    <input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={selectFacilityPhotos} />
+                    <input type="file" accept="image/png,image/jpeg,image/webp" multiple disabled={submitting || imagePreparation.current.facility} onChange={selectFacilityPhotos} />
                     <Upload /> {facilityPhotos.length ? "사진 더 추가" : "사진 선택"}
                   </label>
                   <span aria-live="polite">{facilityPhotos.length} / 6장 · 드래그하거나 Ctrl+V로 붙여넣을 수 있습니다.</span>
@@ -3410,7 +3412,7 @@ function Checkout({ plan, auth }) {
                     <span><FileText /></span>
                     <div>
                       <strong>웹포스터·홍보 이미지</strong>
-                      <small>선택사항 · 세로형·가로형 모두 가능 · PNG·JPG·WEBP · 장당 5MB · 최대 3장</small>
+                      <small>선택사항 · 세로형·가로형 모두 가능 · PNG·JPG·WEBP · 원본 장당 20MB까지 자동 최적화 · 최대 3장</small>
                     </div>
                   </div>
                   <label>
@@ -3418,6 +3420,7 @@ function Checkout({ plan, auth }) {
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
                       multiple
+                      disabled={submitting || imagePreparation.current.poster}
                       onChange={selectPosterImages}
                     />
                     <Upload /> 이미지 업로드
@@ -3427,7 +3430,7 @@ function Checkout({ plan, auth }) {
                   <div className="job-poster-preview">
                     {posterImages.map((image, index) => (
                       <figure key={`${image.name}-${index}`}>
-                        <img src={image.url} alt={`웹포스터 미리보기 ${index + 1}`} />
+                        <JobImage src={image.url} alt={`웹포스터 미리보기 ${index + 1}`} />
                         <button
                           type="button"
                           onClick={() => removePosterImage(index)}
@@ -3473,14 +3476,15 @@ function Checkout({ plan, auth }) {
                 </span>
               </label>
               {submitError && <p className="form-error" role="alert">{submitError}</p>}
+              {preparingImages > 0 && <p className="image-preparation-status" role="status">이미지 준비 중… 파일의 비율과 선명도를 확인하고 있습니다.</p>}
               <div className="ad-form-submit-panel">
                 <div>
                   <small>최종 확인 · {plan.unit} 노출 · 부가세 포함</small>
                   <strong>{plan.name} · {plan.price.toLocaleString()}원</strong>
                   <span>입력 내용을 확인한 뒤 결제와 동시에 공고가 게시됩니다.</span>
                 </div>
-                <button className="button primary" type="submit" disabled={submitting}>
-                  {submitting ? "결제와 공고 게시를 처리 중…" : "결제하고 바로 게시하기"} <ArrowRight size={18} />
+                <button className="button primary" type="submit" disabled={submitting || preparingImages > 0}>
+                  {preparingImages ? "이미지 준비 중…" : submitting ? "결제와 공고 게시를 처리 중…" : "결제하고 바로 게시하기"} <ArrowRight size={18} />
                 </button>
               </div>
               </section>
@@ -3494,6 +3498,8 @@ function Checkout({ plan, auth }) {
 }
 
 function TalentUnlockCheckout({ plan, talentId, auth }) {
+  const checkoutMounted = useRef(true);
+  useEffect(() => { checkoutMounted.current=true; return () => { checkoutMounted.current=false; }; }, []);
   const [contactPreview, setContactPreview] = useState({loading:Boolean(talentId)});
   const [previewRetry, setPreviewRetry] = useState(0);
   useEffect(() => {
@@ -3527,10 +3533,11 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
     let createdOrder = null;
     try {
       const {response,result} = await postPayment('/api/payment-orders', { productId:plan.id, paymentChannel:inicisPaymentChannel(), privacyVersion:PRIVACY_FORM_VERSION, contactVisibilityAtCheckout:contactPreview.contactVisibility, checkoutAcknowledged:data.terms === 'agreed', paymentMethod:'card', customerName:lockedCustomer.name, customerEmail:lockedCustomer.email, customerPhone:lockedCustomer.phone, metadata:{ terms:data.terms, talentId: talentId || '' } });
-      if (!response.ok) { if (result.code === 'CONTACT_VISIBILITY_CHANGED') setPreviewRetry(v => v+1); throw new Error(result.error || '결제 요청을 저장하지 못했습니다.'); }
+      if (!response.ok) { if (checkoutMounted.current && result.code === 'CONTACT_VISIBILITY_CHANGED') setPreviewRetry(v => v+1); throw new Error(result.error || '결제 요청을 저장하지 못했습니다.'); }
       const orderNumber = result.order?.orderNumber;
       createdOrder = result.order;
       rememberOrder(createdOrder);
+      if (!checkoutMounted.current) return;
       // 이니시스 키가 설정된 환경이면 실제 표준결제창을 띄운다(승인은 서버 returnUrl이 처리).
       if (result.inicis?.configured) {
         await openInicisPayment(result.inicis, {
@@ -3538,26 +3545,28 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
           buyerName: lockedCustomer.name,
           buyerTel: lockedCustomer.phone,
           buyerEmail: lockedCustomer.email,
-        }, {onClose: () => setRecoveryOrder(createdOrder)});
+        }, {onClose: () => { if(checkoutMounted.current)setRecoveryOrder(createdOrder); }, shouldOpen:()=>checkoutMounted.current});
         // 결제창이 열린 동안 버튼 잠금 유지(중복 결제 방지) — finally에서 해제하지 않는다.
         paymentWindowOpened = true;
         return;
       }
       const {response:approve,result:approveResult} = await postPayment('/api/payment-approve', { orderNumber, resultCode:'0000' });
-      if (!approve.ok || !approveResult.approved) {
+      if (!approve.ok || !isConfirmedPayment(approveResult, orderNumber)) {
         throw new Error(approveResult.error || approveResult.message || '가상 결제를 완료하지 못했습니다.');
       }
       rememberOrder(null);
+      if (!checkoutMounted.current) return;
       trackConversion('talent_unlock_paid', { planId: plan.id, amount: plan.price, talentId, paid: approveResult.approved });
       setPaidInfo(approveResult);
       setDone(true);
     } catch (error) {
+      if (!checkoutMounted.current) return;
       if (createdOrder?.orderNumber) setRecoveryOrder(createdOrder);
       else if (error.code === 'PAYMENT_RESULT_UNKNOWN') setRecoveryOrder({});
       setSubmitError(error.message);
     } finally {
       // 이니시스 결제창이 열린 경우에는 잠금을 유지해 중복 결제를 막는다.
-      if (!paymentWindowOpened) { submitLock.current = false; setSubmitting(false); }
+      if (!paymentWindowOpened) { submitLock.current = false; if(checkoutMounted.current)setSubmitting(false); }
     }
   };
   if (recoveryOrder && !done) return <PaymentRecoveryPanel order={recoveryOrder} message={submitError} onRecovered={result => { setPaidInfo(result); setDone(true); setRecoveryOrder(null); }} />;
