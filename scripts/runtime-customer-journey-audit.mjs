@@ -286,6 +286,8 @@ if(process.argv.includes('--serve')&&!process.exitCode){
  globalThis.fetch=async()=>{throw Error('External network disabled in local visual audit');};
  let resumeFault=process.argv.includes('--fail-resumes-once');
  let operationsFault=process.argv.includes('--stall-operations-once');
+ let logoutFault=process.argv.includes('--failure-ui-fixture');
+ let refundFault=process.argv.includes('--failure-ui-fixture');
  createServer(async(req,res)=>{
   try{
    console.log('UI request: '+req.method+' '+req.url);
@@ -295,6 +297,13 @@ if(process.argv.includes('--serve')&&!process.exitCode){
    const role=req.url.match(/^\/__login\/(doctor|hospital|admin)$/)?.[1];
    if(role){const login=await call('/api/auth/login','',{email:'journey-'+role+'@example.invalid',password});res.writeHead(302,{'set-cookie':login.cookie+'; Path=/; HttpOnly; SameSite=Lax',location:'/mypage?tab=payments'});res.end();return;}
    const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);
+   // Opt-in browser failure simulations. Never forward these writes to the DB.
+   if(logoutFault&&req.url==='/api/auth/logout'&&req.method==='POST'){
+    logoutFault=false;res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({signedOut:false}));return;
+   }
+   if(refundFault&&req.url==='/api/member-center'&&req.method==='POST'&&body.toString().includes('refund_request')){
+    refundFault=false;res.writeHead(200,{'content-type':'application/json'});res.end('{invalid');return;
+   }
    const response=await localWorker.fetch(new Request(localOrigin+req.url,{method:req.method,headers:req.headers,...(body.length?{body}:{})}),env,{});
    if(pgWindowTest&&req.url==='/api/payment-orders'&&response.ok){
     const result=await response.json();

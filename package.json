@@ -23,7 +23,7 @@
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest",
-    "vite": "latest"
+    "vite": "8.2.4"
   },
   "devDependencies": {
     "esbuild": "^0.28.1"

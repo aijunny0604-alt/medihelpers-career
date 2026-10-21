@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Check, KeyRound, LockKeyhole, Mail, MessageCircle, ShieldCheck } from 'lucide-react';
 import { withBase } from './basePath.js';
+import { requestAccountRecovery } from './accountWorkflowApi.js';
 
 const genericMessage = {
   id: '입력한 정보와 일치하는 계정이 있으면 가입 이메일로 아이디 안내를 발송합니다. 도착하지 않으면 잠시 후 다시 확인해주세요.',
@@ -21,8 +22,13 @@ export default function AccountRecoveryPage() {
   const [resetComplete, setResetComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const submitLock = useRef(false);
+  const requestSequence = useRef(0);
+  useEffect(() => () => { requestSequence.current += 1; }, []);
 
   const switchMode = (nextMode) => {
+    if (submitLock.current) return;
+    requestSequence.current += 1;
     setMode(nextMode);
     setRequestResult(null);
     setError('');
@@ -30,33 +36,35 @@ export default function AccountRecoveryPage() {
 
   const requestRecovery = async (event) => {
     event.preventDefault();
+    if (submitLock.current) return;
+    submitLock.current = true;
+    const sequence = ++requestSequence.current;
+    const requestType = mode;
     setSubmitting(true);
     setError('');
     const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch(withBase('/api/account-recovery'), {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          requestType: mode,
-          name: form.get('name') || '',
-          phone: form.get('phone') || '',
-          email: form.get('email') || '',
-        }),
+      const result = await requestAccountRecovery({
+        requestType,
+        name: form.get('name') || '',
+        phone: form.get('phone') || '',
+        email: form.get('email') || '',
       });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.accepted) throw new Error(result.error || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.');
-      setRequestResult({ emailDeliveryAvailable: result.emailDeliveryAvailable !== false });
+      if (sequence !== requestSequence.current) return;
+      setRequestResult({ requestType, emailDeliveryAvailable: result.emailDeliveryAvailable !== false });
     } catch (submitError) {
+      if (sequence !== requestSequence.current) return;
       setError(submitError instanceof TypeError ? '서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.' : submitError.message || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
-      setSubmitting(false);
+      if (sequence === requestSequence.current) { submitLock.current = false; setSubmitting(false); }
     }
   };
 
   const resetPassword = async (event) => {
     event.preventDefault();
+    if (submitLock.current) return;
+    submitLock.current = true;
+    const sequence = ++requestSequence.current;
     setSubmitting(true);
     setError('');
     const form = new FormData(event.currentTarget);
@@ -65,23 +73,19 @@ export default function AccountRecoveryPage() {
     if (password !== passwordConfirm) {
       setError('새 비밀번호가 서로 일치하지 않습니다.');
       setSubmitting(false);
+      submitLock.current = false;
       return;
     }
     try {
-      const response = await fetch(withBase('/api/account-recovery'), {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'reset_password', token: link.token, password }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.reset) throw new Error(result.error || '비밀번호를 변경하지 못했습니다.');
+      await requestAccountRecovery({ action: 'reset_password', token: link.token, password });
+      if (sequence !== requestSequence.current) return;
       window.history.replaceState({}, '', withBase('/account/recovery?mode=password'));
       setResetComplete(true);
     } catch (submitError) {
+      if (sequence !== requestSequence.current) return;
       setError(submitError instanceof TypeError ? '서버 응답을 확인하지 못했습니다. 로그인 화면에서 변경 여부를 확인한 뒤 다시 시도해주세요.' : submitError.message || '비밀번호를 변경하지 못했습니다.');
     } finally {
-      setSubmitting(false);
+      if (sequence === requestSequence.current) { submitLock.current = false; setSubmitting(false); }
     }
   };
 
@@ -90,7 +94,7 @@ export default function AccountRecoveryPage() {
   const doneText = resetComplete
     ? '비밀번호가 변경되어 기존 로그인은 모두 종료되었습니다. 새 비밀번호로 로그인해주세요. 다만 이전 확인 중이거나 이용이 제한된 계정은 비밀번호를 바꿔도 제한이 해제되지 않습니다. 같은 안내가 나오면 재설정을 반복하지 말고 고객센터(051-342-5463)로 문의해주세요.'
     : requestResult?.emailDeliveryAvailable
-      ? genericMessage[mode]
+      ? genericMessage[requestResult.requestType]
       : '현재 이메일 발송 설정이 준비되지 않아 요청만 안전하게 접수되었습니다. 빠른 확인이 필요하면 고객센터로 문의해주세요.';
 
   return <div className="recovery-page">
@@ -102,8 +106,8 @@ export default function AccountRecoveryPage() {
     <div className="recovery-shell">
       <section className="recovery-card">
         {!link.isReset && !resetComplete && <div className="recovery-tabs">
-          <button type="button" className={mode === 'id' ? 'active' : ''} onClick={() => switchMode('id')}><Mail /> 아이디 찾기</button>
-          <button type="button" className={mode === 'password' ? 'active' : ''} onClick={() => switchMode('password')}><KeyRound /> 비밀번호 재설정</button>
+          <button type="button" disabled={submitting} className={mode === 'id' ? 'active' : ''} onClick={() => switchMode('id')}><Mail /> 아이디 찾기</button>
+          <button type="button" disabled={submitting} className={mode === 'password' ? 'active' : ''} onClick={() => switchMode('password')}><KeyRound /> 비밀번호 재설정</button>
         </div>}
         {done ? <div className="recovery-done">
           <span><Check /></span>

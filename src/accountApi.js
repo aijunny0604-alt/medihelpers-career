@@ -24,6 +24,7 @@ export async function authRequest(action, body = {}, { timeoutMs = 30000, fetchI
     const data = await response.json().catch(() => null);
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('서버 응답을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
     if (!response.ok) throw new Error(data.error || '로그인 요청을 처리하지 못했습니다.');
+    if (action === 'logout' && data.signedOut !== true) throw new Error('로그아웃 완료 응답을 확인하지 못했습니다. 다시 시도해주세요.');
     if (action !== 'logout' && data.signedIn !== true) throw new Error('로그인 완료 응답을 확인하지 못했습니다. 다시 시도해주세요.');
     return data;
   })();

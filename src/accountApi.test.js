@@ -25,3 +25,12 @@ test('잘못된 응답을 로그인 성공으로 취급하지 않는다', async 
   const result=await authRequest('login',{}, {fetchImpl:async()=>Response.json({signedIn:true,account:{role:'doctor'}})});
   assert.equal(result.account.role,'doctor');
 });
+
+test('로그아웃은 서버의 명시적인 세션 종료 응답만 성공으로 처리한다', async () => {
+  for (const payload of [{}, {signedOut:false}, {signedOut:'true'}, {signedOut:'false'}]) {
+    await assert.rejects(authRequest('logout', {}, {fetchImpl:async () => Response.json(payload)}), /로그아웃 완료 응답/);
+  }
+  await assert.rejects(authRequest('logout', {}, {fetchImpl:async () => {throw new TypeError('offline');}}), /서버에 연결하지 못했습니다/);
+  const result = await authRequest('logout', {}, {fetchImpl:async () => Response.json({signedOut:true})});
+  assert.equal(result.signedOut, true);
+});

@@ -730,8 +730,21 @@ function SignupForm({ identity = {}, memberType, onComplete }) {
 }
 
 function AccountCard({ account, identity = {} }) {
+  const [signingOut, setSigningOut] = useState(false);
+  const signingOutRef = useRef(false);
   const signOut = async () => {
-    try { await authRequest('logout'); } finally { window.location.href = withBase('/'); }
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
+    setSigningOut(true);
+    try {
+      await authRequest('logout');
+      window.location.href = withBase('/');
+    } catch (error) {
+      void notifyAction(`로그아웃을 완료하지 못했습니다. 다시 시도해 주세요. ${error.message}`);
+    } finally {
+      signingOutRef.current = false;
+      setSigningOut(false);
+    }
   };
   return <section className="signup-card account-complete">
     <span className="account-check"><CircleCheck /></span>
@@ -739,7 +752,7 @@ function AccountCard({ account, identity = {} }) {
     <h2>내 계정</h2>
     <p>{identity.displayName || identity.email || '회원'}님, 필요한 기능을 사용할 때만 추가 정보를 요청하겠습니다.</p>
     <dl><div><dt>회원 유형</dt><dd>{accountRoleLabel(account.role)}</dd></div><div><dt>가입 상태</dt><dd>기본 회원</dd></div><div><dt>마케팅 수신</dt><dd>미동의</dd></div></dl>
-    <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><button className="button outline" type="button" onClick={signOut}>로그아웃</button></div>
+    <div className="account-actions"><a className="button primary" href={withBase('/mypage')}>마이페이지 열기 <ArrowRight /></a><button className="button outline" type="button" onClick={signOut} disabled={signingOut}>{signingOut ? '로그아웃 중…' : '로그아웃'}</button></div>
   </section>;
 }
 

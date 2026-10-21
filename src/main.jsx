@@ -569,8 +569,11 @@ function Header({ path, qa, operations, auth }) {
     setSigningOut(true);
     try {
       await authRequest('logout');
-    } finally {
       window.location.href = withBase('/');
+    } catch (error) {
+      void notifyAction(`로그아웃을 완료하지 못했습니다. 다시 시도해 주세요. ${error.message}`);
+    } finally {
+      setSigningOut(false);
     }
   };
   const switchTestAccount = async (account) => {
