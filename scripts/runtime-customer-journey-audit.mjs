@@ -288,9 +288,33 @@ if(process.argv.includes('--serve')&&!process.exitCode){
  let operationsFault=process.argv.includes('--stall-operations-once');
  let logoutFault=process.argv.includes('--failure-ui-fixture');
  let refundFault=process.argv.includes('--failure-ui-fixture');
+ let continuedFault='';
  createServer(async(req,res)=>{
   try{
    console.log('UI request: '+req.method+' '+req.url);
+   // Explicitly enabled loopback-only faults for browser recovery checks.
+   // They never reach the Worker, database, mail service or payment provider.
+   if(process.argv.includes('--continued-ui-fixture')){
+    const arm=req.url.match(/^\/__fault\/(account-body|operations-shape|resume-save|payment-order|signup-reject)$/)?.[1];
+    if(arm){continuedFault=arm;res.writeHead(302,{location:arm==='signup-reject'?'/signup/doctor':arm==='payment-order'?'/advertise/apply?plan=basic':arm==='resume-save'?'/resume?new=1':arm==='operations-shape'?'/jobs':'/mypage'});res.end();return;}
+    if(continuedFault==='signup-reject'&&req.url==='/api/auth/register'&&req.method==='POST'){
+     continuedFault='';await new Promise(resolve=>setTimeout(resolve,2500));
+     res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({signedIn:true,error:'격리 검수: 가입 실패'}));return;
+    }
+    if(continuedFault==='payment-order'&&req.url==='/api/payment-orders'&&req.method==='POST'){
+     // Keep this fault armed so retries never open an external PG window.
+     res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({prepared:false,error:'격리 검수: 결제 주문을 준비하지 못했습니다.'}));return;
+    }
+    if(continuedFault==='account-body'&&req.url==='/api/account'){
+     continuedFault='';res.writeHead(200,{'content-type':'application/json'});res.write('{');return;
+    }
+    if(continuedFault==='operations-shape'&&req.url==='/api/site-operations'){
+     continuedFault='';res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({contents:[null]}));return;
+    }
+    if(continuedFault==='resume-save'&&req.url==='/api/resumes'&&req.method==='POST'){
+     continuedFault='';res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({saved:false,id:'UNCONFIRMED'}));return;
+    }
+   }
    if(req.url.startsWith('/api/resumes')&&req.method==='GET'&&req.headers.referer?.includes('/resume')&&resumeFault){resumeFault=false;res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:'격리 검수: 이력서 조회 실패'}));return;}
    if(req.url==='/api/site-operations'&&operationsFault){operationsFault=false;console.log('UI fault: intentionally stalled operations response');return;}
    if(req.url==='/api/site-operations'&&process.argv.includes('--slow-operations-retry'))await new Promise(resolve=>setTimeout(resolve,2500));

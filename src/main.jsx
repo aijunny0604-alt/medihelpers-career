@@ -21,6 +21,7 @@ import {
 import { adPlans, jobs, navItems, talent, talentUnlockPlans } from './data.js';
 import { canRevealTalentIdentity, talentDisplayName } from './talentPrivacy.js';
 import { authRequest, TEST_ACCOUNTS } from './accountApi.js';
+import { lookupAccount } from './accountLookup.js';
 import RouteBoundary from './RouteBoundary.jsx';
 import HeroMedia from './HeroMedia.jsx';
 const ResumePage = lazy(() => import('./ResumePage.jsx'));
@@ -45,6 +46,7 @@ import { getQaStateInfo, normalizeQaState, QA_PREVIEW_STORAGE_KEY } from './qaPr
 import { getHospitalMood, hospitalMoodStyle } from './hospitalMood.js';
 import { openInicisPayment, inicisPaymentChannel } from './inicisPay.js';
 import { isConfirmedPayment, postPayment } from './paymentApi.js';
+import { loadTalentContactPreview } from './memberReadApi.js';
 import {
   appendStoredRecord,
   loadSavedFromServer,
@@ -291,11 +293,12 @@ function trackConversion(event, detail = {}) {
 // 로그인 여부를 서버(/api/account)로 확인하는 공용 훅. QA 프리뷰 모드는 미리보기 권한을 그대로 사용한다.
 function useAuthGate(qa) {
   const requestSequence = useRef(0);
+  const retryLookup = useRef(null);
   const [state, setState] = useState({
     status: 'loading', role: '', isAdmin: false, isHospital: false,
     account: null, identity: {}, profile: {}, registrationProfile: {}, hospitalProfile: {}, email: '',
     signupEnabled: false, testAccountsEnabled: DEMO_MODE,
-    welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
+    welcomeEmailAvailable: false, adminSignupEmailAvailable: false, lookupError:'', lookupPending:true,
   });
   useEffect(() => {
     if (qa?.active) {
@@ -307,20 +310,21 @@ function useAuthGate(qa) {
         isHospital: Boolean(caps.hospital),
         account: caps.signedIn ? { role: caps.hospital ? 'hospital' : 'doctor' } : null,
         identity: {}, profile: {}, registrationProfile: {}, hospitalProfile: {}, email: '', signupEnabled: true,
-        testAccountsEnabled: DEMO_MODE, welcomeEmailAvailable: false, adminSignupEmailAvailable: false,
+        testAccountsEnabled: DEMO_MODE, welcomeEmailAvailable: false, adminSignupEmailAvailable: false, lookupError:'', lookupPending:false,
       });
       return undefined;
     }
     let active = true;
-    let recoveryTimer = 0;
+    let controller;
+    let pending;
     const applyFullAccount = (result) => {
-      const signedIn = Boolean(result.signedIn || result.account);
+      const signedIn = result.signedIn === true;
       const role = result.account?.role || '';
       setState({
         status: signedIn ? 'member' : 'guest',
         role,
-        isAdmin: Boolean(result.isAdmin),
-        isHospital: role === 'hospital' || Boolean(result.isAdmin),
+        isAdmin: result.isAdmin === true,
+        isHospital: role === 'hospital' || result.isAdmin === true,
         account: result.account || null,
         identity: result.identity || {},
         profile: result.profile || {},
@@ -331,71 +335,77 @@ function useAuthGate(qa) {
         testAccountsEnabled: DEMO_MODE && result.testAccountsEnabled === true,
         welcomeEmailAvailable: Boolean(result.welcomeEmailAvailable),
         adminSignupEmailAvailable: Boolean(result.adminSignupEmailAvailable),
+        lookupError:'', lookupPending:false,
       });
     };
-    const load = ({ showLoading = true } = {}) => {
-      if (recoveryTimer) window.clearTimeout(recoveryTimer);
+    const load = ({ replace = false } = {}) => {
+      if (!active) return Promise.resolve();
+      if (pending && !replace) return pending;
       const sequence = ++requestSequence.current;
-      if (showLoading) setState((current) => current.status === 'member' ? current : ({ ...current, status:'loading' }));
-      const run = async () => {
-        for (let attempt = 0; attempt < 3; attempt += 1) {
-          try {
-            const response = await fetch('/api/account', { credentials: 'same-origin', headers: { accept: 'application/json' } });
-            if (!response.ok) throw new Error('account lookup failed');
-            const result = await response.json();
-            if (!active || sequence !== requestSequence.current) return;
-            applyFullAccount(result);
-            return;
-          } catch {
-            if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 300 * (attempt + 1)));
-          }
-        }
+      controller?.abort();
+      controller = new AbortController();
+      // 서버 오류는 로그아웃의 근거가 아니다. 확인된 계정은 유지하고 조회 상태만 바꾼다.
+      setState((current) => ({ ...current, lookupError:'', lookupPending:true }));
+      pending = lookupAccount({ signal:controller.signal }).then((result) => {
         if (!active || sequence !== requestSequence.current) return;
-        // 네트워크·D1 일시 오류를 로그아웃으로 오인하지 않는다. 이미 확인된 회원 권한은
-        // 그대로 유지하고, 첫 진입이면 중립 로딩 화면에서 자동으로 다시 연결한다.
-        setState((current) => current.status === 'member' ? current : ({ ...current, status:'loading' }));
-        recoveryTimer = window.setTimeout(() => load({ showLoading:false }), 3000);
-      };
-      run();
+        applyFullAccount(result);
+      }).catch((error) => {
+        if (!active || sequence !== requestSequence.current || error.name === 'AbortError') return;
+        setState((current) => ({ ...current, lookupError:error.message, lookupPending:false }));
+      }).finally(() => {
+        if (sequence === requestSequence.current) pending = undefined;
+      });
+      return pending;
     };
     const onAuthChanged = (event) => {
       const result = event.detail?.result || {};
-      if (result.signedOut) {
+      if (result.signedOut === true) {
         setState((current) => ({
           ...current, status:'guest', role:'', isAdmin:false, isHospital:false,
-          account:null, identity:{}, profile:{}, registrationProfile:{}, hospitalProfile:{}, email:''
+          account:null, identity:{}, profile:{}, registrationProfile:{}, hospitalProfile:{}, email:'', lookupError:''
         }));
-      } else if (result.signedIn || result.account) {
+      } else if (result.signedIn === true && ['doctor', 'hospital'].includes(result.account?.role)) {
         const role = result.account?.role || '';
         setState((current) => ({
           ...current,
           status:'member',
           role,
-          isAdmin:Boolean(result.isAdmin),
-          isHospital:role === 'hospital' || Boolean(result.isAdmin),
-          account:result.account || current.account,
-          identity:result.identity || current.identity,
+          isAdmin:result.isAdmin === true,
+          isHospital:role === 'hospital' || result.isAdmin === true,
+          account:result.account,
+          identity:result.identity || {},
           profile:result.identity?.displayName
             ? { name:result.identity.displayName, displayName:result.identity.displayName }
             : {},
-          registrationProfile:current.registrationProfile || {},
-          hospitalProfile:current.hospitalProfile || {},
-          email:result.identity?.email || current.email,
+          registrationProfile:{},
+          hospitalProfile:{},
+          email:result.identity?.email || '',
+          lookupError:'',
         }));
       }
       // 서버 응답으로 역할을 즉시 반영한 뒤 전체 계정 정보는 화면을 비우지 않고 재확인한다.
-      load({ showLoading:false });
+      load({ replace:true });
     };
+    retryLookup.current = () => load();
     load();
     window.addEventListener('medihelpers:auth-changed', onAuthChanged);
     return () => {
       active = false;
-      if (recoveryTimer) window.clearTimeout(recoveryTimer);
       requestSequence.current += 1;
+      controller?.abort();
+      retryLookup.current = null;
       window.removeEventListener('medihelpers:auth-changed', onAuthChanged);
     };
   }, [qa?.active, qa?.state]);
-  return state;
+  return { ...state, retryAccount:() => retryLookup.current?.() };
+}
+
+function AccountLookupNotice({ auth }) {
+  return <section className="section auth-gate"><div className="auth-gate-card" role="alert">
+    <h2>로그인 상태를 확인하지 못했습니다</h2><p>{auth.lookupError}</p>
+    {auth.status === 'member' && <p>확인된 로그인 정보는 유지됩니다. 다시 확인한 뒤 이용해주세요.</p>}
+    <div className="access-notice-actions"><button className="button primary" type="button" onClick={auth.retryAccount} disabled={auth.lookupPending}>{auth.lookupPending ? '확인 중…' : '다시 확인'}</button><Link className="button outline" to="/">홈으로</Link></div>
+  </div></section>;
 }
 
 // 비로그인 사용자는 콘텐츠 미리보기와 로그인 경로를 제공한다.
@@ -3504,11 +3514,12 @@ function TalentUnlockCheckout({ plan, talentId, auth }) {
   const [previewRetry, setPreviewRetry] = useState(0);
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     setContactPreview({loading:Boolean(talentId)});
-    if (talentId) fetch(withBase(`/api/talent-detail/${encodeURIComponent(talentId)}?preview=1`), {credentials:'same-origin',cache:'no-store'})
-      .then(async response => { const data = await response.json(); if (!response.ok || !data.available) throw new Error('현재 열람 가능한 구직글인지 확인하지 못했습니다.'); if (active) setContactPreview({...data,loading:false}); })
+    if (talentId) loadTalentContactPreview(talentId, {signal:controller.signal})
+      .then(data => {if (active) setContactPreview({...data,loading:false});})
       .catch(error => {if (active) setContactPreview({loading:false,error:error.message});});
-    return () => {active=false;};
+    return () => {active=false;controller.abort();};
   },[talentId, previewRetry]);
   const [done, setDone] = useState(false);
   const [paidInfo, setPaidInfo] = useState(null);
@@ -3847,9 +3858,14 @@ export function App() {
   else if (path === '/refund') page = <RefundPolicyPage />;
   else if (path === '/about') page = <AboutPage />;
   else page = <NotFoundPage />;
+  const publicPage = ['/', '/jobs', '/advertise', '/about', '/terms', '/privacy', '/withdrawal', '/refund', '/account/recovery'].includes(path);
+  const lookupFailureBlocksPage = Boolean(auth.lookupError) && isValidRoutePath(path) && auth.status === 'loading' && !publicPage;
+  if (lookupFailureBlocksPage) page = <AccountLookupNotice auth={auth} />;
+  // 기존 회원의 폼을 감싸거나 교체하지 않아 재조회 오류·재시도 중 입력을 보존한다.
+  const accountLookupNotice = auth.lookupError && !lookupFailureBlocksPage && isValidRoutePath(path) ? <AccountLookupNotice auth={auth} /> : null;
   if (path === '/admin' || path.startsWith('/admin/')) {
-    return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}><FormValidationNotice key={`validation-${route}`} /><RouteBoundary key={route}>{page}</RouteBoundary></div>;
+    return <div className={`app admin-app ${qa.active ? 'qa-preview-active' : ''}`}><FormValidationNotice key={`validation-${route}`} />{accountLookupNotice}<RouteBoundary key={route}>{page}</RouteBoundary></div>;
   }
   const staticDetailRoute = path.startsWith('/jobs/');
-  return <div className="app"><FormValidationNotice key={`validation-${route}`} /><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}><RouteBoundary>{page}</RouteBoundary></main><Footer operations={operations} /><MediAngelAssistant /><Toaster /></div>;
+  return <div className="app"><FormValidationNotice key={`validation-${route}`} /><div className="scroll-progress" aria-hidden="true" /><Header path={path} qa={qa} operations={operations} auth={auth} /><main key={route} className={`route-stage ${staticDetailRoute ? 'route-stage-static' : ''}`}>{accountLookupNotice}<RouteBoundary>{page}</RouteBoundary></main><Footer operations={operations} /><MediAngelAssistant /><Toaster /></div>;
 }

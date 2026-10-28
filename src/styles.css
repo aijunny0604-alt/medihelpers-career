@@ -2174,7 +2174,7 @@ html{scrollbar-gutter:stable;scrollbar-color:#4e83d8 #edf3fb;scrollbar-width:thi
 .doctor-search-title{margin-bottom:15px;display:flex;align-items:center;gap:14px}
 .doctor-search-title>span{color:#1263e8;display:flex;align-items:center;gap:6px;font:800 10px 'Manrope';letter-spacing:1px}
 .doctor-search-title>span svg{width:14px}
-.doctor-search-title>strong{color:#1d3352;font-size:17px;letter-spacing:-.4px}
+.doctor-search-title>strong{color:#1d3352;font-size:17px;letter-spacing:-.4px;word-break:keep-all;overflow-wrap:break-word}
 .doctor-search-title>button{margin-left:auto;border:0;background:transparent;color:#8692a3;font-size:12px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .doctor-search-dock .filter-bar{margin-bottom:12px;padding:0;border:0;border-radius:0;background:transparent;gap:0}
 .doctor-search-dock .filter-bar label{height:58px;border-radius:0;border-color:#dce4ef;border-right:0;padding-inline:17px}

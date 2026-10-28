@@ -54,3 +54,11 @@ test('요청 무응답 시간 초과를 종료하고 자동 재전송하지 않�
 test('헤더 뒤 본문이 멈춰도 시간 초과로 종료한다', async () => {
   await assert.rejects(uploader(async () => ({ok:true,json:() => new Promise(() => {})}),{timeoutMs:5})(image,'banner'),/시간이 초과/);
 });
+test('시간 초과 뒤 늦은 성공 응답이 와도 결과를 성공으로 바꾸거나 다시 전송하지 않는다',async()=>{
+  let complete,signal,requests=0;const settlements=[];
+  const pending=new Promise(resolve=>{complete=resolve;});
+  const upload=uploader(async(_,options)=>{requests++;signal=options.signal;return pending;},{timeoutMs:5});
+  await upload(image,'banner').then(()=>settlements.push('success'),error=>settlements.push(error.message));
+  complete(response({uploaded:true,url}));await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(settlements.length,1);assert.match(settlements[0],/시간이 초과/);assert.equal(signal.aborted,true);assert.equal(requests,1);
+});

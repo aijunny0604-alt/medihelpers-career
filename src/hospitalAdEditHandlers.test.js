@@ -74,3 +74,12 @@ test('이미지 준비 중 제거·화면 종료는 늦은 준비 결과를 반�
   const first=run();selection.current++;pending.resolve({file:'late',notice:''});await first;
   assert.deepEqual(changes,[]);assert.equal(tasks,0);
 });
+test('최신 이미지 해독이 실패해도 이전 선택의 늦은 성공으로 교체하지 않는다',async()=>{
+  const previous=deferred(),selection={current:0},changes=[],errors=[];let tasks=0;
+  const deps={input:null,disabled:false,selection,purpose:'banner',setError:x=>errors.push(x),setNotice(){},setPreparing(){},
+    onPreparing:delta=>tasks+=delta,onChange:file=>changes.push(file),
+    prepareImageUpload:file=>file.id===1?previous.promise:Promise.reject(new Error('새 파일 손상'))};
+  const first=bind(chooseBody,{...deps,nextFile:{id:1}})();await bind(chooseBody,{...deps,nextFile:{id:2}})();
+  previous.resolve({file:'old-selection',notice:''});await first;
+  assert.deepEqual(changes,[]);assert.equal(errors.at(-1),'새 파일 손상');assert.equal(tasks,0);
+});

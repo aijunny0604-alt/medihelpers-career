@@ -49,13 +49,14 @@ test('재개 요청 중 화면을 벗어나면 뒤늦게 결제창을 열지 않
 });
 
 const renewSetup=(post,extras={})=>{
- const orders=[],errors=[],busy=[],completed=[];
+ const orders=[],remembered=[],errors=[],busy=[],completed=[];
  const deps={inFlight:{current:false},mounted:{current:true},isConfirmedPayment,confirmAction:async()=>true,
   ad:{title:'합성 공고',plan:'기본',contentRecordId:'SYNTHETIC-CONTENT',productId:'basic'},
   setBusy:x=>busy.push(x),setError:x=>errors.push(x),setOrder:x=>orders.push(x),
+  rememberOrder:x=>remembered.push(x),
   PRIVACY_FORM_VERSION:'test',inicisPaymentChannel:()=> 'pc',postPayment:post,
   openInicisPayment:async()=>{},completed:()=>completed.push(true),...extras};
- return{run:bind(renewBody,deps),deps,orders,errors,busy,completed};
+ return{run:bind(renewBody,deps),deps,orders,remembered,errors,busy,completed};
 };
 test('재구매는 동의창이 열린 순간부터 중복 실행을 차단한다',async()=>{
  const consent=deferred();let confirms=0,posts=0;
@@ -82,11 +83,46 @@ test('재구매 세션 만료는 새 주문·완료 없이 오류를 표시하�
 test('이미 저장된 재구매 주문은 승인 실패에도 같은 번호를 유지한다',async()=>{
  let requests=0;const order={orderNumber:'SYNTHETIC-ORDER'};
  const h=renewSetup(async()=>++requests===1?{response:{ok:true},result:{order}}:{response:{ok:false},result:{error:'승인 확인 실패'}});
- await h.run();assert.deepEqual(h.orders,[order,order]);assert.equal(h.completed.length,0);
+ await h.run();assert.deepEqual(h.orders,[order]);assert.deepEqual(h.remembered,[order]);assert.equal(h.completed.length,0);
 });
 test('재구매 진행 중 화면을 벗어나면 늦은 응답으로 PG창이나 완료 화면을 열지 않는다',async()=>{
  const response=deferred();let opened=0;
  const h=renewSetup(()=>response.promise,{openInicisPayment:async()=>opened++});const first=h.run();await tick();
  h.deps.mounted.current=false;response.resolve({response:{ok:true},result:{order:{orderNumber:'SYNTHETIC-ORDER'},inicis:{configured:true}}});await first;
  assert.equal(opened,0);assert.equal(h.completed.length,0);assert.equal(h.orders.length,0);
+ assert.deepEqual(h.remembered,[{orderNumber:'SYNTHETIC-ORDER'}]);
+});
+
+test('재구매 SDK 준비와 열린 결제창에서는 복구 버튼을 노출하지 않고 실제 pay를 한 번만 호출한다',async()=>{
+ const originalWindow=globalThis.window,originalDocument=globalThis.document;
+ const scripts=[];let pays=0,posts=0;
+ globalThis.window={};
+ globalThis.document={getElementById:()=>null,createElement:()=>({style:{},appendChild(){},remove(){}}),
+  head:{appendChild:script=>scripts.push(script)},body:{appendChild(){}}};
+ try {
+  const {openInicisPayment}=await import('./inicisPay.js?renewal-single-launch');
+  const order={orderNumber:'SYNTHETIC-ORDER'};
+  const h=renewSetup(async()=>{posts++;return{response:{ok:true},result:{order,inicis:{configured:true,returnUrl:'https://synthetic.invalid/return'}}};},{openInicisPayment});
+  const first=h.run();await tick();
+  assert.equal(scripts.length,1);assert.equal(h.orders.length,0);assert.deepEqual(h.remembered,[order]);
+  assert.equal(h.busy.at(-1),true);await h.run();assert.equal(posts,1);
+  window.INIStdPay={pay(){pays++;},viewOff(){}};scripts[0].onload();await first;
+  await h.run();assert.equal(pays,1);assert.equal(posts,1);assert.equal(h.orders.length,0);assert.equal(h.busy.at(-1),true);
+  window.INIStdPay.viewOff();assert.deepEqual(h.orders,[order]);assert.equal(h.busy.at(-1),false);assert.equal(h.deps.inFlight.current,false);
+  window.INIStdPay.viewOff();assert.deepEqual(h.orders,[order]);
+ } finally {globalThis.window=originalWindow;globalThis.document=originalDocument;}
+});
+
+test('재구매 SDK 실패는 저장된 같은 주문을 복구 화면에 전달한다',async()=>{
+ const order={orderNumber:'SYNTHETIC-ORDER'};
+ const h=renewSetup(async()=>({response:{ok:true},result:{order,inicis:{configured:true}}}),{openInicisPayment:async()=>{throw Error('SDK 실패');}});
+ await h.run();assert.deepEqual(h.remembered,[order]);assert.deepEqual(h.orders,[order]);assert.equal(h.busy.at(-1),false);
+});
+
+test('재구매 승인 대기 중 화면 이탈 후 확정 승인은 보관 번호만 정리한다',async()=>{
+ const response=deferred();let calls=0;
+ const h=renewSetup(async()=>++calls===1?{response:{ok:true},result:{order:{orderNumber:'SYNTHETIC-ORDER'}}}:response.promise);
+ const first=h.run();await tick();h.deps.mounted.current=false;
+ response.resolve({response:{ok:true},result:{approved:true,status:'paid',orderNumber:'SYNTHETIC-ORDER'}});await first;
+ assert.deepEqual(h.remembered,[{orderNumber:'SYNTHETIC-ORDER'},null]);assert.equal(h.completed.length,0);assert.equal(h.orders.length,0);
 });

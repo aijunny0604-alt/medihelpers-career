@@ -158,3 +158,24 @@ test('a second timed out attempt exits the busy state and permits a later succes
   assert.equal((await api.retrySiteOperations()).contents[0].title,'eventually recovered');
   assert.equal(calls,3);
 });
+
+for (const invalid of [{contents:[null]}, {contents:[[]]}, {contents:['bad']}, {contents:[{payload:[]}]}, {contents:[{title:{text:'bad'}}]}, {contents:[],settings:[]}, {contents:[],features:'bad'}]) {
+  test('손상된 공고 구조는 화면 예외 대신 조회 오류와 재시도로 처리한다: '+JSON.stringify(invalid), async(t)=>{
+    let calls=0;
+    t.mock.method(globalThis,'fetch',()=>({ok:true,json:async()=>++calls===1?invalid:{contents:[{title:'recovered'}]}}));
+    const api=await fresh();
+    const failed=await api.loadOperations();
+    assert.equal(failed.errorCode,'INVALID_RESPONSE');
+    assert.deepEqual(failed.contents,[]);
+    assert.equal((await api.retrySiteOperations()).contents[0].title,'recovered');
+  });
+}
+
+test('정상 목록 다음의 손상 응답은 기존 데이터를 지우지 않는다',async(t)=>{
+  let calls=0;
+  t.mock.method(globalThis,'fetch',()=>({ok:true,json:async()=>({contents:++calls===1?[{title:'retained'}]:[null]})}));
+  const api=await fresh();await api.loadOperations();
+  const failure=await api.invalidateSiteOperations();
+  assert.equal(failure.errorCode,'INVALID_RESPONSE');
+  assert.equal(failure.contents[0].title,'retained');
+});

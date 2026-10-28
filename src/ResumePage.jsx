@@ -5,7 +5,7 @@ import {
   ArrowRight, Camera, Check, ChevronLeft, ChevronRight, CircleCheck, FileText,
   ImagePlus, LockKeyhole, ShieldCheck, Trash2, UserRound
 } from 'lucide-react';
-import { loadResumes, requireResumeSave } from './resumeApi.js';
+import { loadResumes, saveResume } from './resumeApi.js';
 import { withBase } from './basePath.js';
 import { uploadResumePhoto, validateResumePhoto } from './resumePhotoUpload.js';
 import { dropImageFiles, pasteImageFiles } from './imageInput.js';
@@ -24,6 +24,12 @@ const steps = [
 ];
 
 export default function ResumePage({ auth }) {
+  // 같은 화면에서 계정이 바뀌어도 이전 회원의 초안·사진·동의를 이어 쓰지 않는다.
+  const ownerKey = `${auth?.email || auth?.identity?.email || 'guest'}:${auth?.role || ''}`;
+  return <ResumeEditor key={ownerKey} auth={auth} />;
+}
+
+function ResumeEditor({ auth }) {
   const createNew = (() => { try { return new URLSearchParams(window.location.search).get('new') === '1'; } catch { return false; } })();
   const nextPath = (() => { try { const next = new URLSearchParams(window.location.search).get('next') || ''; return next.startsWith('/') && !next.startsWith('//') ? next : ''; } catch { return ''; } })();
   const requestedResumeId = new URLSearchParams(window.location.search).get('id') || '';
@@ -36,6 +42,13 @@ export default function ResumePage({ auth }) {
   const [loadError, setLoadError] = useState('');
   const [loadAttempt, setLoadAttempt] = useState(0);
   const submitLock = useRef(false);
+  const saveController = useRef(null);
+  const mounted = useRef(true);
+  const uploadedPhoto = useRef(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; saveController.current?.abort(); };
+  }, []);
   // 401/403(로그인 만료·권한)일 때만 로그인 버튼을 함께 띄운다.
   const [needsLogin, setNeedsLogin] = useState(false);
   const [savedResumeId, setSavedResumeId] = useState('');
@@ -50,7 +63,7 @@ export default function ResumePage({ auth }) {
     introduction: '', visibility: 'private', contactVisibility: 'private', consent: false
   });
 
-  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key, value) => { if (!submitLock.current) setForm((current) => ({ ...current, [key]: value })); };
 
   // 이름·연락처·직군은 회원정보를 사용한다. 전문분야·지역 등 수정 가능한
   // 항목은 작성 중인 값을 보존하고 비어 있을 때만 회원정보를 채운다.
@@ -114,17 +127,20 @@ export default function ResumePage({ auth }) {
   useEffect(() => () => { if (photoPreview && photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
 
   const choosePhotoFile = (file, input) => {
-    if (!file) return;
+    if (!file || submitLock.current) return;
     const error = validateResumePhoto(file);
     if (error) { setSubmitError(error); if (input) input.value = ''; return; }
     if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
     setPhotoFile(file);
+    uploadedPhoto.current = null;
     setPhotoPreview(URL.createObjectURL(file));
     setSubmitError('');
   };
   const choosePhoto = (event) => choosePhotoFile(event.target.files?.[0] || null, event.target);
   const removePhoto = () => {
+    if (submitLock.current) return;
     if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+    uploadedPhoto.current = null;
     setPhotoFile(null); setPhotoPreview(''); update('photoUrl', '');
   };
 
@@ -153,13 +169,16 @@ export default function ResumePage({ auth }) {
     submitLock.current = true;
     setSubmitting(true);
     setSubmitError(''); setNeedsLogin(false);
+    const controller = new AbortController();
+    saveController.current = controller;
+    const current = () => mounted.current && !controller.signal.aborted;
     try {
-      const photoUrl = photoFile ? await uploadResumePhoto(photoFile) : form.photoUrl;
-      const response = await fetch(withBase('/api/resumes'), {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+      const photoUrl = photoFile
+        ? uploadedPhoto.current?.file === photoFile ? uploadedPhoto.current.url : await uploadResumePhoto(photoFile, { signal:controller.signal })
+        : form.photoUrl;
+      if (!current()) return;
+      if (photoFile) uploadedPhoto.current = { file:photoFile, url:photoUrl };
+      const result = await saveResume({
           title: form.title,
           privacyConsent:form.consent, privacyVersion:PRIVACY_FORM_VERSION,
           profession: form.profession,
@@ -173,39 +192,31 @@ export default function ResumePage({ auth }) {
           contactVisibility: 'private',
           ...(savedResumeId ? { resumeId:savedResumeId } : { createNew:true }),
           detail: { region:form.region, salary:form.salary, introduction:form.introduction, photoUrl, contactVisibility:'private' }
-        })
-      });
-      if (!response.ok) {
-        // 서버가 이유를 알려주면 그대로 보여준다(로그인 필요·회원유형·용량 초과 등).
-        let message = '';
-        try { message = (await response.json())?.error || ''; } catch {}
-        // 401/403은 로그인 만료·권한 문제다. 폼을 다 채운 뒤에야 조용히 실패하면
-        // "등록이 안 된다"로만 보이므로, 이유와 함께 로그인 화면으로 갈 수 있게 안내한다.
-        if (response.status === 401 || response.status === 403) {
-          setSubmitError(message || '로그인이 필요합니다. 의료인 회원으로 로그인한 뒤 다시 등록해 주세요.');
-          setNeedsLogin(true);
-        } else {
-          setSubmitError(message || '이력서를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-        }
-        window.requestAnimationFrame(() => {
-          document.querySelector('.form-error')?.scrollIntoView({ behavior: 'auto', block: 'center' });
-        });
-        return;
-      }
-      const result = requireResumeSave(await response.json().catch(() => null));
+      }, { endpoint:withBase('/api/resumes'), signal:controller.signal });
+      if (!current()) return;
       setSavedResumeId(result.id);
-      if (photoUrl) update('photoUrl', photoUrl);
+      setForm(value => ({ ...value, photoUrl }));
       setPhotoFile(null);
+      setPhotoPreview('');
+      uploadedPhoto.current = null;
+      invalidateSiteOperations();
+      setCompleted(true);
+      window.scrollTo({ top: 0, behavior: 'auto' });
     } catch (error) {
+      if (!current()) return;
       setSubmitError(error?.message || '이력서와 프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setNeedsLogin(error?.status === 401 || error?.status === 403);
+      window.requestAnimationFrame(() => {
+        if (mounted.current) document.querySelector('.form-error')?.scrollIntoView({ behavior:'auto', block:'center' });
+      });
       return;
     } finally {
-      submitLock.current = false;
-      setSubmitting(false);
+      if (mounted.current) {
+        submitLock.current = false;
+        setSubmitting(false);
+      }
+      if (saveController.current === controller) saveController.current = null;
     }
-    invalidateSiteOperations();
-    setCompleted(true);
-    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   if (completed) return <main className="resume-page"><section className="resume-complete"><span><CircleCheck /></span><small>MEDICAL RESUME SAVED</small><h1>이력서가 저장되었습니다</h1><p>이력서만 저장되며 구직 게시판에는 자동으로 올라가지 않습니다.<br />구직글을 작성할 때 저장된 이력서를 선택해 연동할 수 있습니다.</p><div>{nextPath ? <a className="button primary" href={withBase(nextPath)}>구직글 작성 계속하기 <ArrowRight /></a> : <a className="button primary" href={withBase('/job-seeker-posts/new')}>구직글 작성하기 <ArrowRight /></a>}<button className="button outline" onClick={() => setCompleted(false)}>이력서 수정</button></div></section></main>;
@@ -218,7 +229,7 @@ export default function ResumePage({ auth }) {
   return <main className="resume-page">
     <header className="resume-hero"><div><span><FileText /> SIMPLE MEDICAL RESUME</span><h1>초간편 의료인 이력서</h1><p>회원가입 때 작성한 이름·연락처·직군·전문분야·지역을 불러옵니다. 저장만으로 구직글이 게시되지는 않습니다.</p></div><div className="resume-security"><ShieldCheck /><span><strong>이력서와 구직글은 별도 관리</strong><small>구직글 작성 화면에서 이력서를 선택해야 게시판에 연동됩니다.</small></span></div></header>
     <form className="resume-layout" onSubmit={submit}>
-      <aside className="resume-step-nav"><div className="resume-progress"><div><span>작성 완성도</span><strong>{completion}%</strong></div><i><b style={{ width: `${completion}%` }} /></i></div>{steps.map((item, index) => { const Icon = item.icon; return <button type="button" key={item.id} className={index === step ? 'active' : index < step ? 'done' : ''} onClick={(event) => { if (index <= step || event.currentTarget.closest("form").reportValidity()) setStep(index); }}><span>{index < step ? <Check /> : <Icon />}</span><div><small>STEP {String(index + 1).padStart(2, '0')}</small><strong>{item.label}</strong></div></button>; })}<div className="resume-help"><LockKeyhole /><span><strong>저장만으로 게시되지 않음</strong><small>구직글 작성 화면에서 이력서를 선택해야 공개됩니다.</small></span></div></aside>
+      <aside className="resume-step-nav"><div className="resume-progress"><div><span>작성 완성도</span><strong>{completion}%</strong></div><i><b style={{ width: `${completion}%` }} /></i></div>{steps.map((item, index) => { const Icon = item.icon; return <button type="button" disabled={submitting} key={item.id} className={index === step ? 'active' : index < step ? 'done' : ''} onClick={(event) => { if (index <= step || event.currentTarget.closest("form").reportValidity()) setStep(index); }}><span>{index < step ? <Check /> : <Icon />}</span><div><small>STEP {String(index + 1).padStart(2, '0')}</small><strong>{item.label}</strong></div></button>; })}<div className="resume-help"><LockKeyhole /><span><strong>저장만으로 게시되지 않음</strong><small>구직글 작성 화면에서 이력서를 선택해야 공개됩니다.</small></span></div></aside>
       <section className="resume-editor">
         {activeStep === 'basic' && <div className="resume-step-panel">
           <div className="resume-panel-head"><small>STEP 01</small><h2>기본정보</h2><p>채용기관이 가장 먼저 확인하는 정보입니다. 몇 줄이면 충분합니다.</p></div>
@@ -233,15 +244,15 @@ export default function ResumePage({ auth }) {
             onPaste={(event) => pasteImageFiles(event, (files) => choosePhotoFile(files[0]))}
           >
             <div className={`resume-photo-preview ${photoPreview || form.photoUrl ? 'has-photo' : ''}`}>{photoPreview || form.photoUrl ? <img src={photoPreview || withBase(form.photoUrl)} alt="이력서 프로필 사진 미리보기" /> : <UserRound />}</div>
-            <div className="resume-photo-copy"><span><Camera /> 증명사진·프로필 사진 <i>선택</i></span><strong>클릭하거나 사진을 끌어 놓고, 복사한 이미지는 Ctrl+V로 붙여넣으세요</strong><small>JPG·PNG·WEBP · 최대 5MB · 정사각형 또는 세로 사진 권장</small><div><label><ImagePlus /> 사진 선택<input type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} /></label>{(photoPreview || form.photoUrl) && <button type="button" onClick={removePhoto}><Trash2 /> 삭제</button>}</div></div>
+            <div className="resume-photo-copy"><span><Camera /> 증명사진·프로필 사진 <i>선택</i></span><strong>클릭하거나 사진을 끌어 놓고, 복사한 이미지는 Ctrl+V로 붙여넣으세요</strong><small>JPG·PNG·WEBP · 최대 5MB · 정사각형 또는 세로 사진 권장</small><div><label><ImagePlus /> 사진 선택<input disabled={submitting} type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} /></label>{(photoPreview || form.photoUrl) && <button type="button" disabled={submitting} onClick={removePhoto}><Trash2 /> 삭제</button>}</div></div>
           </div>
           <div className="resume-form-grid">
-            <label className="wide"><span>이력서 제목 *</span><input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="예: 병동 간호사 · 부산경남 이직 희망" /></label>
+            <label className="wide"><span>이력서 제목 *</span><input disabled={submitting} required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="예: 병동 간호사 · 부산경남 이직 희망" /></label>
             {/* 직군은 목록에서 고른다. 자유 입력이면 표기가 제각각이라(의사/전문의/의사직…)
                 구직 게시판의 '의사 / 간호·의료인' 분류와 검색 필터가 어긋난다.
                 목록에 없는 직군은 '기타'를 고르고 직접 입력한다. */}
             <label><span>의료 직군 *</span>
-              <select required disabled={Boolean(accountProfile.professionType)} value={customProfession ? '기타' : PROFESSION_OPTIONS.includes(form.profession) ? form.profession : (form.profession ? '기타' : '')}
+              <select required disabled={submitting || Boolean(accountProfile.professionType)} value={customProfession ? '기타' : PROFESSION_OPTIONS.includes(form.profession) ? form.profession : (form.profession ? '기타' : '')}
                 onChange={(e) => { setCustomProfession(e.target.value === '기타'); update('profession', e.target.value === '기타' ? '' : e.target.value); }}>
                 <option value="">직군을 선택해주세요</option>
                 {PROFESSION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -249,27 +260,27 @@ export default function ResumePage({ auth }) {
               </select>
             </label>
             {(customProfession || (form.profession && !PROFESSION_OPTIONS.includes(form.profession))) && (
-              <label><span>직군 직접 입력 *</span><input required readOnly={Boolean(accountProfile.professionType)} value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 응급구조사, 영양사" /></label>
+              <label><span>직군 직접 입력 *</span><input disabled={submitting} required readOnly={Boolean(accountProfile.professionType)} value={form.profession} onChange={(e) => update('profession', e.target.value)} placeholder="예: 응급구조사, 영양사" /></label>
             )}
-            <label><span>전문분야·주요 업무</span><input value={form.specialty} onChange={(e) => update('specialty', e.target.value)} placeholder="예: 병동 간호, 소화기내과, MRI" /></label>
-            <label><span>이름 *</span><input required readOnly value={accountProfile.name || form.name} onChange={(e) => update('name', e.target.value)} placeholder="홍길동" /></label>
-            <label><span>휴대폰 *</span><input required type="tel" readOnly value={accountProfile.phone || form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="010-0000-0000" /></label>
-            <label><span>이메일 *</span><input required type="email" readOnly value={accountProfile.email || form.email} onChange={(e) => update('email', e.target.value)} placeholder="me@example.com" /></label>
-            <label><span>현재 거주지역</span><input value={form.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산광역시" /></label>
+            <label><span>전문분야·주요 업무</span><input disabled={submitting} value={form.specialty} onChange={(e) => update('specialty', e.target.value)} placeholder="예: 병동 간호, 소화기내과, MRI" /></label>
+            <label><span>이름 *</span><input disabled={submitting} required readOnly value={accountProfile.name || form.name} onChange={(e) => update('name', e.target.value)} placeholder="홍길동" /></label>
+            <label><span>휴대폰 *</span><input disabled={submitting} required type="tel" readOnly value={accountProfile.phone || form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="010-0000-0000" /></label>
+            <label><span>이메일 *</span><input disabled={submitting} required type="email" readOnly value={accountProfile.email || form.email} onChange={(e) => update('email', e.target.value)} placeholder="me@example.com" /></label>
+            <label><span>현재 거주지역</span><input disabled={submitting} value={form.region} onChange={(e) => update('region', e.target.value)} placeholder="예: 부산광역시" /></label>
           </div>
           <div className="resume-safe-note"><ShieldCheck /> 이름·연락처는 이력서에 안전하게 저장되며 게시판에 자동 노출되지 않습니다.</div>
         </div>}
         {activeStep === 'intro' && <div className="resume-step-panel">
           <div className="resume-panel-head"><small>STEP 02</small><h2>경력·소개</h2><p>경력, 강점, 희망 조건을 자유롭게 한 번에 적어주세요. 형식은 자유입니다.</p></div>
-          <label className="resume-intro"><span>경력·자기소개 *</span><textarea required rows="10" value={form.introduction} onChange={(e) => update('introduction', e.target.value)} placeholder={"예)\n- 부산 ○○병원 병동 간호 5년 (내과·외과)\n- 야간 근무 가능, 2026년 3월 이후 입사 가능\n- 강점: 중환자 케어, 신규 교육\n- 희망: 부산·양산권, 주 5일, 협의"} /><small>{form.introduction.length}자</small></label>
+          <label className="resume-intro"><span>경력·자기소개 *</span><textarea disabled={submitting} required rows="10" value={form.introduction} onChange={(e) => update('introduction', e.target.value)} placeholder={"예)\n- 부산 ○○병원 병동 간호 5년 (내과·외과)\n- 야간 근무 가능, 2026년 3월 이후 입사 가능\n- 강점: 중환자 케어, 신규 교육\n- 희망: 부산·양산권, 주 5일, 협의"} /><small>{form.introduction.length}자</small></label>
           <div className="resume-form-grid">
-            <label><span>희망 근무지역</span><input value={form.desiredRegions} onChange={(e) => update('desiredRegions', e.target.value)} placeholder="예: 부산 전 지역, 경남 양산·김해" /></label>
-            <label><span>희망 보수</span><input value={form.salary} onChange={(e) => update('salary', e.target.value)} placeholder="예: 협의 · 월 400만원 이상" /></label>
+            <label><span>희망 근무지역</span><input disabled={submitting} value={form.desiredRegions} onChange={(e) => update('desiredRegions', e.target.value)} placeholder="예: 부산 전 지역, 경남 양산·김해" /></label>
+            <label><span>희망 보수</span><input disabled={submitting} value={form.salary} onChange={(e) => update('salary', e.target.value)} placeholder="예: 협의 · 월 400만원 이상" /></label>
           </div>
           <PrivacyNotice scope="resume" />
-          <label className="resume-consent"><input type="checkbox" required checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>[필수] 위 이력서 개인정보 수집·이용에 동의합니다.</span></label>
+          <label className="resume-consent"><input disabled={submitting} type="checkbox" required checked={form.consent} onChange={(e) => update('consent', e.target.checked)} /><span>[필수] 위 이력서 개인정보 수집·이용에 동의합니다.</span></label>
         </div>}
-        <div className="resume-step-actions"><button type="button" className="button outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button key="next-step" type="button" className="button primary" onClick={(event) => { event.preventDefault(); if (event.currentTarget.form.reportValidity()) setStep((current) => Math.min(steps.length - 1, current + 1)); }}>다음 단계 <ChevronRight /></button> : <button key="save-resume" type="submit" className="button primary" disabled={submitting}>{submitting ? '등록 중…' : savedResumeId ? '이력서 수정 저장' : '이력서 등록하기'} <ArrowRight /></button>}</div>
+        <div className="resume-step-actions"><button type="button" className="button outline" disabled={submitting || step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}><ChevronLeft /> 이전</button>{step < steps.length - 1 ? <button key="next-step" type="button" disabled={submitting} className="button primary" onClick={(event) => { event.preventDefault(); if (event.currentTarget.form.reportValidity()) setStep((current) => Math.min(steps.length - 1, current + 1)); }}>다음 단계 <ChevronRight /></button> : <button key="save-resume" type="submit" className="button primary" disabled={submitting}>{submitting ? '등록 중…' : savedResumeId ? '이력서 수정 저장' : '이력서 등록하기'} <ArrowRight /></button>}</div>
         {submitError && <p className="form-error" role="alert">
           {submitError}
           {needsLogin && <> <a className="button primary" href={withBase(`/login?next=${encodeURIComponent('/resume')}`)} style={{ marginLeft: 8 }}>로그인하러 가기</a></>}

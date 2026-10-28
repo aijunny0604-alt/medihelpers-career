@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { withBase } from './basePath.js';
 import { loadResumes } from './resumeApi.js';
+import { loadMemberCenter } from './memberReadApi.js';
 import { authRequest, WithdrawSection } from './AccountPage.jsx';
 import { deleteMemberPost, loadMemberPaymentDetails, markMemberNotificationsRead, requestMemberRefund, saveMemberPreferences, setMemberPostVisibility } from './accountWorkflowApi.js';
 import { jobs } from './data.js';
@@ -226,36 +227,52 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
     }
   };
   const [paymentRefreshing,setPaymentRefreshing]=useState(false);
-  const paymentRefreshLock = useRef(false);
-  const refreshPaymentDetails=async()=>{
-    if (paymentRefreshLock.current) return false;
-    paymentRefreshLock.current = true;
+  const paymentSession = useMemo(() => ({ active:true, request:null }), [qa.active, auth?.status, auth?.role, auth?.email, auth?.account?.id, auth?.identity?.accountId, auth?.identity?.loginId]);
+  useEffect(() => {
+    paymentSession.active=true;
+    setPaymentRefreshing(false); setRefundBusy(false); setRefundMsg(''); setRefundFor(null); setRefundReason('');
+    refundLock.current=false;
+    return () => { paymentSession.active=false; paymentSession.request?.controller.abort(); paymentSession.request=null; };
+  }, [paymentSession]);
+  const refreshPaymentDetails=async({replace=false}={})=>{
+    if (!paymentSession.active || (paymentSession.request && !replace)) return false;
+    paymentSession.request?.controller.abort();
+    const request={controller:new AbortController()};
+    paymentSession.request=request;
+    const current=()=>paymentSession.active && paymentSession.request===request;
     setPaymentRefreshing(true);
     try {
-      const data=await loadMemberPaymentDetails();
+      const data=await loadMemberPaymentDetails({signal:request.controller.signal});
+      if (!current()) return false;
       setServerData(current=>({...current,...sanitizeDisplayData(data)}));
       setRefundMsg('최신 환불 처리 결과를 확인했습니다.');
       return true;
-    }catch(error){setRefundMsg(error.message);return false;}finally{paymentRefreshLock.current=false;setPaymentRefreshing(false);}
+    }catch(error){if(current())setRefundMsg(error.message);return false;}
+    finally{if(current()){paymentSession.request=null;setPaymentRefreshing(false);}}
   };
   const submitRefund = async (orderNumber) => {
     if (refundLock.current) return;
     if (!refundReason.trim()) { setRefundMsg('환불 사유를 입력해 주세요.'); return; }
-    refundLock.current = true;
+    const refundRequest={};
+    refundLock.current = refundRequest;
     const submittedReason = refundReason.trim();
     setRefundBusy(true); setRefundMsg('');
     try {
       const data = await requestMemberRefund(orderNumber, submittedReason);
+      if (!paymentSession.active) return;
+      // 접수 전에 시작된 조회는 접수 후의 로컬 확인 결과를 덮을 수 없다.
+      paymentSession.request?.controller.abort();
+      paymentSession.request=null;
       setRefundMsg('환불(청약철회) 요청이 접수되었습니다. 담당자 확인 후 처리 결과를 안내드립니다.');
       setServerData(current=>({...current,orders:current.orders.map(item=>item.orderNumber===orderNumber?{...item,refundPending:1}:item),refunds:[{id:data.refundId,orderNumber,amount:0,reason:submittedReason,status:'requested',createdAt:new Date().toISOString()},...(current.refunds||[])]}));
       setRefundFor(null); setRefundReason('');
-      const refreshed = await refreshPaymentDetails();
+      const refreshed = await refreshPaymentDetails({replace:true});
+      if (!paymentSession.active) return;
       setRefundMsg(refreshed ? '환불 요청이 접수되었습니다. 해당 주문의 미사용 열람권은 검토가 끝날 때까지 보류됩니다.' : '환불 요청은 접수되었지만 최신 내역을 불러오지 못했습니다. 다시 신청하지 말고 처리 결과를 새로고침해주세요.');
     } catch (error) {
-      setRefundMsg(error.message);
+      if(paymentSession.active)setRefundMsg(error.message);
     } finally {
-      refundLock.current = false;
-      setRefundBusy(false);
+      if(refundLock.current===refundRequest){refundLock.current = false;if(paymentSession.active)setRefundBusy(false);}
     }
   };
 
@@ -282,33 +299,24 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
     setProfile(auth?.profile || null);
     setServerData({ consultations: [], alerts: [], unreadCount: 0, activity: [], orders: [], refunds: [], migratedAds: [], resume: null, jobSeekerPosts: [], recommendedCandidates: [], unlockedTalents: [], talentCredits: { total:0, used:0, remaining:0 } });
     let cancelled = false;
-    // 로그인 직후 세션 쿠키가 아직 자리잡지 않아 401이 날 수 있다(느린 PC·네트워크).
-    // 한 번의 실패로 바로 '불러오지 못했습니다'를 띄우지 말고, 짧게 몇 번 재시도한다.
+    const controller = new AbortController();
+    // 요청과 본문 모두 12초 안에 끝내고 실패하면 사용자가 다시 연결한다.
     const load = async () => {
-      for (let attempt = 0; attempt < 4; attempt++) {
         try {
-          const response = await fetch('/api/member-center', { credentials: 'same-origin', headers: { accept: 'application/json' } });
-          if (response.ok) {
-            const data = sanitizeDisplayData(await response.json());
+            const data = sanitizeDisplayData(await loadMemberCenter({signal:controller.signal}));
             if (cancelled) return;
-            if (!data.signedIn || !data.account?.role) throw new Error('member center auth mismatch');
             setAccountState({ loading: false, signedIn: data.signedIn, role: data.account?.role || '', identity: data.identity || {}, isAdmin: Boolean(data.isAdmin) });
             if (data.profile) setProfile(data.profile);
             // A new test/account session must never inherit the previous member's consent.
             setNotifications(data.notifications || { email:true, sms:true, service:true, marketing:false });
             setServerData({ consultations: data.consultations || [], alerts: data.alerts || [], unreadCount: Number(data.unreadCount) || 0, activity: data.activity || [], orders: data.orders || [], refunds: data.refunds || [], migratedAds: Array.isArray(data.migratedAds) ? data.migratedAds : [], resume: data.resume || null, jobSeekerPosts: data.jobSeekerPosts || [], recommendedCandidates: data.recommendedCandidates || [], unlockedTalents:data.unlockedTalents || [], talentCredits:data.talentCredits || { total:0, used:0, remaining:0 } });
             return;
-          }
-          // 세션 반영 지연과 일시적인 서버·저장소 오류는 잠깐 뒤 재시도한다.
-          if (response.status !== 401 && response.status !== 403 && response.status !== 429 && response.status < 500) break;
         } catch {}
-        await new Promise((r) => setTimeout(r, 400));
-      }
       if (!cancelled) setAccountState({ loading: false, signedIn: auth?.status === 'member', role: auth?.role || '', identity: auth?.identity || {}, isAdmin:Boolean(auth?.isAdmin), failed: true });
     };
     load();
-    return () => { cancelled = true; };
-  }, [qa.active, auth?.status, auth?.role, auth?.isAdmin, auth?.email]);
+    return () => { cancelled = true; controller.abort(); };
+  }, [qa.active, auth?.status, auth?.role, auth?.isAdmin, auth?.email, auth?.account?.id, auth?.identity?.accountId, auth?.identity?.loginId]);
 
   useEffect(() => {
     if (qa.active || accountState.loading || accountState.failed || !accountState.signedIn) return undefined;
@@ -657,7 +665,7 @@ export default function MemberCenterPage({ route, qa, auth, onNavigate = (path) 
 
         {tab === 'inquiries' && <><div className="member-page-head"><div><small>MESSAGES & MATCHING</small><h2>{role === 'hospital' ? '문의·후보 연결' : '상담·제안 내역'}</h2><p>{role === 'hospital' ? '채용 지원과 접수한 문의 내역을 확인합니다.' : '지원한 공고와 접수한 문의의 진행 상태를 확인합니다.'}</p></div></div>{inquiries.length ? <section className="member-panel member-table-panel"><div className="member-table-head"><span>보낸 사람</span><span>문의 내용</span><span>접수일</span><span>상태</span></div>{inquiries.map((item) => <button type="button" className="member-inquiry-row" key={`${item.source}-${item.subject}`} onClick={() => openInquiry(item)}><strong>{item.name}</strong><div><b>{item.subject}</b><small>{memberFacingInquiryLabel(item)}</small></div><time>{item.time}</time><span className="member-inquiry-state"><em className={statusClass(item.status)}>{item.status}</em><ChevronRight /></span></button>)}</section> : <div className="member-empty member-empty-large"><MessageCircle /><strong>아직 상담·문의 내역이 없습니다</strong><p>새로운 상담이나 문의가 접수되면 진행 상태와 함께 표시됩니다.</p></div>}<div className="member-privacy-note"><ShieldCheck /><div><strong>{role === 'hospital' ? '의사 실명과 연락처는 동의 후 공개됩니다' : '내 실명과 연락처는 동의한 병원에만 전달됩니다'}</strong><p>메디헬퍼스 헤드헌터가 연결 범위를 확인한 뒤 필요한 정보만 안전하게 전달합니다.</p></div></div></>}
 
-        {tab === 'payments' && <><div className="member-page-head"><div><small>BILLING & USAGE</small><h2>{role === 'hospital' ? '결제·사용이력' : '결제·이용 내역'}</h2><p>상품 결제와 실제 사용 상태를 같은 기준으로 확인합니다. 환불 처리 결과와 반려 사유는 아래 내역 및 홈페이지 알림에서 확인하세요.</p></div><button type="button" className="button outline" disabled={paymentRefreshing} onClick={refreshPaymentDetails}>{paymentRefreshing?'확인 중…':'처리 결과 새로고침'}</button></div>{role === 'hospital' && <section className="member-panel member-unlocked-talents" id="member-unlocked-talents"><div className="member-panel-head"><div><h3>열람 완료 인재</h3><p>같은 이력서는 추가 차감 없이 다시 볼 수 있습니다. 작성자가 비공개·삭제하면 열람이 제한되며, 전액 환불한 권한은 회수됩니다.</p></div><strong>{unlockedTalents.length}명</strong></div>{unlockedTalents.length ? <div className="member-unlocked-list">{unlockedTalents.map((talent) => <a key={talent.talentId} href={withBase(`/medical-staff/talents/${encodeURIComponent(talent.talentId)}`)}><span><BadgeCheck /></span><div><small>{String(talent.unlockedAt || '').slice(0,10) || '열람 완료'}</small><strong>{talent.title || '열람한 인재'}</strong><p>{talent.specialty || '상세 이력 확인'} · 공개 유지 시 추가 차감 없이 재열람</p></div><em>바로 보기 <ArrowRight /></em></a>)}</div> : <div className="member-empty"><Eye /><strong>아직 열람한 인재가 없습니다</strong><p>이력서 열람권을 사용하면 이곳에 기록됩니다. 재열람은 작성자의 공개 설정을 따릅니다.</p></div>}</section>}{payments.length ? <section className="member-panel member-payment-list">{payments.map((item) => <div key={item.id} className="member-payment-row"><article><span><Receipt /></span><div><small>{item.id}</small><strong>{item.item}</strong><p>{item.date}</p></div><b>{item.amount}</b><em className={statusClass(item.status)}>{item.status}</em><div className="member-payment-buttons">{!qa.active && ["pending_review","awaiting_payment"].includes(item.rawStatus) && <button type="button" aria-expanded={paymentRecovery === item.id} onClick={() => setPaymentRecovery(paymentRecovery === item.id ? null : item.id)}>결제 이어하기</button>}{!qa.active && item.refundable && <button type="button" className="member-refund-btn" disabled={refundBusy} onClick={() => { setRefundFor(refundFor === item.id ? null : item.id); setRefundReason(''); setRefundMsg(''); }}>환불 요청</button>}{!qa.active && <button type="button" onClick={() => setReceipt(item)}>영수증</button>}</div></article>{paymentRecovery === item.id && <PaymentRecoveryPanel key={item.id} order={{orderNumber:item.id}} onRecovered={async () => { setPaymentRecovery(null); await refreshPaymentDetails(); }} />}<TalentCreditUsage usage={item.creditUsage} />{item.refundedAmount>0&&<p className="member-refund-total">누적 환불 {item.refundedAmount.toLocaleString()}원 · 남은 결제 금액 {Math.max(0,item.total-item.refundedAmount).toLocaleString()}원</p>}<RefundHistory refunds={(serverData.refunds||[]).filter(refund=>refund.orderNumber===item.id)} />{refundFor === item.id && <div className="member-refund-form"><p className="member-refund-note">접수만으로 자동 환불되지 않습니다. 검토 중에는 해당 주문의 새 열람권 사용이 보류되며 기존 열람은 유지됩니다. 미사용분 부분 환불 시 남은 서비스는 종료되며, 이미 제공된 이용분은 공제될 수 있습니다. 처리 기준은 <a href={withBase('/refund')} target="_blank" rel="noreferrer">환불 정책</a>을 따릅니다.</p><textarea disabled={refundBusy} rows="3" maxLength={500} aria-label="환불 사유" placeholder="환불 사유를 입력해 주세요 (예: 단순 변심, 중복 결제, 서비스 미이용 등)" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><div className="member-refund-actions"><button type="button" className="button outline" onClick={() => setRefundFor(null)} disabled={refundBusy}>취소</button><button type="button" className="button primary" onClick={() => submitRefund(item.id)} disabled={refundBusy}>{refundBusy ? '접수 중…' : '환불 요청 접수'}</button></div></div>}</div>)}{refundMsg && <p className="member-refund-msg" role="status">{refundMsg}</p>}</section> : <div className="member-empty member-empty-large"><Receipt /><strong>아직 결제 내역이 없습니다</strong><p>공고 광고·인재 열람권 결제가 완료되면 영수증과 사용 상태가 표시됩니다.</p></div>}<section className="member-panel"><div className="member-panel-head"><div><h3>전체 사용 기록</h3><p>조회·상담·결제 등 계정 활동을 시간순으로 표시합니다.</p></div></div>{activities.length ? <div className="member-timeline">{activities.map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>기록된 사용 이력이 없습니다</strong><p>계정 활동이 발생하면 시간순으로 안전하게 기록됩니다.</p></div>}</section></>}
+        {tab === 'payments' && <><div className="member-page-head"><div><small>BILLING & USAGE</small><h2>{role === 'hospital' ? '결제·사용이력' : '결제·이용 내역'}</h2><p>상품 결제와 실제 사용 상태를 같은 기준으로 확인합니다. 환불 처리 결과와 반려 사유는 아래 내역 및 홈페이지 알림에서 확인하세요.</p></div><button type="button" className="button outline" disabled={paymentRefreshing} onClick={refreshPaymentDetails}>{paymentRefreshing?'확인 중…':'처리 결과 새로고침'}</button></div>{role === 'hospital' && <section className="member-panel member-unlocked-talents" id="member-unlocked-talents"><div className="member-panel-head"><div><h3>열람 완료 인재</h3><p>같은 이력서는 추가 차감 없이 다시 볼 수 있습니다. 작성자가 비공개·삭제하면 열람이 제한되며, 전액 환불한 권한은 회수됩니다.</p></div><strong>{unlockedTalents.length}명</strong></div>{unlockedTalents.length ? <div className="member-unlocked-list">{unlockedTalents.map((talent) => <a key={talent.talentId} href={withBase(`/medical-staff/talents/${encodeURIComponent(talent.talentId)}`)}><span><BadgeCheck /></span><div><small>{String(talent.unlockedAt || '').slice(0,10) || '열람 완료'}</small><strong>{talent.title || '열람한 인재'}</strong><p>{talent.specialty || '상세 이력 확인'} · 공개 유지 시 추가 차감 없이 재열람</p></div><em>바로 보기 <ArrowRight /></em></a>)}</div> : <div className="member-empty"><Eye /><strong>아직 열람한 인재가 없습니다</strong><p>이력서 열람권을 사용하면 이곳에 기록됩니다. 재열람은 작성자의 공개 설정을 따릅니다.</p></div>}</section>}{payments.length ? <section className="member-panel member-payment-list">{payments.map((item) => <div key={item.id} className="member-payment-row"><article><span><Receipt /></span><div><small>{item.id}</small><strong>{item.item}</strong><p>{item.date}</p></div><b>{item.amount}</b><em className={statusClass(item.status)}>{item.status}</em><div className="member-payment-buttons">{!qa.active && ["pending_review","awaiting_payment"].includes(item.rawStatus) && <button type="button" aria-expanded={paymentRecovery === item.id} onClick={() => setPaymentRecovery(paymentRecovery === item.id ? null : item.id)}>결제 이어하기</button>}{!qa.active && item.refundable && <button type="button" className="member-refund-btn" disabled={refundBusy} onClick={() => { setRefundFor(refundFor === item.id ? null : item.id); setRefundReason(''); setRefundMsg(''); }}>환불 요청</button>}{!qa.active && <button type="button" onClick={() => setReceipt(item)}>영수증</button>}</div></article>{paymentRecovery === item.id && <PaymentRecoveryPanel key={item.id} order={{orderNumber:item.id}} onRecovered={async () => { setPaymentRecovery(null); await refreshPaymentDetails(); }} />}<TalentCreditUsage usage={item.creditUsage} />{item.refundedAmount>0&&<p className="member-refund-total">누적 환불 {item.refundedAmount.toLocaleString()}원 · 남은 결제 금액 {Math.max(0,item.total-item.refundedAmount).toLocaleString()}원</p>}<RefundHistory refunds={(serverData.refunds||[]).filter(refund=>refund.orderNumber===item.id)} />{refundFor === item.id && <div className="member-refund-form"><p className="member-refund-note">접수만으로 자동 환불되지 않습니다. 검토 중에는 해당 주문의 새 열람권 사용이 보류되며 기존 열람은 유지됩니다. 미사용분 부분 환불 시 남은 서비스는 종료되며, 이미 제공된 이용분은 공제될 수 있습니다. 처리 기준은 <a href={withBase('/refund')} target="_blank" rel="noreferrer">환불 정책</a>을 따릅니다.</p><textarea disabled={refundBusy} rows="3" maxLength={500} aria-label="환불 사유" placeholder="환불 사유를 입력해 주세요 (예: 단순 변심, 중복 결제, 서비스 미이용 등)" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><div className="member-refund-actions"><button type="button" className="button outline" onClick={() => setRefundFor(null)} disabled={refundBusy}>취소</button><button type="button" className="button primary" onClick={() => submitRefund(item.id)} disabled={refundBusy}>{refundBusy ? '접수 중…' : '환불 요청 접수'}</button></div></div>}</div>)}</section> : <div className="member-empty member-empty-large"><Receipt /><strong>아직 결제 내역이 없습니다</strong><p>공고 광고·인재 열람권 결제가 완료되면 영수증과 사용 상태가 표시됩니다.</p></div>}{refundMsg && <p className="member-refund-msg" role="status">{refundMsg}</p>}<section className="member-panel"><div className="member-panel-head"><div><h3>전체 사용 기록</h3><p>조회·상담·결제 등 계정 활동을 시간순으로 표시합니다.</p></div></div>{activities.length ? <div className="member-timeline">{activities.map(([date, title, detail]) => <div key={`${date}-${title}`}><time>{date}</time><span /><div><strong>{title}</strong><p>{detail}</p></div></div>)}</div> : <div className="member-empty"><CalendarDays /><strong>기록된 사용 이력이 없습니다</strong><p>계정 활동이 발생하면 시간순으로 안전하게 기록됩니다.</p></div>}</section></>}
 
         {tab === 'profile' && <><div className="member-page-head"><div><small>ACCOUNT & SECURITY</small><h2>회원정보·알림·보안</h2><p>모든 회원에게 공통으로 필요한 정보를 관리합니다.</p></div>{saved && <span className={saveFailed ? 'member-saved is-error' : 'member-saved'} role="status">{saveFailed ? <TriangleAlert /> : <CircleCheck />} {saved}</span>}</div><form className="member-profile-form" onSubmit={saveProfile}><section className="member-panel"><div className="member-panel-head"><div><h3>기본 회원정보</h3><p>{accountState.isAdmin ? '관리자 본인의 결제자 정보를 수정할 수 있습니다. 이메일과 권한은 변경되지 않습니다.' : '회원가입 때 등록한 정보입니다. 정보 정정은 고객센터를 통해 본인 확인 후 진행합니다.'}</p></div></div><div className="member-profile-grid"><label><span>이름·담당자명</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="displayName" value={currentProfile.displayName} onChange={event => setProfile({...currentProfile,displayName:event.target.value})} /></label><label><span>연락 이메일</span><input name="email" type="email" value={currentProfile.email} readOnly /></label><label><span>휴대전화</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="phone" value={currentProfile.phone} onChange={event => setProfile({...currentProfile,phone:event.target.value})} /></label><label><span>{role === 'hospital' ? '병원명' : '전문과목·직군'}</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="organization" value={currentProfile.organization} onChange={event => setProfile({...currentProfile,organization:event.target.value})} /></label><label><span>{role === 'hospital' ? '담당자 직함' : '경력 표시'}</span><input disabled={saveBusy} readOnly={!accountState.isAdmin} name="jobTitle" value={currentProfile.jobTitle} onChange={event => setProfile({...currentProfile,jobTitle:event.target.value})} /></label></div></section><section className="member-panel"><div className="member-panel-head"><div><h3>알림 설정</h3><p>중요한 진행 상태만 선택해서 받아보세요.</p></div></div><PrivacyNotice scope="marketing" /><div className="member-toggle-list">{[['email','이메일 알림','상담·결제·계정 보안 안내'],['sms','문자 알림','새 문의와 헤드헌터 연락'],['service','서비스 알림','공고 마감·이력서 상태·멤버십'],['marketing','[선택] 이메일 혜택·이벤트','미동의해도 서비스 이용 가능 · 해제 후 저장하면 철회']].map(([key, title, copy]) => <label key={key}><div><strong>{title}</strong><small>{copy}</small></div><input type="checkbox" disabled={saveBusy} checked={notifications[key]} onChange={(event) => setNotifications((current) => ({ ...current, [key]: event.target.checked }))} /><span /></label>)}</div></section><section className="member-panel member-security"><div className="member-panel-head"><div><h3>로그인·보안</h3><p>아이디와 계정 접근 문제를 관리합니다.</p></div></div><div><span><KeyRound /></span><div><strong>로그인 정보</strong><p>{accountState.identity?.loginId || currentProfile.email}</p><small>비밀번호를 잊었거나 이메일 접근이 어렵다면 로그인 도움에서 본인 확인 절차를 진행하세요.</small></div><a className="button outline" href={withBase('/account/recovery')}>아이디·비밀번호 도움</a></div><div><span><ShieldCheck /></span><div><strong>개인정보처리방침·약관</strong><p>수집 항목과 보관 기간, 회원 탈퇴 처리 기준을 확인할 수 있습니다.</p></div><a className="button outline" href={withBase('/privacy')}>처리방침 보기</a></div></section><button className="button primary member-save" type="submit" disabled={saveBusy}>{saveBusy ? '저장 중…' : '변경사항 저장'}</button></form><PasswordChange /><WithdrawSection /></>}
         {tab === 'inquiries' && role === 'hospital' && <section className="member-panel member-candidate-panel" id="member-recommended-candidates"><div className="member-panel-head"><div><h3>추천 후보 상세</h3><p>후보자의 동의가 확인된 추천 건만 표시됩니다.</p></div></div>{recommendedCandidates.length ? <div className="member-candidate-grid">{recommendedCandidates.map((candidate) => <article key={candidate.code}><span><UserRound /></span><div><small>{candidate.updatedAt ? String(candidate.updatedAt).slice(0,10) : '최근 업데이트'}</small><strong>{[candidate.specialty, candidate.positionTitle].filter(Boolean).join(' · ') || '추천 의료인'}</strong><p>현재 단계 · {candidate.stage || candidate.submissionStatus || '조건 확인'}</p></div><em className={statusClass(candidate.stage || '')}>{candidate.stage || '추천'}</em></article>)}</div> : <div className="member-empty"><UserRound /><strong>아직 추천 후보가 없습니다</strong><p>동의가 완료된 후보가 연결되면 이곳에 상세 진행 단계가 표시됩니다.</p></div>}</section>}

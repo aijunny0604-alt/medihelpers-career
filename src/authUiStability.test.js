@@ -16,7 +16,7 @@ test('auth-sensitive pages reuse the single app account lookup', async () => {
   assert.match(source, /<AdvertisePage qa=\{qa\} auth=\{auth\}/);
   assert.match(source, /<TalentUnlockPage route=\{route\} qa=\{qa\} auth=\{auth\}/);
   assert.match(source, /<MemberCenterPage[^>]*auth=\{auth\}/);
-  assert.equal((source.match(/fetch\('\/api\/account'/g) || []).length, 1);
+  assert.equal((source.match(/lookupAccount\(\{ signal:controller.signal \}\)/g) || []).length, 1);
   assert.doesNotMatch(medicalStaff, /\/api\/account/);
   assert.doesNotMatch(headhunter, /\/api\/account/);
   assert.doesNotMatch(profileHook, /fetch\(/);
@@ -36,9 +36,9 @@ test('member center follows the shared role immediately after a test-account swi
 test('transient account lookup failures do not downgrade a confirmed member to guest', async () => {
   const source = await readFile(new URL('./main.jsx', import.meta.url), 'utf8');
   const authHook = source.slice(source.indexOf('function useAuthGate'), source.indexOf('function AuthGate'));
-  assert.match(authHook, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
-  assert.match(authHook, /current\.status === 'member' \? current/);
-  assert.match(authHook, /recoveryTimer = window\.setTimeout\(\(\) => load\(\{ showLoading:false \}\), 3000\)/);
+  assert.match(authHook, /\.\.\.current, lookupError:error\.message, lookupPending:false/);
+  assert.match(authHook, /retryLookup\.current = \(\) => load\(\)/);
+  assert.doesNotMatch(authHook, /recoveryTimer|setTimeout/);
   assert.doesNotMatch(authHook, /\.catch\([\s\S]*status: 'guest'/);
 });
 
@@ -93,6 +93,6 @@ test('role switching applies the server role immediately and ignores stale accou
   assert.match(source, /sequence !== requestSequence\.current/);
   assert.match(source, /event\.detail\?\.result/);
   assert.match(source, /status:'member'/);
-  assert.match(source, /load\(\{ showLoading:false \}\)/);
+  assert.match(source, /load\(\{ replace:true \}\)/);
   assert.doesNotMatch(source, /window\.location\.assign\(withBase\(resolveAccountSwitchDestination/);
 });

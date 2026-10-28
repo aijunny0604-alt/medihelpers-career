@@ -48,11 +48,7 @@ export function requestMemberRefund(orderNumber, reason, options) {
     '환불 요청의 접수 결과를 확인하지 못했습니다. 입력한 사유는 유지됩니다. 중복 요청 전에 결제 내역을 새로고침해 접수 여부를 확인해주세요.', options);
 }
 
-export function loadMemberPaymentDetails(options) {
-  return requestWorkflow('/api/member-center', undefined,
-    result => result.signedIn === true && Array.isArray(result.orders) && Array.isArray(result.refunds),
-    '최신 결제 내역을 확인하지 못했습니다. 기존 내역은 유지됩니다. 잠시 후 처리 결과를 새로고침해주세요.', options, 'GET');
-}
+export { loadMemberPaymentDetails } from './memberReadApi.js';
 
 const validRecordId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const objectValue = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);

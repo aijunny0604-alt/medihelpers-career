@@ -80,6 +80,7 @@ function refundHarness(fetchImpl, refresh=true) {
   const start=memberSource.indexOf('  const submitRefund = async (orderNumber) => {');
   const stop=memberSource.indexOf('\n  };',start)+5;
   const context={refundReason:'합성 환불 사유',refundLock:{current:false},setRefundBusy:value=>context.busy=value,
+    paymentSession:{active:true,request:null},
     setRefundMsg:value=>context.message=value,setServerData:fn=>context.data=fn(context.data),
     setRefundFor:value=>context.refundFor=value,setRefundReason:value=>context.refundReason=value,
     refreshPaymentDetails:async()=>refresh,

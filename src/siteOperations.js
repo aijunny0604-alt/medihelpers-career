@@ -32,6 +32,15 @@ function publishState(next) {
 // 짧은 TTL을 두고, 등록 성공 시에는 invalidateSiteOperations()로 즉시 캐시를 버린다.
 const OPERATIONS_TTL_MS = 15000;
 
+function validOperationsResponse(value) {
+  const record = item => item !== null && typeof item === 'object' && !Array.isArray(item);
+  if (!record(value) || !Array.isArray(value.contents)) return false;
+  if (['settings', 'features'].some(key => value[key] != null && !record(value[key]))) return false;
+  return value.contents.every(item => record(item)
+    && (item.payload == null || record(item.payload))
+    && ['title', 'subtitle', 'contentType', 'createdAt', 'publishedAt'].every(key => item[key] == null || typeof item[key] === 'string'));
+}
+
 export function siteOperationsFailure(value) {
   if (value?.code === 'REQUEST_TIMEOUT') return {error:true,errorCode:'REQUEST_TIMEOUT',errorMessage:'채용정보 응답이 지연되어 조회를 중단했습니다. 다시 불러오기를 눌러주세요. 등록된 공고는 그대로 보관되어 있습니다.'};
   if (value?.code === 'NETWORK_ERROR') return {error:true,errorCode:'NETWORK_ERROR',errorMessage:'채용정보 서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 불러오기를 눌러주세요.'};
@@ -65,7 +74,7 @@ export function loadOperations(force = false) {
     pending = Promise.race([request, deadline])
       .then((value) => {
         if (revision !== requestRevision) return pending;
-        if (!value || typeof value !== 'object' || !Array.isArray(value.contents)) throw {code:'INVALID_RESPONSE'};
+        if (!validOperationsResponse(value)) throw {code:'INVALID_RESPONSE'};
         value = sanitizeDisplayData(value);
         cached = { ...defaultSiteOperations, ...value, settings:{ ...defaultSiteOperations.settings, ...(value.settings || {}) }, features:{ ...defaultSiteOperations.features, ...(value.features || {}) } };
         fetchedAt = Date.now();

@@ -21,7 +21,7 @@ test('계정 도움 요청은 D1 API 저장 성공 뒤에만 완료 화면을 �
 
 test('이력서 문서 첨부를 허용하지 않고 실제 업로드되는 프로필 사진만 받는다', () => {
   assert.match(resumePage, /accept="image\/jpeg,image\/png,image\/webp"/);
-  assert.match(resumePage, /uploadResumePhoto\(photoFile\)/);
+  assert.match(resumePage, /uploadResumePhoto\(photoFile, \{ signal:controller\.signal \}\)/);
   assert.doesNotMatch(resumePage, /accept="[^"]*(pdf|docx)/i);
   assert.doesNotMatch(requestPage, /name="attachment"/);
   assert.doesNotMatch(requestPage, /attachmentName:\s*file/);

@@ -6,6 +6,26 @@ export const IMAGE_MAX_PIXELS = 32_000_000;
 export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const limits = { logo:1200, banner:2400, facility:2048, poster:4000, 'resume-profile':1200, photo:2048 };
 
+// 이미 충분히 작은 정적 PNG는 압축 픽셀을 다시 만들면 더 커질 수 있다.
+// 해독 확인 후 픽셀·색·알파 청크만 보존한다. EXIF/애니메이션/미확인 청크는
+// 방향과 표현을 임의로 바꾸지 않도록 기존 canvas 처리에 맡긴다.
+function compactStaticPng(bytes) {
+  const keep = new Set(['IHDR','PLTE','IDAT','IEND','tRNS','gAMA','cHRM','sRGB','iCCP','sBIT','bKGD','pHYs']);
+  const remove = new Set(['tEXt','zTXt','iTXt','tIME']);
+  const parts = [bytes.subarray(0,8)];
+  const view = new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  for (let p=8, chunks=0; p+12<=bytes.length && chunks<2048; chunks++) {
+    const end = p + 12 + view.getUint32(p);
+    if (end>bytes.length) return null;
+    const kind = String.fromCharCode(...bytes.subarray(p+4,p+8));
+    if (keep.has(kind)) parts.push(bytes.subarray(p,end));
+    else if (!remove.has(kind)) return null;
+    if (kind==='IEND') return end===bytes.length ? new Blob(parts,{type:'image/png'}) : null;
+    p=end;
+  }
+  return null;
+}
+
 export function imageOutputSize(width, height, purpose) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1 || width > 24000 || height > 24000 || width * height > IMAGE_MAX_PIXELS) {
     throw new Error('이미지 해상도가 너무 크거나 올바르지 않습니다. 3,200만 화소 이하의 원본을 선택해주세요.');
@@ -66,14 +86,17 @@ async function encodeImage(image, width, height, type, quality) {
 // 같은 파일을 미리보기와 제출에서 다시 처리하지 않는다. 실패 결과는 캐시하지 않는다.
 export function createImageOptimizer({ decode = decodeImage, encode = encodeImage, inspect = inspectUploadImage } = {}) {
   const cache = new WeakMap();
+  // 서로 다른 선택창과 빠른 재선택도 원본 읽기부터 인코딩까지 하나씩 처리한다.
+  // 완료 값은 큐에 보관하지 않고 실패해도 다음 작업을 진행한다.
+  let queue = Promise.resolve();
   return function prepare(file, purpose = 'photo') {
     if (!file || typeof file.arrayBuffer !== 'function') return Promise.reject(new Error('이미지 파일을 선택해주세요.'));
+    if (!IMAGE_TYPES.includes(file.type)) return Promise.reject(new Error('JPG·PNG·WEBP 이미지 파일만 등록할 수 있습니다.'));
+    if (!file.size || file.size > IMAGE_SOURCE_MAX_BYTES) return Promise.reject(new Error('원본 이미지는 0바이트보다 크고 20MB 이하여야 합니다.'));
     let variants = cache.get(file);
     if (!variants) { variants = new Map(); cache.set(file, variants); }
     if (variants.has(purpose)) return variants.get(purpose);
-    const work = (async () => {
-      if (!IMAGE_TYPES.includes(file.type)) throw new Error('JPG·PNG·WEBP 이미지 파일만 등록할 수 있습니다.');
-      if (!file.size || file.size > IMAGE_SOURCE_MAX_BYTES) throw new Error('원본 이미지는 0바이트보다 크고 20MB 이하여야 합니다.');
+    const work = queue.then(async () => {
       const bytes = new Uint8Array(await deadline(file.arrayBuffer(), 15000, '이미지 파일을 읽는 시간이 초과됐습니다. 다시 선택해주세요.'));
       const header = inspect(bytes, file.type);
       if (!header) throw new Error('이미지 형식이나 파일 내용이 올바르지 않습니다. 원본 이미지를 다시 선택해주세요.');
@@ -81,9 +104,10 @@ export function createImageOptimizer({ decode = decodeImage, encode = encodeImag
       const image = await decode(file);
       try {
         let { width, height } = imageOutputSize(image.width, image.height, purpose);
-        let blob;
+        let blob = file.type === 'image/png' && width === image.width && height === image.height && header.width === image.width && header.height === image.height
+          ? compactStaticPng(bytes) : null;
         // PNG는 먼저 무손실로 저장한다. 큰 PNG는 알파를 보존하는 WebP로 줄인다.
-        for (let attempt = 0; attempt < 5; attempt++) {
+        for (let attempt = 0; (!blob || blob.size > IMAGE_OUTPUT_MAX_BYTES) && attempt < 5; attempt++) {
           const type = file.type === 'image/jpeg' ? 'image/jpeg' : file.type === 'image/png' && attempt === 0 ? 'image/png' : 'image/webp';
           blob = await encode(image, width, height, type, attempt === 0 ? 0.94 : 0.9);
           if (!blob || !IMAGE_TYPES.includes(blob.type) || !blob.size) throw new Error('이미지를 변환하지 못했습니다. 다시 선택해주세요.');
@@ -102,7 +126,8 @@ export function createImageOptimizer({ decode = decodeImage, encode = encodeImag
         cache.set(output, new Map([[purpose, Promise.resolve(result)]]));
         return result;
       } finally { image.close?.(); }
-    })();
+    });
+    queue = work.then(() => undefined, () => undefined);
     variants.set(purpose, work);
     work.catch(() => { if (variants.get(purpose) === work) variants.delete(purpose); });
     return work;

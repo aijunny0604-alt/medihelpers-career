@@ -24,7 +24,7 @@ import {
   validateField
 } from './signupFields.js';
 import { withBase } from './basePath.js';
-import { authRequest, TEST_ACCOUNTS } from './accountApi.js';
+import { authRequest, publishAuthChange, TEST_ACCOUNTS } from './accountApi.js';
 export { authRequest, TEST_ACCOUNTS } from './accountApi.js';
 import { resolveLoginDestination } from './loginRedirect.js';
 import { revealAndFocusField } from './formFocus.js';
@@ -103,10 +103,11 @@ const FIELD_META = {
   fax: { label: '팩스번호', optional: true, type: 'tel', inputMode: 'numeric', placeholder: '02-0000-0000', phone: true }
 };
 
-async function accountRequest(method = 'GET', body) {
+async function accountRequest(method = 'GET', body, { signal } = {}) {
   const response = await fetch('/api/account', {
     method,
     credentials: 'same-origin',
+    signal,
     headers: body ? { 'content-type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined
   });
@@ -337,10 +338,17 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   const [businessDocument, setBusinessDocument] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const submitLock = useRef(false);
+  const mounted = useRef(false);
+  const requestController = useRef(null);
   const [documentDragging, setDocumentDragging] = useState(false);
   const formRef = useRef(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; requestController.current?.abort(); };
+  }, []);
 
   const chooseBusinessDocument = (file, input) => {
+    if (submitLock.current || !mounted.current) return;
     if (!file) return;
     const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     const error = !allowed.includes(file.type) ? 'PDF, JPG, PNG, WEBP 파일만 등록할 수 있습니다.' : !file.size ? '비어 있는 파일입니다. 원본 사업자등록증을 선택해주세요.' : file.size > 10 * 1024 * 1024 ? '파일은 10MB 이하로 등록해주세요.' : '';
@@ -356,6 +364,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   };
 
   const setField = (field, value) => {
+    if (submitLock.current || !mounted.current) return;
     const nextValue = FIELD_META[field]?.phone ? formatKoreanPhone(value) : value;
     setDraft((current) => {
       const next = { ...current, [field]: nextValue };
@@ -377,6 +386,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   };
 
   const toggleConsent = (key, value) => {
+    if (submitLock.current) return;
     setDraft((current) => {
       const next = { ...current, [key]: value === true };
       if (submittedOnce) setErrors((currentErrors) => ({ ...currentErrors, [key]: value === true ? '' : currentErrors[key] }));
@@ -385,6 +395,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
   };
 
   const toggleAllConsents = (value) => {
+    if (submitLock.current) return;
     setDraft((current) => {
       const next = setAllConsents(current, value);
       if (submittedOnce) setErrors((currentErrors) => ({
@@ -397,9 +408,21 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     });
   };
 
+  const toggleOptionalPrivacyConsent = (value) => {
+    if (!submitLock.current) setOptionalPrivacyConsent(value === true);
+  };
+  const toggleHospitalDocumentConsent = (value) => {
+    if (submitLock.current) return;
+    setHospitalDocumentConsent(value === true);
+    setErrors(current => ({ ...current, hospitalDocumentConsent:'' }));
+  };
+  const removeBusinessDocument = () => {
+    if (!submitLock.current) setBusinessDocument(null);
+  };
+
   const submit = async (event) => {
     event.preventDefault();
-    if (submitLock.current) return;
+    if (submitLock.current || !mounted.current) return;
     setSubmittedOnce(true);
     const optionalFields = ['specialty','birthYear','gender','institutionType','hospitalRole','department','addressDetail','website','fax'];
     // 미동의 선택정보는 검증·전송 대상에서 제외한다. 필수 정보는 그대로 검증한다.
@@ -425,6 +448,15 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     }
     submitLock.current = true;
     setSubmitting(true);
+    const controller = new AbortController();
+    requestController.current = controller;
+    const current = () => mounted.current && requestController.current === controller && !controller.signal.aborted;
+    const finish = () => {
+      if (requestController.current !== controller) return;
+      requestController.current = null;
+      submitLock.current = false;
+      if (mounted.current) setSubmitting(false);
+    };
     if (signedIn) {
       try {
         const result = await accountRequest('POST', {
@@ -433,13 +465,15 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
           termsAccepted: true,
           privacyAcknowledged: true,
           ageConfirmed: true
-        });
+        }, { signal:controller.signal });
+        if (!current()) return;
+        if (result?.error || result?.account?.role !== memberType) throw new Error('가입 완료 응답을 확인하지 못했습니다. 입력한 아이디로 로그인해 가입 여부를 확인해주세요.');
         onComplete(result.account);
         return;
       } catch (requestError) {
-        setErrors((current) => ({ ...current, submit: requestError.message }));
+        if (current()) setErrors((current) => ({ ...current, submit: requestError.message }));
         return;
-      } finally { submitLock.current=false; setSubmitting(false); }
+      } finally { finish(); }
     }
     try {
       const payload = {
@@ -473,12 +507,16 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
         requestBody.append('payload', JSON.stringify(payload));
         requestBody.append('businessDocument', businessDocument);
       }
-      const result = await authRequest('register', requestBody);
+      const result = await authRequest('register', requestBody, { signal:controller.signal, notifyAuthChange:false });
+      if (!current()) return;
       setDraft((current) => clearDraftFields(current));
+      // 인증 상태 갱신으로 가입 폼이 사라지기 전에 현재 요청인지 확인한다.
+      // 아래 통지와 완료 이동 사이에는 비동기 작업을 두지 않는다.
+      publishAuthChange('register', result);
       onComplete(result.account, result.identity);
     } catch (requestError) {
-      setErrors((current) => ({ ...current, submit: requestError.message }));
-    } finally { submitLock.current=false; setSubmitting(false); }
+      if (current()) setErrors((current) => ({ ...current, submit: requestError.message }));
+    } finally { finish(); }
   };
 
   const consentError = submittedOnce && (errors.termsAccepted || errors.privacyAccepted || errors.ageConfirmed);
@@ -498,6 +536,8 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
     <h2>{content.label} 가입</h2>
     <p>{memberType === 'hospital' ? '채용 담당자 정보와 병원 기본정보, 사업자등록증을 함께 제출하면 병원 회원가입과 로그인이 바로 완료됩니다.' : '계정 정보와 의료 직군을 먼저 등록합니다. 경력과 자기소개는 가입 후 이력서에서 작성할 수 있습니다.'}</p>
     <form ref={formRef} onSubmit={submit} noValidate>
+      <fieldset disabled={submitting} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
+      <legend className="sr-only">가입 정보와 약관 동의</legend>
       {memberType === 'hospital' ? <>
         <section className="signup-form-section">
           <header><span>01</span><div><h3>담당자 계정</h3><p>공고·문의·결제 알림을 실제로 받을 담당자 정보를 입력해주세요.</p></div></header>
@@ -513,21 +553,21 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
             id={`signup-${memberType}-businessDocument`}
             className={`hospital-document-upload ${documentDragging ? 'is-dragging' : ''} ${errors.businessDocument ? 'has-error' : ''}`}
             tabIndex="0"
-            onDragEnter={(event) => { event.preventDefault(); setDocumentDragging(true); }}
-            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDocumentDragging(true); }}
+            onDragEnter={(event) => { event.preventDefault(); if (!submitLock.current) setDocumentDragging(true); }}
+            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = submitLock.current ? 'none' : 'copy'; if (!submitLock.current) setDocumentDragging(true); }}
             onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDocumentDragging(false); }}
             onDrop={(event) => { event.preventDefault(); setDocumentDragging(false); chooseBusinessDocument(event.dataTransfer.files?.[0]); }}
           >
             <span className="hospital-document-icon">{businessDocument ? <FileCheck2 /> : <Upload />}</span>
             <div><strong>{businessDocument ? businessDocument.name : '사업자등록증 파일을 선택하거나 끌어 놓으세요'}</strong><small>PDF · JPG · PNG · WEBP · 최대 10MB</small>{businessDocument && <em>{(businessDocument.size / 1024 / 1024).toFixed(2)}MB · 비공개 보관</em>}</div>
             <label className="button outline">파일 선택<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => chooseBusinessDocument(event.target.files?.[0], event.target)} /></label>
-            {businessDocument && <button type="button" className="hospital-document-remove" aria-label="첨부 파일 삭제" onClick={() => setBusinessDocument(null)}><X /></button>}
+            {businessDocument && <button type="button" className="hospital-document-remove" aria-label="첨부 파일 삭제" onClick={removeBusinessDocument}><X /></button>}
           </div>
           {errors.businessDocument && <p className="signup-field-error" role="alert">{errors.businessDocument}</p>}
           <p className="hospital-document-privacy"><ShieldCheck /> 비공개 서류입니다. 생년월일·주민등록번호 등 확인에 불필요한 정보는 가려서 제출해주세요.</p>
           <details className="hospital-document-notice"><summary>서류 이용 목적·보관 안내</summary><PrivacyNotice scope="hospitalDocument" /></details>
           <label className="signup-age-confirm">
-            <input id={`signup-${memberType}-hospitalDocumentConsent`} type="checkbox" checked={hospitalDocumentConsent} onChange={event => { setHospitalDocumentConsent(event.target.checked); setErrors(current => ({ ...current, hospitalDocumentConsent:'' })); }} aria-invalid={errors.hospitalDocumentConsent ? 'true' : undefined} />
+            <input id={`signup-${memberType}-hospitalDocumentConsent`} type="checkbox" checked={hospitalDocumentConsent} onChange={event => toggleHospitalDocumentConsent(event.target.checked)} aria-invalid={errors.hospitalDocumentConsent ? 'true' : undefined} />
             <span><b>필수</b><strong>병원 확인용 서류 수집·이용에 동의합니다.</strong><small>기관 확인에만 사용 · 확인 완료 시 삭제 · 최대 30일 보관</small></span>
           </label>
           {errors.hospitalDocumentConsent && <p className="signup-field-error" role="alert">{errors.hospitalDocumentConsent}</p>}
@@ -546,7 +586,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
       <details className="signup-optional-section">
         <summary>추가 정보 입력 <span>선택 · 나중에 입력할 수 있어요</span></summary>
         <p>동의한 경우에만 아래 정보를 저장합니다. 동의하지 않아도 회원가입할 수 있습니다.</p>
-        <AgreementItem id={`signup-${memberType}-optionalPrivacyConsent`} optional checked={optionalPrivacyConsent} onChange={setOptionalPrivacyConsent} title="추가 회원정보 수집·이용">
+        <AgreementItem id={`signup-${memberType}-optionalPrivacyConsent`} optional checked={optionalPrivacyConsent} onChange={toggleOptionalPrivacyConsent} title="추가 회원정보 수집·이용">
           <PrivacyNotice scope="signupOptional" />
         </AgreementItem>
         <fieldset disabled={!optionalPrivacyConsent} className="signup-optional-fields"><legend className="sr-only">선택 회원정보</legend><div className="signup-field-grid">{fields.filter(field => FIELD_META[field]?.optional).map(renderField)}</div></fieldset>
@@ -571,7 +611,7 @@ function SignupApplicationForm({ memberType, signedIn, onComplete }) {
           {consentError && <em role="alert">필수 동의 항목을 모두 확인해주세요.</em>}
         </div>
       </div>
-
+      </fieldset>
       {errors.submit && <p className="signup-error" role="alert">{errors.submit}</p>}
       <button className="button primary full" type="submit" disabled={submitting}>{submitting ? '가입 정보와 첨부 파일을 저장하는 중…' : signedIn ? '회원가입 완료' : '회원가입 신청'} <ArrowRight /></button>
       <a className="signup-switch-type" href={withBase(memberType === 'doctor' ? '/signup/hospital' : '/signup/doctor')}>대신 {memberType === 'doctor' ? '병원 회원' : '의료인 회원'}으로 작성</a>
@@ -921,7 +961,7 @@ export default function AccountPage({ memberType = '', loginOnly = false, auth }
   else if (state.account) content = <AccountCard account={state.account} identity={state.identity} />;
   else if (loginOnly) content = <LoginCard testAccountsEnabled={state.testAccountsEnabled !== false} />;
   else if (!memberType) content = <MemberTypeChooser />;
-  else content = <SignupApplicationForm memberType={memberType} signedIn={state.signedIn} onComplete={() => window.location.replace(withBase('/signup/welcome'))} />;
+  else content = <SignupApplicationForm key={memberType} memberType={memberType} signedIn={state.signedIn} onComplete={() => window.location.replace(withBase('/signup/welcome'))} />;
   return <div className="signup-page">
     <header className="signup-hero"><span><LockKeyhole /> {roleContent[memberType]?.eyebrow || 'MINIMUM DATA ACCOUNT'}</span><h1>{title}</h1><p>{roleContent[memberType]?.description || '의료인 회원과 병원 회원을 구분해 필요한 기능과 확인 절차만 제공합니다.'}</p></header>
     <div className="signup-shell signup-shell-centered">{error && <p className="signup-environment-note" role="alert">{error}</p>}{!DEMO_MODE && !state.loading && !state.account && !loginOnly && state.signupEnabled === false && <p className="signup-environment-note" role="status"><strong>현재 새 회원가입은 중단되어 있습니다.</strong><br />입력해도 가입이 완료되지 않으므로 개인정보를 작성하지 마세요. 기존 계정은 로그인 화면을 이용해주세요. 이전 보류 계정은 비밀번호를 변경해도 이용이 재개되지 않습니다.</p>}{content}</div>

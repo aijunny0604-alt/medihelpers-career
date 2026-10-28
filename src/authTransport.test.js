@@ -18,6 +18,6 @@ test('role switching updates shared auth state without reloading the current pag
   assert.match(accountSource, /window\.location\.replace\(target\)/);
   assert.match(apiSource, /detail:\{ action, result:data \}/);
   assert.match(mainSource, /const onAuthChanged = \(event\) =>/);
-  assert.match(mainSource, /load\(\{ showLoading:false \}\)/);
+  assert.match(mainSource, /load\(\{ replace:true \}\)/);
   assert.doesNotMatch(mainSource, /window\.location\.assign\(withBase\(resolveAccountSwitchDestination/);
 });

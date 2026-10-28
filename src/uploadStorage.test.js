@@ -146,7 +146,7 @@ test('doctor consultation and job application can select a saved resume', () => 
 test('doctor resume photo uploads to protected profile storage', () => {
   assert.match(resumePhotoSource, /'x-upload-purpose':'resume-profile'/);
   assert.match(resumePhotoSource, /RESUME_PHOTO_MAX_BYTES = 5 \* 1024 \* 1024/);
-  assert.match(resumePageSource, /await uploadResumePhoto\(photoFile\)/);
+  assert.match(resumePageSource, /await uploadResumePhoto\(photoFile, \{ signal:controller\.signal \}\)/);
   assert.match(resumePageSource, /detail: \{ region:form\.region, salary:form\.salary, introduction:form\.introduction, photoUrl, contactVisibility:'private' \}/);
   assert.match(serverSource, /isResumeProfile \? 'profiles\/' : 'hospitals\/'/);
   assert.match(serverSource, /이력서 사진은 의료인 회원 본인만 업로드/);

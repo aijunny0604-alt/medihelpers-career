@@ -1,19 +1,41 @@
 import { clearSessionToken, storeSessionToken } from './authTransport.js';
 import { DEMO_MODE } from './demoMode.js';
 
-export async function authRequest(action, body = {}, { timeoutMs = 30000, fetchImpl = fetch } = {}) {
+export function publishAuthChange(action, data) {
+  try { window.dispatchEvent(new CustomEvent('medihelpers:auth-changed', { detail:{ action, result:data } })); } catch {}
+}
+
+function requireRegistrationResult(data, body, formData) {
+  let submitted;
+  try { submitted = formData ? JSON.parse(body.get('payload')) : body; } catch {}
+  const email = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (data.error || !['doctor', 'hospital'].includes(data.account?.role) || data.account.role !== submitted?.role ||
+      !email(data.identity?.email) || email(data.identity.email) !== email(submitted?.email) ||
+      (data.identity.loginId != null && submitted?.loginId != null && data.identity.loginId !== String(submitted.loginId).trim())) {
+    throw new Error('가입 완료 응답을 확인하지 못했습니다. 가입이 완료되었을 수 있으니 입력한 아이디로 로그인해 확인해주세요.');
+  }
+}
+
+export async function authRequest(action, body = {}, { timeoutMs = 30000, fetchImpl = fetch, signal, notifyAuthChange = true } = {}) {
   const formData = typeof FormData !== 'undefined' && body instanceof FormData;
   const controller = new AbortController();
-  let timer;
+  const cancelled = () => Object.assign(new Error(action === 'register'
+    ? '가입 요청 대기를 중단했습니다. 가입이 완료되었을 수 있으니 입력한 아이디로 로그인해 확인해주세요.'
+    : '인증 요청이 취소되었습니다.'), { name:'AbortError' });
+  let timer, cancel;
   const deadline = new Promise((_, reject) => {
+    cancel = () => { controller.abort(); reject(cancelled()); };
     timer = setTimeout(() => {
       controller.abort();
       reject(new Error(action === 'register'
         ? '가입 응답이 지연됩니다. 가입이 완료되었을 수 있으니 입력한 아이디로 로그인해 확인해주세요.'
         : '서버 응답이 지연됩니다. 잠시 후 다시 시도해주세요.'));
     }, timeoutMs);
+    if (signal?.aborted) cancel();
+    else signal?.addEventListener('abort', cancel, { once:true });
   });
   const request = (async () => {
+    if (controller.signal.aborted) throw cancelled();
     const response = await fetchImpl(`/api/auth/${action}`, {
       method: 'POST',
       credentials: 'same-origin',
@@ -26,15 +48,17 @@ export async function authRequest(action, body = {}, { timeoutMs = 30000, fetchI
     if (!response.ok) throw new Error(data.error || '로그인 요청을 처리하지 못했습니다.');
     if (action === 'logout' && data.signedOut !== true) throw new Error('로그아웃 완료 응답을 확인하지 못했습니다. 다시 시도해주세요.');
     if (action !== 'logout' && data.signedIn !== true) throw new Error('로그인 완료 응답을 확인하지 못했습니다. 다시 시도해주세요.');
+    if (action === 'register') requireRegistrationResult(data, body, formData);
     return data;
   })();
   let data;
   try { data = await Promise.race([request, deadline]); }
-  finally { clearTimeout(timer); }
+  finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); }
   // 늦게 도착한 응답이 만료된 요청의 세션을 다시 저장하지 않도록 race 뒤에서 처리한다.
+  if (signal?.aborted) throw cancelled();
   if (data.sessionToken) storeSessionToken(data.sessionToken);
   if (action === 'logout') clearSessionToken();
-  try { window.dispatchEvent(new CustomEvent('medihelpers:auth-changed', { detail:{ action, result:data } })); } catch {}
+  if (notifyAuthChange) publishAuthChange(action, data);
   return data;
 }
 
